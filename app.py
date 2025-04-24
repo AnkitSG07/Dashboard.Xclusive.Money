@@ -65,16 +65,20 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
-    # Map symbols to security IDs (extendable)
-    SYMBOL_MAP = {
-        "RELIANCE": "1333",
-        "TCS": "11536",
-        "INFY": "10999"
-    }
+    # 🔄 Fetch and match security_id dynamically
+    search_name = symbol.strip().lower()
+    symbols = dhan.fetch_security_list("compact")
 
-    security_id = SYMBOL_MAP.get(symbol.upper())
+    security_id = None
+    for s in symbols:
+        if s["exchange_segment"] == "NSE_EQ" and (
+            search_name == s["symbol"].lower() or search_name in s["name"].lower()
+        ):
+            security_id = s["security_id"]
+            break
+
     if not security_id:
-        return jsonify({"error": "Symbol not mapped"}), 400
+        return jsonify({"error": f"Symbol '{symbol}' not found in NSE_EQ list"}), 400
 
     try:
         response = dhan.place_order(
