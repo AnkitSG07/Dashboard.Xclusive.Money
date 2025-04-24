@@ -208,47 +208,49 @@
         });
     }
 
-    function fetchPortfolio() {
-      fetch(`/api/portfolio/${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          const tbody = document.querySelector('#portfolio-table tbody');
-          tbody.innerHTML = '';
-          (data || []).forEach(holding => {
-            const row = `<tr>
-              <td>${holding.trading_symbol}</td>
-              <td>${holding.quantity}</td>
-              <td>${holding.buy_average_price}</td>
-              <td>${holding.ltp}</td>
-              <td>${holding.unrealized_pl}</td>
-            </tr>`;
-            tbody.innerHTML += row;
-          });
-        });
-    }
+function fetchPortfolio() {
+  fetch(`/api/portfolio/${userId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data)) return;
+      const tbody = document.querySelector('#portfolio-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(holding => {
+        const row = `<tr>
+          <td>${holding.trading_symbol}</td>
+          <td>${holding.quantity}</td>
+          <td>${holding.buy_average_price}</td>
+          <td>${holding.ltp}</td>
+          <td>${holding.unrealized_pl}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    });
+}
 
-    function fetchOrders() {
-      fetch(`/api/orders/${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          const summary = data.summary || {};
-          document.getElementById("total-trades").textContent = `Total Trades: ${summary.total_trades || 0}`;
-          document.getElementById("total-qty").textContent = `Total Qty: ${summary.total_quantity || 0}`;
-          document.getElementById("last-status").textContent = `Last Status: ${summary.last_status || '-'}`;
+function fetchOrders() {
+  fetch(`/api/orders/${userId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!data || typeof data !== "object") return;
+      const summary = data.summary || {};
+      document.getElementById("total-trades").textContent = `Total Trades: ${summary.total_trades || 0}`;
+      document.getElementById("total-qty").textContent = `Total Qty: ${summary.total_quantity || 0}`;
+      document.getElementById("last-status").textContent = `Last Status: ${summary.last_status || '-'}`;
 
-          const tbody = document.querySelector('#orders-table tbody');
-          tbody.innerHTML = '';
-          (data.orders || []).forEach(order => {
-            const row = `<tr>
-              <td>${order.trading_symbol}</td>
-              <td>${order.transaction_type}</td>
-              <td>${order.quantity}</td>
-              <td>${order.order_status}</td>
-            </tr>`;
-            tbody.innerHTML += row;
-          });
-        });
-    }
+      const tbody = document.querySelector('#orders-table tbody');
+      tbody.innerHTML = '';
+      (data.orders || []).forEach(order => {
+        const row = `<tr>
+          <td>${order.trading_symbol}</td>
+          <td>${order.transaction_type}</td>
+          <td>${order.quantity}</td>
+          <td>${order.order_status}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    });
+}
 
     function fetchAccountStats() {
       fetch(`/api/account/${userId}`)
