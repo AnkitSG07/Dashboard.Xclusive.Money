@@ -81,8 +81,8 @@ def webhook(user_id):
 
     for s in symbols:
         if s.get("exchange_segment") == "NSE_EQ" and (
-            search_name == str(s.get("symbol", "")).lower()
-            or search_name in str(s.get("name", "")).lower()
+            search_name in str(s.get("symbol", "")).lower().replace(" ", "") 
+            or search_name in str(s.get("name", "")).lower().replace(" ", "")
         ):
             security_id = s.get("security_id")
             break
