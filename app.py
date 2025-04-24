@@ -44,6 +44,7 @@ def save_log(user_id, symbol, action, quantity, status, response):
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
+    
     data = request.json
     symbol = data.get("symbol")
     action = data.get("action")
@@ -56,7 +57,7 @@ def webhook(user_id):
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
-    except:
+    except FileNotFoundError:
         return jsonify({"error": "User DB not found"}), 500
 
     if user_id not in users:
@@ -70,19 +71,29 @@ def webhook(user_id):
     # 🔄 Fetch live symbol list from Dhan and parse it
     try:
         df = dhan.fetch_security_list("compact")
+        # Explicitly convert potential mixed-type columns (14 and 15) to string if they exist
+        if df.shape[1] > 15:
+            col14_name = df.columns[14] if 14 < len(df.columns) else None
+            col15_name = df.columns[15] if 15 < len(df.columns) else None
+            if col14_name is not None:
+                df[col14_name] = df[col14_name].astype(str)
+            if col15_name is not None:
+                df[col15_name] = df[col15_name].astype(str)
         symbols = df.to_dict(orient="records")
 
     except Exception as e:
         return jsonify({"error": f"Failed to fetch symbol list: {str(e)}"}), 500
 
-    # 🔍 Match symbol from TradingView alert
-    search_name = symbol.strip().lower()
+    # 🔍 Match symbol from TradingView alert (Improved)
+    search_name = symbol.strip().lower().replace(" ", "")
     security_id = None
 
     for s in symbols:
+        dhan_symbol = str(s.get("symbol", "")).strip().lower().replace(" ", "")
+        dhan_name = str(s.get("name", "")).strip().lower().replace(" ", "")
+
         if s.get("exchange_segment") == "NSE_EQ" and (
-            search_name in str(s.get("symbol", "")).lower().replace(" ", "") 
-            or search_name in str(s.get("name", "")).lower().replace(" ", "")
+            search_name in dhan_symbol or search_name in dhan_name
         ):
             security_id = s.get("security_id")
             break
