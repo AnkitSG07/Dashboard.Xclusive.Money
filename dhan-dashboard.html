@@ -3,73 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dhan Webhook Dashboard</title>
+  <title>Dhan Trade Logs</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background-color: #0f0f0f;
       color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       padding: 2rem;
     }
-    input, select, button {
-      padding: 0.5rem;
-      margin: 0.5rem;
-      border-radius: 8px;
-      border: none;
-      width: 300px;
+    h2 {
+      text-align: center;
+      color: #00c6ff;
     }
-    button {
-      background-color: #0072ff;
-      color: white;
-      cursor: pointer;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 2rem;
     }
-    .response {
-      margin-top: 1rem;
-      background: #1e1e1e;
-      padding: 1rem;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 600px;
-      white-space: pre-wrap;
-      font-family: monospace;
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #333;
+    }
+    th {
+      background-color: #1e1e1e;
+      color: #00c6ff;
+    }
+    tr:nth-child(even) {
+      background-color: #1a1a1a;
     }
   </style>
 </head>
 <body>
-  <h2>Dhan Trading Webhook Tester</h2>
-  <input id="symbol" placeholder="Symbol (e.g. RELIANCE)" />
-  <select id="action">
-    <option value="BUY">BUY</option>
-    <option value="SELL">SELL</option>
-  </select>
-  <input id="quantity" type="number" placeholder="Quantity" />
-  <button onclick="sendOrder()">Send Order</button>
-  <div class="response" id="response"></div>
+  <h2>Latest Dhan Trade Logs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Client ID</th>
+        <th>Symbol</th>
+        <th>Action</th>
+        <th>Quantity</th>
+        <th>Status</th>
+        <th>Response</th>
+      </tr>
+    </thead>
+    <tbody id="logTableBody">
+      <!-- Logs will be inserted here -->
+    </tbody>
+  </table>
 
   <script>
-    async function sendOrder() {
-      const symbol = document.getElementById('symbol').value;
-      const action = document.getElementById('action').value;
-      const quantity = document.getElementById('quantity').value;
-
-      const resBox = document.getElementById('response');
-      resBox.textContent = 'Placing order...';
-
+    async function fetchLogs() {
       try {
-        const res = await fetch('/dhan-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol, action, quantity })
+        const response = await fetch('/logs');
+        const logs = await response.json();
+        const tableBody = document.getElementById('logTableBody');
+        tableBody.innerHTML = '';
+
+        logs.forEach(log => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${log.timestamp}</td>
+            <td>${log.client_id}</td>
+            <td>${log.symbol}</td>
+            <td>${log.action}</td>
+            <td>${log.quantity}</td>
+            <td>${log.status}</td>
+            <td>${log.response}</td>
+          `;
+          tableBody.appendChild(row);
         });
-        const data = await res.json();
-        resBox.textContent = JSON.stringify(data, null, 2);
-      } catch (e) {
-        resBox.textContent = 'Error: ' + e.message;
+      } catch (error) {
+        console.error('Error fetching logs:', error);
       }
     }
+
+    // Initial load and refresh every 10 seconds
+    fetchLogs();
+    setInterval(fetchLogs, 10000);
   </script>
 </body>
 </html>
