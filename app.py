@@ -3,6 +3,8 @@ from dhanhq import dhanhq
 import sqlite3
 import os
 import json
+import pandas as pd
+import io
 from datetime import datetime
 
 app = Flask(__name__)
@@ -65,16 +67,24 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
-    # 🔄 Fetch and match security_id dynamically
-    search_name = symbol.strip().lower()
-    symbols = dhan.fetch_security_list("compact")
+    # 🔄 Fetch live symbol list from Dhan and parse it
+    try:
+        csv_data = dhan.fetch_security_list("compact")
+        df = pd.read_csv(io.StringIO(csv_data))
+        symbols = df.to_dict(orient="records")
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch symbol list: {str(e)}"}), 500
 
+    # 🔍 Match symbol from TradingView alert
+    search_name = symbol.strip().lower()
     security_id = None
+
     for s in symbols:
-        if s["exchange_segment"] == "NSE_EQ" and (
-            search_name == s["symbol"].lower() or search_name in s["name"].lower()
+        if s.get("exchange_segment") == "NSE_EQ" and (
+            search_name == str(s.get("symbol", "")).lower()
+            or search_name in str(s.get("name", "")).lower()
         ):
-            security_id = s["security_id"]
+            security_id = s.get("security_id")
             break
 
     if not security_id:
