@@ -153,6 +153,60 @@ def get_logs():
 
     return jsonify(logs)
 
+# === API to get live portfolio snapshot (holdings) ===
+@app.route("/api/portfolio/<user_id>")
+def get_portfolio(user_id):
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+    except:
+        return jsonify({"error": "User DB not found"}), 500
+
+    if user_id not in users:
+        return jsonify({"error": "Invalid user ID"}), 403
+
+    user = users[user_id]
+    dhan = dhanhq(user["client_id"], user["access_token"])
+
+    try:
+        holdings = dhan.get_holdings()
+        return jsonify(holdings)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# === API to get trade summary and open orders ===
+@app.route("/api/orders/<user_id>")
+def get_orders(user_id):
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+    except:
+        return jsonify({"error": "User DB not found"}), 500
+
+    if user_id not in users:
+        return jsonify({"error": "Invalid user ID"}), 403
+
+    user = users[user_id]
+    dhan = dhanhq(user["client_id"], user["access_token"])
+
+    try:
+        orders = dhan.get_order_list()
+        total_trades = len(orders)
+        last_order = orders[0] if orders else {}
+        total_qty = sum(int(o.get("quantity", 0)) for o in orders)
+
+        return jsonify({
+            "orders": orders,
+            "summary": {
+                "total_trades": total_trades,
+                "last_status": last_order.get("order_status", "N/A"),
+                "total_quantity": total_qty
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # === Page routes ===
 @app.route('/')
 def home():
