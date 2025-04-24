@@ -206,6 +206,26 @@ def get_orders(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/account/<user_id>")
+def get_account_stats(user_id):
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+    except:
+        return jsonify({"error": "User DB not found"}), 500
+
+    if user_id not in users:
+        return jsonify({"error": "Invalid user ID"}), 403
+
+    user = users[user_id]
+    dhan = dhanhq(user["client_id"], user["access_token"])
+
+    try:
+        stats = dhan.get_fund_limits()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # === Page routes ===
 @app.route('/')
