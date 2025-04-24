@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dhan Webhook Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0f0f0f;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    input, select, button {
+      padding: 0.5rem;
+      margin: 0.5rem;
+      border-radius: 8px;
+      border: none;
+      width: 300px;
+    }
+    button {
+      background-color: #0072ff;
+      color: white;
+      cursor: pointer;
+    }
+    .response {
+      margin-top: 1rem;
+      background: #1e1e1e;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h2>Dhan Trading Webhook Tester</h2>
+  <input id="symbol" placeholder="Symbol (e.g. RELIANCE)" />
+  <select id="action">
+    <option value="BUY">BUY</option>
+    <option value="SELL">SELL</option>
+  </select>
+  <input id="quantity" type="number" placeholder="Quantity" />
+  <button onclick="sendOrder()">Send Order</button>
+  <div class="response" id="response"></div>
+
+  <script>
+    async function sendOrder() {
+      const symbol = document.getElementById('symbol').value;
+      const action = document.getElementById('action').value;
+      const quantity = document.getElementById('quantity').value;
+
+      const resBox = document.getElementById('response');
+      resBox.textContent = 'Placing order...';
+
+      try {
+        const res = await fetch('/dhan-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, action, quantity })
+        });
+        const data = await res.json();
+        resBox.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        resBox.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
