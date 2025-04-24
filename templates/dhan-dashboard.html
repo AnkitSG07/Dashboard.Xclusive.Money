@@ -2,42 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dhan Dashboard</title>
+  <title>Your Dhan Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    .webhook-box {
       margin-top: 20px;
-    }
-    th, td {
-      border: 1px solid #888;
-      padding: 8px;
-      text-align: center;
-    }
-    th {
-      background-color: #444;
-      color: #fff;
+      padding: 15px;
+      background: #121212;
+      border: 1px solid #00ffe5;
+      border-radius: 8px;
+      color: #00ffe5;
+      font-family: monospace;
+      width: fit-content;
     }
     .logout {
       position: fixed;
-      top: 10px;
-      right: 10px;
-      background: red;
+      top: 15px;
+      right: 15px;
+      background: #ff3c3c;
       color: white;
       border: none;
-      padding: 8px 12px;
+      padding: 8px 14px;
+      border-radius: 6px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h2>📊 Your Trade Logs</h2>
+  <h2>📊 Welcome to Your Trade Log</h2>
   <button class="logout" onclick="logout()">Logout</button>
+
+  <div class="webhook-box" id="webhook-url">
+    Loading webhook...
+  </div>
+
   <table id="log-table">
     <thead>
       <tr>
-        <th>Timestamp</th>
+        <th>Time</th>
         <th>Symbol</th>
         <th>Action</th>
         <th>Qty</th>
@@ -49,15 +51,19 @@
   </table>
 
   <script>
-    const clientId = localStorage.getItem('client_id');
-    const accessToken = localStorage.getItem('access_token');
-
-    if (!clientId || !accessToken) {
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
       window.location.href = "/";
     }
 
+    const baseUrl = window.location.origin;
+    document.getElementById("webhook-url").innerHTML = `
+      🔗 Your Webhook URL:<br><br>
+      <code>${baseUrl}/webhook/${userId}</code>
+    `;
+
     function fetchLogs() {
-      fetch(`/logs?client_id=${clientId}`)
+      fetch(`/logs?user_id=${userId}`)
         .then(res => res.json())
         .then(data => {
           const tbody = document.querySelector('#log-table tbody');
