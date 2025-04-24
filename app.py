@@ -44,7 +44,6 @@ def save_log(user_id, symbol, action, quantity, status, response):
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
-    
     data = request.json
     symbol = data.get("symbol")
     action = data.get("action")
@@ -68,38 +67,23 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
-    # 🔄 Fetch live symbol list from Dhan and parse it
-    try:
-        df = dhan.fetch_security_list("compact")
-        # Explicitly convert potential mixed-type columns (14 and 15) to string if they exist
-        if df.shape[1] > 15:
-            col14_name = df.columns[14] if 14 < len(df.columns) else None
-            col15_name = df.columns[15] if 15 < len(df.columns) else None
-            if col14_name is not None:
-                df[col14_name] = df[col14_name].astype(str)
-            if col15_name is not None:
-                df[col15_name] = df[col15_name].astype(str)
-        symbols = df.to_dict(orient="records")
+    # ✅ Static SYMBOL_MAP
+    SYMBOL_MAP = {
+        "RELIANCE": "2885",
+        "TCS": "11536",
+        "INFY": "10999",
+        "ADANIPORTS": "15083",
+        "HDFCBANK": "1333",
+        "SBIN": "3045",
+        "ICICIBANK": "4963",
+        "AXISBANK": "1343",
+        "ITC": "1660"
+    }
 
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch symbol list: {str(e)}"}), 500
-
-    # 🔍 Match symbol from TradingView alert (Improved)
-    search_name = symbol.strip().lower().replace(" ", "")
-    security_id = None
-
-    for s in symbols:
-        dhan_symbol = str(s.get("symbol", "")).strip().lower().replace(" ", "")
-        dhan_name = str(s.get("name", "")).strip().lower().replace(" ", "")
-
-        if s.get("exchange_segment") == "NSE_EQ" and (
-            search_name in dhan_symbol or search_name in dhan_name
-        ):
-            security_id = s.get("security_id")
-            break
+    security_id = SYMBOL_MAP.get(symbol.strip().upper())
 
     if not security_id:
-        return jsonify({"error": f"Symbol '{symbol}' not found in NSE_EQ list"}), 400
+        return jsonify({"error": f"Symbol '{symbol}' not found in SYMBOL_MAP"}), 400
 
     try:
         response = dhan.place_order(
@@ -116,6 +100,7 @@ def webhook(user_id):
     except Exception as e:
         save_log(user_id, symbol, action, quantity, "FAILED", str(e))
         return jsonify({"error": str(e)}), 500
+
 
 # === API to save new user from login form ===
 @app.route("/register", methods=["POST"])
