@@ -5,6 +5,15 @@
   <title>Your Dhan Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    body {
+      background: #0b0b0b;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 30px;
+    }
+    h2 {
+      color: #00ffe5;
+    }
     .webhook-box {
       margin-top: 20px;
       padding: 15px;
@@ -26,16 +35,51 @@
       border-radius: 6px;
       cursor: pointer;
     }
+    .card-container {
+      display: flex;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .card {
+      flex: 1;
+      padding: 20px;
+      background: #181818;
+      border-left: 5px solid #00ffe5;
+      border-radius: 6px;
+    }
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      background: #121212;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #333;
+    }
+    th {
+      background: #181818;
+      color: #00ffe5;
+    }
   </style>
 </head>
 <body>
-  <h2>📊 Welcome to Your Trade Log</h2>
+  <h2>📊 Welcome to Your Trade Dashboard</h2>
   <button class="logout" onclick="logout()">Logout</button>
 
-  <div class="webhook-box" id="webhook-url">
-    Loading webhook...
+  <!-- 🔗 Webhook Display -->
+  <div class="webhook-box" id="webhook-url">Loading webhook...</div>
+
+  <!-- 🔹 Summary Cards -->
+  <div class="card-container">
+    <div class="card" id="total-trades">Total Trades: -</div>
+    <div class="card" id="total-qty">Total Qty: -</div>
+    <div class="card" id="last-status">Last Status: -</div>
   </div>
 
+  <!-- 📄 Trade Logs -->
+  <h3>🕒 Trade Logs</h3>
   <table id="log-table">
     <thead>
       <tr>
@@ -50,17 +94,49 @@
     <tbody></tbody>
   </table>
 
+  <!-- 📁 Live Portfolio -->
+  <h3>📁 Portfolio Holdings</h3>
+  <table id="portfolio-table">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Qty</th>
+        <th>Buy Avg</th>
+        <th>LTP</th>
+        <th>Unrealized PnL</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- 🗂 Open Orders -->
+  <h3>📂 Open Orders</h3>
+  <table id="orders-table">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Type</th>
+        <th>Qty</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
   <script>
     const userId = localStorage.getItem("user_id");
-    if (!userId) {
-      window.location.href = "/";
-    }
+    if (!userId) window.location.href = "/";
 
     const baseUrl = window.location.origin;
     document.getElementById("webhook-url").innerHTML = `
       🔗 Your Webhook URL:<br><br>
       <code>${baseUrl}/webhook/${userId}</code>
     `;
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/";
+    }
 
     function fetchLogs() {
       fetch(`/logs?user_id=${userId}`)
@@ -82,13 +158,58 @@
         });
     }
 
-    function logout() {
-      localStorage.clear();
-      window.location.href = "/";
+    function fetchPortfolio() {
+      fetch(`/api/portfolio/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.querySelector('#portfolio-table tbody');
+          tbody.innerHTML = '';
+          (data || []).forEach(holding => {
+            const row = `<tr>
+              <td>${holding.trading_symbol}</td>
+              <td>${holding.quantity}</td>
+              <td>${holding.buy_average_price}</td>
+              <td>${holding.ltp}</td>
+              <td>${holding.unrealized_pl}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+          });
+        });
     }
 
-    fetchLogs();
-    setInterval(fetchLogs, 10000);
+    function fetchOrders() {
+      fetch(`/api/orders/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          // summary
+          const summary = data.summary || {};
+          document.getElementById("total-trades").textContent = `Total Trades: ${summary.total_trades || 0}`;
+          document.getElementById("total-qty").textContent = `Total Qty: ${summary.total_quantity || 0}`;
+          document.getElementById("last-status").textContent = `Last Status: ${summary.last_status || '-'}`;
+
+          // open orders
+          const tbody = document.querySelector('#orders-table tbody');
+          tbody.innerHTML = '';
+          (data.orders || []).forEach(order => {
+            const row = `<tr>
+              <td>${order.trading_symbol}</td>
+              <td>${order.transaction_type}</td>
+              <td>${order.quantity}</td>
+              <td>${order.order_status}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+          });
+        });
+    }
+
+    function refreshAll() {
+      fetchLogs();
+      fetchPortfolio();
+      fetchOrders();
+    }
+
+    refreshAll();
+    setInterval(refreshAll, 10000);
   </script>
 </body>
 </html>
