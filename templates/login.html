@@ -7,28 +7,61 @@
 </head>
 <body>
   <div class="login-container">
-    <h2>Login to Dhan</h2>
+    <h2>🔐 Connect Your Dhan Account</h2>
     <form id="login-form">
-      <label for="client_id">Client ID</label>
+      <label for="webhook_id">Choose Your Webhook ID</label>
+      <input type="text" id="webhook_id" placeholder="e.g. ankit123" required />
+
+      <label for="client_id">Dhan Client ID</label>
       <input type="text" id="client_id" required />
 
       <label for="access_token">Access Token</label>
       <input type="text" id="access_token" required />
 
-      <button type="submit">Login</button>
+      <button type="submit">Register & Continue</button>
     </form>
+
+    <div id="webhook-info" style="margin-top: 20px;"></div>
   </div>
 
   <script>
-    document.getElementById('login-form').addEventListener('submit', function(e) {
+    document.getElementById("login-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      const clientId = document.getElementById('client_id').value.trim();
-      const accessToken = document.getElementById('access_token').value.trim();
 
-      localStorage.setItem('client_id', clientId);
-      localStorage.setItem('access_token', accessToken);
+      const webhook_id = document.getElementById("webhook_id").value.trim();
+      const client_id = document.getElementById("client_id").value.trim();
+      const access_token = document.getElementById("access_token").value.trim();
 
-      window.location.href = "/dashboard";
+      fetch("/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          user_id: webhook_id,
+          client_id: client_id,
+          access_token: access_token
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status) {
+          // Store user_id for dashboard use
+          localStorage.setItem("user_id", webhook_id);
+          document.getElementById("webhook-info").innerHTML = `
+            ✅ Registered!<br><br>
+            🧠 Your TradingView Webhook URL:<br>
+            <code>${window.location.origin}/webhook/${webhook_id}</code><br><br>
+            <button onclick="location.href='/dashboard'">Go to Dashboard</button>
+          `;
+        } else {
+          alert("Error: " + data.error);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to register user.");
+      });
     });
   </script>
 </body>
