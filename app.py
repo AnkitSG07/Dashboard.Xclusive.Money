@@ -69,9 +69,9 @@ def webhook(user_id):
 
     # 🔄 Fetch live symbol list from Dhan and parse it
     try:
-        csv_data = dhan.fetch_security_list("compact")
-        df = pd.read_csv(io.StringIO(csv_data))
+        df = dhan.fetch_security_list("compact")
         symbols = df.to_dict(orient="records")
+
     except Exception as e:
         return jsonify({"error": f"Failed to fetch symbol list: {str(e)}"}), 500
 
