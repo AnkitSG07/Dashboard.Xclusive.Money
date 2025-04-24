@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login to Dhan Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="login-container">
+    <h2>Login to Dhan</h2>
+    <form id="login-form">
+      <label for="client_id">Client ID</label>
+      <input type="text" id="client_id" required />
+
+      <label for="access_token">Access Token</label>
+      <input type="text" id="access_token" required />
+
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const clientId = document.getElementById('client_id').value.trim();
+      const accessToken = document.getElementById('access_token').value.trim();
+
+      localStorage.setItem('client_id', clientId);
+      localStorage.setItem('access_token', accessToken);
+
+      window.location.href = "/dashboard";
+    });
+  </script>
+</body>
+</html>
