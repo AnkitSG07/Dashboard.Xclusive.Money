@@ -1,3 +1,4 @@
 flask
 dhanhq
 gunicorn
+requests
