@@ -169,14 +169,14 @@
     if (!userId) window.location.href = "/";
     const baseUrl = window.location.origin;
     document.getElementById("webhook-url").innerHTML = `🔗 Your Webhook URL:<br><code>${baseUrl}/webhook/${userId}</code>`;
-
+  
     const pnlChart = new Chart(document.getElementById("pnlChart"), {
       type: "line",
       data: {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        labels: [],
         datasets: [{
           label: "PnL",
-          data: [1200, 1500, 1400, 1800, 1700],
+          data: [],
           borderColor: "#28a745",
           fill: false
         }]
@@ -186,15 +186,15 @@
         plugins: { legend: { display: true } }
       }
     });
-
+  
     const tradesChart = new Chart(document.getElementById("tradesChart"), {
       type: "bar",
       data: {
-        labels: ["Buy", "Sell"],
+        labels: [],
         datasets: [{
           label: "Trades",
-          data: [25, 18],
-          backgroundColor: ["#007bff", "#ffc107"]
+          data: [],
+          backgroundColor: []
         }]
       },
       options: {
@@ -202,7 +202,26 @@
         plugins: { legend: { display: false } }
       }
     });
+  
+    // 🔁 Dynamic fetch for chart data
+    fetch(`/api/chart/pnl?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        pnlChart.data.labels = data.labels;
+        pnlChart.data.datasets[0].data = data.values;
+        pnlChart.update();
+      });
+  
+    fetch(`/api/chart/trades?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        tradesChart.data.labels = data.labels;
+        tradesChart.data.datasets[0].data = data.values;
+        tradesChart.data.datasets[0].backgroundColor = data.colors;
+        tradesChart.update();
+      });
   </script>
+
 
   <!-- Trading + Data Scripts -->
   <script>
