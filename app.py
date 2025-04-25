@@ -47,6 +47,12 @@ def save_log(user_id, symbol, action, quantity, status, response):
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
     data = request.json
+    message = data.get("message")  # Passive alert support
+
+    if message:
+        save_log(user_id, "-", "-", 0, "ALERT", message)
+        return jsonify({"status": "Alert logged", "message": message}), 200
+
     symbol = data.get("symbol")
     action = data.get("action")
     quantity = data.get("quantity")
@@ -69,7 +75,6 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
-    # ✅ Static SYMBOL_MAP
     SYMBOL_MAP = {
         "RELIANCE": "2885",
         "TCS": "11536",
@@ -198,6 +203,20 @@ def webhook(user_id):
     except Exception as e:
         save_log(user_id, symbol, action, quantity, "FAILED", str(e))
         return jsonify({"error": str(e)}), 500
+
+# === Endpoint to fetch passive alert logs ===
+@app.route("/api/alerts")
+def get_alerts():
+    user_id = request.args.get("user_id")
+    conn = sqlite3.connect("tradelogs.db")
+    c = conn.cursor()
+    c.execute("SELECT timestamp, response FROM logs WHERE user_id = ? AND status = 'ALERT' ORDER BY id DESC LIMIT 20", (user_id,))
+    rows = c.fetchall()
+    conn.close()
+
+    alerts = [{"time": row[0], "message": row[1]} for row in rows]
+    return jsonify(alerts)
+
 
 
 # === API to save new user from login form ===
