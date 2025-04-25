@@ -1,0 +1,22 @@
+/* Optional Custom Overrides for Dhan Mantis Dashboard */
+
+/* Example: Make card text larger */
+.card {
+  font-size: 16px;
+}
+
+/* Example: Change primary button color */
+.logout {
+  background-color: #198754;
+}
+
+.logout:hover {
+  background-color: #157347;
+}
+
+/* Example: Highlight hovered table rows more boldly */
+tr:hover {
+  background: #e2f0ff;
+}
+
+/* Add any other custom rules here */
