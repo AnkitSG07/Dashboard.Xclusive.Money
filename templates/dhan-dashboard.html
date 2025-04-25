@@ -42,6 +42,17 @@
       <i class="bi bi-bell fs-5"></i>
       <img src="assets/images/user.png" alt="User" class="profile-img">
     </div>
+    <div class="dropdown">
+      <i class="bi bi-bell fs-5 position-relative dropdown-toggle" id="notifBell" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="notifDot" style="display: none;"></span>
+      </i>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm" id="notifList" aria-labelledby="notifBell" style="max-height: 300px; overflow-y: auto; width: 300px;">
+        <li class="dropdown-header fw-bold text-primary">Alerts</li>
+        <li><hr class="dropdown-divider"></li>
+        <li class="text-muted px-3 small">No new alerts</li>
+      </ul>
+    </div>
+
   </nav>
 
   <!-- Sidebar -->
@@ -331,7 +342,39 @@
       fetchPortfolio();
       fetchOrders();
       fetchAccountStats();
+      fetchAlerts();
+
     }
+
+    function fetchAlerts() {
+  fetch(`/logs?user_id=${userId}`)
+    .then(res => res.json())
+    .then(data => {
+      const notifList = document.getElementById("notifList");
+      const dot = document.getElementById("notifDot");
+
+      // Filter logs with status 'ALERT'
+      const alerts = data.filter(log => log.status === "ALERT");
+      notifList.innerHTML = `
+        <li class="dropdown-header fw-bold text-primary">Alerts</li>
+        <li><hr class="dropdown-divider"></li>
+      `;
+
+      if (alerts.length > 0) {
+        dot.style.display = "inline-block";
+        alerts.forEach(alert => {
+          const item = document.createElement("li");
+          item.className = "dropdown-item text-dark small";
+          item.textContent = `${alert.timestamp.split("T")[0]} - ${alert.response}`;
+          notifList.appendChild(item);
+        });
+      } else {
+        dot.style.display = "none";
+        notifList.innerHTML += `<li class="text-muted px-3 small">No new alerts</li>`;
+      }
+    });
+}
+
 
     refreshAll();
     setInterval(refreshAll, 15000);
