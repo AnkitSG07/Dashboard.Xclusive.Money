@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dhan Trading Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -61,19 +62,6 @@
       font-size: 24px;
     }
 
-    .logout {
-      position: absolute;
-      top: 20px;
-      right: 40px;
-      padding: 8px 16px;
-      background: #f0b90b;
-      border: none;
-      border-radius: 20px;
-      color: black;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
     .card {
       background: #1c1c1c;
       border-left: 5px solid #f0b90b;
@@ -122,6 +110,22 @@
     <div class="gradient-header">Welcome to Your Dhan Trading Dashboard</div>
     <div class="webhook-box" id="webhook-url">Loading webhook...</div>
 
+    
+  <section id="overview">
+    <h3>💰 Account Overview</h3>
+    <div class="row">
+      <div class="col-md-4 card" id="total-funds">Total Funds: -</div>
+      <div class="col-md-4 card" id="available-margin">Available Margin: -</div>
+      <div class="col-md-4 card" id="used-margin">Used Margin: -</div>
+    </div>
+    <h3 class="mt-5">📈 Trade Summary</h3>
+    <div class="row">
+      <div class="col-md-4 card" id="total-trades">Total Trades: -</div>
+      <div class="col-md-4 card" id="total-qty">Total Qty: -</div>
+      <div class="col-md-4 card" id="last-status">Last Status: -</div>
+    </div>
+  </section>
+    
     <div class="chart-container">
       <h3>📊 Live Trading Chart</h3>
       <div class="mb-3">
@@ -133,20 +137,7 @@
       </div>
     </div>
 
-    <section id="overview">
-      <h3>💰 Account Overview</h3>
-      <div class="row">
-        <div class="col-md-4 card" id="total-funds">Total Funds: -</div>
-        <div class="col-md-4 card" id="available-margin">Available Margin: -</div>
-        <div class="col-md-4 card" id="used-margin">Used Margin: -</div>
-      </div>
-      <h3 class="mt-5">📈 Trade Summary</h3>
-      <div class="row">
-        <div class="col-md-4 card" id="total-trades">Total Trades: -</div>
-        <div class="col-md-4 card" id="total-qty">Total Qty: -</div>
-        <div class="col-md-4 card" id="last-status">Last Status: -</div>
-      </div>
-    </section>
+
 
     <section id="portfolio">
       <h3>📁 Portfolio Holdings</h3>
