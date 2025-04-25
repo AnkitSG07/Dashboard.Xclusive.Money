@@ -41,8 +41,8 @@
     <a class="navbar-brand" href="#">DhanBot</a>
     <div class="ms-auto d-flex align-items-center gap-3">
       <input class="form-control" type="text" placeholder="Search">
-      <li class="nav-item dropdown">
-        <a class="nav-link position-relative" href="#" id="notifBell" data-bs-toggle="dropdown" aria-expanded="false">
+      <div class="nav-item dropdown">
+        <a class="nav-link position-relative dropdown-toggle" href="#" id="notifBell" role="button" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-bell fs-5"></i>
           <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifDot" style="display:none;">!</span>
         </a>
@@ -51,8 +51,8 @@
           <li><hr class="dropdown-divider"></li>
           <li class="text-muted px-3 small">No new alerts</li>
         </ul>
-      </li>
-      <img src="/static/user.png" alt="User" class="profile-img">
+      </div>
+      <img src="/static/assets/images/user.png" alt="User" class="profile-img">
     </div>
   </nav>
 
@@ -360,7 +360,7 @@
             <li><hr class="dropdown-divider"></li>
           `;
     
-          if (alerts.length > 0) {
+          if (Array.isArray(alerts) && alerts.length > 0) {
             dot.style.display = "inline-block";
     
             alerts.forEach(alert => {
