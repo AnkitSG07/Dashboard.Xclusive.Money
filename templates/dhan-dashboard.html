@@ -34,6 +34,7 @@
   </style>
 </head>
 <body>
+  <audio id="alertSound" src="/static/alert.mp3" preload="auto"></audio>
   <!-- Top Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light px-4 sticky-top">
     <a class="navbar-brand" href="#">DhanBot</a>
@@ -346,34 +347,48 @@
 
     }
 
-    function fetchAlerts() {
-  fetch(`/logs?user_id=${userId}`)
-    .then(res => res.json())
-    .then(data => {
-      const notifList = document.getElementById("notifList");
-      const dot = document.getElementById("notifDot");
+  function fetchAlerts() {
+    fetch(`/api/alerts?user_id=${userId}`)
+      .then(res => res.json())
+      .then(alerts => {
+        const notifList = document.getElementById("notifList");
+        const dot = document.getElementById("notifDot");
+        const alertSound = document.getElementById("alertSound");
+  
+        notifList.innerHTML = `
+          <li class="dropdown-header fw-bold text-primary">Alerts</li>
+          <li><hr class="dropdown-divider"></li>
+        `;
+  
+        if (alerts.length > 0) {
+          dot.style.display = "inline-block";
+  
+          alerts.forEach((alert, i) => {
+            const item = document.createElement("li");
+            item.innerHTML = `
+              <a class="dropdown-item text-wrap text-dark">
+                <b>${alert.message}</b><br>
+                <small class="text-muted">${new Date(alert.time).toLocaleString()}</small>
+              </a>
+            `;
+            notifList.appendChild(item);
+          });
+  
+          // 🔊 Play sound on first alert fetch
+          if (!window.alertSoundPlayed) {
+            alertSound.play().catch(() => {});
+            window.alertSoundPlayed = true;
+          }
+  
+        } else {
+          dot.style.display = "none";
+          notifList.innerHTML += `
+            <li><span class="dropdown-item text-muted">No alerts</span></li>
+          `;
+        }
+      });
+  }
 
-      // Filter logs with status 'ALERT'
-      const alerts = data.filter(log => log.status === "ALERT");
-      notifList.innerHTML = `
-        <li class="dropdown-header fw-bold text-primary">Alerts</li>
-        <li><hr class="dropdown-divider"></li>
-      `;
-
-      if (alerts.length > 0) {
-        dot.style.display = "inline-block";
-        alerts.forEach(alert => {
-          const item = document.createElement("li");
-          item.className = "dropdown-item text-dark small";
-          item.textContent = `${alert.timestamp.split("T")[0]} - ${alert.response}`;
-          notifList.appendChild(item);
-        });
-      } else {
-        dot.style.display = "none";
-        notifList.innerHTML += `<li class="text-muted px-3 small">No new alerts</li>`;
-      }
-    });
-}
 
 
     refreshAll();
