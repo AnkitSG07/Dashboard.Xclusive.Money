@@ -5,228 +5,228 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dhan Trading Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="assets/css/custom.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: 'Poppins', sans-serif;
-      background: #0b0b0b;
-      color: #e5e5e5;
-      display: flex;
-    }
-
-    .sidebar {
-      width: 240px;
-      background: #0f0f0f;
-      padding: 30px 20px;
-      height: 100vh;
-      border-right: 1px solid #1c1c1c;
-      position: fixed;
-      top: 0;
-      left: 0;
-    }
-
-    .sidebar h2 {
-      color: #f0b90b;
-      margin-bottom: 30px;
-      font-size: 24px;
-    }
-
-    .sidebar a {
-      display: block;
-      color: #e0e0e0;
-      text-decoration: none;
-      padding: 12px 0;
-      font-weight: 500;
-    }
-
-    .sidebar a:hover {
-      color: #f0b90b;
-    }
-
-    .main {
-      margin-left: 260px;
-      padding: 30px 40px;
-      flex: 1;
-      width: 100%;
-    }
-
-    .gradient-header {
-      background: linear-gradient(90deg, #1a1a1a, #2b2b2b);
-      padding: 15px 30px;
-      border-radius: 12px;
-      margin-bottom: 30px;
-      color: #f0b90b;
-      font-weight: 600;
-      font-size: 24px;
-    }
-
-    .card {
-      background: #1c1c1c;
-      border-left: 5px solid #f0b90b;
-      border-radius: 12px;
+    .chart-card {
       padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
     }
-
-    table {
-      background: #121212;
-      border-radius: 12px;
-      overflow: hidden;
+    .navbar {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
     }
-
-    th {
-      background: #181818;
-      color: #f0b90b;
+    .navbar-brand {
+      font-weight: 600;
     }
-
-    tr:hover {
-      background: #1e1e1e;
-    }
-
-    .chart-container {
-      margin-top: 40px;
-      margin-bottom: 40px;
+    .profile-img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
     }
   </style>
 </head>
 <body>
-  <button class="toggle-sidebar" onclick="document.querySelector('.sidebar').classList.toggle('show')">
-  ☰ Menu
-  </button>
+  <!-- Top Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light px-4 sticky-top">
+    <a class="navbar-brand" href="#">DhanBot</a>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <input class="form-control" type="text" placeholder="Search">
+      <i class="bi bi-bell fs-5"></i>
+      <img src="assets/images/user.png" alt="User" class="profile-img">
+    </div>
+  </nav>
 
-  <div class="sidebar">
-    <h2>📊 DhanBot</h2>
-    <a href="#overview">📌 Overview</a>
-    <a href="#portfolio">📁 Portfolio</a>
-    <a href="#orders">🗂 Orders</a>
-    <a href="#logs">📄 Logs</a>
-    <button class="logout" onclick="logout()">Logout</button>
+  <!-- Sidebar -->
+  <div class="sidebar show" id="sidebar">
+    <h2 class="text-primary px-3 py-4"><i class="bi bi-bar-chart-fill"></i> DhanBot</h2>
+    <ul class="nav flex-column px-3">
+      <li class="nav-item"><a class="nav-link" href="#overview"><i class="bi bi-graph-up"></i> Overview</a></li>
+      <li class="nav-item"><a class="nav-link" href="#portfolio"><i class="bi bi-wallet2"></i> Portfolio</a></li>
+      <li class="nav-item"><a class="nav-link" href="#orders"><i class="bi bi-box-seam"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link" href="#logs"><i class="bi bi-clipboard-data"></i> Logs</a></li>
+    </ul>
+    <div class="px-3 mt-auto mb-4">
+      <button class="logout btn w-100" onclick="logout()">Logout</button>
+    </div>
   </div>
 
-  <div class="main">
-    <div class="gradient-header">Welcome to Your Dhan Trading Dashboard</div>
-    <div class="webhook-box" id="webhook-url">Loading webhook...</div>
+  <!-- Toggle Sidebar Button -->
+  <button class="toggle-sidebar d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
+    ☰ Menu
+  </button>
 
-    
-  <section id="overview">
-    <h3>💰 Account Overview</h3>
-    <div class="row">
-      <div class="col-md-4 card" id="total-funds">Total Funds: -</div>
-      <div class="col-md-4 card" id="available-margin">Available Margin: -</div>
-      <div class="col-md-4 card" id="used-margin">Used Margin: -</div>
+  <!-- Main Content -->
+  <div class="main-content p-4" style="margin-left: 240px;">
+    <div class="webhook-box mb-4" id="webhook-url">Loading webhook...</div>
+
+    <!-- Chart Summary Cards -->
+    <div class="row mb-5">
+      <div class="col-md-6">
+        <div class="chart-card">
+          <canvas id="pnlChart"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <canvas id="tradesChart"></canvas>
+        </div>
+      </div>
     </div>
-    <h3 class="mt-5">📈 Trade Summary</h3>
-    <div class="row">
-      <div class="col-md-4 card" id="total-trades">Total Trades: -</div>
-      <div class="col-md-4 card" id="total-qty">Total Qty: -</div>
-      <div class="col-md-4 card" id="last-status">Last Status: -</div>
-    </div>
-  </section>
-    
-    <div class="chart-container">
-      <h3>📊 Live Trading Chart</h3>
+
+    <section id="overview" class="mb-5">
+      <h3 class="mb-3">💰 Account Overview</h3>
+      <div class="row g-3">
+        <div class="col-md-4"><div class="card" id="total-funds">Total Funds: -</div></div>
+        <div class="col-md-4"><div class="card" id="available-margin">Available Margin: -</div></div>
+        <div class="col-md-4"><div class="card" id="used-margin">Used Margin: -</div></div>
+      </div>
+      <h3 class="mt-5 mb-3">📈 Trade Summary</h3>
+      <div class="row g-3">
+        <div class="col-md-4"><div class="card" id="total-trades">Total Trades: -</div></div>
+        <div class="col-md-4"><div class="card" id="total-qty">Total Qty: -</div></div>
+        <div class="col-md-4"><div class="card" id="last-status">Last Status: -</div></div>
+      </div>
+    </section>
+
+    <section class="chart-container mb-5">
+      <h3 class="mb-3">📊 Live Trading Chart</h3>
       <div class="mb-3">
         <label for="symbol-selector" class="form-label">Select Symbol:</label>
         <input type="text" id="symbol-selector" class="form-control" placeholder="e.g. NSE:RELIANCE" value="NSE:RELIANCE">
       </div>
       <div class="tradingview-widget-container">
-        <div id="tradingview_chart"></div>
+        <div id="tradingview_chart" style="height: 500px; width: 100%;"></div>
       </div>
-    </div>
-
-
-
-    <section id="portfolio">
-      <h3>📁 Portfolio Holdings</h3>
-      <table class="table table-dark table-striped" id="portfolio-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Qty</th>
-            <th>Buy Avg</th>
-            <th>LTP</th>
-            <th>Unrealized PnL</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </section>
 
-    <section id="orders">
-      <h3>🗂 Open Orders</h3>
-      <table class="table table-dark table-striped" id="orders-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th>Qty</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <section id="portfolio" class="mb-5">
+      <h3 class="mb-3">📁 Portfolio Holdings</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="portfolio-table">
+          <thead class="table-light">
+            <tr>
+              <th>Symbol</th>
+              <th>Qty</th>
+              <th>Buy Avg</th>
+              <th>LTP</th>
+              <th>Unrealized PnL</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="orders" class="mb-5">
+      <h3 class="mb-3">🗂 Open Orders</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="orders-table">
+          <thead class="table-light">
+            <tr>
+              <th>Symbol</th>
+              <th>Type</th>
+              <th>Qty</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
     <section id="logs">
-      <h3>📄 Trade Logs</h3>
-      <table class="table table-dark table-striped" id="log-table">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Symbol</th>
-            <th>Action</th>
-            <th>Qty</th>
-            <th>Status</th>
-            <th>Response</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <h3 class="mb-3">📄 Trade Logs</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="log-table">
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>Action</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Response</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
   </div>
 
+  <!-- Scripts -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
     const userId = localStorage.getItem("user_id");
     if (!userId) window.location.href = "/";
-
     const baseUrl = window.location.origin;
-    document.getElementById("webhook-url").innerHTML = `
-      🔗 Your Webhook URL:<br><br>
-      <code>${baseUrl}/webhook/${userId}</code>
-    `;
+    document.getElementById("webhook-url").innerHTML = `🔗 Your Webhook URL:<br><code>${baseUrl}/webhook/${userId}</code>`;
 
-    function logout() {
-      localStorage.clear();
-      window.location.href = "/";
-    }
+    const pnlChart = new Chart(document.getElementById("pnlChart"), {
+      type: "line",
+      data: {
+        labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        datasets: [{
+          label: "PnL",
+          data: [1200, 1500, 1400, 1800, 1700],
+          borderColor: "#28a745",
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } }
+      }
+    });
 
+    const tradesChart = new Chart(document.getElementById("tradesChart"), {
+      type: "bar",
+      data: {
+        labels: ["Buy", "Sell"],
+        datasets: [{
+          label: "Trades",
+          data: [25, 18],
+          backgroundColor: ["#007bff", "#ffc107"]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } }
+      }
+    });
+  </script>
+
+  <!-- Trading + Data Scripts -->
+  <script>
     function loadTradingViewChart(symbol) {
       document.getElementById("tradingview_chart").innerHTML = "";
       new TradingView.widget({
-        "container_id": "tradingview_chart",
-        "autosize": true,
-        "symbol": symbol,
-        "interval": "1",
-        "timezone": "Asia/Kolkata",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "hide_top_toolbar": false,
-        "save_image": false,
-        "studies": ["MACD@tv-basicstudies"],
-        "show_popup_button": true,
-        "popup_width": "1000",
-        "popup_height": "650"
+        container_id: "tradingview_chart",
+        autosize: true,
+        symbol: symbol,
+        interval: "1",
+        timezone: "Asia/Kolkata",
+        theme: "dark",
+        style: "1",
+        locale: "en",
+        toolbar_bg: "#f1f3f6",
+        enable_publishing: false,
+        hide_top_toolbar: false,
+        save_image: false,
+        studies: ["MACD@tv-basicstudies"],
+        show_popup_button: false
       });
     }
 
-    document.getElementById("symbol-selector").addEventListener("change", function() {
+    document.getElementById("symbol-selector").addEventListener("change", function () {
       const symbol = this.value.trim();
       if (symbol) {
         loadTradingViewChart(symbol);
