@@ -4,10 +4,12 @@ import sqlite3
 import os
 import json
 import pandas as pd
+from flask_cors import CORS
 import io
 from datetime import datetime
 
 app = Flask(__name__)
+CORS(app)
 
 # === Initialize SQLite DB ===
 def init_db():
@@ -301,6 +303,64 @@ def get_orders(user_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/chart/trades")
+def chart_trades():
+    user_id = request.args.get("user_id")
+
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+        if user_id not in users:
+            return jsonify({"error": "Invalid user ID"}), 403
+    except:
+        return jsonify({"error": "User DB not found"}), 500
+
+    user = users[user_id]
+    dhan = dhanhq(user["client_id"], user["access_token"])
+
+    try:
+        trades = dhan.get_order_list()
+        buy_count = sum(1 for t in trades if t["transactionType"] == "BUY")
+        sell_count = sum(1 for t in trades if t["transactionType"] == "SELL")
+
+        return jsonify({
+            "labels": ["Buy", "Sell"],
+            "values": [buy_count, sell_count],
+            "colors": ["#007bff", "#ffc107"]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
+@app.route("/api/chart/pnl")
+def chart_pnl():
+    user_id = request.args.get("user_id")
+
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+        if user_id not in users:
+            return jsonify({"error": "Invalid user ID"}), 403
+    except:
+        return jsonify({"error": "User DB not found"}), 500
+
+    user = users[user_id]
+    dhan = dhanhq(user["client_id"], user["access_token"])
+
+    try:
+        holdings = dhan.get_holdings()
+        labels = []
+        values = []
+
+        for holding in holdings[:5]:  # top 5
+            labels.append(holding["tradingSymbol"])
+            pnl = float(holding.get("unrealizedProfitLossAmount", 0))
+            values.append(round(pnl, 2))
+
+        return jsonify({"labels": labels, "values": values})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/account/<user_id>")
 def get_account_stats(user_id):
