@@ -347,50 +347,48 @@
 
     }
 
-  function fetchAlerts() {
-    fetch(`/api/alerts?user_id=${userId}`)
-      .then(res => res.json())
-      .then(alerts => {
-        const notifList = document.getElementById("notifList");
-        const dot = document.getElementById("notifDot");
-        const alertSound = document.getElementById("alertSound");
-  
-        notifList.innerHTML = `
-          <li class="dropdown-header fw-bold text-primary">Alerts</li>
-          <li><hr class="dropdown-divider"></li>
-        `;
-  
-        if (alerts.length > 0) {
-          dot.style.display = "inline-block";
-  
-          alerts.forEach((alert, i) => {
-            const item = document.createElement("li");
-            item.innerHTML = `
-              <a class="dropdown-item text-wrap text-dark">
-                <b>${alert.message}</b><br>
-                <small class="text-muted">${new Date(alert.time).toLocaleString()}</small>
-              </a>
-            `;
-            notifList.appendChild(item);
-          });
-  
-          // 🔊 Play sound on first alert fetch
-          if (!window.alertSoundPlayed) {
-            alertSound.play().catch(() => {});
-            window.alertSoundPlayed = true;
-          }
-  
-        } else {
-          dot.style.display = "none";
-          notifList.innerHTML += `
-            <li><span class="dropdown-item text-muted">No alerts</span></li>
+    function fetchAlerts() {
+      fetch(`/api/alerts?user_id=${localStorage.getItem("user_id")}`)
+        .then(res => res.json())
+        .then(alerts => {
+          const notifList = document.getElementById("notifList");
+          const dot = document.getElementById("notifDot");
+          const alertSound = document.getElementById("alertSound");
+    
+          notifList.innerHTML = `
+            <li class="dropdown-header fw-bold text-primary">Alerts</li>
+            <li><hr class="dropdown-divider"></li>
           `;
-        }
-      });
-  }
-
-
-
+    
+          if (alerts.length > 0) {
+            dot.style.display = "inline-block";
+    
+            alerts.forEach(alert => {
+              const item = document.createElement("li");
+              item.innerHTML = `
+                <a class="dropdown-item text-wrap text-dark">
+                  <b>${alert.message}</b><br>
+                  <small class="text-muted">${new Date(alert.time).toLocaleString()}</small>
+                </a>
+              `;
+              notifList.appendChild(item);
+            });
+    
+            // 🔊 Play sound on first alert fetch
+            if (!window.alertSoundPlayed) {
+              alertSound.play().catch(() => {});
+              window.alertSoundPlayed = true;
+            }
+    
+          } else {
+            dot.style.display = "none";
+            notifList.innerHTML += `
+              <li><span class="dropdown-item text-muted">No alerts</span></li>
+            `;
+          }
+        });
+    }
+    
     refreshAll();
     setInterval(refreshAll, 15000);
   </script>
