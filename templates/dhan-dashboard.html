@@ -3,176 +3,197 @@
 <head>
   <meta charset="UTF-8">
   <title>Dhan Trading Dashboard</title>
-  <link rel="stylesheet" href="/static/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/style.css">
   <style>
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
       background: #0b0b0b;
       color: #e5e5e5;
-      padding: 30px 40px;
+      display: flex;
     }
 
-    h2, h3 {
-      color: #ffffff;
+    .sidebar {
+      width: 240px;
+      background: #0f0f0f;
+      padding: 30px 20px;
+      height: 100vh;
+      border-right: 1px solid #1c1c1c;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    .sidebar h2 {
+      color: #f0b90b;
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+
+    .sidebar a {
+      display: block;
+      color: #e0e0e0;
+      text-decoration: none;
+      padding: 12px 0;
+      font-weight: 500;
+    }
+
+    .sidebar a:hover {
+      color: #f0b90b;
+    }
+
+    .main {
+      margin-left: 260px;
+      padding: 30px 40px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .gradient-header {
+      background: linear-gradient(90deg, #1a1a1a, #2b2b2b);
+      padding: 15px 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      color: #f0b90b;
       font-weight: 600;
-      margin-top: 40px;
-      margin-bottom: 10px;
+      font-size: 24px;
     }
 
     .logout {
-      position: fixed;
-      top: 15px;
-      right: 20px;
-      background: linear-gradient(90deg, #ff4e50, #f9d423);
-      color: white;
+      position: absolute;
+      top: 20px;
+      right: 40px;
+      padding: 8px 16px;
+      background: #f0b90b;
       border: none;
-      padding: 10px 20px;
-      border-radius: 30px;
-      cursor: pointer;
+      border-radius: 20px;
+      color: black;
       font-weight: 600;
-      box-shadow: 0 0 10px rgba(255, 78, 80, 0.5);
-    }
-
-    .webhook-box {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid #222;
-      border-radius: 12px;
-      padding: 15px 20px;
-      font-family: monospace;
-      color: #00ffe5;
-      margin-top: 20px;
-      width: fit-content;
-    }
-
-    .section {
-      margin-bottom: 40px;
-    }
-
-    .grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin-top: 15px;
+      cursor: pointer;
     }
 
     .card {
-      flex: 1;
-      min-width: 240px;
-      background: linear-gradient(145deg, #1c1c1c, #111);
-      padding: 20px;
+      background: #1c1c1c;
+      border-left: 5px solid #f0b90b;
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      color: white;
-      font-size: 18px;
-      font-weight: 500;
-      border-left: 5px solid #00ffe5;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
     table {
-      width: 100%;
-      margin-top: 15px;
-      border-collapse: collapse;
       background: #121212;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
-    }
-
-    th, td {
-      padding: 12px;
-      text-align: center;
-      border-bottom: 1px solid #2b2b2b;
     }
 
     th {
       background: #181818;
-      color: #00ffe5;
-      font-weight: 600;
+      color: #f0b90b;
     }
 
     tr:hover {
       background: #1e1e1e;
     }
+
+    .chart-container {
+      margin-top: 40px;
+      margin-bottom: 40px;
+    }
   </style>
 </head>
 <body>
-  <button class="logout" onclick="logout()">Logout</button>
-  <h2>📊 Dhan Trading Dashboard</h2>
+  <div class="sidebar">
+    <h2>📊 DhanBot</h2>
+    <a href="#overview">📌 Overview</a>
+    <a href="#portfolio">📁 Portfolio</a>
+    <a href="#orders">🗂 Orders</a>
+    <a href="#logs">📄 Logs</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
 
-  <div class="webhook-box" id="webhook-url">Loading webhook...</div>
+  <div class="main">
+    <div class="gradient-header">Welcome to Your Dhan Trading Dashboard</div>
+    <div class="webhook-box" id="webhook-url">Loading webhook...</div>
 
-  <!-- 💰 Account Summary -->
-  <div class="section">
-    <h3>💰 Account Overview</h3>
-    <div class="grid" id="account-stats">
-      <div class="card" id="total-funds">Total Funds: -</div>
-      <div class="card" id="available-margin">Available Margin: -</div>
-      <div class="card" id="used-margin">Used Margin: -</div>
+    <div class="chart-container">
+      <h3>📊 Live Trading Chart</h3>
+      <div class="mb-3">
+        <label for="symbol-selector" class="form-label">Select Symbol:</label>
+        <input type="text" id="symbol-selector" class="form-control" placeholder="e.g. NSE:RELIANCE" value="NSE:RELIANCE">
+      </div>
+      <div class="tradingview-widget-container">
+        <div id="tradingview_chart"></div>
+      </div>
     </div>
+
+    <section id="overview">
+      <h3>💰 Account Overview</h3>
+      <div class="row">
+        <div class="col-md-4 card" id="total-funds">Total Funds: -</div>
+        <div class="col-md-4 card" id="available-margin">Available Margin: -</div>
+        <div class="col-md-4 card" id="used-margin">Used Margin: -</div>
+      </div>
+      <h3 class="mt-5">📈 Trade Summary</h3>
+      <div class="row">
+        <div class="col-md-4 card" id="total-trades">Total Trades: -</div>
+        <div class="col-md-4 card" id="total-qty">Total Qty: -</div>
+        <div class="col-md-4 card" id="last-status">Last Status: -</div>
+      </div>
+    </section>
+
+    <section id="portfolio">
+      <h3>📁 Portfolio Holdings</h3>
+      <table class="table table-dark table-striped" id="portfolio-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Qty</th>
+            <th>Buy Avg</th>
+            <th>LTP</th>
+            <th>Unrealized PnL</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="orders">
+      <h3>🗂 Open Orders</h3>
+      <table class="table table-dark table-striped" id="orders-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="logs">
+      <h3>📄 Trade Logs</h3>
+      <table class="table table-dark table-striped" id="log-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Symbol</th>
+            <th>Action</th>
+            <th>Qty</th>
+            <th>Status</th>
+            <th>Response</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
   </div>
 
-  <!-- 📈 Trade Summary -->
-  <div class="section">
-    <h3>📈 Trade Summary</h3>
-    <div class="grid">
-      <div class="card" id="total-trades">Total Trades: -</div>
-      <div class="card" id="total-qty">Total Qty: -</div>
-      <div class="card" id="last-status">Last Status: -</div>
-    </div>
-  </div>
-
-  <!-- 📁 Portfolio -->
-  <div class="section">
-    <h3>📁 Portfolio Holdings</h3>
-    <table id="portfolio-table">
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>Qty</th>
-          <th>Buy Avg</th>
-          <th>LTP</th>
-          <th>Unrealized PnL</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <!-- 🗂 Open Orders -->
-  <div class="section">
-    <h3>🗂 Open Orders</h3>
-    <table id="orders-table">
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>Type</th>
-          <th>Qty</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <!-- 📄 Trade Logs -->
-  <div class="section">
-    <h3>📄 Trade Logs</h3>
-    <table id="log-table">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>Symbol</th>
-          <th>Action</th>
-          <th>Qty</th>
-          <th>Status</th>
-          <th>Response</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script>
     const userId = localStorage.getItem("user_id");
     if (!userId) window.location.href = "/";
@@ -187,6 +208,37 @@
       localStorage.clear();
       window.location.href = "/";
     }
+
+    function loadTradingViewChart(symbol) {
+      document.getElementById("tradingview_chart").innerHTML = "";
+      new TradingView.widget({
+        "container_id": "tradingview_chart",
+        "autosize": true,
+        "symbol": symbol,
+        "interval": "1",
+        "timezone": "Asia/Kolkata",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_top_toolbar": false,
+        "save_image": false,
+        "studies": ["MACD@tv-basicstudies"],
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650"
+      });
+    }
+
+    document.getElementById("symbol-selector").addEventListener("change", function() {
+      const symbol = this.value.trim();
+      if (symbol) {
+        loadTradingViewChart(symbol);
+      }
+    });
+
+    loadTradingViewChart("NSE:RELIANCE");
 
     function fetchLogs() {
       fetch(`/logs?user_id=${userId}`)
@@ -208,49 +260,47 @@
         });
     }
 
-function fetchPortfolio() {
-  fetch(`/api/portfolio/${userId}`)
-    .then(res => res.json())
-    .then(data => {
-      if (!Array.isArray(data)) return;
-      const tbody = document.querySelector('#portfolio-table tbody');
-      tbody.innerHTML = '';
-      data.forEach(holding => {
-        const row = `<tr>
-          <td>${holding.trading_symbol}</td>
-          <td>${holding.quantity}</td>
-          <td>${holding.buy_average_price}</td>
-          <td>${holding.ltp}</td>
-          <td>${holding.unrealized_pl}</td>
-        </tr>`;
-        tbody.innerHTML += row;
-      });
-    });
-}
+    function fetchPortfolio() {
+      fetch(`/api/portfolio/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.querySelector('#portfolio-table tbody');
+          tbody.innerHTML = '';
+          data.forEach(holding => {
+            const row = `<tr>
+              <td>${holding.trading_symbol}</td>
+              <td>${holding.quantity}</td>
+              <td>${holding.buy_average_price}</td>
+              <td>${holding.ltp}</td>
+              <td>${holding.unrealized_pl}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+          });
+        });
+    }
 
-function fetchOrders() {
-  fetch(`/api/orders/${userId}`)
-    .then(res => res.json())
-    .then(data => {
-      if (!data || typeof data !== "object") return;
-      const summary = data.summary || {};
-      document.getElementById("total-trades").textContent = `Total Trades: ${summary.total_trades || 0}`;
-      document.getElementById("total-qty").textContent = `Total Qty: ${summary.total_quantity || 0}`;
-      document.getElementById("last-status").textContent = `Last Status: ${summary.last_status || '-'}`;
+    function fetchOrders() {
+      fetch(`/api/orders/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          const summary = data.summary || {};
+          document.getElementById("total-trades").textContent = `Total Trades: ${summary.total_trades || 0}`;
+          document.getElementById("total-qty").textContent = `Total Qty: ${summary.total_quantity || 0}`;
+          document.getElementById("last-status").textContent = `Last Status: ${summary.last_status || '-'}`;
 
-      const tbody = document.querySelector('#orders-table tbody');
-      tbody.innerHTML = '';
-      (data.orders || []).forEach(order => {
-        const row = `<tr>
-          <td>${order.trading_symbol}</td>
-          <td>${order.transaction_type}</td>
-          <td>${order.quantity}</td>
-          <td>${order.order_status}</td>
-        </tr>`;
-        tbody.innerHTML += row;
-      });
-    });
-}
+          const tbody = document.querySelector('#orders-table tbody');
+          tbody.innerHTML = '';
+          (data.orders || []).forEach(order => {
+            const row = `<tr>
+              <td>${order.trading_symbol}</td>
+              <td>${order.transaction_type}</td>
+              <td>${order.quantity}</td>
+              <td>${order.order_status}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+          });
+        });
+    }
 
     function fetchAccountStats() {
       fetch(`/api/account/${userId}`)
