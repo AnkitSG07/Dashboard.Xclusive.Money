@@ -1,81 +1,75 @@
-/* Binance-Inspired Enhanced Style Sheet */
+/* Mantis-Inspired Light Theme CSS */
+
 body {
   margin: 0;
   padding: 0;
   font-family: 'Poppins', sans-serif;
-  background-color: #0b0b0b;
-  color: #e5e5e5;
-  transition: background 0.3s ease, color 0.3s ease;
+  background-color: #f5f7fa;
+  color: #212529;
 }
 
 h3 {
-  color: #f0b90b;
-  margin-top: 30px;
+  color: #333;
   font-weight: 600;
+  margin-top: 30px;
 }
 
 .webhook-box {
-  background-color: #111;
-  border: 1px solid #222;
-  color: #00ffe5;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  color: #0d6efd;
   padding: 12px 18px;
   font-family: monospace;
   border-radius: 10px;
-  margin-bottom: 30px;
-  word-break: break-word;
-  box-shadow: 0 0 10px rgba(0, 255, 229, 0.2);
+  box-shadow: 0 0 8px rgba(0,0,0,0.05);
 }
 
 .card {
-  background: #1a1a1a;
-  border-left: 4px solid #f0b90b;
+  background: #ffffff;
+  border-left: 4px solid #0d6efd;
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-weight: 500;
+  color: #212529;
 }
 
 .card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(240, 185, 11, 0.3);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
 }
 
 table {
-  width: 100%;
-  background: #121212;
-  color: #eee;
+  background: #ffffff;
   border-collapse: collapse;
-  margin-top: 10px;
+  margin-top: 15px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 th, td {
-  padding: 14px;
+  padding: 12px;
   text-align: center;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #dee2e6;
   font-size: 14px;
 }
 
 th {
-  background: #181818;
-  color: #f0b90b;
+  background: #f1f3f5;
+  color: #212529;
   font-weight: 600;
 }
 
 tr:hover {
-  background: #1e1e1e;
+  background: #f8f9fa;
 }
 
 input#symbol-selector {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  color: #f0f0f0;
+  background: #ffffff;
+  border: 1px solid #ced4da;
+  color: #212529;
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   transition: all 0.3s ease;
   width: 100%;
   max-width: 400px;
@@ -83,48 +77,42 @@ input#symbol-selector {
 
 input#symbol-selector:focus {
   outline: none;
-  border-color: #f0b90b;
-  box-shadow: 0 0 5px rgba(240, 185, 11, 0.5);
+  border-color: #0d6efd;
+  box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
 }
 
-/* Chart Container Height Fix */
 #tradingview_chart {
   width: 100%;
   height: 500px;
 }
 
-/* Sidebar Styling */
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
   width: 240px;
-  background-color: #0f0f0f;
+  background-color: #ffffff;
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  transition: transform 0.3s ease-in-out;
+  border-right: 1px solid #dee2e6;
   z-index: 1000;
 }
 
-.sidebar.hidden {
-  transform: translateX(-100%);
-}
-
 .sidebar a {
-  display: flex;
-  align-items: center;
-  color: #e5e5e5;
+  display: block;
+  width: 100%;
+  color: #212529;
   text-decoration: none;
   padding: 10px 0;
   font-weight: 500;
-  transition: color 0.3s;
+  transition: all 0.2s ease;
 }
 
 .sidebar a:hover {
-  color: #f0b90b;
+  color: #0d6efd;
 }
 
 .toggle-sidebar {
@@ -132,8 +120,8 @@ input#symbol-selector:focus {
   position: fixed;
   top: 15px;
   left: 15px;
-  background: #f0b90b;
-  color: #000;
+  background: #0d6efd;
+  color: #fff;
   padding: 8px 14px;
   border: none;
   border-radius: 6px;
@@ -145,72 +133,37 @@ input#symbol-selector:focus {
 .logout {
   margin-top: auto;
   align-self: center;
-  background-color: #f0b90b;
+  background-color: #0d6efd;
   border: none;
-  color: black;
+  color: white;
   padding: 10px 20px;
   border-radius: 30px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(240, 185, 11, 0.4);
+  box-shadow: 0 0 10px rgba(13, 110, 253, 0.2);
   transition: background 0.3s ease;
 }
 
 .logout:hover {
-  background-color: #e0a800;
+  background-color: #0b5ed7;
 }
 
-/* Responsive for Mobile */
 @media (max-width: 768px) {
-  .main {
+  .main-content {
     margin-left: 0;
     padding: 20px;
   }
-
   .sidebar {
     transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
   }
-
   .sidebar.show {
     transform: translateX(0);
   }
-
   .toggle-sidebar {
     display: block;
   }
-
   .card, table {
     font-size: 14px;
   }
-}
-
-/* Dark/Light Toggle Animation (Optional switchable theme setup) */
-[data-theme="light"] body {
-  background: #f9f9f9;
-  color: #111;
-}
-
-[data-theme="light"] .card {
-  background: #ffffff;
-  color: #222;
-  border-left-color: #f0b90b;
-}
-
-[data-theme="light"] table,
-[data-theme="light"] th,
-[data-theme="light"] td {
-  background: #fff;
-  color: #333;
-  border-bottom-color: #ddd;
-}
-
-[data-theme="light"] th {
-  background: #f5f5f5;
-  color: #f0b90b;
-}
-
-[data-theme="light"] .webhook-box {
-  background: #fffbe5;
-  color: #222;
-  border-color: #f0b90b;
 }
