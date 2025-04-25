@@ -86,6 +86,11 @@ input#symbol-selector:focus {
   height: 500px;
 }
 
+#notifDot {
+  width: 10px;
+  height: 10px;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
