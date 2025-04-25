@@ -77,12 +77,87 @@ input#symbol-selector {
   border-radius: 8px;
   padding: 8px 12px;
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 400px;
 }
 
 input#symbol-selector:focus {
   outline: none;
   border-color: #f0b90b;
   box-shadow: 0 0 5px rgba(240, 185, 11, 0.5);
+}
+
+/* Chart Container Height Fix */
+#tradingview_chart {
+  width: 100%;
+  height: 500px;
+}
+
+/* Sidebar Styling */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 240px;
+  background-color: #0f0f0f;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: transform 0.3s ease-in-out;
+  z-index: 1000;
+}
+
+.sidebar.hidden {
+  transform: translateX(-100%);
+}
+
+.sidebar a {
+  display: flex;
+  align-items: center;
+  color: #e5e5e5;
+  text-decoration: none;
+  padding: 10px 0;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.sidebar a:hover {
+  color: #f0b90b;
+}
+
+.toggle-sidebar {
+  display: none;
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  background: #f0b90b;
+  color: #000;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  z-index: 1100;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.logout {
+  margin-top: auto;
+  align-self: center;
+  background-color: #f0b90b;
+  border: none;
+  color: black;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(240, 185, 11, 0.4);
+  transition: background 0.3s ease;
+}
+
+.logout:hover {
+  background-color: #e0a800;
 }
 
 /* Responsive for Mobile */
@@ -93,7 +168,15 @@ input#symbol-selector:focus {
   }
 
   .sidebar {
-    display: none;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  .toggle-sidebar {
+    display: block;
   }
 
   .card, table {
