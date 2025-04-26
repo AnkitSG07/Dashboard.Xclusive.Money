@@ -47,25 +47,27 @@ def save_log(user_id, symbol, action, quantity, status, response):
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
     data = request.json
-    message = data.get("message")  # Passive alert support
 
+    # 🔔 Passive Alert
+    message = data.get("message")
     if message:
         save_log(user_id, "-", "-", 0, "ALERT", message)
         return jsonify({"status": "Alert logged", "message": message}), 200
 
+    # 📦 Trade Placement
     symbol = data.get("symbol")
     action = data.get("action")
     quantity = data.get("quantity")
 
     if not all([symbol, action, quantity]):
-        return jsonify({"error": "Missing required fields"}), 400
+        return jsonify({"error": "Missing required fields (symbol, action, quantity)"}), 400
 
-    # Load user credentials
+    # Load User Credentials
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
     except FileNotFoundError:
-        return jsonify({"error": "User DB not found"}), 500
+        return jsonify({"error": "User database not found"}), 500
 
     if user_id not in users:
         return jsonify({"error": "Invalid webhook ID"}), 403
@@ -75,118 +77,36 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
+    # 🔥 Full SYMBOL_MAP
     SYMBOL_MAP = {
-        "RELIANCE": "2885",
-        "TCS": "11536",
-        "INFY": "10999",
-        "ADANIPORTS": "15083",
-        "HDFCBANK": "1333",
-        "SBIN": "3045",
-        "ICICIBANK": "4963",
-        "AXISBANK": "1343",
-        "ITC": "1660",
-        "HINDUNILVR": "1394",
-        "KOTAKBANK": "1922",
-        "LT": "11483",
-        "BAJFINANCE": "317",
-        "HCLTECH": "7229",
-        "ASIANPAINT": "236",
-        "MARUTI": "1095",
-        "M&M": "2031",
-        "SUNPHARMA": "3046",
-        "TATAMOTORS": "3432",
-        "WIPRO": "3787",
-        "ULTRACEMCO": "11532",
-        "TITAN": "3506",
-        "NESTLEIND": "11262",
-        "BAJAJFINSV": "317",
-        "POWERGRID": "14977",
-        "NTPC": "2886",
-        "JSWSTEEL": "11723",
-        "HDFCLIFE": "11915",
-        "DRREDDY": "881",
-        "TECHM": "11534",
-        "BRITANNIA": "293",
-        "TATASTEEL": "3505",
-        "CIPLA": "694",
-        "SBILIFE": "11916",
-        "BAJAJ-AUTO": "317",
-        "HINDALCO": "1393",
-        "DIVISLAB": "881",
-        "GRASIM": "1147",
-        "ADANIENT": "15083",
-        "COALINDIA": "694",
-        "INDUSINDBK": "1393",
-        "TATACONSUM": "3505",
-        "EICHERMOT": "881",
-        "SHREECEM": "1147",
-        "HEROMOTOCO": "15083",
-        "BAJAJHLDNG": "694",
-        "SBICARD": "1393",
-        "DLF": "3505",
-        "DMART": "881",
-        "UPL": "1147",
-        "ICICIPRULI": "15083",
-        "HDFCAMC": "694",
-        "HDFC": "1393",
-        "GAIL": "3505",
-        "HAL": "881",
-        "TATAPOWER": "1147",
-        "VEDL": "15083",
-        "BPCL": "694",
-        "IOC": "1393",
-        "ONGC": "3505",
-        "LICHSGFIN": "881",
-        "BANKBARODA": "1147",
-        "PNB": "15083",
-        "CANBK": "694",
-        "UNIONBANK": "1393",
-        "IDFCFIRSTB": "3505",
-        "BANDHANBNK": "881",
-        "FEDERALBNK": "1147",
-        "RBLBANK": "15083",
-        "YESBANK": "694",
-        "IGL": "1393",
-        "PETRONET": "3505",
-        "GUJGASLTD": "881",
-        "MGL": "1147",
-        "TORNTPHARM": "15083",
-        "LUPIN": "694",
-        "AUROPHARMA": "1393",
-        "BIOCON": "3505",
-        "GLENMARK": "881",
-        "CADILAHC": "1147",
-        "ALKEM": "15083",
-        "APOLLOHOSP": "694",
-        "MAXHEALTH": "1393",
-        "FORTIS": "3505",
-        "JUBLFOOD": "881",
-        "UBL": "1147",
-        "MCDOWELL-N": "15083",
-        "COLPAL": "694",
-        "DABUR": "1393",
-        "GODREJCP": "3505",
-        "MARICO": "881",
-        "EMAMILTD": "1147",
-        "PGHH": "15083",
-        "GILLETTE": "694",
-        "TATACHEM": "1393",
-        "PIDILITIND": "3505",
-        "BERGEPAINT": "881",
-        "KANSAINER": "1147",
-        "JSWENERGY": "15083",
-        "ADANIGREEN": "694",
-        "ADANITRANS": "1393",
-        "NHPC": "3505",
-        "SJVN": "881",
-        "RECLTD": "1147",
-        "PFC": "15083"
+        "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "HDFCBANK": "1333",
+        "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
+        "KOTAKBANK": "1922", "LT": "11483", "BAJFINANCE": "317", "HCLTECH": "7229", "ASIANPAINT": "236",
+        "MARUTI": "1095", "M&M": "2031", "SUNPHARMA": "3046", "TATAMOTORS": "3432", "WIPRO": "3787",
+        "ULTRACEMCO": "11532", "TITAN": "3506", "NESTLEIND": "11262", "BAJAJFINSV": "317",
+        "POWERGRID": "14977", "NTPC": "2886", "JSWSTEEL": "11723", "HDFCLIFE": "11915",
+        "DRREDDY": "881", "TECHM": "11534", "BRITANNIA": "293", "TATASTEEL": "3505", "CIPLA": "694",
+        "SBILIFE": "11916", "BAJAJ-AUTO": "317", "HINDALCO": "1393", "DIVISLAB": "881",
+        "GRASIM": "1147", "ADANIENT": "15083", "COALINDIA": "694", "INDUSINDBK": "1393",
+        "TATACONSUM": "3505", "EICHERMOT": "881", "SHREECEM": "1147", "HEROMOTOCO": "15083",
+        "BAJAJHLDNG": "694", "SBICARD": "1393", "DLF": "3505", "DMART": "881", "UPL": "1147",
+        "ICICIPRULI": "15083", "HDFCAMC": "694", "HDFC": "1393", "GAIL": "3505", "HAL": "881",
+        "TATAPOWER": "1147", "VEDL": "15083", "BPCL": "694", "IOC": "1393", "ONGC": "3505",
+        "LICHSGFIN": "881", "BANKBARODA": "1147", "PNB": "15083", "CANBK": "694", "UNIONBANK": "1393",
+        "IDFCFIRSTB": "3505", "BANDHANBNK": "881", "FEDERALBNK": "1147", "RBLBANK": "15083",
+        "YESBANK": "694", "IGL": "1393", "PETRONET": "3505", "GUJGASLTD": "881", "MGL": "1147",
+        "TORNTPHARM": "15083", "LUPIN": "694", "AUROPHARMA": "1393", "BIOCON": "3505",
+        "GLENMARK": "881", "CADILAHC": "1147", "ALKEM": "15083", "APOLLOHOSP": "694",
+        "MAXHEALTH": "1393", "FORTIS": "3505", "JUBLFOOD": "881", "UBL": "1147", "MCDOWELL-N": "15083",
+        "COLPAL": "694", "DABUR": "1393", "GODREJCP": "3505", "MARICO": "881", "EMAMILTD": "1147",
+        "PGHH": "15083", "GILLETTE": "694", "TATACHEM": "1393", "PIDILITIND": "3505",
+        "BERGEPAINT": "881", "KANSAINER": "1147", "JSWENERGY": "15083", "ADANIGREEN": "694",
+        "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
     }
 
     security_id = SYMBOL_MAP.get(symbol.strip().upper())
-
     if not security_id:
-        return jsonify({"error": f"Symbol '{symbol}' not found in SYMBOL_MAP"}), 400
+        return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
 
     try:
         response = dhan.place_order(
@@ -198,8 +118,28 @@ def webhook(user_id):
             product_type=dhan.INTRA,
             price=0
         )
-        save_log(user_id, symbol, action, quantity, "SUCCESS", str(response))
-        return jsonify({"status": "Trade Placed", "result": response})
+
+        # 🔥 Detect specific error if Market Closed
+        if isinstance(response, dict) and response.get("status") == "failure":
+            reason = (
+                response.get("remarks") or
+                response.get("error_message") or
+                response.get("errorMessage") or
+                "Unknown failure"
+            )
+
+            if "market" in reason.lower() or "closed" in reason.lower():
+                save_log(user_id, symbol, action, quantity, "MARKET_CLOSED", reason)
+                return jsonify({"status": "MARKET_CLOSED", "reason": reason}), 400
+            else:
+                save_log(user_id, symbol, action, quantity, "FAILED", reason)
+                return jsonify({"status": "FAILED", "reason": reason}), 400
+
+        # ✅ Success
+        success_msg = response.get("remarks", "Trade placed successfully")
+        save_log(user_id, symbol, action, quantity, "SUCCESS", success_msg)
+        return jsonify({"status": "SUCCESS", "result": success_msg})
+
     except Exception as e:
         save_log(user_id, symbol, action, quantity, "FAILED", str(e))
         return jsonify({"error": str(e)}), 500
@@ -323,62 +263,82 @@ def get_orders(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/chart/trades")
-def chart_trades():
-    user_id = request.args.get("user_id")
-
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-        if user_id not in users:
-            return jsonify({"error": "Invalid user ID"}), 403
-    except:
-        return jsonify({"error": "User DB not found"}), 500
-
-    user = users[user_id]
-    dhan = dhanhq(user["client_id"], user["access_token"])
-
-    try:
-        trades = dhan.get_order_list()
-        buy_count = sum(1 for t in trades if t["transactionType"] == "BUY")
-        sell_count = sum(1 for t in trades if t["transactionType"] == "SELL")
-
-        return jsonify({
-            "labels": ["Buy", "Sell"],
-            "values": [buy_count, sell_count],
-            "colors": ["#007bff", "#ffc107"]
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-        
 @app.route("/api/chart/pnl")
 def chart_pnl():
     user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
 
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-        if user_id not in users:
-            return jsonify({"error": "Invalid user ID"}), 403
-    except:
-        return jsonify({"error": "User DB not found"}), 500
+    conn = sqlite3.connect("tradelogs.db")
+    c = conn.cursor()
 
-    user = users[user_id]
-    dhan = dhanhq(user["client_id"], user["access_token"])
+    # Fetch last 5 PnL (unrealized PnL) entries
+    c.execute("""
+        SELECT timestamp, response 
+        FROM logs 
+        WHERE user_id = ? AND status = 'SUCCESS' 
+        ORDER BY id DESC LIMIT 5
+    """, (user_id,))
+    rows = c.fetchall()
+    conn.close()
 
-    try:
-        holdings = dhan.get_holdings()
-        labels = []
-        values = []
+    labels = []
+    pnl_values = []
 
-        for holding in holdings[:5]:  # top 5
-            labels.append(holding["tradingSymbol"])
-            pnl = float(holding.get("unrealizedProfitLossAmount", 0))
-            values.append(round(pnl, 2))
+    for row in rows:
+        labels.append(row[0][:10])  # Use date only (first 10 chars of timestamp)
 
-        return jsonify({"labels": labels, "values": values})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        try:
+            # Try to extract any "unrealized_pl" or "pnl" if present inside response JSON
+            resp = eval(row[1]) if isinstance(row[1], str) else {}
+            pnl = 0
+            if isinstance(resp, dict):
+                pnl = float(resp.get("unrealizedPnL", 0))
+            pnl_values.append(pnl)
+        except:
+            pnl_values.append(0)
+
+    if not labels:
+        labels = ["Day1", "Day2", "Day3", "Day4", "Day5"]
+        pnl_values = [0, 0, 0, 0, 0]
+
+    return jsonify({"labels": labels[::-1], "values": pnl_values[::-1]})
+
+
+# === Real API for Trades Chart (Buy vs Sell from logs) ===
+@app.route("/api/chart/trades")
+def chart_trades():
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    conn = sqlite3.connect("tradelogs.db")
+    c = conn.cursor()
+
+    # Count Buy and Sell from logs
+    c.execute("""
+        SELECT action, COUNT(*) 
+        FROM logs 
+        WHERE user_id = ? AND status = 'SUCCESS'
+        GROUP BY action
+    """, (user_id,))
+    rows = c.fetchall()
+    conn.close()
+
+    buy_count = 0
+    sell_count = 0
+
+    for action, count in rows:
+        if action.upper() == "BUY":
+            buy_count += count
+        elif action.upper() == "SELL":
+            sell_count += count
+
+    return jsonify({
+        "labels": ["Buy", "Sell"],
+        "values": [buy_count, sell_count],
+        "colors": ["#28a745", "#dc3545"]
+    })
 
 
 @app.route("/api/account/<user_id>")
