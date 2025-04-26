@@ -156,6 +156,11 @@ def webhook(user_id):
         save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
         return jsonify({"error": error_msg}), 500
 
+@app.route("/marketwatch")
+def market_watch():
+    return render_template("marketwatch.html")
+
+
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
 def get_alerts():
