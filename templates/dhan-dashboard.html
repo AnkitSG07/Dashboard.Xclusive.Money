@@ -31,6 +31,11 @@
       border-radius: 50%;
       object-fit: cover;
     }
+
+    html {
+      scroll-behavior: smooth;
+    }
+    
   </style>
 </head>
 <body>
@@ -64,6 +69,7 @@
       <li class="nav-item"><a class="nav-link" href="#portfolio"><i class="bi bi-wallet2"></i> Portfolio</a></li>
       <li class="nav-item"><a class="nav-link" href="#orders"><i class="bi bi-box-seam"></i> Orders</a></li>
       <li class="nav-item"><a class="nav-link" href="#logs"><i class="bi bi-clipboard-data"></i> Logs</a></li>
+      <li class="nav-item"><a class="nav-link" href="#market-watch"><i class="bi bi-bar-chart-line"></i> Market Watch</a></li>
     </ul>
     <div class="px-3 mt-auto mb-4">
       <button class="logout btn w-100" onclick="logout()">Logout</button>
@@ -100,6 +106,53 @@
       </div>
     </div>
 
+    <section id="market-watch" class="mb-5">
+      <h3 class="mb-3">📊 Market Watch</h3>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5>Top Gainers</h5>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="gainers-table">
+                <thead class="table-light">
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Change (%)</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+    
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5>Top Losers</h5>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="losers-table">
+                <thead class="table-light">
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Change (%)</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+      
     <section id="overview" class="mb-5">
       <h3 class="mb-3">💰 Account Overview</h3>
       <div class="row g-3">
@@ -272,6 +325,51 @@
     });
 
     loadTradingViewChart("NSE:RELIANCE");
+
+    function fetchMarketWatch() {
+      fetch('https://latest-stock-price.p.rapidapi.com/price?Indices=NIFTY%2050', {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': 'YOUR_RAPIDAPI_KEY_HERE', // 🛑 Replace this
+          'X-RapidAPI-Host': 'latest-stock-price.p.rapidapi.com'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        const gainers = data.sort((a,b) => b.percentageChange - a.percentageChange).slice(0, 5);
+        const losers = data.sort((a,b) => a.percentageChange - b.percentageChange).slice(0, 5);
+    
+        const gainersBody = document.querySelector("#gainers-table tbody");
+        const losersBody = document.querySelector("#losers-table tbody");
+    
+        gainersBody.innerHTML = '';
+        losersBody.innerHTML = '';
+    
+        gainers.forEach(stock => {
+          const row = `<tr>
+            <td>${stock.symbol}</td>
+            <td class="text-success">+${stock.percentageChange.toFixed(2)}%</td>
+            <td>₹${stock.lastPrice.toFixed(2)}</td>
+          </tr>`;
+          gainersBody.innerHTML += row;
+        });
+    
+        losers.forEach(stock => {
+          const row = `<tr>
+            <td>${stock.symbol}</td>
+            <td class="text-danger">${stock.percentageChange.toFixed(2)}%</td>
+            <td>₹${stock.lastPrice.toFixed(2)}</td>
+          </tr>`;
+          losersBody.innerHTML += row;
+        });
+      })
+      .catch(err => {
+        console.error('Market Watch Error:', err);
+      });
+    }
+    
+    fetchMarketWatch();
+    setInterval(fetchMarketWatch, 30000); // 🔄 Refresh every 30 sec
 
     function fetchLogs() {
       fetch(`/logs?user_id=${userId}`)
