@@ -11,6 +11,15 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
+def clean_response_message(response):
+    if isinstance(response, dict):
+        remarks = response.get("remarks")
+        if isinstance(remarks, dict):
+            return remarks.get("errorMessage") or remarks.get("error_message") or str(remarks)
+        return str(remarks) or str(response.get("status")) or str(response)
+    return str(response)
+
+
 # === Initialize SQLite DB ===
 def init_db():
     conn = sqlite3.connect("tradelogs.db")
@@ -48,13 +57,13 @@ def save_log(user_id, symbol, action, quantity, status, response):
 def webhook(user_id):
     data = request.json
 
-    # 🔔 Passive Alert
-    message = data.get("message")
-    if message:
+    # 🔔 Passive Alert Handling
+    if "message" in data:
+        message = data["message"]
         save_log(user_id, "-", "-", 0, "ALERT", message)
         return jsonify({"status": "Alert logged", "message": message}), 200
 
-    # 📦 Trade Placement
+    # 🛒 Live Trade Handling
     symbol = data.get("symbol")
     action = data.get("action")
     quantity = data.get("quantity")
@@ -62,7 +71,7 @@ def webhook(user_id):
     if not all([symbol, action, quantity]):
         return jsonify({"error": "Missing required fields (symbol, action, quantity)"}), 400
 
-    # Load User Credentials
+    # 🚪 Load User Credentials
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
@@ -77,7 +86,7 @@ def webhook(user_id):
     access_token = user["access_token"]
     dhan = dhanhq(client_id, access_token)
 
-    # 🔥 Full SYMBOL_MAP
+    # 🔥 Full SYMBOL_MAP (your 100+ symbols loaded)
     SYMBOL_MAP = {
         "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "HDFCBANK": "1333",
         "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
@@ -109,6 +118,7 @@ def webhook(user_id):
         return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
 
     try:
+        # 🚀 Place Order
         response = dhan.place_order(
             security_id=security_id,
             exchange_segment=dhan.NSE,
@@ -119,30 +129,32 @@ def webhook(user_id):
             price=0
         )
 
-        # 🔥 Detect specific error if Market Closed
+        # 🧹 Clean and classify the result
         if isinstance(response, dict) and response.get("status") == "failure":
             reason = (
                 response.get("remarks") or
                 response.get("error_message") or
                 response.get("errorMessage") or
-                "Unknown failure"
+                "Unknown error"
             )
 
-            if "market" in reason.lower() or "closed" in reason.lower():
-                save_log(user_id, symbol, action, quantity, "MARKET_CLOSED", reason)
-                return jsonify({"status": "MARKET_CLOSED", "reason": reason}), 400
+            reason_str = str(reason)
+            if "market" in reason_str.lower() or "closed" in reason_str.lower():
+                save_log(user_id, symbol, action, quantity, "MARKET_CLOSED", reason_str)
+                return jsonify({"status": "MARKET_CLOSED", "reason": reason_str}), 400
             else:
-                save_log(user_id, symbol, action, quantity, "FAILED", reason)
-                return jsonify({"status": "FAILED", "reason": reason}), 400
+                save_log(user_id, symbol, action, quantity, "FAILED", reason_str)
+                return jsonify({"status": "FAILED", "reason": reason_str}), 400
 
-        # ✅ Success
+        # ✅ Successful trade
         success_msg = response.get("remarks", "Trade placed successfully")
-        save_log(user_id, symbol, action, quantity, "SUCCESS", success_msg)
-        return jsonify({"status": "SUCCESS", "result": success_msg})
+        save_log(user_id, symbol, action, quantity, "SUCCESS", str(success_msg))
+        return jsonify({"status": "SUCCESS", "result": str(success_msg)}), 200
 
     except Exception as e:
-        save_log(user_id, symbol, action, quantity, "FAILED", str(e))
-        return jsonify({"error": str(e)}), 500
+        error_msg = str(e)
+        save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
+        return jsonify({"error": error_msg}), 500
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
