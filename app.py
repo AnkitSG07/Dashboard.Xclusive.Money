@@ -187,11 +187,12 @@ def market_gainers():
         data = response.json()
 
         gainers = []
-        for stock in data.get('finance', {}).get('result', []):
+        # Correct path: finance.result[0].quotes
+        for stock in data.get('finance', {}).get('result', [])[0].get('quotes', []):
             gainers.append({
                 "symbol": stock.get('symbol', 'N/A'),
-                "price": stock.get('regularMarketPrice', {}).get('raw', 0),
-                "pChange": stock.get('regularMarketChangePercent', {}).get('raw', 0)
+                "price": stock.get('regularMarketPrice', 0),
+                "pChange": stock.get('regularMarketChangePercent', 0)
             })
 
         return jsonify(gainers)
@@ -199,7 +200,7 @@ def market_gainers():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 📉 Top Losers
+# 📉 Similarly for Top Losers:
 @app.route('/api/market/losers')
 def market_losers():
     try:
@@ -213,11 +214,12 @@ def market_losers():
         data = response.json()
 
         losers = []
-        for stock in data.get('finance', {}).get('result', []):
+        # Correct path: finance.result[0].quotes
+        for stock in data.get('finance', {}).get('result', [])[0].get('quotes', []):
             losers.append({
                 "symbol": stock.get('symbol', 'N/A'),
-                "price": stock.get('regularMarketPrice', {}).get('raw', 0),
-                "pChange": stock.get('regularMarketChangePercent', {}).get('raw', 0)
+                "price": stock.get('regularMarketPrice', 0),
+                "pChange": stock.get('regularMarketChangePercent', 0)
             })
 
         return jsonify(losers)
