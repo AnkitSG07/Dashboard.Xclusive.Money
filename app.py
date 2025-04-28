@@ -10,11 +10,12 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-
-
-
 app = Flask(__name__)
 CORS(app)
+
+RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
+RAPIDAPI_HOST = "yahoo-finance166.p.rapidapi.com"
+
 
 def clean_response_message(response):
     if isinstance(response, dict):
@@ -176,67 +177,53 @@ def market_watch():
 @app.route('/api/market/gainers')
 def market_gainers():
     try:
+        url = f"https://{RAPIDAPI_HOST}/market/get-movers"
+        querystring = {"region":"IN","lang":"en","count":"10","start":"0","sortBy":"GAINER"}
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp",
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers)  # preload cookies
-        res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        table = soup.select_one("#top10_gainlose table tbody")
-        if not table:
-            return jsonify([])
+        response = requests.get(url, headers=headers, params=querystring)
+        data = response.json()
 
         gainers = []
-        for row in table.find_all("tr"):
-            cols = row.find_all("td")
-            if len(cols) >= 6:
-                gainers.append({
-                    "symbol": cols[0].text.strip(),
-                    "lastPrice": cols[4].text.strip(),
-                    "pChange": cols[5].text.strip()
-                })
+        for stock in data.get('finance', {}).get('result', []):
+            gainers.append({
+                "symbol": stock.get('symbol', 'N/A'),
+                "price": stock.get('regularMarketPrice', {}).get('raw', 0),
+                "pChange": stock.get('regularMarketChangePercent', {}).get('raw', 0)
+            })
 
         return jsonify(gainers)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 📉 Top Losers
 @app.route('/api/market/losers')
 def market_losers():
     try:
+        url = f"https://{RAPIDAPI_HOST}/market/get-movers"
+        querystring = {"region":"IN","lang":"en","count":"10","start":"0","sortBy":"LOSER"}
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp",
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers)
-        res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        table = soup.select_one("#top10_gainlose_losers table tbody")
-        if not table:
-            return jsonify([])
+        response = requests.get(url, headers=headers, params=querystring)
+        data = response.json()
 
         losers = []
-        for row in table.find_all("tr"):
-            cols = row.find_all("td")
-            if len(cols) >= 6:
-                losers.append({
-                    "symbol": cols[0].text.strip(),
-                    "lastPrice": cols[4].text.strip(),
-                    "pChange": cols[5].text.strip()
-                })
+        for stock in data.get('finance', {}).get('result', []):
+            losers.append({
+                "symbol": stock.get('symbol', 'N/A'),
+                "price": stock.get('regularMarketPrice', {}).get('raw', 0),
+                "pChange": stock.get('regularMarketChangePercent', {}).get('raw', 0)
+            })
 
         return jsonify(losers)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
