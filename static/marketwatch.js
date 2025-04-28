@@ -1,25 +1,13 @@
 async function fetchMarketData() {
   try {
-    // Fetch Gainers
-    const gainersResponse = await fetch('https://www.nseindia.com/api/live-analysis-variations?index=gainers', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      }
-    });
+    const gainersResponse = await fetch('/api/market/gainers');
+    const losersResponse = await fetch('/api/market/losers');
 
-    const losersResponse = await fetch('https://www.nseindia.com/api/live-analysis-variations?index=losers', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      }
-    });
+    const gainers = await gainersResponse.json();
+    const losers = await losersResponse.json();
 
-    const gainersData = await gainersResponse.json();
-    const losersData = await losersResponse.json();
-
-    updateTable('gainersTableBody', gainersData.data || []);
-    updateTable('losersTableBody', losersData.data || []);
+    updateTable('gainersTableBody', gainers);
+    updateTable('losersTableBody', losers);
 
   } catch (error) {
     console.error("Market Watch Error:", error);
@@ -36,10 +24,10 @@ function updateTable(tableId, stocks) {
     stocks.slice(0, 10).forEach(stock => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td><b>${stock.symbol || stock.data.symbol}</b></td>
-        <td>${stock.lastPrice || stock.data.lastPrice}</td>
-        <td class="${parseFloat(stock.pChange || stock.data.pChange) > 0 ? 'text-success' : 'text-danger'}">
-          ${parseFloat(stock.pChange || stock.data.pChange).toFixed(2)}%
+        <td><b>${stock.symbol}</b></td>
+        <td>${stock.lastPrice}</td>
+        <td class="${parseFloat(stock.pChange) > 0 ? 'text-success' : 'text-danger'}">
+          ${parseFloat(stock.pChange).toFixed(2)}%
         </td>
       `;
       tableBody.appendChild(row);
@@ -49,6 +37,6 @@ function updateTable(tableId, stocks) {
   }
 }
 
-// Initial load + Auto refresh every 1 minute
+// 🔄 Initial + auto refresh every 60s
 fetchMarketData();
 setInterval(fetchMarketData, 60000);
