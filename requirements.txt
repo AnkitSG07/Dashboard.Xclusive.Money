@@ -3,3 +3,4 @@ dhanhq
 gunicorn
 requests
 Flask-Cors==4.0.0
+beautifulsoup4
