@@ -8,6 +8,8 @@ from flask_cors import CORS
 import io
 from datetime import datetime
 import requests
+import beautifulsoup4
+
 
 app = Flask(__name__)
 CORS(app)
@@ -176,18 +178,32 @@ def market_gainers():
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "application/json"
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp",
         }
-        url = "https://www.nseindia.com/api/live-analysis-variations?index=gainers"
         session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers)  # First get cookies
-        res = session.get(url, headers=headers)
-        data = res.json()
-        top_gainers = data.get('data', [])[:10]
-        return jsonify(top_gainers)
+        session.get("https://www.nseindia.com", headers=headers)  # preload cookies
+        res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        table = soup.select_one("#cm_2 #top10_gainlose table tbody")
+        if not table:
+            return jsonify([])
+
+        gainers = []
+        for row in table.find_all("tr"):
+            cols = row.find_all("td")
+            if len(cols) >= 6:
+                gainers.append({
+                    "symbol": cols[0].text.strip(),
+                    "price": cols[4].text.strip(),
+                    "changePercentage": cols[5].text.strip()
+                })
+
+        return jsonify(gainers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 🔥 Top Losers Route
 @app.route('/api/market/losers')
 def market_losers():
     try:
@@ -195,17 +211,32 @@ def market_losers():
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "application/json"
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp",
         }
-        url = "https://www.nseindia.com/api/live-analysis-variations?index=losers"
         session = requests.Session()
         session.get("https://www.nseindia.com", headers=headers)
-        res = session.get(url, headers=headers)
-        data = res.json()
-        top_losers = data.get('data', [])[:10]
-        return jsonify(top_losers)
+        res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        table = soup.select_one("#cm_2 #top10_gainlose_losers table tbody")
+        if not table:
+            return jsonify([])
+
+        losers = []
+        for row in table.find_all("tr"):
+            cols = row.find_all("td")
+            if len(cols) >= 6:
+                losers.append({
+                    "symbol": cols[0].text.strip(),
+                    "price": cols[4].text.strip(),
+                    "changePercentage": cols[5].text.strip()
+                })
+
+        return jsonify(losers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
 def get_alerts():
