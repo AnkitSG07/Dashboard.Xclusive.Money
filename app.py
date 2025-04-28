@@ -177,55 +177,54 @@ def market_watch():
 @app.route('/api/market/gainers')
 def market_gainers():
     try:
-        url = f"https://{RAPIDAPI_HOST}/market/get-movers"
-        querystring = {"region":"IN","lang":"en","count":"10","start":"0","sortBy":"GAINER"}
+        url = f"https://{RAPIDAPI_HOST}/market/v2/get-movers"
+        querystring = {"region":"US","lang":"en","count":"6","start":"0"}
         headers = {
             "X-RapidAPI-Key": RAPIDAPI_KEY,
             "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        response = requests.get(url, headers=headers, params=querystring)
+        response = requests.get(f"https://{RAPIDAPI_HOST}/market/v2/get-movers", headers=headers, params=querystring)
         data = response.json()
 
+        quotes = data.get("finance", {}).get("result", [])[0].get("quotes", [])
         gainers = []
-        # Correct path: finance.result[0].quotes
-        for stock in data.get('finance', {}).get('result', [])[0].get('quotes', []):
+        for stock in quotes:
             gainers.append({
                 "symbol": stock.get('symbol', 'N/A'),
                 "price": stock.get('regularMarketPrice', 0),
-                "pChange": stock.get('regularMarketChangePercent', 0)
+                "pChange": 0  # (This API does not directly give %Change inside quote, if needed calculate manually)
             })
 
         return jsonify(gainers)
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 📉 Similarly for Top Losers:
+
 @app.route('/api/market/losers')
 def market_losers():
     try:
-        url = f"https://{RAPIDAPI_HOST}/market/get-movers"
-        querystring = {"region":"IN","lang":"en","count":"10","start":"0","sortBy":"LOSER"}
+        url = f"https://{RAPIDAPI_HOST}/market/v2/get-movers"
+        querystring = {"region":"US","lang":"en","count":"6","start":"0"}
         headers = {
             "X-RapidAPI-Key": RAPIDAPI_KEY,
             "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        response = requests.get(url, headers=headers, params=querystring)
+        response = requests.get(f"https://{RAPIDAPI_HOST}/market/v2/get-movers", headers=headers, params=querystring)
         data = response.json()
 
+        quotes = data.get("finance", {}).get("result", [])[1].get("quotes", [])
         losers = []
-        # Correct path: finance.result[0].quotes
-        for stock in data.get('finance', {}).get('result', [])[0].get('quotes', []):
+        for stock in quotes:
             losers.append({
                 "symbol": stock.get('symbol', 'N/A'),
                 "price": stock.get('regularMarketPrice', 0),
-                "pChange": stock.get('regularMarketChangePercent', 0)
+                "pChange": 0  # Again, if percent change needed, you have to calculate manually
             })
 
         return jsonify(losers)
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
