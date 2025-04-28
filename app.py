@@ -7,6 +7,7 @@ import pandas as pd
 from flask_cors import CORS
 import io
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -169,31 +170,42 @@ def market_watch():
     return render_template("marketwatch.html")
 
 @app.route('/api/market/gainers')
-def proxy_gainers():
+def market_gainers():
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0',   # Important for NSE
-            'Accept': 'application/json',
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept": "application/json"
         }
-        response = requests.get('https://www.nseindia.com/api/live-analysis-variations?index=gainers', headers=headers)
-        data = response.json()
-        return jsonify(data.get('data', []))
+        url = "https://www.nseindia.com/api/live-analysis-variations?index=gainers"
+        session = requests.Session()
+        session.get("https://www.nseindia.com", headers=headers)  # First get cookies
+        res = session.get(url, headers=headers)
+        data = res.json()
+        top_gainers = data.get('data', [])[:10]
+        return jsonify(top_gainers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/market/losers')
-def proxy_losers():
+def market_losers():
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0',
-            'Accept': 'application/json',
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept": "application/json"
         }
-        response = requests.get('https://www.nseindia.com/api/live-analysis-variations?index=losers', headers=headers)
-        data = response.json()
-        return jsonify(data.get('data', []))
+        url = "https://www.nseindia.com/api/live-analysis-variations?index=losers"
+        session = requests.Session()
+        session.get("https://www.nseindia.com", headers=headers)
+        res = session.get(url, headers=headers)
+        data = res.json()
+        top_losers = data.get('data', [])[:10]
+        return jsonify(top_losers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
 def get_alerts():
