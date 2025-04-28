@@ -8,7 +8,9 @@ from flask_cors import CORS
 import io
 from datetime import datetime
 import requests
-import beautifulsoup4
+from bs4 import BeautifulSoup
+
+
 
 
 app = Flask(__name__)
