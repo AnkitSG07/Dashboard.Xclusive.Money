@@ -178,21 +178,28 @@ def market_watch():
 def market_gainers():
     try:
         url = f"https://{RAPIDAPI_HOST}/market/v2/get-movers"
-        querystring = {"region":"US","lang":"en","count":"6","start":"0"}
+        querystring = {"region": "US", "lang": "en", "count": "6", "start": "0"}
         headers = {
             "X-RapidAPI-Key": RAPIDAPI_KEY,
             "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        response = requests.get(f"https://{RAPIDAPI_HOST}/market/v2/get-movers", headers=headers, params=querystring)
+        response = requests.get(url, headers=headers, params=querystring)
         data = response.json()
 
         quotes = data.get("finance", {}).get("result", [])[0].get("quotes", [])
         gainers = []
         for stock in quotes:
+            current_price = stock.get('regularMarketPrice', 0)
+            previous_close = stock.get('regularMarketPreviousClose', 0)
+            if previous_close and current_price:
+                pChange = ((current_price - previous_close) / previous_close) * 100
+            else:
+                pChange = 0
+
             gainers.append({
                 "symbol": stock.get('symbol', 'N/A'),
-                "price": stock.get('regularMarketPrice', 0),
-                "pChange": 0  # (This API does not directly give %Change inside quote, if needed calculate manually)
+                "price": current_price,
+                "pChange": pChange
             })
 
         return jsonify(gainers)
@@ -204,27 +211,33 @@ def market_gainers():
 def market_losers():
     try:
         url = f"https://{RAPIDAPI_HOST}/market/v2/get-movers"
-        querystring = {"region":"US","lang":"en","count":"6","start":"0"}
+        querystring = {"region": "US", "lang": "en", "count": "6", "start": "0"}
         headers = {
             "X-RapidAPI-Key": RAPIDAPI_KEY,
             "X-RapidAPI-Host": RAPIDAPI_HOST
         }
-        response = requests.get(f"https://{RAPIDAPI_HOST}/market/v2/get-movers", headers=headers, params=querystring)
+        response = requests.get(url, headers=headers, params=querystring)
         data = response.json()
 
         quotes = data.get("finance", {}).get("result", [])[1].get("quotes", [])
         losers = []
         for stock in quotes:
+            current_price = stock.get('regularMarketPrice', 0)
+            previous_close = stock.get('regularMarketPreviousClose', 0)
+            if previous_close and current_price:
+                pChange = ((current_price - previous_close) / previous_close) * 100
+            else:
+                pChange = 0
+
             losers.append({
                 "symbol": stock.get('symbol', 'N/A'),
-                "price": stock.get('regularMarketPrice', 0),
-                "pChange": 0  # Again, if percent change needed, you have to calculate manually
+                "price": current_price,
+                "pChange": pChange
             })
 
         return jsonify(losers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
