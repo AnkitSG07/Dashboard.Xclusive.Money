@@ -160,6 +160,60 @@ def webhook(user_id):
 def market_watch():
     return render_template("marketwatch.html")
 
+@app.route("/api/nse/gainers")
+def get_nse_gainers():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "application/json"
+    }
+    url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
+
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        data = response.json()
+        stocks = data['data']
+        gainers = sorted(stocks, key=lambda x: -x['pChange'])[:5]
+
+        result = []
+        for stock in gainers:
+            result.append({
+                "symbol": stock["symbol"],
+                "price": stock["lastPrice"],
+                "change": stock["pChange"]
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/nse/losers")
+def get_nse_losers():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "application/json"
+    }
+    url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
+
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        data = response.json()
+        stocks = data['data']
+        losers = sorted(stocks, key=lambda x: x['pChange'])[:5]
+
+        result = []
+        for stock in losers:
+            result.append({
+                "symbol": stock["symbol"],
+                "price": stock["lastPrice"],
+                "change": stock["pChange"]
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
