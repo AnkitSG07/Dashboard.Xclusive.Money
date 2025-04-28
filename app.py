@@ -187,7 +187,7 @@ def market_gainers():
         res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        table = soup.select_one("#cm_2 #top10_gainlose table tbody")
+        table = soup.select_one("#top10_gainlose table tbody")
         if not table:
             return jsonify([])
 
@@ -197,15 +197,14 @@ def market_gainers():
             if len(cols) >= 6:
                 gainers.append({
                     "symbol": cols[0].text.strip(),
-                    "price": cols[4].text.strip(),
-                    "changePercentage": cols[5].text.strip()
+                    "lastPrice": cols[4].text.strip(),
+                    "pChange": cols[5].text.strip()
                 })
 
         return jsonify(gainers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔥 Top Losers Route
 @app.route('/api/market/losers')
 def market_losers():
     try:
@@ -220,7 +219,7 @@ def market_losers():
         res = session.get("https://www.nseindia.com/market-data/top-gainers-losers", headers=headers)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        table = soup.select_one("#cm_2 #top10_gainlose_losers table tbody")
+        table = soup.select_one("#top10_gainlose_losers table tbody")
         if not table:
             return jsonify([])
 
@@ -230,8 +229,8 @@ def market_losers():
             if len(cols) >= 6:
                 losers.append({
                     "symbol": cols[0].text.strip(),
-                    "price": cols[4].text.strip(),
-                    "changePercentage": cols[5].text.strip()
+                    "lastPrice": cols[4].text.strip(),
+                    "pChange": cols[5].text.strip()
                 })
 
         return jsonify(losers)
