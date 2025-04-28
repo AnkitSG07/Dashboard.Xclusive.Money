@@ -14,7 +14,7 @@ app = Flask(__name__)
 CORS(app)
 
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
-RAPIDAPI_HOST = "yahoo-finance166.p.rapidapi.com"
+RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
 
 
 def clean_response_message(response):
