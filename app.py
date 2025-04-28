@@ -55,9 +55,17 @@ def save_log(user_id, symbol, action, quantity, status, response):
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
-    data = request.json
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        data = {}
 
-    # 🔔 Passive Alert Handling
+    # 🔔 Passive Alert Handling - Raw String Support
+    if isinstance(data, str):
+        save_log(user_id, "-", "-", 0, "ALERT", data)
+        return jsonify({"status": "Alert logged", "message": data}), 200
+
+    # 🔔 Passive Alert Handling - Normal JSON Support
     if "message" in data:
         message = data["message"]
         save_log(user_id, "-", "-", 0, "ALERT", message)
