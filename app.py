@@ -178,6 +178,7 @@ def market_watch():
 def add_account():
     data = request.json
     client_id = data.get("client_id")
+    access_token = data.get("access_token")
     username = data.get("username")
     role = data.get("role")  # 'master' or 'child'
 
@@ -196,6 +197,7 @@ def add_account():
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
+                "access_token": access_token,  # ✅ Save token
                 "status": "Connected"
             }
         else:
@@ -203,9 +205,12 @@ def add_account():
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
+                "access_token": access_token,  # ✅ Save token
                 "status": "Connected",
                 "copy_status": "Off"
             })
+
+
 
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
