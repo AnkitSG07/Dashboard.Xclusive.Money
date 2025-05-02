@@ -173,6 +173,49 @@ def webhook(user_id):
 @app.route("/marketwatch")
 def market_watch():
     return render_template("marketwatch.html")
+
+@app.route('/api/add-account', methods=['POST'])
+def add_account():
+    data = request.json
+    client_id = data.get("client_id")
+    username = data.get("username")
+    role = data.get("role")  # 'master' or 'child'
+
+    if not all([client_id, username, role]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            accounts = {"master": None, "children": []}
+
+        if role == "master":
+            accounts["master"] = {
+                "broker": "Dhan",
+                "client_id": client_id,
+                "username": username,
+                "status": "Connected"
+            }
+        else:
+            accounts["children"].append({
+                "broker": "Dhan",
+                "client_id": client_id,
+                "username": username,
+                "status": "Connected",
+                "copy_status": "Off"
+            })
+
+        with open("accounts.json", "w") as f:
+            json.dump(accounts, f, indent=2)
+
+        return jsonify({"message": "Account added successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # Serve the copy trading page
 @app.route('/copy-trading')
 def copy_trading():
@@ -181,23 +224,11 @@ def copy_trading():
 # Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
 def get_accounts():
-    accounts = {
-        'master': {
-            'broker': 'Dhan',
-            'client_id': 'DH123456',
-            'username': 'my_username',
-            'status': 'Connected'
-        },
-        'children': [
-            {
-                'broker': 'Dhan',
-                'client_id': 'DH654321',
-                'username': 'child_user',
-                'status': 'Connected',
-                'copy_status': 'Off'
-            }
-        ]
-    }
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+    else:
+        accounts = {"master": None, "children": []}
     return jsonify(accounts)
 
 # Set master account
