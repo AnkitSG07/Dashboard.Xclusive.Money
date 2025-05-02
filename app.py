@@ -173,6 +173,53 @@ def webhook(user_id):
 @app.route("/marketwatch")
 def market_watch():
     return render_template("marketwatch.html")
+# Serve the copy trading page
+@app.route('/copy-trading')
+def copy_trading():
+    return render_template('copy-trading.html')
+
+# Get all trading accounts (sample data for now)
+@app.route('/api/accounts')
+def get_accounts():
+    accounts = {
+        'master': {
+            'broker': 'Dhan',
+            'client_id': 'DH123456',
+            'username': 'my_username',
+            'status': 'Connected'
+        },
+        'children': [
+            {
+                'broker': 'Dhan',
+                'client_id': 'DH654321',
+                'username': 'child_user',
+                'status': 'Connected',
+                'copy_status': 'Off'
+            }
+        ]
+    }
+    return jsonify(accounts)
+
+# Set master account
+@app.route('/api/set-master', methods=['POST'])
+def set_master():
+    data = request.json
+    # Here you'd update the DB; returning success for now
+    return jsonify({'message': f"Set {data.get('client_id')} as master successfully."})
+
+# Start copying for a child account
+@app.route('/api/start-copy', methods=['POST'])
+def start_copy():
+    data = request.json
+    return jsonify({'message': f"Started copying for {data.get('client_id')}."})
+
+# Remove a child account
+@app.route('/api/remove-child', methods=['POST'])
+def remove_child():
+    data = request.json
+    return jsonify({'message': f"Removed child {data.get('client_id')}."})
+
+
 
 @app.route('/copy-trading')
 def copy_trading():
