@@ -174,6 +174,11 @@ def webhook(user_id):
 def market_watch():
     return render_template("marketwatch.html")
 
+@app.route('/copy-trading')
+def copy_trading():
+    # This renders the copy-trading.html you showed
+    return render_template('copy-trading.html')
+
 @app.route('/api/market/gainers')
 def market_gainers():
     try:
