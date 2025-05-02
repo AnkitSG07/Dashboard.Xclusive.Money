@@ -216,11 +216,6 @@ def add_account():
         return jsonify({"error": str(e)}), 500
 
 
-# Serve the copy trading page
-@app.route('/copy-trading')
-def copy_trading():
-    return render_template('copy-trading.html')
-
 # Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
 def get_accounts():
