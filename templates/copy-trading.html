@@ -138,6 +138,12 @@
               <label for="accessToken" class="form-label">Access Token</label>
               <input type="text" class="form-control" id="accessToken" required>
             </div>
+
+            <div class="mb-3">
+              <label for="multiplier" class="form-label">Multiplier (e.g., 1 = same qty)</label>
+              <input type="number" step="0.1" min="0.1" class="form-control" id="multiplier" value="1" required>
+            </div>
+
             <div class="mb-3">
               <label for="role" class="form-label">Role</label>
               <select class="form-select" id="role" required>
