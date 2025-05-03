@@ -9,6 +9,7 @@ import io
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 CORS(app)
@@ -24,7 +25,6 @@ def clean_response_message(response):
             return remarks.get("errorMessage") or remarks.get("error_message") or str(remarks)
         return str(remarks) or str(response.get("status")) or str(response)
     return str(response)
-
 
 # === Initialize SQLite DB ===
 def init_db():
@@ -61,7 +61,6 @@ def save_log(user_id, symbol, action, quantity, status, response):
 def poll_and_copy_trades():
     global last_copied_trade_id
     try:
-        # Load accounts
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
@@ -86,40 +85,39 @@ def poll_and_copy_trades():
 
         if order_id == last_copied_trade_id:
             print("No new trades.")
-            return  # Already copied this trade
+            return
 
-        print(f"New master trade detected: {latest_order}")
-
-        # Save this trade ID as last copied
+        print(f"✅ New master trade detected: {latest_order}")
         last_copied_trade_id = order_id
 
-        # Copy to each child
         children = accounts.get("children", [])
         for child in children:
             if child.get("copy_status") != "On":
                 continue
 
             try:
-                print(f"Copying to child: {child['client_id']}")
                 dhan_child = dhanhq(child["client_id"], child["access_token"])
-                # Copy same order params
+
+                multiplier = float(child.get("multiplier", 1))
+                master_qty = latest_order.get("quantity")
+                copied_qty = max(1, int(master_qty * multiplier))
+
                 response = dhan_child.place_order(
                     security_id=latest_order.get("security_id"),
                     exchange_segment=latest_order.get("exchange_segment"),
                     transaction_type=latest_order.get("transaction_type"),
-                    quantity=latest_order.get("quantity"),
+                    quantity=copied_qty,
                     order_type=latest_order.get("order_type"),
                     product_type=latest_order.get("product_type"),
                     price=latest_order.get("price", 0)
                 )
-                print(f"Copied to {child['client_id']}: {response}")
+                print(f"✅ Copied to {child['client_id']} with multiplier {multiplier}: qty {copied_qty}")
 
             except Exception as e:
-                print(f"Failed to copy to {child['client_id']}: {e}")
+                print(f"❌ Failed to copy to {child['client_id']}: {e}")
 
     except Exception as e:
-        print(f"Error in poll_and_copy_trades: {e}")
-
+        print(f"❌ Error in poll_and_copy_trades: {e}")
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
@@ -233,6 +231,40 @@ def webhook(user_id):
         save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
         return jsonify({"error": error_msg}), 500
 
+
+@app.route('/api/update-multiplier', methods=['POST'])
+def update_multiplier():
+    data = request.json
+    client_id = data.get("client_id")
+    new_multiplier = data.get("multiplier")
+
+    if not client_id or new_multiplier is None:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            return jsonify({"error": "No accounts found"}), 400
+
+        updated = False
+        for child in accounts.get("children", []):
+            if child["client_id"] == client_id:
+                child["multiplier"] = float(new_multiplier)
+                updated = True
+                break
+
+        if updated:
+            with open("accounts.json", "w") as f:
+                json.dump(accounts, f, indent=2)
+            return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
+        else:
+            return jsonify({"error": "Child account not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/marketwatch")
 def market_watch():
     return render_template("marketwatch.html")
@@ -243,7 +275,8 @@ def add_account():
     client_id = data.get("client_id")
     access_token = data.get("access_token")
     username = data.get("username")
-    role = data.get("role")  # 'master' or 'child'
+    role = data.get("role")
+    multiplier = float(data.get("multiplier", 1))
 
     if not all([client_id, username, role]):
         return jsonify({"error": "Missing required fields"}), 400
@@ -260,7 +293,7 @@ def add_account():
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
-                "access_token": access_token,  # ✅ Save token
+                "access_token": access_token,
                 "status": "Connected"
             }
         else:
@@ -268,12 +301,11 @@ def add_account():
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
-                "access_token": access_token,  # ✅ Save token
+                "access_token": access_token,
                 "status": "Connected",
-                "copy_status": "Off"
+                "copy_status": "Off",
+                "multiplier": multiplier
             })
-
-
 
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
@@ -305,13 +337,97 @@ def set_master():
 @app.route('/api/start-copy', methods=['POST'])
 def start_copy():
     data = request.json
-    return jsonify({'message': f"Started copying for {data.get('client_id')}."})
+    client_id = data.get("client_id")
+
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            return jsonify({"error": "No accounts file found"}), 500
+
+        updated = False
+        for child in accounts.get("children", []):
+            if child["client_id"] == client_id:
+                child["copy_status"] = "On"
+                updated = True
+                break
+
+        if updated:
+            with open("accounts.json", "w") as f:
+                json.dump(accounts, f, indent=2)
+            return jsonify({'message': f"✅ Started copying for {client_id}."}), 200
+        else:
+            return jsonify({"error": "❌ Child account not found."}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/stop-copy', methods=['POST'])
+def stop_copy():
+    data = request.json
+    client_id = data.get("client_id")
+
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            return jsonify({"error": "No accounts file found"}), 500
+
+        updated = False
+        for child in accounts.get("children", []):
+            if child["client_id"] == client_id:
+                child["copy_status"] = "Off"
+                updated = True
+                break
+
+        if updated:
+            with open("accounts.json", "w") as f:
+                json.dump(accounts, f, indent=2)
+            return jsonify({'message': f"🛑 Stopped copying for {client_id}."}), 200
+        else:
+            return jsonify({"error": "❌ Child account not found."}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 # Remove a child account
 @app.route('/api/remove-child', methods=['POST'])
 def remove_child():
     data = request.json
-    return jsonify({'message': f"Removed child {data.get('client_id')}."})
+    client_id = data.get("client_id")
+
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            return jsonify({"error": "No accounts file found"}), 500
+
+        original_count = len(accounts.get("children", []))
+        accounts["children"] = [child for child in accounts.get("children", []) if child["client_id"] != client_id]
+
+        if len(accounts["children"]) < original_count:
+            with open("accounts.json", "w") as f:
+                json.dump(accounts, f, indent=2)
+            return jsonify({'message': f"✅ Removed child {client_id}."}), 200
+        else:
+            return jsonify({"error": "❌ Child account not found."}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
