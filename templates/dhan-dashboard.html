@@ -396,11 +396,12 @@
       fetch(`/api/account/${userId}`)
         .then(res => res.json())
         .then(data => {
-          document.getElementById("total-funds").textContent = `Total Funds: ₹${parseFloat(data.net || 0).toFixed(2)}`;
+          document.getElementById("total-funds").textContent = `Total Funds: ₹${parseFloat(data.total_funds || 0).toFixed(2)}`;
           document.getElementById("available-margin").textContent = `Available Margin: ₹${parseFloat(data.available_margin || 0).toFixed(2)}`;
           document.getElementById("used-margin").textContent = `Used Margin: ₹${parseFloat(data.used_margin || 0).toFixed(2)}`;
         });
     }
+
 
     function refreshAll() {
       fetchLogs();
