@@ -617,12 +617,14 @@ def get_orders(user_id):
     dhan = dhanhq(user["client_id"], user["access_token"])
 
     try:
-        orders = dhan.get_order_list()
-        print(f"👉 Raw orders for {user_id}: {orders}")
+        resp = dhan.get_order_list()
+        print(f"👉 Full Dhan API response for {user_id}: {resp}")
 
-        # Defensive check: is it a list?
-        if not isinstance(orders, list):
-            return jsonify({"error": "Unexpected response from Dhan API", "details": orders}), 500
+        # Defensive check: is it the expected dict?
+        if not isinstance(resp, dict) or "data" not in resp:
+            return jsonify({"error": "Unexpected response format", "details": resp}), 500
+
+        orders = resp["data"]  # ✅ the real list of orders now
 
         total_trades = len(orders)
         last_order = orders[0] if orders else {}
@@ -632,7 +634,7 @@ def get_orders(user_id):
             "orders": orders,
             "summary": {
                 "total_trades": total_trades,
-                "last_status": last_order.get("order_status", "N/A"),
+                "last_status": last_order.get("orderStatus", "N/A"),
                 "total_quantity": total_qty
             }
         })
