@@ -242,16 +242,27 @@ def update_multiplier():
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
+        # Validate multiplier is a float and >= 0.1
+        try:
+            new_multiplier = float(new_multiplier)
+            if new_multiplier < 0.1:
+                return jsonify({"error": "Multiplier must be at least 0.1"}), 400
+        except ValueError:
+            return jsonify({"error": "Invalid multiplier format"}), 400
+
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
         else:
             return jsonify({"error": "No accounts found"}), 400
 
+        if not isinstance(accounts.get("children"), list):
+            return jsonify({"error": "Invalid accounts file format"}), 500
+
         updated = False
-        for child in accounts.get("children", []):
+        for child in accounts["children"]:
             if child["client_id"] == client_id:
-                child["multiplier"] = float(new_multiplier)
+                child["multiplier"] = new_multiplier
                 updated = True
                 break
 
@@ -264,6 +275,7 @@ def update_multiplier():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/marketwatch")
 def market_watch():
