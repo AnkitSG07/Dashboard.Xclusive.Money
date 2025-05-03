@@ -606,7 +606,8 @@ def get_orders(user_id):
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
-    except:
+    except Exception as e:
+        print(f"❌ Failed to load users.json: {str(e)}")
         return jsonify({"error": "User DB not found"}), 500
 
     if user_id not in users:
@@ -617,6 +618,12 @@ def get_orders(user_id):
 
     try:
         orders = dhan.get_order_list()
+        print(f"👉 Raw orders for {user_id}: {orders}")
+
+        # Defensive check: is it a list?
+        if not isinstance(orders, list):
+            return jsonify({"error": "Unexpected response from Dhan API", "details": orders}), 500
+
         total_trades = len(orders)
         last_order = orders[0] if orders else {}
         total_qty = sum(int(o.get("quantity", 0)) for o in orders)
@@ -630,7 +637,9 @@ def get_orders(user_id):
             }
         })
     except Exception as e:
+        print(f"❌ Error while fetching orders for {user_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/chart/pnl")
 def chart_pnl():
