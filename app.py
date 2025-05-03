@@ -737,9 +737,25 @@ def get_account_stats(user_id):
 
     try:
         stats = dhan.get_fund_limits()
-        return jsonify(stats)
+        print(f"👉 Fund stats for {user_id}: {stats}")
+
+        if not isinstance(stats, dict) or "data" not in stats:
+            return jsonify({"error": "Unexpected response format", "details": stats}), 500
+
+        data = stats["data"]
+
+        total_funds = data.get("totalAccountValue", 0)
+        available_margin = data.get("availableMargin", 0)
+        used_margin = data.get("usedMargin", 0)
+
+        return jsonify({
+            "total_funds": total_funds,
+            "available_margin": available_margin,
+            "used_margin": used_margin
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 # === Page routes ===
