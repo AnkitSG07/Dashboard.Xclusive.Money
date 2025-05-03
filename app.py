@@ -736,23 +736,22 @@ def get_account_stats(user_id):
     dhan = dhanhq(user["client_id"], user["access_token"])
 
     try:
-        stats = dhan.get_fund_limits()
-        print(f"👉 Fund stats for {user_id}: {stats}")
+        stats_resp = dhan.get_fund_limits()
+        print(f"👉 Fund stats for {user_id}: {stats_resp}")
 
-        if not isinstance(stats, dict) or "data" not in stats:
-            return jsonify({"error": "Unexpected response format", "details": stats}), 500
+        if not isinstance(stats_resp, dict) or "data" not in stats_resp:
+            return jsonify({"error": "Unexpected response format", "details": stats_resp}), 500
 
-        data = stats["data"]
+        stats = stats_resp["data"]
 
-        total_funds = data.get("totalAccountValue", 0)
-        available_margin = data.get("availableMargin", 0)
-        used_margin = data.get("usedMargin", 0)
+        # Map to clean keys:
+        mapped_stats = {
+            "total_funds": stats.get("availabelBalance", 0),
+            "available_margin": stats.get("withdrawableBalance", 0),
+            "used_margin": stats.get("utilizedAmount", 0)
+        }
+        return jsonify(mapped_stats)
 
-        return jsonify({
-            "total_funds": total_funds,
-            "available_margin": available_margin,
-            "used_margin": used_margin
-        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
