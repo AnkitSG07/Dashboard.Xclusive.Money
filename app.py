@@ -15,7 +15,7 @@ CORS(app)
 
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
 RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
-
+last_copied_trade_id = None  # Global to track last copied trade
 
 def clean_response_message(response):
     if isinstance(response, dict):
@@ -57,6 +57,69 @@ def save_log(user_id, symbol, action, quantity, status, response):
     """, (datetime.now().isoformat(), user_id, symbol, action, quantity, status, response))
     conn.commit()
     conn.close()
+
+def poll_and_copy_trades():
+    global last_copied_trade_id
+    try:
+        # Load accounts
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            print("No accounts to monitor.")
+            return
+
+        master = accounts.get("master")
+        if not master or not master.get("access_token"):
+            print("No master account configured.")
+            return
+
+        dhan_master = dhanhq(master["client_id"], master["access_token"])
+        orders = dhan_master.get_order_list()
+
+        if not orders:
+            print("No orders found for master.")
+            return
+
+        latest_order = orders[0]
+        order_id = latest_order.get("order_id")
+
+        if order_id == last_copied_trade_id:
+            print("No new trades.")
+            return  # Already copied this trade
+
+        print(f"New master trade detected: {latest_order}")
+
+        # Save this trade ID as last copied
+        last_copied_trade_id = order_id
+
+        # Copy to each child
+        children = accounts.get("children", [])
+        for child in children:
+            if child.get("copy_status") != "On":
+                continue
+
+            try:
+                print(f"Copying to child: {child['client_id']}")
+                dhan_child = dhanhq(child["client_id"], child["access_token"])
+                # Copy same order params
+                response = dhan_child.place_order(
+                    security_id=latest_order.get("security_id"),
+                    exchange_segment=latest_order.get("exchange_segment"),
+                    transaction_type=latest_order.get("transaction_type"),
+                    quantity=latest_order.get("quantity"),
+                    order_type=latest_order.get("order_type"),
+                    product_type=latest_order.get("product_type"),
+                    price=latest_order.get("price", 0)
+                )
+                print(f"Copied to {child['client_id']}: {response}")
+
+            except Exception as e:
+                print(f"Failed to copy to {child['client_id']}: {e}")
+
+    except Exception as e:
+        print(f"Error in poll_and_copy_trades: {e}")
+
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
@@ -549,5 +612,14 @@ def home():
 def dashboard():
     return render_template("dhan-dashboard.html")
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
+    scheduler.start()
+    print("Background copy trader is running...")
+
+    try:
+        app.run(debug=True, use_reloader=False)  # use_reloader=False is IMPORTANT
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+
