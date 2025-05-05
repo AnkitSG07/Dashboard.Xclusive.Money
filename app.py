@@ -16,7 +16,7 @@ CORS(app)
 
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
 RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
-last_copied_trade_id = None  # Global to track last copied trade
+
 
 def clean_response_message(response):
     if isinstance(response, dict):
@@ -59,7 +59,6 @@ def save_log(user_id, symbol, action, quantity, status, response):
     conn.close()
 
 def poll_and_copy_trades():
-    global last_copied_trade_id  # Ensure we're using the global one
     print("🔄 poll_and_copy_trades() triggered...")
 
     try:
@@ -75,6 +74,9 @@ def poll_and_copy_trades():
         if not master or not master.get("access_token"):
             print("⚠️ No master account is configured or missing access token.")
             return
+
+        # ✅ Get the last copied trade from accounts.json
+        last_copied_trade_id = accounts.get("last_copied_trade_id")
 
         dhan_master = dhanhq(master["client_id"], master["access_token"])
         orders_resp = dhan_master.get_order_list()
@@ -102,8 +104,7 @@ def poll_and_copy_trades():
 
         print(f"✅ New master trade detected: Order ID {order_id}")
 
-        # 🔥 Update both global and accounts.json
-        last_copied_trade_id = order_id
+        # 🔥 Update accounts.json
         accounts["last_copied_trade_id"] = order_id
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
@@ -155,17 +156,28 @@ def poll_and_copy_trades():
                     price=price
                 )
 
-                print(f"✅ Successfully copied to {child['client_id']} (Order Response: {response})")
-
-                # ✅ Save log
-                save_log(
-                    child["client_id"],
-                    latest_order.get("tradingSymbol") or latest_order.get("symbol", ""),
-                    transaction_type,
-                    copied_qty,
-                    "SUCCESS",
-                    str(response)
-                )
+                # ✅ Check if FAILED or SUCCESS
+                if isinstance(response, dict) and response.get("status") == "failure":
+                    error_msg = response.get("omsErrorDescription") or response.get("remarks") or "Unknown error"
+                    print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
+                    save_log(
+                        child["client_id"],
+                        latest_order.get("tradingSymbol") or latest_order.get("symbol", ""),
+                        transaction_type,
+                        copied_qty,
+                        "FAILED",
+                        error_msg
+                    )
+                else:
+                    print(f"✅ Successfully copied to {child['client_id']} (Order Response: {response})")
+                    save_log(
+                        child["client_id"],
+                        latest_order.get("tradingSymbol") or latest_order.get("symbol", ""),
+                        transaction_type,
+                        copied_qty,
+                        "SUCCESS",
+                        str(response)
+                    )
 
             except Exception as e:
                 print(f"❌ Error copying to {child['client_id']}: {e}")
@@ -180,6 +192,7 @@ def poll_and_copy_trades():
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
+
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
