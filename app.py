@@ -59,91 +59,127 @@ def save_log(user_id, symbol, action, quantity, status, response):
     conn.close()
 
 def poll_and_copy_trades():
+    global last_copied_trade_id  # Ensure we're using the global one
+    print("🔄 poll_and_copy_trades() triggered...")
+
     try:
+        # ✅ Load accounts.json
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
         else:
-            print("No accounts to monitor.")
+            print("⚠️ No accounts.json file found.")
             return
 
         master = accounts.get("master")
         if not master or not master.get("access_token"):
-            print("No master account configured.")
+            print("⚠️ No master account is configured or missing access token.")
             return
-
-        last_copied_trade_id = accounts.get("last_copied_trade_id")
 
         dhan_master = dhanhq(master["client_id"], master["access_token"])
         orders_resp = dhan_master.get_order_list()
 
-        # ✅ Properly extract orders from Dhan's API
+        # ✅ Extract orders from Dhan API
         order_list = orders_resp.get("data", [])
         if not order_list:
-            print("No orders found for master.")
+            print("ℹ️ No orders found for master account.")
             return
 
+        # ✅ Grab the latest order
         latest_order = order_list[0]
-        order_id = latest_order.get("order_id")
+        print(f"🛠 Latest order details:\n{json.dumps(latest_order, indent=2)}")
 
-        if order_id == last_copied_trade_id:
-            print("No new trades.")
+        order_id = latest_order.get("orderId") or latest_order.get("order_id")  # handle both cases
+
+        if not order_id:
+            print("⚠️ Could not find order_id in the latest order. Skipping.")
             return
 
-        print(f"✅ New master trade detected: {latest_order}")
+        # ✅ Check if already copied
+        if order_id == last_copied_trade_id:
+            print("✅ No new trades to copy. Latest already processed.")
+            return
 
-        # 🔥 Update last_copied_trade_id for persistence
+        print(f"✅ New master trade detected: Order ID {order_id}")
+
+        # 🔥 Update both global and accounts.json
+        last_copied_trade_id = order_id
         accounts["last_copied_trade_id"] = order_id
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
 
+        # ✅ Start copying to child accounts
         children = accounts.get("children", [])
+        if not children:
+            print("ℹ️ No child accounts found.")
+            return
+
         for child in children:
             if child.get("copy_status") != "On":
+                print(f"➡️ Skipping child {child['client_id']} (copy_status is Off)")
                 continue
 
             try:
                 dhan_child = dhanhq(child["client_id"], child["access_token"])
                 multiplier = float(child.get("multiplier", 1))
-                master_qty = latest_order.get("quantity", 1)
-                copied_qty = max(1, int(master_qty * multiplier))
+                master_qty = latest_order.get("quantity") or latest_order.get("orderQuantity") or 1
+                copied_qty = max(1, int(float(master_qty) * multiplier))
 
-                # Place the order
+                print(f"➡️ Copying to child {child['client_id']} | Qty: {copied_qty} (Multiplier: {multiplier})")
+
+                # ✅ Extract required fields safely
+                security_id = latest_order.get("securityId") or latest_order.get("security_id")
+                exchange_segment = latest_order.get("exchangeSegment") or latest_order.get("exchange_segment")
+                transaction_type = latest_order.get("transactionType") or latest_order.get("transaction_type")
+                order_type = latest_order.get("orderType") or latest_order.get("order_type")
+                product_type = latest_order.get("productType") or latest_order.get("product_type")
+                price = latest_order.get("price") or latest_order.get("orderPrice") or 0
+
+                # 🛠 Log field checks
+                print(f"""🔎 Fields being sent:
+    security_id: {security_id}
+    exchange_segment: {exchange_segment}
+    transaction_type: {transaction_type}
+    order_type: {order_type}
+    product_type: {product_type}
+    price: {price}""")
+
+                # 🚀 Place the order
                 response = dhan_child.place_order(
-                    security_id=latest_order.get("security_id"),
-                    exchange_segment=latest_order.get("exchange_segment"),
-                    transaction_type=latest_order.get("transaction_type"),
+                    security_id=security_id,
+                    exchange_segment=exchange_segment,
+                    transaction_type=transaction_type,
                     quantity=copied_qty,
-                    order_type=latest_order.get("order_type"),
-                    product_type=latest_order.get("product_type"),
-                    price=latest_order.get("price", 0)
+                    order_type=order_type,
+                    product_type=product_type,
+                    price=price
                 )
 
-                print(f"✅ Copied to {child['client_id']} with multiplier {multiplier}: qty {copied_qty}")
+                print(f"✅ Successfully copied to {child['client_id']} (Order Response: {response})")
 
-                # ✅ Log success
+                # ✅ Save log
                 save_log(
                     child["client_id"],
-                    latest_order.get("symbol", ""),
-                    latest_order.get("transaction_type", ""),
+                    latest_order.get("tradingSymbol") or latest_order.get("symbol", ""),
+                    transaction_type,
                     copied_qty,
                     "SUCCESS",
                     str(response)
                 )
 
             except Exception as e:
-                print(f"❌ Failed to copy to {child['client_id']}: {e}")
+                print(f"❌ Error copying to {child['client_id']}: {e}")
                 save_log(
                     child["client_id"],
-                    latest_order.get("symbol", ""),
-                    latest_order.get("transaction_type", ""),
+                    latest_order.get("tradingSymbol") or latest_order.get("symbol", ""),
+                    transaction_type,
                     copied_qty,
                     "FAILED",
                     str(e)
                 )
 
     except Exception as e:
-        print(f"❌ Error in poll_and_copy_trades: {e}")
+        print(f"❌ poll_and_copy_trades encountered an error: {e}")
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
