@@ -59,7 +59,6 @@ def save_log(user_id, symbol, action, quantity, status, response):
     conn.close()
 
 def poll_and_copy_trades():
-    global last_copied_trade_id
     try:
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
@@ -73,28 +72,30 @@ def poll_and_copy_trades():
             print("No master account configured.")
             return
 
+        last_copied_trade_id = accounts.get("last_copied_trade_id")
+
         dhan_master = dhanhq(master["client_id"], master["access_token"])
-        
-        # ✅ Correct: extract orders from 'data'
         orders_resp = dhan_master.get_order_list()
-        if not orders_resp or "data" not in orders_resp:
-            print("No orders found for master.")
-            return
-        orders = orders_resp["data"]
-        if not orders:
+
+        # ✅ Properly extract orders from Dhan's API
+        order_list = orders_resp.get("data", [])
+        if not order_list:
             print("No orders found for master.")
             return
 
-        latest_order = orders[0]
-        print(f"➡️ Master latest order: {json.dumps(latest_order, indent=2)}")
-
+        latest_order = order_list[0]
         order_id = latest_order.get("order_id")
+
         if order_id == last_copied_trade_id:
             print("No new trades.")
             return
 
-        print(f"✅ New master trade detected: {order_id}")
-        last_copied_trade_id = order_id
+        print(f"✅ New master trade detected: {latest_order}")
+
+        # 🔥 Update last_copied_trade_id for persistence
+        accounts["last_copied_trade_id"] = order_id
+        with open("accounts.json", "w") as f:
+            json.dump(accounts, f, indent=2)
 
         children = accounts.get("children", [])
         for child in children:
@@ -104,11 +105,10 @@ def poll_and_copy_trades():
             try:
                 dhan_child = dhanhq(child["client_id"], child["access_token"])
                 multiplier = float(child.get("multiplier", 1))
-                master_qty = latest_order.get("quantity")
+                master_qty = latest_order.get("quantity", 1)
                 copied_qty = max(1, int(master_qty * multiplier))
 
-                print(f"➡️ Copying to {child['client_id']} with qty {copied_qty}")
-
+                # Place the order
                 response = dhan_child.place_order(
                     security_id=latest_order.get("security_id"),
                     exchange_segment=latest_order.get("exchange_segment"),
@@ -118,10 +118,29 @@ def poll_and_copy_trades():
                     product_type=latest_order.get("product_type"),
                     price=latest_order.get("price", 0)
                 )
+
                 print(f"✅ Copied to {child['client_id']} with multiplier {multiplier}: qty {copied_qty}")
+
+                # ✅ Log success
+                save_log(
+                    child["client_id"],
+                    latest_order.get("symbol", ""),
+                    latest_order.get("transaction_type", ""),
+                    copied_qty,
+                    "SUCCESS",
+                    str(response)
+                )
 
             except Exception as e:
                 print(f"❌ Failed to copy to {child['client_id']}: {e}")
+                save_log(
+                    child["client_id"],
+                    latest_order.get("symbol", ""),
+                    latest_order.get("transaction_type", ""),
+                    copied_qty,
+                    "FAILED",
+                    str(e)
+                )
 
     except Exception as e:
         print(f"❌ Error in poll_and_copy_trades: {e}")
@@ -349,8 +368,43 @@ def get_accounts():
 @app.route('/api/set-master', methods=['POST'])
 def set_master():
     data = request.json
-    # Here you'd update the DB; returning success for now
-    return jsonify({'message': f"Set {data.get('client_id')} as master successfully."})
+    client_id = data.get("client_id")
+
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+
+    # Find the new master in children or existing master
+    found = None
+    if accounts.get("master") and accounts["master"]["client_id"] == client_id:
+        found = accounts["master"]
+    else:
+        for child in accounts.get("children", []):
+            if child["client_id"] == client_id:
+                found = {
+                    "broker": child["broker"],
+                    "client_id": child["client_id"],
+                    "username": child["username"],
+                    "access_token": child["access_token"],
+                    "status": child["status"]
+                }
+                break
+
+    if not found:
+        return jsonify({"error": f"Client ID {client_id} not found in accounts."}), 404
+
+    accounts["master"] = found
+
+    with open("accounts.json", "w") as f:
+        json.dump(accounts, f, indent=2)
+
+    return jsonify({'message': f"✅ Set {client_id} as master successfully."})
+
 
 # Start copying for a child account
 @app.route('/api/start-copy', methods=['POST'])
