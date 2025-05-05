@@ -74,20 +74,26 @@ def poll_and_copy_trades():
             return
 
         dhan_master = dhanhq(master["client_id"], master["access_token"])
-        orders = dhan_master.get_order_list()
-
+        
+        # ✅ Correct: extract orders from 'data'
+        orders_resp = dhan_master.get_order_list()
+        if not orders_resp or "data" not in orders_resp:
+            print("No orders found for master.")
+            return
+        orders = orders_resp["data"]
         if not orders:
             print("No orders found for master.")
             return
 
         latest_order = orders[0]
-        order_id = latest_order.get("order_id")
+        print(f"➡️ Master latest order: {json.dumps(latest_order, indent=2)}")
 
+        order_id = latest_order.get("order_id")
         if order_id == last_copied_trade_id:
             print("No new trades.")
             return
 
-        print(f"✅ New master trade detected: {latest_order}")
+        print(f"✅ New master trade detected: {order_id}")
         last_copied_trade_id = order_id
 
         children = accounts.get("children", [])
@@ -97,10 +103,11 @@ def poll_and_copy_trades():
 
             try:
                 dhan_child = dhanhq(child["client_id"], child["access_token"])
-
                 multiplier = float(child.get("multiplier", 1))
                 master_qty = latest_order.get("quantity")
                 copied_qty = max(1, int(master_qty * multiplier))
+
+                print(f"➡️ Copying to {child['client_id']} with qty {copied_qty}")
 
                 response = dhan_child.place_order(
                     security_id=latest_order.get("security_id"),
