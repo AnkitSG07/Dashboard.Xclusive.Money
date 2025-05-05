@@ -14,6 +14,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 CORS(app)
 
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
+scheduler.start()
+print("✅ Background copy trader scheduler is running...")
+
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
 RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
 
@@ -866,13 +871,5 @@ def dashboard():
     return render_template("dhan-dashboard.html")
 
 if __name__ == '__main__':
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
-    scheduler.start()
-    print("Background copy trader is running...")
-
-    try:
-        app.run(debug=True, use_reloader=False)  # use_reloader=False is IMPORTANT
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
+        app.run(debug=True)
 
