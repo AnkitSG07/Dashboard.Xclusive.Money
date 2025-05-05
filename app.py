@@ -14,11 +14,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 app = Flask(__name__)
 CORS(app)
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
-scheduler.start()
-print("✅ Background copy trader scheduler is running...")
-
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
 RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
 
@@ -186,7 +181,10 @@ def poll_and_copy_trades():
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
 
-
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
+scheduler.start()
+print("✅ Background copy trader scheduler is running...")
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
