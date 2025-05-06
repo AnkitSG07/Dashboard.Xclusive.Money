@@ -74,8 +74,6 @@ def poll_and_copy_trades():
             print("⚠️ No master account is configured or missing access token.")
             return
 
-        last_copied_trade_id = accounts.get("last_copied_trade_id")
-
         dhan_master = dhanhq(master["client_id"], master["access_token"])
         orders_resp = dhan_master.get_order_list()
 
@@ -86,32 +84,33 @@ def poll_and_copy_trades():
 
         print(f"🛠 Total orders fetched: {len(order_list)}")
 
-        # Loop through orders and find new TRADED ones
+        children = accounts.get("children", [])
+        if not children:
+            print("ℹ️ No child accounts found.")
+            return
+
+        # Loop through orders (latest first)
         for order in order_list:
             order_id = order.get("orderId") or order.get("order_id")
-
             if not order_id:
                 continue  # Skip if no order ID
-
-            if order_id == last_copied_trade_id:
-                print("✅ Reached last copied trade. Stopping here.")
-                break  # Stop at the last copied trade
 
             if order.get("orderStatus", "").upper() != "TRADED":
                 print(f"⏩ Skipping order {order_id} (Status: {order.get('orderStatus')})")
                 continue  # Skip if not TRADED
 
-            print(f"✅ New TRADED order found: {order_id}")
+            print(f"✅ TRADED order: {order_id}")
 
-            # 🚀 Process this order
-            children = accounts.get("children", [])
-            if not children:
-                print("ℹ️ No child accounts found.")
-                return
-
+            # Loop through each child to copy individually
             for child in children:
                 if child.get("copy_status") != "On":
                     print(f"➡️ Skipping child {child['client_id']} (copy_status is Off)")
+                    continue
+
+                child_last_copied_trade_id = child.get("last_copied_trade_id")
+
+                if order_id == child_last_copied_trade_id:
+                    print(f"✅ {child['client_id']} is already up-to-date for order {order_id}")
                     continue
 
                 try:
@@ -139,7 +138,6 @@ def poll_and_copy_trades():
                         price=price
                     )
 
-                    # ✅ Check result
                     if isinstance(response, dict) and response.get("status") == "failure":
                         error_msg = response.get("omsErrorDescription") or response.get("remarks") or "Unknown error"
                         print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
@@ -161,6 +159,8 @@ def poll_and_copy_trades():
                             "SUCCESS",
                             str(response)
                         )
+                        # ✅ Update child's last_copied_trade_id after successful copy
+                        child["last_copied_trade_id"] = order_id
 
                 except Exception as e:
                     print(f"❌ Error copying to {child['client_id']}: {e}")
@@ -173,10 +173,9 @@ def poll_and_copy_trades():
                         str(e)
                     )
 
-            # ✅ After successfully processing this order, update last_copied_trade_id
-            accounts["last_copied_trade_id"] = order_id
-            with open("accounts.json", "w") as f:
-                json.dump(accounts, f, indent=2)
+        # ✅ Save updates (like last_copied_trade_id for each child)
+        with open("accounts.json", "w") as f:
+            json.dump(accounts, f, indent=2)
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
