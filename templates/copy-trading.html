@@ -150,6 +150,12 @@
                 <option value="child">Child</option>
               </select>
             </div>
+            <div class="mb-3 d-none" id="linkedMasterDiv">
+              <label for="linkedMaster" class="form-label">Link to Master Account</label>
+              <select class="form-select" id="linkedMaster">
+                <option value="">Loading...</option>
+              </select>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Add Account</button>
@@ -167,6 +173,45 @@
       window.location.href = "/login";
     }
 
+    // Role change listener
+    document.getElementById("role").addEventListener("change", function () {
+      const role = this.value;
+      const linkedMasterDiv = document.getElementById("linkedMasterDiv");
+      if (role === "child") {
+        linkedMasterDiv.classList.remove("d-none");
+        loadMasterDropdown();
+      } else {
+        linkedMasterDiv.classList.add("d-none");
+      }
+    });
+
+    // Load masters into dropdown
+    function loadMasterDropdown() {
+      fetch("/api/accounts")
+        .then(res => res.json())
+        .then(data => {
+          const masterSelect = document.getElementById("linkedMaster");
+          const masters = data.masters || [];
+          masterSelect.innerHTML = "";
+
+          if (masters.length === 0) {
+            masterSelect.innerHTML = '<option value="">No master accounts found</option>';
+            return;
+          }
+
+          masters.forEach(master => {
+            const option = document.createElement("option");
+            option.value = master.client_id;
+            option.textContent = `${master.username} (${master.client_id})`;
+            masterSelect.appendChild(option);
+          });
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById("linkedMaster").innerHTML = '<option value="">Error loading masters</option>';
+        });
+    }
+
     // Handle Add Account Form Submission
     document.getElementById("addAccountForm").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -175,6 +220,7 @@
       const accessToken = document.getElementById("accessToken").value.trim();
       const multiplier = document.getElementById("multiplier").value.trim();
       const role = document.getElementById("role").value;
+      const linkedMasterId = document.getElementById("linkedMaster").value;
 
       if (!clientId || !username || !accessToken || !role) {
         alert("Please fill in all fields.");
@@ -189,7 +235,8 @@
           username: username,
           access_token: accessToken,
           multiplier: multiplier,
-          role: role
+          role: role,
+          linked_master_id: linkedMasterId || null
         })
       })
       .then(res => res.json())
