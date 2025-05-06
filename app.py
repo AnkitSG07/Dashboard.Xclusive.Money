@@ -433,33 +433,6 @@ def add_account():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-            # Add child under the found master
-            found_master["children"].append({
-                "broker": "Dhan",
-                "client_id": client_id,
-                "username": username,
-                "access_token": access_token,
-                "status": "Connected",
-                "copy_status": "Off",
-                "multiplier": multiplier
-            })
-            message = f"✅ Child account {username} added under master {found_master['username']}."
-
-        else:
-            return jsonify({"error": "Invalid role (must be 'master' or 'child')"}), 400
-
-        # Save back to file
-        with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
-
-        return jsonify({"message": message}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 # Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
 def get_accounts():
