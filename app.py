@@ -368,38 +368,36 @@ def add_account():
     username = data.get("username")
     role = data.get("role")
     multiplier = float(data.get("multiplier", 1))
-    linked_master_id = data.get("linked_master_id")  # NEW: Get master link (for child)
+    linked_master_id = data.get("linked_master_id")  # NEW: Get master link
 
     if not all([client_id, username, role]):
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
-        # Load or create accounts.json
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
         else:
-            accounts = {"masters": []}
+            accounts = {"masters": []}  # NEW structure
 
         if "masters" not in accounts:
             accounts["masters"] = []
 
         if role.lower() == "master":
-            # Add a new master account
+            # Add new master
             accounts["masters"].append({
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
                 "access_token": access_token,
                 "status": "Connected",
-                "last_copied_trade_id": None,  # NEW: Track per master
                 "children": []
             })
             message = f"✅ Master account {username} added."
 
         elif role.lower() == "child":
             if not linked_master_id:
-                return jsonify({"error": "Missing linked_master_id for child account"}), 400
+                return jsonify({"error": "Missing linked_master_id for child"}), 400
 
             # Find the master by client_id or username
             found_master = None
@@ -409,9 +407,9 @@ def add_account():
                     break
 
             if not found_master:
-                return jsonify({"error": f"Linked master '{linked_master_id}' not found"}), 400
+                return jsonify({"error": "Linked master not found"}), 400
 
-            # Add the child under the selected master
+            # Add child under the found master
             found_master["children"].append({
                 "broker": "Dhan",
                 "client_id": client_id,
@@ -434,6 +432,7 @@ def add_account():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
             # Add child under the found master
