@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login to Dhan Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      animation: fadeIn 0.8s ease-out;
+      z-index: 2;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-weight: 600;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+      color: #aaa;
+    }
+
+    input {
+      padding: 12px;
+      margin-bottom: 20px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      transition: border 0.3s ease;
+    }
+
+    input:focus {
+      border-color: #00c8ff;
+      outline: none;
+    }
+
+    button {
+      background: #00c8ff;
+      color: #000;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #00a6d6;
+    }
+
+    #webhook-info {
+      margin-top: 24px;
+      font-size: 0.9rem;
+      background: #161616;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    code {
+      background: #2c2c2c;
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 500px) {
+      .login-container {
+        padding: 1.5rem;
+      }
+    }
+
+    /* 🎨 Wave Animation Background */
+    .wave-bg {
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, #1c1c1c 0%, #0f0f0f 80%);
+      animation: wave 10s infinite linear;
+      z-index: 1;
+      opacity: 0.4;
+      pointer-events: none;
+      clip-path: polygon(
+        0% 70%, 10% 68%, 20% 72%, 30% 69%, 40% 71%,
+        50% 70%, 60% 69%, 70% 72%, 80% 68%, 90% 70%, 100% 69%, 
+        100% 100%, 0% 100%
+      );
+    }
+
+    @keyframes wave {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wave-bg"></div>
+
+  <div class="login-container">
+    <h2> Connect Your Dhan Account</h2>
+    <form id="login-form">
+      <label for="webhook_id">Webhook ID</label>
+      <input type="text" id="webhook_id" placeholder="e.g. ankit123" required />
+
+      <label for="client_id">Dhan Client ID</label>
+      <input type="text" id="client_id" required />
+
+      <label for="access_token">Access Token</label>
+      <input type="text" id="access_token" required />
+
+      <button type="submit">Register & Continue</button>
+    </form>
+
+    <div id="webhook-info"></div>
+  </div>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const webhook_id = document.getElementById("webhook_id").value.trim();
+      const client_id = document.getElementById("client_id").value.trim();
+      const access_token = document.getElementById("access_token").value.trim();
+
+      fetch("/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          user_id: webhook_id,
+          client_id: client_id,
+          access_token: access_token
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status) {
+          localStorage.setItem("user_id", webhook_id);
+          document.getElementById("webhook-info").innerHTML = `
+            Registered!<br><br>
+            Your TradingView Webhook URL:<br>
+            <code>${window.location.origin}/webhook/${webhook_id}</code><br><br>
+            <button onclick="location.href='/dashboard'">Go to Dashboard</button>
+          `;
+        } else {
+          alert("Error: " + data.error);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to register user.");
+      });
+    });
+  </script>
+</body>
+</html>

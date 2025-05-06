@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Copy Trading - DhanBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/custom.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    .section-box {
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    .navbar {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .navbar-brand {
+      font-weight: 600;
+    }
+    .profile-img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light px-4 sticky-top">
+    <a class="navbar-brand" href="#">DhanBot</a>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <span class="fw-bold">Copy Trading</span>
+      <img src="/static/user.png" alt="User" class="profile-img">
+    </div>
+  </nav>
+
+  <!-- Sidebar -->
+  <div class="sidebar show" id="sidebar">
+    <h2 class="text-primary px-3 py-4"><i class="bi bi-bar-chart-fill"></i> DhanBot</h2>
+    <ul class="nav flex-column px-3">
+      <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-graph-up"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link active fw-bold" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a></li>
+      <li class="nav-item">
+        <a class="nav-link" href="/marketwatch" target="_blank">Market Watch 📈</a>
+      </li>
+    </ul>
+    <div class="px-3 mt-auto mb-4">
+      <button class="logout btn w-100" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content p-4" style="margin-left: 240px;">
+    <h3 class="mb-4"><i class="bi bi-people-fill"></i> Copy Trading Setup</h3>
+
+    <!-- Add Account Section -->
+    <div class="section-box">
+      <h5><i class="bi bi-plus-circle"></i> Add Trading Account</h5>
+      <p>Currently we support only <strong>Dhan Broker</strong>. More brokers coming soon.</p>
+      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+        <i class="bi bi-person-plus"></i> Add Dhan Account
+      </button>
+    </div>
+
+    <!-- Master Account Section -->
+    <div class="section-box">
+      <h5><i class="bi bi-person-badge-fill"></i> Master Account</h5>
+      <p>Select a master account to replicate its trades across child accounts.</p>
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>Broker</th>
+              <th>Client ID</th>
+              <th>Username</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="master-table-body">
+            <!-- Dynamic -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Child Accounts Section -->
+    <div class="section-box">
+      <h5><i class="bi bi-people-fill"></i> Child Accounts</h5>
+      <p>All trades from the Master will be copied here.</p>
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>Broker</th>
+              <th>Client ID</th>
+              <th>Username</th>
+              <th>Status</th>
+              <th>Copy Status</th>
+              <th>Multiplier</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="children-table-body">
+            <!-- Dynamic -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Account Modal -->
+  <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="addAccountForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addAccountModalLabel">Add Trading Account</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="clientId" class="form-label">Client ID</label>
+              <input type="text" class="form-control" id="clientId" required>
+            </div>
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <input type="text" class="form-control" id="username" required>
+            </div>
+            <div class="mb-3">
+              <label for="accessToken" class="form-label">Access Token</label>
+              <input type="text" class="form-control" id="accessToken" required>
+            </div>
+            <div class="mb-3">
+              <label for="multiplier" class="form-label">Multiplier (e.g., 1 = same qty)</label>
+              <input type="number" step="0.1" min="0.1" class="form-control" id="multiplier" value="1" required>
+            </div>
+            <div class="mb-3">
+              <label for="role" class="form-label">Role</label>
+              <select class="form-select" id="role" required>
+                <option value="master">Master</option>
+                <option value="child">Child</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Add Account</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
+
+    // Handle Add Account Form Submission
+    document.getElementById("addAccountForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const clientId = document.getElementById("clientId").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const accessToken = document.getElementById("accessToken").value.trim();
+      const multiplier = document.getElementById("multiplier").value.trim();
+      const role = document.getElementById("role").value;
+
+      if (!clientId || !username || !accessToken || !role) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      fetch("/api/add-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientId,
+          username: username,
+          access_token: accessToken,
+          multiplier: multiplier,
+          role: role
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || "Account added successfully");
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
+        modal.hide();
+        loadAccounts();
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Something went wrong.");
+      });
+    });
+
+    // Load Accounts Function
+    function loadAccounts() {
+      fetch("/api/accounts")
+      .then(res => res.json())
+      .then(data => {
+        const master = data.master;
+        const children = data.children;
+
+        const masterBody = document.getElementById("master-table-body");
+        const childrenBody = document.getElementById("children-table-body");
+
+        // Master
+        masterBody.innerHTML = "";
+        if (master) {
+          masterBody.innerHTML = `
+            <tr>
+              <td><i class="bi bi-bank"></i> ${master.broker}</td>
+              <td>${master.client_id}</td>
+              <td>${master.username}</td>
+              <td><span class="badge bg-success">${master.status}</span></td>
+              <td>
+                <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
+              </td>
+            </tr>
+          `;
+        }
+
+        // Children
+        childrenBody.innerHTML = "";
+        children.forEach(child => {
+          childrenBody.innerHTML += `
+            <tr>
+              <td><i class="bi bi-bank"></i> ${child.broker}</td>
+              <td>${child.client_id}</td>
+              <td>${child.username}</td>
+              <td><span class="badge bg-success">${child.status}</span></td>
+              <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status}</span></td>
+              <td>
+                <div class="input-group input-group-sm">
+                  <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
+                  <button class="btn btn-sm btn-outline-primary" onclick="updateMultiplier('${child.client_id}')">Save</button>
+                </div>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-success" onclick="startCopying('${child.client_id}')">Start</button>
+                <button class="btn btn-sm btn-warning" onclick="stopCopying('${child.client_id}')">Stop</button>
+                <button class="btn btn-sm btn-danger" onclick="removeChild('${child.client_id}')">Remove</button>
+              </td>
+            </tr>
+          `;
+        });
+      });
+    }
+
+    // Button Functions
+    function setAsMaster(clientId) {
+      fetch("/api/set-master", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadAccounts();
+      });
+    }
+
+    function startCopying(clientId) {
+      fetch("/api/start-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadAccounts();
+      });
+    }
+
+    function stopCopying(clientId) {
+      fetch("/api/stop-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadAccounts();
+      });
+    }
+
+    function removeChild(clientId) {
+      fetch("/api/remove-child", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadAccounts();
+      });
+    }
+
+    function updateMultiplier(clientId) {
+      const newMultiplier = document.getElementById(`mult-${clientId}`).value;
+      if (!newMultiplier || newMultiplier < 0.1) {
+        alert("Please enter a valid multiplier (min 0.1)");
+        return;
+      }
+      fetch("/api/update-multiplier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId, multiplier: newMultiplier })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || "Multiplier updated");
+        loadAccounts();
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to update multiplier.");
+      });
+    }
+
+    // Initial load
+    loadAccounts();
+  </script>
+</body>
+</html>
