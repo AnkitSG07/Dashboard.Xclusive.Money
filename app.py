@@ -62,41 +62,39 @@ def poll_and_copy_trades():
     print("🔄 poll_and_copy_trades() triggered...")
 
     try:
-        if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
-        else:
+        if not os.path.exists("accounts.json"):
             print("⚠️ No accounts.json file found.")
             return
+
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
 
         masters = accounts.get("masters", [])
         if not masters:
             print("⚠️ No master accounts configured.")
             return
 
+        # Loop through each master account
         for master in masters:
-            master_id = master["client_id"]
+            master_id = master.get("client_id")
             access_token = master.get("access_token")
             if not access_token:
                 print(f"⚠️ Master {master_id} missing access token. Skipping.")
                 continue
 
+            last_copied_key = f"last_copied_trade_id_{master_id}"
+            last_copied_trade_id = accounts.get(last_copied_key)
+            new_last_trade_id = None
+
             dhan_master = dhanhq(master_id, access_token)
             orders_resp = dhan_master.get_order_list()
             order_list = orders_resp.get("data", [])
-
             if not order_list:
                 print(f"ℹ️ No orders found for master {master_id}.")
                 continue
 
-            print(f"🛠 Master {master_id}: Total orders fetched: {len(order_list)}")
-
-            # Sort by latest first
+            print(f"🛠 [{master_id}] Orders fetched: {len(order_list)}")
             order_list = sorted(order_list, key=lambda x: x.get("orderTimestamp", ""), reverse=True)
-
-            # Track the last copied order per master
-            last_copied_trade_id = master.get("last_copied_trade_id")
-            new_last_trade_id = None
 
             for order in order_list:
                 order_id = order.get("orderId") or order.get("order_id")
@@ -104,19 +102,19 @@ def poll_and_copy_trades():
                     continue
 
                 if order_id == last_copied_trade_id:
-                    print(f"✅ Reached last copied trade for {master_id}. Stopping here.")
+                    print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
                     break
 
                 if order.get("orderStatus", "").upper() != "TRADED":
-                    print(f"⏩ Skipping order {order_id} (Status: {order.get('orderStatus')})")
+                    print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order.get('orderStatus')})")
                     continue
 
-                print(f"✅ New TRADED order found for {master_id}: {order_id}")
+                print(f"✅ [{master_id}] New TRADED order: {order_id}")
                 new_last_trade_id = new_last_trade_id or order_id
 
                 children = master.get("children", [])
                 if not children:
-                    print(f"ℹ️ No child accounts linked to master {master_id}.")
+                    print(f"ℹ️ [{master_id}] No children to copy trades to.")
                     continue
 
                 for child in children:
@@ -182,17 +180,18 @@ def poll_and_copy_trades():
                             str(e)
                         )
 
-            # ✅ Update last_copied_trade_id if needed
+            # After processing: update last_copied_trade_id for this master
             if new_last_trade_id:
                 print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
-                master["last_copied_trade_id"] = new_last_trade_id
+                accounts[last_copied_key] = new_last_trade_id
 
-        # Save updated accounts.json
+        # Save back the updated last_copied IDs
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
+
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
@@ -369,36 +368,38 @@ def add_account():
     username = data.get("username")
     role = data.get("role")
     multiplier = float(data.get("multiplier", 1))
-    linked_master_id = data.get("linked_master_id")  # NEW: Get master link
+    linked_master_id = data.get("linked_master_id")  # NEW: Get master link (for child)
 
     if not all([client_id, username, role]):
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
+        # Load or create accounts.json
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
         else:
-            accounts = {"masters": []}  # NEW structure
+            accounts = {"masters": []}
 
         if "masters" not in accounts:
             accounts["masters"] = []
 
         if role.lower() == "master":
-            # Add new master
+            # Add a new master account
             accounts["masters"].append({
                 "broker": "Dhan",
                 "client_id": client_id,
                 "username": username,
                 "access_token": access_token,
                 "status": "Connected",
+                "last_copied_trade_id": None,  # NEW: Track per master
                 "children": []
             })
             message = f"✅ Master account {username} added."
 
         elif role.lower() == "child":
             if not linked_master_id:
-                return jsonify({"error": "Missing linked_master_id for child"}), 400
+                return jsonify({"error": "Missing linked_master_id for child account"}), 400
 
             # Find the master by client_id or username
             found_master = None
@@ -408,7 +409,32 @@ def add_account():
                     break
 
             if not found_master:
-                return jsonify({"error": "Linked master not found"}), 400
+                return jsonify({"error": f"Linked master '{linked_master_id}' not found"}), 400
+
+            # Add the child under the selected master
+            found_master["children"].append({
+                "broker": "Dhan",
+                "client_id": client_id,
+                "username": username,
+                "access_token": access_token,
+                "status": "Connected",
+                "copy_status": "Off",
+                "multiplier": multiplier
+            })
+            message = f"✅ Child account {username} added under master {found_master['username']}."
+
+        else:
+            return jsonify({"error": "Invalid role (must be 'master' or 'child')"}), 400
+
+        # Save back to file
+        with open("accounts.json", "w") as f:
+            json.dump(accounts, f, indent=2)
+
+        return jsonify({"message": message}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
             # Add child under the found master
             found_master["children"].append({
@@ -438,12 +464,31 @@ def add_account():
 # Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
 def get_accounts():
-    if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts = json.load(f)
-    else:
-        accounts = {"master": None, "children": []}
-    return jsonify(accounts)
+    try:
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+        else:
+            accounts = {"masters": []}
+
+        # Format the response cleanly
+        formatted = []
+        for master in accounts.get("masters", []):
+            formatted.append({
+                "role": "master",
+                "broker": master.get("broker"),
+                "client_id": master.get("client_id"),
+                "username": master.get("username"),
+                "status": master.get("status"),
+                "children": master.get("children", [])
+            })
+
+        return jsonify({"masters": formatted}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
