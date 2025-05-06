@@ -307,34 +307,36 @@
     });
 
     // Load Accounts Function
-    function loadAccounts() {
-      fetch("/api/accounts")
-      .then(res => res.json())
-      .then(data => {
-        const master = data.master;
-        const children = data.children;
+function loadAccounts() {
+  fetch("/api/accounts")
+    .then(res => res.json())
+    .then(data => {
+      const mastersList = data.masters || [];
 
-        const masterBody = document.getElementById("master-table-body");
-        const childrenBody = document.getElementById("children-table-body");
+      const masterBody = document.getElementById("master-table-body");
+      const childrenBody = document.getElementById("children-table-body");
 
-        // Master
-        masterBody.innerHTML = "";
-        if (master) {
-          masterBody.innerHTML = `
-            <tr>
-              <td><i class="bi bi-bank"></i> ${master.broker}</td>
-              <td>${master.client_id}</td>
-              <td>${master.username}</td>
-              <td><span class="badge bg-success">${master.status}</span></td>
-              <td>
-                <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
-              </td>
-            </tr>
-          `;
-        }
+      // Clear both tables
+      masterBody.innerHTML = "";
+      childrenBody.innerHTML = "";
 
-        // Children
-        childrenBody.innerHTML = "";
+      // Loop through all masters
+      mastersList.forEach(master => {
+        // Add the master row
+        masterBody.innerHTML += `
+          <tr>
+            <td><i class="bi bi-bank"></i> ${master.broker}</td>
+            <td>${master.client_id}</td>
+            <td>${master.username}</td>
+            <td><span class="badge bg-success">${master.status}</span></td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
+            </td>
+          </tr>
+        `;
+
+        // Add all children rows (if any)
+        const children = master.children || [];
         children.forEach(child => {
           childrenBody.innerHTML += `
             <tr>
@@ -358,7 +360,12 @@
           `;
         });
       });
-    }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to load accounts.");
+    });
+}
 
     // Button Functions
     function setAsMaster(clientId) {
