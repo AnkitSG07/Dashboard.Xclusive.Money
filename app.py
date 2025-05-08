@@ -310,6 +310,61 @@ def webhook(user_id):
         save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
         return jsonify({"error": error_msg}), 500
 
+@app.route('/api/square-off', methods=['POST'])
+def square_off():
+    data = request.json
+    master_id = data.get("master_id")
+    symbol = data.get("symbol")
+
+    if not master_id or not symbol:
+        return jsonify({"error": "Missing master_id or symbol"}), 400
+
+    try:
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+    except Exception as e:
+        return jsonify({"error": "Failed to load accounts file"}), 500
+
+    master = next((m for m in accounts.get("masters", []) if m["client_id"] == master_id), None)
+    if not master:
+        return jsonify({"error": "Master not found"}), 404
+
+    results = []
+    for child in master.get("children", []):
+        if child.get("copy_status") != "On":
+            results.append(f"Child {child['client_id']} → Skipped (copy OFF)")
+            continue
+
+        try:
+            dhan_child = dhanhq(child["client_id"], child["access_token"])
+            
+            # ✅ Check holdings before square off
+            holdings = dhan_child.get_holdings()
+            positions = holdings.get('data', [])
+            has_position = any(pos['tradingSymbol'] == symbol and pos['netQty'] != 0 for pos in positions)
+
+            if not has_position:
+                results.append(f"Child {child['client_id']} → Skipped (no position in {symbol})")
+                continue
+
+            # ✅ Perform square off
+            response = dhan_child.square_off_position(symbol)
+
+            if isinstance(response, dict) and response.get("status") == "failure":
+                msg = response.get("remarks", "Unknown error")
+                results.append(f"Child {child['client_id']} → FAILED: {msg}")
+                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "FAILED", msg)
+            else:
+                results.append(f"Child {child['client_id']} → SUCCESS")
+                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "SUCCESS", str(response))
+
+        except Exception as e:
+            error_msg = str(e)
+            results.append(f"Child {child['client_id']} → ERROR: {error_msg}")
+            save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
+
+    return jsonify({"message": "Square-off completed", "details": results}), 200
+
 
 # PATCH for /api/update-multiplier
 @app.route('/api/update-multiplier', methods=['POST'])
