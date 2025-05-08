@@ -354,6 +354,7 @@ function loadAccounts() {
                 <button class="btn btn-sm btn-success" onclick="startCopying('${child.client_id}', '${master.client_id}')">Start</button>
                 <button class="btn btn-sm btn-warning" onclick="stopCopying('${child.client_id}', '${master.client_id}')">Stop</button>
                 <button class="btn btn-sm btn-danger" onclick="removeChild('${child.client_id}')">Remove</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</button>
               </td>
             </tr>
           `;
@@ -420,23 +421,89 @@ function loadAccounts() {
       });
     }
 
-    function squareOffPosition(masterId, symbol) {
-      if (!confirm(`Are you sure you want to square off ${symbol} for all child accounts?`)) return;
+    function squareOffPosition(masterId, childId) {
+      // Step 1: Fetch available symbols from backend (can customize source)
+      fetch("/api/portfolio/" + childId)
+        .then(res => res.json())
+        .then(data => {
+          const holdings = data.holdings || [];
+          const symbols = holdings.map(h => h.symbol);
     
-      fetch('/api/square-off', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ master_id: masterId, symbol: symbol })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert("Square-off Results:\n" + data.details.join("\n"));
-        loadAccounts();
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Failed to square off positions.");
-      });
+          if (symbols.length === 0) {
+            alert(`No active positions found for child ${childId}`);
+            return;
+          }
+    
+          // Step 2: Create dropdown prompt
+          const symbolOptions = symbols.map(s => `<option value="${s}">${s}</option>`).join('');
+          const symbolSelectHtml = `
+            <label>Select symbol to square off for child ${childId}:</label><br>
+            <select id="squareOffSymbol">${symbolOptions}</select>
+          `;
+    
+          const modal = document.createElement('div');
+          modal.innerHTML = `
+            <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#00000080;display:flex;align-items:center;justify-content:center;z-index:9999">
+              <div style="background:#fff;padding:20px;border-radius:8px;text-align:center;min-width:250px;">
+                ${symbolSelectHtml}
+                <br><br>
+                <button id="confirmSquareOff" class="btn btn-danger btn-sm">Confirm Square Off</button>
+                <button id="cancelSquareOff" class="btn btn-secondary btn-sm">Cancel</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+    
+          // Step 3: Add handlers
+          document.getElementById("confirmSquareOff").onclick = function() {
+            const symbol = document.getElementById("squareOffSymbol").value;
+    
+            if (!confirm(`Are you sure you want to square off ${symbol} for child ${childId}?`)) {
+              document.body.removeChild(modal);
+              return;
+            }
+    
+            // Show spinner
+            const spinner = document.createElement('div');
+            spinner.innerHTML = `
+              <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#00000080;display:flex;align-items:center;justify-content:center;z-index:9999">
+                <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div>
+              </div>
+            `;
+            document.body.appendChild(spinner);
+    
+            // Make square-off request
+            fetch("/api/square-off", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                master_id: masterId,
+                symbol: symbol
+              })
+            })
+            .then(res => res.json())
+            .then(data => {
+              alert(data.message + "\n" + data.details.join("\n"));
+              loadAccounts(); // refresh table
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Failed to square off positions.");
+            })
+            .finally(() => {
+              document.body.removeChild(spinner);
+              document.body.removeChild(modal);
+            });
+          };
+    
+          document.getElementById("cancelSquareOff").onclick = function() {
+            document.body.removeChild(modal);
+          };
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Failed to load holdings for child account.");
+        });
     }
 
     function updateMultiplier(clientId) {
