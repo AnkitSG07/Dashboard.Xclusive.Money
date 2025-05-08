@@ -810,10 +810,19 @@ def get_portfolio(user_id):
     dhan = dhanhq(user["client_id"], user["access_token"])
 
     try:
-        holdings = dhan.get_holdings()
-        return jsonify(holdings)
+        holdings_resp = dhan.get_holdings()
+        positions = holdings_resp.get('data', [])
+
+        active_holdings = [
+            {"symbol": pos["tradingSymbol"], "quantity": pos["netQty"]}
+            for pos in positions
+            if pos.get("netQty", 0) != 0
+        ]
+
+        return jsonify({"holdings": active_holdings})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # === API to get trade summary and open orders ===
 @app.route("/api/orders/<user_id>")
