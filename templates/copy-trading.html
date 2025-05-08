@@ -420,6 +420,25 @@ function loadAccounts() {
       });
     }
 
+    function squareOffPosition(masterId, symbol) {
+      if (!confirm(`Are you sure you want to square off ${symbol} for all child accounts?`)) return;
+    
+      fetch('/api/square-off', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ master_id: masterId, symbol: symbol })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("Square-off Results:\n" + data.details.join("\n"));
+        loadAccounts();
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to square off positions.");
+      });
+    }
+
     function updateMultiplier(clientId) {
       const newMultiplier = document.getElementById(`mult-${clientId}`).value;
       if (!newMultiplier || newMultiplier < 0.1) {
