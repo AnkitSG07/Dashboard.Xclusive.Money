@@ -338,16 +338,14 @@ def square_off():
         try:
             dhan_child = dhanhq(child["client_id"], child["access_token"])
             
-            # ✅ Check positions before square off
             positions_resp = dhan_child.get_positions()
             positions = positions_resp.get('data', [])
-            has_position = any(pos['tradingSymbol'] == symbol and pos['netQty'] != 0 for pos in positions)
+            has_position = any(pos['tradingSymbol'].upper() == symbol.upper() and pos['netQty'] != 0 for pos in positions)
 
             if not has_position:
                 results.append(f"Child {child['client_id']} → Skipped (no position in {symbol})")
                 continue
 
-            # ✅ Perform square off
             response = dhan_child.square_off_position(symbol)
 
             if isinstance(response, dict) and response.get("status") == "failure":
@@ -807,12 +805,10 @@ def get_portfolio(user_id):
     client_id = None
     access_token = None
 
-    # ✅ Check if user_id exists in users.json (masters)
     if user_id in users:
         client_id = users[user_id]["client_id"]
         access_token = users[user_id]["access_token"]
     else:
-        # ✅ Check in accounts.json (children)
         try:
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
