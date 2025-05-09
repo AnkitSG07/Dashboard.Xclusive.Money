@@ -338,14 +338,21 @@ def square_off():
         try:
             dhan_child = dhanhq(child["client_id"], child["access_token"])
             
+            # ✅ Use get_positions
             positions_resp = dhan_child.get_positions()
             positions = positions_resp.get('data', [])
-            has_position = any(pos['tradingSymbol'].upper() == symbol.upper() and pos['netQty'] != 0 for pos in positions)
+            print(f"👉 Raw positions for {child['client_id']}:", positions_resp)
+
+            has_position = any(
+                pos['tradingSymbol'].upper() == symbol.upper() and pos['netQty'] != 0
+                for pos in positions
+            )
 
             if not has_position:
                 results.append(f"Child {child['client_id']} → Skipped (no position in {symbol})")
                 continue
 
+            # ✅ Perform square off
             response = dhan_child.square_off_position(symbol)
 
             if isinstance(response, dict) and response.get("status") == "failure":
@@ -805,10 +812,12 @@ def get_portfolio(user_id):
     client_id = None
     access_token = None
 
+    # ✅ Check in users.json (masters)
     if user_id in users:
         client_id = users[user_id]["client_id"]
         access_token = users[user_id]["access_token"]
     else:
+        # ✅ Check in accounts.json (children)
         try:
             with open("accounts.json", "r") as f:
                 accounts = json.load(f)
@@ -829,11 +838,13 @@ def get_portfolio(user_id):
     dhan = dhanhq(client_id, access_token)
 
     try:
+        # ✅ Use get_positions instead of get_holdings
         positions_resp = dhan.get_positions()
-        positions = positions_resp.get('data', [])
-        return jsonify({"positions": positions})
+        print(f"👉 Raw positions response for {user_id}:", positions_resp)
+        return jsonify(positions_resp)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 # === API to get trade summary and open orders ===
