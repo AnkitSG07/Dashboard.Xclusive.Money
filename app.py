@@ -338,9 +338,9 @@ def square_off():
         try:
             dhan_child = dhanhq(child["client_id"], child["access_token"])
             
-            # ✅ Check holdings before square off
-            holdings = dhan_child.get_holdings()
-            positions = holdings.get('data', [])
+            # ✅ Check positions before square off
+            positions_resp = dhan_child.get_positions()
+            positions = positions_resp.get('data', [])
             has_position = any(pos['tradingSymbol'] == symbol and pos['netQty'] != 0 for pos in positions)
 
             if not has_position:
@@ -364,6 +364,7 @@ def square_off():
             save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
 
     return jsonify({"message": "Square-off completed", "details": results}), 200
+
 
 
 # PATCH for /api/update-multiplier
@@ -832,8 +833,9 @@ def get_portfolio(user_id):
     dhan = dhanhq(client_id, access_token)
 
     try:
-        holdings = dhan.get_holdings()
-        return jsonify(holdings)
+        positions_resp = dhan.get_positions()
+        positions = positions_resp.get('data', [])
+        return jsonify({"positions": positions})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
