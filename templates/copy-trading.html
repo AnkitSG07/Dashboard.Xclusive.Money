@@ -426,9 +426,10 @@ function loadAccounts() {
       fetch("/api/portfolio/" + childId)
         .then(res => res.json())
         .then(data => {
-          const holdings = data.holdings || [];
-          const symbols = holdings.map(h => h.symbol);
-    
+          const positions = data.data || [];
+          const activePositions = positions.filter(pos => pos.netQty !== 0);
+          const symbols = activePositions.map(pos => pos.tradingSymbol);
+      
           if (symbols.length === 0) {
             alert(`No active positions found for child ${childId}`);
             return;
