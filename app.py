@@ -801,25 +801,39 @@ def get_portfolio(user_id):
         with open("users.json", "r") as f:
             users = json.load(f)
     except:
-        return jsonify({"error": "User DB not found"}), 500
+        users = {}
 
-    if user_id not in users:
+    client_id = None
+    access_token = None
+
+    # ✅ Check if user_id exists in users.json (masters)
+    if user_id in users:
+        client_id = users[user_id]["client_id"]
+        access_token = users[user_id]["access_token"]
+    else:
+        # ✅ Check in accounts.json (children)
+        try:
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+            for master in accounts.get("masters", []):
+                for child in master.get("children", []):
+                    if child["client_id"] == user_id:
+                        client_id = child["client_id"]
+                        access_token = child["access_token"]
+                        break
+                if client_id:
+                    break
+        except:
+            return jsonify({"error": "accounts.json not found"}), 500
+
+    if not client_id or not access_token:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    user = users[user_id]
-    dhan = dhanhq(user["client_id"], user["access_token"])
+    dhan = dhanhq(client_id, access_token)
 
     try:
-        holdings_resp = dhan.get_holdings()
-        positions = holdings_resp.get('data', [])
-
-        active_holdings = [
-            {"symbol": pos["tradingSymbol"], "quantity": pos["netQty"]}
-            for pos in positions
-            if pos.get("netQty", 0) != 0
-        ]
-
-        return jsonify({"holdings": active_holdings})
+        holdings = dhan.get_holdings()
+        return jsonify(holdings)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
