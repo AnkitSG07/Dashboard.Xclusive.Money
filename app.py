@@ -1007,11 +1007,11 @@ def get_account_stats(user_id):
 # === Page routes ===
 @app.route('/')
 def home():
-    return render_template("login.html")
+    return render_template("index.html")
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template("dhan-dashboard.html")
+    return render_template("login.html")
 
 if __name__ == '__main__':
         app.run(debug=True)
