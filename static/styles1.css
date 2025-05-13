@@ -316,9 +316,9 @@ a:hover {
 }
 
 .navbar .logo-image img {
-    height: 48px;
+    height: 58px;
     width: auto;
-    max-height: 60px;
+    max-height: 70px;
     display: inline-block;
     vertical-align: middle;
 }
@@ -459,7 +459,7 @@ a:hover {
 }
 
 .header .text-container {
-	margin-bottom: 5rem;
+	margin-bottom: 4rem;
 }
 
 
