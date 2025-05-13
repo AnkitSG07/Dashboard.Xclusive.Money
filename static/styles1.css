@@ -350,8 +350,11 @@ a:hover {
 }
 
 .navbar .logo-image img {
-    width: 132px;
-	height: 30px;
+    max-height: 40px;
+    height: auto;
+    width: auto;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .navbar .logo-text {
