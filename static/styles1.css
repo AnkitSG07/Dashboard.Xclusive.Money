@@ -316,7 +316,7 @@ a:hover {
 }
 
 .navbar .logo-image img {
-    height: 78px;
+    height: 88px;
     width: auto;
     max-height: 100px;
     display: inline-block;
@@ -1364,8 +1364,8 @@ a:hover {
 	/* Header */
 	.header {
 		overflow: hidden;
-		padding-top: 15rem;
-		padding-bottom: 10rem;
+		padding-top: 18rem;
+		padding-bottom: 9rem;
 	}
 
 	.header .image-container {
