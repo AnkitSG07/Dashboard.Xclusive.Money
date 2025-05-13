@@ -1013,5 +1013,10 @@ def home():
 def dashboard():
     return render_template("login.html")
 
+@app.route('/dhan-dashboard')
+def dhan_dashboard():
+    return render_template("dhan-dashboard.html")
+
+
 if __name__ == '__main__':
         app.run(debug=True)
