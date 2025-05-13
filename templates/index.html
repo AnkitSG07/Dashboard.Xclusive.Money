@@ -22,13 +22,13 @@
         
         <!-- Styles -->
         <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-        <link href="static/bootstrap.min.css" rel="stylesheet">
-        <link href="static/fontawesome-all.min.css" rel="stylesheet">
-        <link href="static/swiper.css" rel="stylesheet">
-        <link href="static/styles1.css" rel="stylesheet">
+        <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='fontawesome-all.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='swiper.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='styles1.css') }}" rel="stylesheet">
         
         <!-- Favicon  -->
-        <link rel="icon" href="images/favicon.png">
+        <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}">
     </head>
     <body data-bs-spy="scroll" data-bs-target="#navbarExample">
         
@@ -37,10 +37,9 @@
             <div class="container">
 
                 <!-- Image Logo -->
-                <a class="navbar-brand logo-image" href="index.html"><img src="images/logo.svg" alt="alternative"></a> 
-
+                <a class="navbar-brand logo-image" href="templates/index.html"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Xclusive Money logo">
                 <!-- Text Logo - Use this if you don't have a graphic logo -->
-                <!-- <a class="navbar-brand logo-text" href="index.html">Ioniq</a> -->
+                <!-- <a class="navbar-brand logo-text" href="index.html">XM</a> -->
 
                 <button class="navbar-toggler p-0 border-0" type="button" id="navbarSideCollapse" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -89,7 +88,7 @@
                     </div> <!-- end of col -->
                     <div class="col-lg-6">
                         <div class="image-container">
-                            <img class="img-fluid" src="images/header-illustration.svg" alt="alternative">
+                            <img class="img-fluid" src="{{ url_for('static', filename='images/header-illustration.svg') }}" alt="alternative">
                         </div> <!-- end of image-container -->
                     </div> <!-- end of col -->
                 </div> <!-- end of row -->
@@ -165,7 +164,7 @@
                     </div> <!-- end of col -->
                     <div class="col-lg-6 col-xl-7">
                         <div class="image-container">
-                            <img class="img-fluid" src="images/details-1.svg" alt="alternative">
+                            <img class="img-fluid" src="{{ url_for('static', filename='images/details-1.svg') }}" alt="alternative">
                         </div> <!-- end of image-container -->
                     </div> <!-- end of col -->
                 </div> <!-- end of row -->
@@ -182,7 +181,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         <div class="col-lg-8">
                             <div class="image-container">
-                                <img class="img-fluid" src="images/details-modal.jpg" alt="alternative">
+                                <img class="img-fluid" src="{{ url_for('static', filename='images/details-modal.jpg') }}" alt="modal preview">
                             </div> <!-- end of image-container -->
                         </div> <!-- end of col -->
                         <div class="col-lg-4">
@@ -229,7 +228,8 @@
                 <div class="row">
                     <div class="col-lg-6">
                         <div class="image-container">
-                            <img class="img-fluid" src="images/details-2.png" alt="alternative">
+                            <img class="img-fluid" src="{{ url_for('static', filename='images/details-2.png') }}" alt="alternative">
+
                         </div> <!-- end of image-container -->
                     </div> <!-- end of col -->
                     <div class="col-lg-6">
@@ -277,74 +277,17 @@
                                     <!-- Slide -->
                                     <div class="swiper-slide">
                                         <div class="card">
-                                            <img class="card-image" src="images/testimonial-1.jpg" alt="alternative">
+                                            <img class="card-image" src="images/testimonial-4.jpg" alt="Ankit">
                                             <div class="card-body">
-                                                <p class="testimonial-text">Tortor sodales eget. Vivamus imperdiet leo eu risus tincidunt uris. Proin placerat, urna hendrerit placerat erase convallis</p>
-                                                <p class="testimonial-author">Jude Thorn - Designer</p>
+                                                <p class="testimonial-text">na</p>
+                                                <p class="testimonial-author">na</p>
                                             </div>
                                         </div>
                                     </div> <!-- end of swiper-slide -->
                                     <!-- end of slide -->
             
-                                    <!-- Slide -->
-                                    <div class="swiper-slide">
-                                        <div class="card">
-                                            <img class="card-image" src="images/testimonial-2.jpg" alt="alternative">
-                                            <div class="card-body">
-                                                <p class="testimonial-text">Eros volutpat ante mauris euismod sem, ut varius nisi lectus in urna. Integer luctus, nunc eget maximus intem, orci risus</p>
-                                                <p class="testimonial-author">Roy Smith - Developer</p>
-                                            </div>
-                                        </div>        
-                                    </div> <!-- end of swiper-slide -->
-                                    <!-- end of slide -->
+
             
-                                    <!-- Slide -->
-                                    <div class="swiper-slide">
-                                        <div class="card">
-                                            <img class="card-image" src="images/testimonial-3.jpg" alt="alternative">
-                                            <div class="card-body">
-                                                <p class="testimonial-text">Sed congue ex quam, sit amet venenatis dolor lacinia vulputate. Nunc pulvinar ex ex, sit amet scelerisque tellus pretium semper</p>
-                                                <p class="testimonial-author">Marsha Singer - Marketer</p>
-                                            </div>
-                                        </div>        
-                                    </div> <!-- end of swiper-slide -->
-                                    <!-- end of slide -->
-            
-                                    <!-- Slide -->
-                                    <div class="swiper-slide">
-                                        <div class="card">
-                                            <img class="card-image" src="images/testimonial-4.jpg" alt="alternative">
-                                            <div class="card-body">
-                                                <p class="testimonial-text">Etiam est lorem, interdum non semper ut, bibendum vitae ante. Pellente sollicitun sagittis lectus. Aenean in comod</p>
-                                                <p class="testimonial-author">Tim Shaw - Designer</p>
-                                            </div>
-                                        </div>
-                                    </div> <!-- end of swiper-slide -->
-                                    <!-- end of slide -->
-            
-                                    <!-- Slide -->
-                                    <div class="swiper-slide">
-                                        <div class="card">
-                                            <img class="card-image" src="images/testimonial-5.jpg" alt="alternative">
-                                            <div class="card-body">
-                                                <p class="testimonial-text">Quisque nec turpis placerat, accumsan lorem lobortis, vestibulum elit. Fusce finibus nisl varius semper elementum vivamus</p>
-                                                <p class="testimonial-author">Lindsay Spice - Marketer</p>
-                                            </div>
-                                        </div>        
-                                    </div> <!-- end of swiper-slide -->
-                                    <!-- end of slide -->
-            
-                                    <!-- Slide -->
-                                    <div class="swiper-slide">
-                                        <div class="card">
-                                            <img class="card-image" src="images/testimonial-6.jpg" alt="alternative">
-                                            <div class="card-body">
-                                                <p class="testimonial-text">Vulputate sed tellus nec, imperdiet luctus purus. Morbi lobortis massa a mi interdum condimentum. Integer non gravida nisi</p>
-                                                <p class="testimonial-author">Ann Blake - Developer</p>
-                                            </div>
-                                        </div>        
-                                    </div> <!-- end of swiper-slide -->
-                                    <!-- end of slide -->
                                 
                                 </div> <!-- end of swiper-wrapper -->
             
@@ -393,7 +336,7 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="card-title">
-                                    <img class="decoration-lines" src="images/decoration-lines.svg" alt="alternative"><span>Free tier</span><img class="decoration-lines flipped" src="images/decoration-lines.svg" alt="alternative">
+                                    <img class="decoration-lines" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative"> <span>Free tier</span> <img class="decoration-lines flipped" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative">
                                 </div>
                                 <ul class="list-unstyled li-space-lg">
                                     <li>Connect 1 master & 1 child account</li>
@@ -414,7 +357,7 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="card-title">
-                                    <img class="decoration-lines" src="images/decoration-lines.svg" alt="alternative"><span>Advanced</span><img class="decoration-lines flipped" src="images/decoration-lines.svg" alt="alternative">
+                                    <img class="decoration-lines" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative"> <span>Advance</span> <img class="decoration-lines flipped" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative">
                                 </div>
                                 <ul class="list-unstyled li-space-lg">
                                     <li>Up to 3 master-child setups</li>
@@ -435,7 +378,7 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="card-title">
-                                    <img class="decoration-lines" src="images/decoration-lines.svg" alt="alternative"><span>Professional</span><img class="decoration-lines flipped" src="images/decoration-lines.svg" alt="alternative">
+                                    <img class="decoration-lines" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative"> <span>Professional</span> <img class="decoration-lines flipped" src="{{ url_for('static', filename='images/decoration-lines.svg') }}" alt="alternative">
                                 </div>
                                 <ul class="list-unstyled li-space-lg">
                                     <li>Unlimited master-child connections</li>
@@ -598,16 +541,17 @@
         
         <!-- Back To Top Button -->
         <button onclick="topFunction()" id="myBtn">
-            <img src="images/up-arrow.png" alt="back to top">
+            <img src="{{ url_for('static', filename='images/up-arrow.png') }}" alt="back to top">
         </button>
         <!-- End Back To Top -->
 
             
         <!-- Scripts -->
-        <script src="js/bootstrap.min.js"></script> <!-- Bootstrap framework -->
-        <script src="js/swiper.min.js"></script> <!-- Swiper for image and text sliders -->
-        <script src="js/purecounter.min.js"></script> <!-- Purecounter counter for statistics numbers -->
-        <script src="js/replaceme.min.js"></script> <!-- ReplaceMe for rotating text -->
-        <script src="js/scripts.js"></script> <!-- Custom scripts -->
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/swiper.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/purecounter.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/replaceme.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+
     </body>
 </html>
