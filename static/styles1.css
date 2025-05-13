@@ -1,38 +1,4 @@
-/* Description: Master CSS file */
 
-/*****************************************
-Table Of Contents:
-- General Styles
-- Navigation
-- Header
-- Features
-- Details 1
-- Details Modal
-- Details 2
-- Testimonials
-- Invitation
-- Pricing
-- Questions
-- Footer
-- Copyright
-- Back To Top Button
-- Extra Pages
-- Media Queries
-******************************************/
-
-/*****************************************
-Colors:
-- Backgrounds - light gray #f9f8f8
-- Buttons - navy blue #272556
-- Buttons - orange #f25c05
-- Headings text - navy blue #272556
-- Body text - dark gray #565578
-******************************************/
-
-
-/**************************/
-/*     General Styles     */
-/**************************/
 body,
 html {
     width: 100%;
@@ -350,9 +316,9 @@ a:hover {
 }
 
 .navbar .logo-image img {
-    max-height: 40px;
-    height: auto;
+    height: 48px;
     width: auto;
+    max-height: 60px;
     display: inline-block;
     vertical-align: middle;
 }
@@ -388,8 +354,10 @@ a:hover {
 }
 
 .navbar .navbar-nav {
-	margin-top: 0.75rem;
-	margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-left: auto;
 }
 
 .navbar .nav-item .nav-link {
@@ -463,8 +431,8 @@ a:hover {
 /*     Header     */
 /******************/
 .header {
-	padding-top: 8rem;
-	padding-bottom: 9rem;
+	padding-top: 10rem;
+	padding-bottom: 8rem;
 	background-color: #fff2dc;
 	text-align: center;
 }
@@ -1143,6 +1111,11 @@ a:hover {
 		background-color: transparent;
 		box-shadow: none;
 		transition: all 0.2s;
+	}
+
+	.navbar .navbar-brand {
+		padding-top: 0.25rem;
+	    	padding-bottom: 0.25rem;
 	}
 
 	.navbar.extra-page {
