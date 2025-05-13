@@ -1009,7 +1009,7 @@ def get_account_stats(user_id):
 def home():
     return render_template("index.html")
 
-@app.route('/dashboard')
+@app.route('/register')
 def dashboard():
     return render_template("login.html")
 
