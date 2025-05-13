@@ -185,7 +185,7 @@
             Registered!<br><br>
             Your TradingView Webhook URL:<br>
             <code>${window.location.origin}/webhook/${webhook_id}</code><br><br>
-            <button onclick="location.href='/register'">Go to Dashboard</button>
+            <button onclick="location.href='{{ url_for('dhan_dashboard') }}'">Go to Dashboard</button>
           `;
         } else {
           alert("Error: " + data.error);
