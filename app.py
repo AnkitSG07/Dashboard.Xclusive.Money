@@ -322,7 +322,7 @@ def square_off():
     try:
         with open("accounts.json", "r") as f:
             accounts = json.load(f)
-    except Exception as e:
+    except Exception:
         return jsonify({"error": "Failed to load accounts file"}), 500
 
     master = next((m for m in accounts.get("masters", []) if m["client_id"] == master_id), None)
@@ -337,31 +337,38 @@ def square_off():
 
         try:
             dhan_child = dhanhq(child["client_id"], child["access_token"])
-            
-            # ✅ Use get_positions
             positions_resp = dhan_child.get_positions()
             positions = positions_resp.get('data', [])
-            print(f"👉 Raw positions for {child['client_id']}:", positions_resp)
+            print(f"👉 Raw positions for {child['client_id']}: {positions_resp}")
 
-            has_position = any(
-                pos['tradingSymbol'].upper() == symbol.upper() and pos['netQty'] != 0
-                for pos in positions
-            )
-
-            if not has_position:
-                results.append(f"Child {child['client_id']} → Skipped (no position in {symbol})")
+            match = next((p for p in positions if p['tradingSymbol'].upper() == symbol.upper() and p['netQty'] != 0), None)
+            if not match:
+                results.append(f"Child {child['client_id']} → Skipped (no active position in {symbol})")
                 continue
 
-            # ✅ Perform square off
-            response = dhan_child.square_off_position(symbol)
+            # Extract required info
+            security_id = match['securityId']
+            exchange_segment = match['exchangeSegment']
+            quantity = abs(int(match['netQty']))
+            direction = dhan_child.SELL if match['netQty'] > 0 else dhan_child.BUY
+
+            response = dhan_child.place_order(
+                security_id=security_id,
+                exchange_segment=exchange_segment,
+                transaction_type=direction,
+                quantity=quantity,
+                order_type=dhan_child.MARKET,
+                product_type=dhan_child.INTRA,
+                price=0
+            )
 
             if isinstance(response, dict) and response.get("status") == "failure":
                 msg = response.get("remarks", "Unknown error")
                 results.append(f"Child {child['client_id']} → FAILED: {msg}")
-                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "FAILED", msg)
+                save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "FAILED", msg)
             else:
                 results.append(f"Child {child['client_id']} → SUCCESS")
-                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "SUCCESS", str(response))
+                save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "SUCCESS", str(response))
 
         except Exception as e:
             error_msg = str(e)
