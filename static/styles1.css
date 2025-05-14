@@ -263,8 +263,8 @@ a:hover {
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	text-align: left;
-	margin-top: 1rem; /* Fix added */
-	margin-bottom: 1.5rem;
+	margin-top: 0.3rem; /* Fix added */
+	margin-bottom: 2rem;
 	font-family: 'Poppins', sans-serif;
 }
 
