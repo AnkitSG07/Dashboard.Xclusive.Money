@@ -1400,7 +1400,7 @@ a:hover {
 	/* Header */
 	.header {
 		padding-top: 18rem;
-		padding-bottom: 9rem;
+		padding-bottom: 2rem;
 		overflow-x: hidden; /* hides horizontal scroll caused by overflowing elements */
          	overflow-y: visible;
     		position: relative;
