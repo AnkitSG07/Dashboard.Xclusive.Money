@@ -257,25 +257,26 @@ a:hover {
 }
 
 .gradient-title {
-  font-size: 4rem;
-  font-weight: 900;
-  background: linear-gradient(90deg, #f4a300, #42b983);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-align: center;
-  margin-bottom: 0.5rem;
-  font-family: 'Poppins', sans-serif;
+	font-size: 4rem;
+	font-weight: 900;
+	background: linear-gradient(90deg, #f4a300, #42b983);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	text-align: center;
+	margin-top: 1.5rem; /* Fix added */
+	margin-bottom: 1rem;
+	font-family: 'Poppins', sans-serif;
 }
 
 .sub-gradient-title {
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #42b983, #f4a300);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-align: center;
-  margin-bottom: 2rem;
-  font-family: 'Poppins', sans-serif;
+	font-size: 2rem;
+	font-weight: 700;
+	background: linear-gradient(90deg, #42b983, #f4a300);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	text-align: center;
+	margin-bottom: 2rem;
+	font-family: 'Poppins', sans-serif;
 }
 
 /* Fade Animation For Rotating Text - ReplaceMe  */
@@ -453,10 +454,11 @@ a:hover {
 /*     Header     */
 /******************/
 .header {
-	padding-top: 10rem;
-	padding-bottom: 8rem;
+	padding-top: 4rem;
+	padding-bottom: 6rem;
 	background-color: #fff2dc;
 	text-align: center;
+	overflow: visible;
 }
 
 .header .h1-large {
@@ -1108,6 +1110,18 @@ a:hover {
 }
 /* end of min-width 768px */
 
+/* Fix: Mobile responsiveness */
+@media (max-width: 768px) {
+	.gradient-title {
+		font-size: 2.5rem;
+		margin-top: 1rem;
+	}
+	.sub-gradient-title {
+		font-size: 1.25rem;
+		margin-bottom: 1rem;
+	}
+}
+
 
 /* Min-width 992px */
 @media (min-width: 992px) {
@@ -1385,9 +1399,9 @@ a:hover {
 
 	/* Header */
 	.header {
-		overflow: hidden;
-		padding-top: 18rem;
-		padding-bottom: 9rem;
+		padding-top: 6rem;
+		padding-bottom: 6rem;
+		overflow: visible;
 	}
 
 	.header .image-container {
