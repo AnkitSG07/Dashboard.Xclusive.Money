@@ -454,11 +454,11 @@ a:hover {
 /*     Header     */
 /******************/
 .header {
-	padding-top: 8rem;
-	padding-bottom: 10rem;
+	padding-top: 15rem;
+	padding-bottom: 15rem;
 	background-color: #fff2dc;
 	text-align: center;
-	overflow: visible;
+	overflow: hidden;
 }
 
 .header .h1-large {
