@@ -263,8 +263,8 @@ a:hover {
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	text-align: left;
-	margin-top: 18rem; /* Fix added */
-	margin-bottom: 9rem;
+	margin-top: 0; /* Fix added */
+	margin-bottom: 2rem;
 	font-family: 'Poppins', sans-serif;
 }
 
@@ -339,9 +339,9 @@ a:hover {
 }
 
 .navbar .logo-image img {
-    height: 88px;
+    height: 78px;
     width: auto;
-    max-height: 100px;
+    max-height: 90px;
     display: inline-block;
     vertical-align: middle;
 }
