@@ -1401,7 +1401,9 @@ a:hover {
 	.header {
 		padding-top: 18rem;
 		padding-bottom: 9rem;
-		overflow: visible;
+		overflow-x: hidden; /* hides horizontal scroll caused by overflowing elements */
+         	overflow-y: visible;
+    		position: relative;
 	}
 
 	.header .image-container {
@@ -1411,9 +1413,9 @@ a:hover {
 	.header .image-container img {
 		position: absolute;
 		top: -180px;
-		left: -10px;
+		left: 0;
 		width: 840px;
-		max-width: none;
+		max-width: 100%;
 	}
 	/* end of header */
 
