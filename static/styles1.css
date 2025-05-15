@@ -454,8 +454,8 @@ a:hover {
 /*     Header     */
 /******************/
 .header {
-	padding-top: 15rem;
-	padding-bottom: 15rem;
+	padding-top: 4rem;
+	padding-bottom: 4rem;
 	background-color: #fff2dc;
 	text-align: center;
 	overflow: hidden;
