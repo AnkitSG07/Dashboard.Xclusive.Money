@@ -1,8 +1,9 @@
 
 body,
 html {
-    width: 100%;
+	width: 100%;
 	height: 100%;
+	overflow-x: hidden;
 }
 
 body, p {
@@ -1401,8 +1402,6 @@ a:hover {
 	.header {
 		padding-top: 9rem;
 		padding-bottom: 2rem;
-		overflow-x: hidden; /* hides horizontal scroll caused by overflowing elements */
-         	overflow-y: visible;
     		position: relative;
 	}
 
