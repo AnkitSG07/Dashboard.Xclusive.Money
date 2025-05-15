@@ -260,14 +260,16 @@ a:hover {
 .gradient-title {
 	font-size: 4rem;
 	font-weight: 900;
+	line-height: 1.2;
 	background: linear-gradient(90deg, #f4a300, #42b983);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	text-align: left;
-	margin-top: 0; /* Fix added */
-	margin-bottom: 2rem;
+	margin: 0;
+	padding-top: 0.5rem; /* new */
 	font-family: 'Poppins', sans-serif;
 }
+
 
 .sub-gradient-title {
 	font-size: 2rem;
