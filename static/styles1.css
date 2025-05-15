@@ -1411,8 +1411,8 @@ a:hover {
 	}
 	
 	.header .image-container img {
-		position: absolute;
-		top: -180px;
+		position: relative;
+		top: 0;
 		left: 0;
 		width: 840px;
 		max-width: 100%;
