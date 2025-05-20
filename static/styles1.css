@@ -1418,7 +1418,7 @@ a:hover {
 		top: 0;
 		left: 0;
 		width: 1100px;
-		max-width: 100%;
+		max-width: 120%;
 	}
 	/* end of header */
 
@@ -1451,6 +1451,14 @@ a:hover {
 
 
 	/* Details Modal */
+
+	.image-container img {
+		position: relative;
+		top: 0;
+		left: 0;
+		width: 720px;
+		max-width: 80%;
+	}
 	.modal-content {
 		padding-right: 2rem;
 		padding-left: 2rem;
@@ -1459,6 +1467,7 @@ a:hover {
 
 
 	/* Details 2 */
+	
 	.basic-2 .text-container {
 		margin-top: 8rem;
 		margin-left: 5rem;
