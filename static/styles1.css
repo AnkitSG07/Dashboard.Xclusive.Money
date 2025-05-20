@@ -261,7 +261,7 @@ a:hover {
 	font-size: 4rem;
 	font-weight: 900;
 	line-height: 1.2;
-	background: linear-gradient(90deg, #f4a300, #42b983);
+	background: linear-gradient(90deg, #FF3B30, #FFA726, #FFEB3B);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	text-align: left;
@@ -274,7 +274,7 @@ a:hover {
 .sub-gradient-title {
 	font-size: 2rem;
 	font-weight: 700;
-	background: linear-gradient(90deg, #42b983, #f4a300);
+	background: linear-gradient(90deg, #FF3B30, #FFA726, #FFEB3B);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	text-align: left;
