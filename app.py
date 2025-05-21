@@ -58,6 +58,28 @@ def save_log(user_id, symbol, action, quantity, status, response):
     conn.commit()
     conn.close()
 
+def save_order_mapping(master_order_id, child_order_id, master_id, master_broker, child_id, child_broker, symbol):
+    path = "order_mappings.json"
+    mappings = []
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            mappings = json.load(f)
+
+    mappings.append({
+        "master_order_id": master_order_id,
+        "child_order_id": child_order_id,
+        "master_client_id": master_id,
+        "master_broker": master_broker,
+        "child_client_id": child_id,
+        "child_broker": child_broker,
+        "symbol": symbol,
+        "status": "ACTIVE"
+    })
+
+    with open(path, "w") as f:
+        json.dump(mappings, f, indent=2)
+
 def poll_and_copy_trades():
     print("🔄 poll_and_copy_trades() triggered...")
 
@@ -74,9 +96,9 @@ def poll_and_copy_trades():
             print("⚠️ No master accounts configured.")
             return
 
-        # Loop through each master account
         for master in masters:
             master_id = master.get("client_id")
+            master_broker = master.get("broker", "Unknown")
             access_token = master.get("access_token")
             if not access_token:
                 print(f"⚠️ Master {master_id} missing access token. Skipping.")
@@ -123,19 +145,22 @@ def poll_and_copy_trades():
                         continue
 
                     try:
-                        dhan_child = dhanhq(child["client_id"], child["access_token"])
+                        child_id = child["client_id"]
+                        child_broker = child.get("broker", "Unknown")
+                        dhan_child = dhanhq(child_id, child["access_token"])
                         multiplier = float(child.get("multiplier", 1))
                         master_qty = order.get("quantity") or order.get("orderQuantity") or 1
                         copied_qty = max(1, int(float(master_qty) * multiplier))
 
-                        print(f"➡️ Copying to child {child['client_id']} | Qty: {copied_qty} (Multiplier: {multiplier})")
+                        print(f"➡️ Copying to child {child_id} | Qty: {copied_qty} (Multiplier: {multiplier})")
 
                         security_id = order.get("securityId") or order.get("security_id")
                         exchange_segment = order.get("exchangeSegment") or order.get("exchange_segment")
                         transaction_type = order.get("transactionType") or order.get("transaction_type")
                         order_type = order.get("orderType") or order.get("order_type")
-                        product_type = order.get("productType") or order.get("product_type")
+                        product_type = order.get("ProductType") or order.get("product_type")
                         price = order.get("price") or order.get("orderPrice") or 0
+                        trading_symbol = order.get("tradingSymbol") or order.get("symbol", "")
 
                         response = dhan_child.place_order(
                             security_id=security_id,
@@ -149,43 +174,31 @@ def poll_and_copy_trades():
 
                         if isinstance(response, dict) and response.get("status") == "failure":
                             error_msg = response.get("omsErrorDescription") or response.get("remarks") or "Unknown error"
-                            print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
-                            save_log(
-                                child["client_id"],
-                                order.get("tradingSymbol") or order.get("symbol", ""),
-                                transaction_type,
-                                copied_qty,
-                                "FAILED",
-                                error_msg
-                            )
+                            print(f"❌ Trade FAILED for {child_id} (Reason: {error_msg})")
+                            save_log(child_id, trading_symbol, transaction_type, copied_qty, "FAILED", error_msg)
                         else:
-                            print(f"✅ Successfully copied to {child['client_id']} (Order Response: {response})")
-                            save_log(
-                                child["client_id"],
-                                order.get("tradingSymbol") or order.get("symbol", ""),
-                                transaction_type,
-                                copied_qty,
-                                "SUCCESS",
-                                str(response)
+                            print(f"✅ Copied to {child_id} (Order ID: {response.get('orderId')})")
+                            save_log(child_id, trading_symbol, transaction_type, copied_qty, "SUCCESS", str(response))
+
+                            # ✅ Save broker-aware order mapping
+                            save_order_mapping(
+                                master_order_id=order_id,
+                                child_order_id=response.get("orderId"),
+                                master_id=master_id,
+                                master_broker=master_broker,
+                                child_id=child_id,
+                                child_broker=child_broker,
+                                symbol=trading_symbol
                             )
 
                     except Exception as e:
-                        print(f"❌ Error copying to {child['client_id']}: {e}")
-                        save_log(
-                            child["client_id"],
-                            order.get("tradingSymbol") or order.get("symbol", ""),
-                            transaction_type,
-                            copied_qty,
-                            "FAILED",
-                            str(e)
-                        )
+                        print(f"❌ Error copying to {child_id}: {e}")
+                        save_log(child_id, trading_symbol, transaction_type, copied_qty, "FAILED", str(e))
 
-            # After processing: update last_copied_trade_id for this master
             if new_last_trade_id:
                 print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
                 accounts[last_copied_key] = new_last_trade_id
 
-        # Save back the updated last_copied IDs
         with open("accounts.json", "w") as f:
             json.dump(accounts, f, indent=2)
 
@@ -310,14 +323,158 @@ def webhook(user_id):
         save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
         return jsonify({"error": error_msg}), 500
 
+@app.route('/api/child-orders', methods=['GET'])
+def get_child_orders():
+    master_order_id = request.args.get("master_order_id")
+
+    if not master_order_id:
+        return jsonify({"error": "Missing master_order_id"}), 400
+
+    try:
+        with open("order_mappings.json", "r") as f:
+            mappings = json.load(f)
+
+        child_rows = [m for m in mappings if m["master_order_id"] == master_order_id]
+
+        return jsonify(child_rows), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/master-squareoff', methods=['POST'])
+def master_squareoff():
+    data = request.json
+    master_order_id = data.get("master_order_id")
+
+    if not master_order_id:
+        return jsonify({"error": "Missing master_order_id"}), 400
+
+    try:
+        with open("order_mappings.json", "r") as f:
+            mappings = json.load(f)
+
+        targets = [m for m in mappings if m["master_order_id"] == master_order_id and m["status"] == "ACTIVE"]
+
+        if not targets:
+            return jsonify({"message": "No active child orders found for this master order."}), 200
+
+        results = []
+
+        for mapping in targets:
+            child_id = mapping["child_client_id"]
+            child_broker = mapping.get("child_broker", "Unknown")
+            symbol = mapping["symbol"]
+
+            access_token = None
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+                for master in accounts.get("masters", []):
+                    for child in master.get("children", []):
+                        if child["client_id"] == child_id:
+                            access_token = child.get("access_token")
+                            break
+
+            if not access_token:
+                results.append(f"{child_id} ({child_broker}) → ❌ Token not found")
+                continue
+
+            try:
+                if child_broker.lower() == "dhan":
+                    dhan_client = dhanhq(child_id, access_token)
+                    positions_resp = dhan_client.get_positions()
+                    match = next((p for p in positions_resp.get("data", []) if p["tradingSymbol"].upper() == symbol.upper() and p["netQty"] != 0), None)
+
+                    if not match:
+                        results.append(f"{child_id} → ℹ️ No open position in {symbol}")
+                        continue
+
+                    direction = dhan_client.SELL if match["netQty"] > 0 else dhan_client.BUY
+                    response = dhan_client.place_order(
+                        security_id=match["securityId"],
+                        exchange_segment=match["exchangeSegment"],
+                        transaction_type=direction,
+                        quantity=abs(int(match["netQty"])),
+                        order_type=dhan_client.MARKET,
+                        product_type=dhan_client.INTRA,
+                        price=0
+                    )
+
+                    if response.get("status") == "failure":
+                        results.append(f"{child_id} (Dhan) → ❌ Square-off failed: {response.get('remarks')}")
+                    else:
+                        mapping["status"] = "SQUARED_OFF"
+                        results.append(f"{child_id} (Dhan) → ✅ Square-off done")
+
+                elif child_broker.lower() == "zerodha":
+                    results.append(f"{child_id} (Zerodha) → 🟡 Square-off logic pending")
+
+                elif child_broker.lower() == "angel":
+                    results.append(f"{child_id} (Angel) → 🟡 Square-off logic pending")
+
+                else:
+                    results.append(f"{child_id} → ❌ Unknown broker")
+
+            except Exception as e:
+                results.append(f"{child_id} ({child_broker}) → ❌ ERROR: {str(e)}")
+
+        with open("order_mappings.json", "w") as f:
+            json.dump(mappings, f, indent=2)
+
+        return jsonify({"message": "Square-off complete", "details": results}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/master-orders', methods=['GET'])
+def get_master_orders():
+    try:
+        path = "order_mappings.json"
+        if not os.path.exists(path):
+            return jsonify([]), 200
+
+        with open(path, "r") as f:
+            mappings = json.load(f)
+
+        master_summary = {}
+
+        for entry in mappings:
+            mid = entry["master_order_id"]
+            if mid not in master_summary:
+                master_summary[mid] = {
+                    "master_order_id": mid,
+                    "symbol": entry["symbol"],
+                    "master_client_id": entry["master_client_id"],
+                    "master_broker": entry.get("master_broker", "Unknown"),
+                    "status": "ACTIVE",
+                    "total_children": 0,
+                    "child_statuses": [],
+                    "timestamp": "—"
+                }
+
+            master_summary[mid]["total_children"] += 1
+            master_summary[mid]["child_statuses"].append(entry["status"])
+
+        # Final status cleanup
+        for summary in master_summary.values():
+            if all(s != "ACTIVE" for s in summary["child_statuses"]):
+                summary["status"] = "CANCELLED"
+
+        return jsonify(list(master_summary.values())), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/square-off', methods=['POST'])
 def square_off():
     data = request.json
-    master_id = data.get("master_id")
+    client_id = data.get("client_id")  # Can be master or child
     symbol = data.get("symbol")
+    is_master = data.get("is_master", False)
 
-    if not master_id or not symbol:
-        return jsonify({"error": "Missing master_id or symbol"}), 400
+    if not client_id or not symbol:
+        return jsonify({"error": "Missing client_id or symbol"}), 400
 
     try:
         with open("accounts.json", "r") as f:
@@ -325,59 +482,216 @@ def square_off():
     except Exception:
         return jsonify({"error": "Failed to load accounts file"}), 500
 
-    master = next((m for m in accounts.get("masters", []) if m["client_id"] == master_id), None)
-    if not master:
-        return jsonify({"error": "Master not found"}), 404
+    if is_master:
+        # 🟢 Square off master
+        master = next((m for m in accounts.get("masters", []) if m["client_id"] == client_id), None)
+        if not master:
+            return jsonify({"error": "Master not found"}), 404
 
-    results = []
-    for child in master.get("children", []):
-        if child.get("copy_status") != "On":
-            results.append(f"Child {child['client_id']} → Skipped (copy OFF)")
-            continue
+        dhan_acc = dhanhq(master["client_id"], master["access_token"])
 
         try:
-            dhan_child = dhanhq(child["client_id"], child["access_token"])
-            positions_resp = dhan_child.get_positions()
-            positions = positions_resp.get('data', [])
-            print(f"👉 Raw positions for {child['client_id']}: {positions_resp}")
+            positions_resp = dhan_acc.get_positions()
+            positions = positions_resp.get("data", [])
+            match = next((p for p in positions if p["tradingSymbol"].upper() == symbol.upper()), None)
 
-            match = next((p for p in positions if p['tradingSymbol'].upper() == symbol.upper() and p['netQty'] != 0), None)
-            if not match:
-                results.append(f"Child {child['client_id']} → Skipped (no active position in {symbol})")
-                continue
+            if not match or int(match["netQty"]) == 0:
+                return jsonify({"message": f"Master → No active position in {symbol} (already squared off)"}), 200
 
-            # Extract required info
-            security_id = match['securityId']
-            exchange_segment = match['exchangeSegment']
-            quantity = abs(int(match['netQty']))
-            direction = dhan_child.SELL if match['netQty'] > 0 else dhan_child.BUY
+            qty = abs(int(match["netQty"]))
+            direction = dhan_acc.SELL if match["netQty"] > 0 else dhan_acc.BUY
 
-            response = dhan_child.place_order(
-                security_id=security_id,
-                exchange_segment=exchange_segment,
+            resp = dhan_acc.place_order(
+                security_id=match["securityId"],
+                exchange_segment=match["exchangeSegment"],
                 transaction_type=direction,
-                quantity=quantity,
-                order_type=dhan_child.MARKET,
-                product_type=dhan_child.INTRA,
+                quantity=qty,
+                order_type=dhan_acc.MARKET,
+                product_type=dhan_acc.INTRA,
                 price=0
             )
 
-            if isinstance(response, dict) and response.get("status") == "failure":
-                msg = response.get("remarks", "Unknown error")
-                results.append(f"Child {child['client_id']} → FAILED: {msg}")
-                save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "FAILED", msg)
-            else:
-                results.append(f"Child {child['client_id']} → SUCCESS")
-                save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "SUCCESS", str(response))
+            save_log(master["client_id"], symbol, "SQUARE_OFF", qty, "SUCCESS", str(resp))
+            return jsonify({"message": "✅ Master square-off placed", "details": str(resp)}), 200
 
         except Exception as e:
-            error_msg = str(e)
-            results.append(f"Child {child['client_id']} → ERROR: {error_msg}")
-            save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
+            return jsonify({"error": str(e)}), 500
 
-    return jsonify({"message": "Square-off completed", "details": results}), 200
+    else:
+        # 🔁 Square off children under master
+        master = next((m for m in accounts.get("masters", []) if m["client_id"] == client_id), None)
+        if not master:
+            return jsonify({"error": "Master not found"}), 404
+
+        results = []
+        for child in master.get("children", []):
+            if child.get("copy_status") != "On":
+                results.append(f"Child {child['client_id']} → Skipped (copy OFF)")
+                continue
+
+            try:
+                dhan_child = dhanhq(child["client_id"], child["access_token"])
+                positions_resp = dhan_child.get_positions()
+                positions = positions_resp.get('data', [])
+
+                match = next((p for p in positions if p['tradingSymbol'].upper() == symbol.upper()), None)
+
+                if not match or int(match['netQty']) == 0:
+                    results.append(f"Child {child['client_id']} → Skipped (no active position in {symbol})")
+                    continue
+
+                security_id = match['securityId']
+                exchange_segment = match['exchangeSegment']
+                quantity = abs(int(match['netQty']))
+                direction = dhan_child.SELL if match['netQty'] > 0 else dhan_child.BUY
+
+                response = dhan_child.place_order(
+                    security_id=security_id,
+                    exchange_segment=exchange_segment,
+                    transaction_type=direction,
+                    quantity=quantity,
+                    order_type=dhan_child.MARKET,
+                    product_type=dhan_child.INTRA,
+                    price=0
+                )
+
+                if isinstance(response, dict) and response.get("status") == "failure":
+                    msg = response.get("remarks", "Unknown error")
+                    results.append(f"Child {child['client_id']} → FAILED: {msg}")
+                    save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "FAILED", msg)
+                else:
+                    results.append(f"Child {child['client_id']} → SUCCESS")
+                    save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "SUCCESS", str(response))
+
+            except Exception as e:
+                error_msg = str(e)
+                results.append(f"Child {child['client_id']} → ERROR: {error_msg}")
+                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
+
+        return jsonify({"message": "🔁 Square-off for all children completed", "details": results}), 200
+
+@app.route('/api/order-mappings', methods=['GET'])
+def get_order_mappings():
+    try:
+        path = "order_mappings.json"
+        if not os.path.exists(path):
+            return jsonify([]), 200
+
+        with open(path, "r") as f:
+            mappings = json.load(f)
+
+        return jsonify(mappings), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cancel-order', methods=['POST'])
+def cancel_order():
+    data = request.json
+    master_order_id = data.get("master_order_id")
+
+    if not master_order_id:
+        return jsonify({"error": "Missing master_order_id"}), 400
+
+    try:
+        if not os.path.exists("order_mappings.json"):
+            return jsonify({"error": "No order mappings found"}), 404
+
+        with open("order_mappings.json", "r") as f:
+            mappings = json.load(f)
+
+        # Filter for this master order
+        relevant = [m for m in mappings if m["master_order_id"] == master_order_id and m["status"] == "ACTIVE"]
+
+        if not relevant:
+            return jsonify({"message": "No active child orders found for this master order."}), 200
+
+        results = []
+
+        for mapping in relevant:
+            child_id = mapping["child_client_id"]
+            child_order_id = mapping["child_order_id"]
+
+            # Fetch child access_token
+            with open("accounts.json", "r") as f:
+                accounts = json.load(f)
+
+            found = None
+            for m in accounts.get("masters", []):
+                for c in m.get("children", []):
+                    if c["client_id"] == child_id:
+                        found = c
+                        break
+                if found:
+                    break
+
+            if not found:
+                results.append(f"{child_id} → ❌ Client not found")
+                continue
+
+            try:
+                dhan_child = dhanhq(found["client_id"], found["access_token"])
+                cancel_resp = dhan_child.cancel_order(child_order_id)
+
+                if isinstance(cancel_resp, dict) and cancel_resp.get("status") == "failure":
+                    results.append(f"{child_id} → ❌ Cancel failed: {cancel_resp.get('remarks')}")
+                else:
+                    results.append(f"{child_id} → ✅ Cancelled")
+                    mapping["status"] = "CANCELLED"  # Update mapping status
+
+            except Exception as e:
+                results.append(f"{child_id} → ❌ ERROR: {str(e)}")
+
+        # Save updated mappings
+        with open("order_mappings.json", "w") as f:
+            json.dump(mappings, f, indent=2)
+
+        return jsonify({"message": "Cancel process completed", "details": results}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/change-master', methods=['POST'])
+def change_master():
+    data = request.json
+    child_id = data.get("child_id")
+    new_master_id = data.get("new_master_id")
+
+    if not child_id or not new_master_id:
+        return jsonify({"error": "Missing child_id or new_master_id"}), 400
+
+    try:
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+
+        # Remove child from old master
+        old_child_data = None
+        for master in accounts["masters"]:
+            children = master.get("children", [])
+            for c in children:
+                if c["client_id"] == child_id:
+                    old_child_data = c
+                    break
+            master["children"] = [c for c in children if c["client_id"] != child_id]
+
+        if not old_child_data:
+            return jsonify({"error": "Child not found"}), 404
+
+        # Add to new master
+        new_master = next((m for m in accounts["masters"] if m["client_id"] == new_master_id), None)
+        if not new_master:
+            return jsonify({"error": "New master not found"}), 404
+
+        new_master.setdefault("children", []).append(old_child_data)
+
+        with open("accounts.json", "w") as f:
+            json.dump(accounts, f, indent=2)
+
+        return jsonify({"message": f"✅ Child {child_id} moved to new master {new_master_id}"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # PATCH for /api/update-multiplier
 @app.route('/api/update-multiplier', methods=['POST'])
