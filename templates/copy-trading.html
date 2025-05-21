@@ -169,6 +169,33 @@
     </div>
   </div>
 
+  <!-- ✅ Master Orders Section -->
+  <div class="section-box">
+    <h5><i class="bi bi-card-checklist"></i> Master Orders</h5>
+    <p>Cancel or square-off trades copied to children from the master.</p>
+    <div class="sticky-toolbar bg-white p-2 border-bottom d-flex gap-2" style="position: sticky; top: 0; z-index: 10;">
+      <button class="btn btn-danger btn-sm" onclick="cancelSelectedOrders()">Cancel Selected</button>
+      <button class="btn btn-warning btn-sm" onclick="squareOffAllOrders()">Square Off All</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th><input type="checkbox" onclick="toggleAllMasterOrders(this)"></th>
+            <th>Order ID</th>
+            <th>Symbol</th>
+            <th>Status</th>
+            <th>Children</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="master-orders-body">
+          <!-- Dynamic -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Add Account Modal -->
   <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -217,6 +244,51 @@
     </div>
   </div>
 
+  <div class="modal fade" id="childMappingModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Child Orders</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-sm table-bordered">
+          <thead>
+            <tr>
+              <th>Child</th>
+              <th>Order ID</th>
+              <th>Status</th>
+              <th>Broker</th>
+            </tr>
+          </thead>
+          <tbody id="child-mapping-body">
+            <!-- Dynamic -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- ✅ Change Master Modal -->
+<div class="modal fade" id="changeMasterModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Change Master</h5></div>
+      <div class="modal-body">
+        <input type="hidden" id="changeChildId" />
+        <label for="newMasterDropdown">Select New Master:</label>
+        <select id="newMasterDropdown" class="form-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitChangeMaster()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -237,6 +309,54 @@
         submitBtn.disabled = false; // Always allow master to submit
       }
     });
+
+    function openChangeMaster(childId) {
+      document.getElementById("changeChildId").value = childId;
+      fetch("/api/accounts")
+        .then(res => res.json())
+        .then(data => {
+          const masters = data.masters || [];
+          const dropdown = document.getElementById("newMasterDropdown");
+          dropdown.innerHTML = masters.map(m => `<option value="${m.client_id}">${m.username} (${m.client_id})</option>`).join("");
+          new bootstrap.Modal(document.getElementById("changeMasterModal")).show();
+        });
+    }
+    
+    function submitChangeMaster() {
+      const child_id = document.getElementById("changeChildId").value;
+      const new_master_id = document.getElementById("newMasterDropdown").value;
+      fetch("/api/change-master", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ child_id, new_master_id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        loadAccounts();
+        bootstrap.Modal.getInstance(document.getElementById("changeMasterModal")).hide();
+      });
+    }
+
+    function viewChildMappings(masterOrderId) {
+      fetch(`/api/child-orders?master_order_id=${masterOrderId}`)
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById("child-mapping-body");
+          tbody.innerHTML = "";
+          data.forEach(row => {
+            tbody.innerHTML += `
+              <tr>
+                <td>${row.child_client_id}</td>
+                <td>${row.child_order_id}</td>
+                <td>${row.status}</td>
+                <td>${row.child_broker}</td>
+              </tr>`;
+          });
+          new bootstrap.Modal(document.getElementById("childMappingModal")).show();
+        });
+    }
+
 
     function loadMasterDropdown(submitBtn) {
       fetch("/api/accounts")
@@ -351,10 +471,18 @@ function loadAccounts() {
                 </div>
               </td>
               <td>
-                <button class="btn btn-sm btn-success" onclick="startCopying('${child.client_id}', '${master.client_id}')">Start</button>
-                <button class="btn btn-sm btn-warning" onclick="stopCopying('${child.client_id}', '${master.client_id}')">Stop</button>
-                <button class="btn btn-sm btn-danger" onclick="removeChild('${child.client_id}')">Remove</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</button>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="removeChild('${child.client_id}')">Remove</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="openChangeMaster('${child.client_id}')">Change Master</a></li>
+                  </ul>
+                </div>
               </td>
             </tr>
           `;
@@ -367,6 +495,56 @@ function loadAccounts() {
     });
 }
 
+    function loadMasterOrders() {
+      fetch('/api/master-orders')
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById("master-orders-body");
+          tbody.innerHTML = "";
+          data.forEach(order => {
+            tbody.innerHTML += `
+              <tr>
+                <td><input type="checkbox" class="master-order-checkbox" value="${order.master_order_id}"></td>
+                <td>${order.master_order_id}</td>
+                <td>${order.symbol}</td>
+                <td>${order.status}</td>
+                <td>${order.total_children}</td>
+                <td><button class="btn btn-sm btn-info" onclick="viewChildMappings('${order.master_order_id}')">View</button></td>
+              </tr>`;
+          });
+        });
+    }
+    
+    // ✅ JS: Toggle all master checkboxes
+    function toggleAllMasterOrders(box) {
+      document.querySelectorAll(".master-order-checkbox").forEach(cb => cb.checked = box.checked);
+    }
+    
+    // ✅ JS: Cancel selected master orders
+    function cancelSelectedOrders() {
+      const selected = [...document.querySelectorAll(".master-order-checkbox:checked")].map(cb => cb.value);
+      if (selected.length === 0) return alert("No orders selected.");
+      selected.forEach(id => {
+        fetch("/api/cancel-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ master_order_id: id })
+        }).then(() => loadMasterOrders());
+      });
+    }
+    
+    // ✅ JS: Square-off all selected orders
+    function squareOffAllOrders() {
+      const selected = [...document.querySelectorAll(".master-order-checkbox:checked")].map(cb => cb.value);
+      if (selected.length === 0) return alert("No orders selected.");
+      selected.forEach(id => {
+        fetch("/api/master-squareoff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ master_order_id: id })
+        }).then(() => loadMasterOrders());
+      });
+    }
     // Button Functions
     function setAsMaster(clientId) {
       fetch("/api/set-master", {
@@ -531,6 +709,8 @@ function loadAccounts() {
 
     // Initial load
     loadAccounts();
+    loadMasterOrders();  // Call this with loadAccounts()
   </script>
+
 </body>
 </html>
