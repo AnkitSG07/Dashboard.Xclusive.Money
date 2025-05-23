@@ -158,6 +158,7 @@ v<!DOCTYPE html>
           <thead class="table-light">
             <tr>
               <th>Broker</th>
+              <th>Master</th>
               <th>Client ID</th>
               <th>Username</th>
               <th>Status</th>
@@ -431,74 +432,72 @@ v<!DOCTYPE html>
       });
     });
 
-    // Load Accounts Function
-function loadAccounts() {
-  fetch("/api/accounts")
-    .then(res => res.json())
-    .then(data => {
-      const mastersList = data.masters || [];
-
-      const masterBody = document.getElementById("master-table-body");
-      const childrenBody = document.getElementById("children-table-body");
-
-      // Clear both tables
-      masterBody.innerHTML = "";
-      childrenBody.innerHTML = "";
-
-      mastersList.forEach(master => {
-        // Add master row
-        masterBody.innerHTML += `
-          <tr>
-            <td><i class="bi bi-bank"></i> ${master.broker}</td>
-            <td>${master.client_id}</td>
-            <td>${master.username}</td>
-            <td><span class="badge bg-success">${master.status}</span></td>
-            <td>
-              <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
-            </td>
-          </tr>
-        `;
-
-        // Add child rows (with master_id reference)
-        const children = master.children || [];
-        children.forEach(child => {
-          childrenBody.innerHTML += `
-            <tr>
-              <td><i class="bi bi-bank"></i> ${child.broker}</td>
-              <td>${child.client_id}</td>
-              <td>${child.username}</td>
-              <td><span class="badge bg-success">${child.status}</span></td>
-              <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status}</span></td>
-              <td>
-                <div class="input-group input-group-sm">
-                  <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
-                  <button class="btn btn-sm btn-outline-primary" onclick="updateMultiplier('${child.client_id}')">Save</button>
-                </div>
-              </td>
-              <td> <!-- ✅ WRAP this Actions column in a TD -->
-                <div class="dropdown">
-                  <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    Actions
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="removeChild('${child.client_id}')">Remove</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="openChangeMaster('${child.client_id}')">Change Master</a></li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-          `;
+    function loadAccounts() {
+      fetch("/api/accounts")
+        .then(res => res.json())
+        .then(data => {
+          const mastersList = data.masters || [];
+    
+          const masterBody = document.getElementById("master-table-body");
+          const childrenBody = document.getElementById("children-table-body");
+    
+          masterBody.innerHTML = "";
+          childrenBody.innerHTML = "";
+    
+          mastersList.forEach(master => {
+            // Add master row
+            masterBody.innerHTML += `
+              <tr>
+                <td><i class="bi bi-bank"></i> ${master.broker}</td>
+                <td>${master.client_id}</td>
+                <td>${master.username}</td>
+                <td><span class="badge bg-success">${master.status}</span></td>
+                <td>
+                  <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
+                </td>
+              </tr>
+            `;
+    
+            const children = master.children || [];
+            children.forEach(child => {
+              childrenBody.innerHTML += `
+                <tr>
+                  <td><i class="bi bi-bank"></i> ${child.broker}</td>
+                  <td>${master.username}</td> <!-- ✅ Master Name Column -->
+                  <td>${child.client_id}</td>
+                  <td>${child.username}</td>
+                  <td><span class="badge bg-success">${child.status}</span></td>
+                  <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status}</span></td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
+                      <button class="btn btn-sm btn-outline-primary" onclick="updateMultiplier('${child.client_id}')">Save</button>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        Actions
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="removeChild('${child.client_id}')">Remove</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openChangeMaster('${child.client_id}')">Change Master</a></li>
+                      </ul>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            });
+          });
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Failed to load accounts.");
         });
-      });
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Failed to load accounts.");
-    });
-}
+    }
 
     function loadMasterOrders() {
       fetch('/api/master-orders')
