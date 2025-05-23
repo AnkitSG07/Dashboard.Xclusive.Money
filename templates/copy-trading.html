@@ -454,10 +454,30 @@ v<!DOCTYPE html>
                 <td><span class="badge bg-success">${master.status}</span></td>
                 <td>
                   <button class="btn btn-sm btn-primary" onclick="setAsMaster('${master.client_id}')">Set as Master</button>
+                  <button class="btn btn-sm btn-info" onclick="toggleOrderBook('${master.client_id}')">Order Book</button>
+                </td>
+              </tr>
+              <tr id="order-book-${master.client_id}" style="display: none;">
+                <td colspan="5">
+                  <div class="p-2 bg-light rounded">
+                    <table class="table table-sm table-bordered mb-0">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Symbol</th>
+                          <th>Qty</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="orders-body-${master.client_id}">
+                        <!-- Orders will be loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
                 </td>
               </tr>
             `;
-    
+
             const children = master.children || [];
             children.forEach(child => {
               childrenBody.innerHTML += `
@@ -497,6 +517,29 @@ v<!DOCTYPE html>
           console.error(err);
           alert("Failed to load accounts.");
         });
+    }
+
+    function toggleOrderBook(masterId) {
+      const row = document.getElementById(`order-book-${masterId}`);
+      const tbody = document.getElementById(`orders-body-${masterId}`);
+    
+      if (row.style.display === "none") {
+        fetch(`/api/master-orders?master_id=${masterId}`)
+          .then(res => res.json())
+          .then(data => {
+            tbody.innerHTML = data.map(order => `
+              <tr>
+                <td>${order.master_order_id}</td>
+                <td>${order.symbol}</td>
+                <td>${order.quantity || '-'}</td>
+                <td>${order.status}</td>
+              </tr>
+            `).join('');
+            row.style.display = "table-row";
+          });
+      } else {
+        row.style.display = "none";
+      }
     }
 
     function loadMasterOrders() {
