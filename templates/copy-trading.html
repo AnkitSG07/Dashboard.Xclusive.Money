@@ -99,16 +99,34 @@ v<!DOCTYPE html>
     </div>
   </nav>
 
-  <!-- Sidebar -->
   <div class="sidebar show" id="sidebar">
-    <h2 class="text-primary px-3 py-4"><i class="bi bi-bar-chart-fill"></i> DhanBot</h2>
-    <ul class="nav flex-column px-3">
-      <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-graph-up"></i> Dashboard</a></li>
-      <li class="nav-item"><a class="nav-link active fw-bold" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a></li>
-      <li class="nav-item">
-        <a class="nav-link" href="/marketwatch" target="_blank">Market Watch 📈</a>
-      </li>
-    </ul>
+    <div class="text-center mb-4">
+      <h2 class="text-primary fw-bold"><i class="bi bi-bar-chart-fill"></i> DhanBot</h2>
+    </div>
+  
+    <!-- Dashboard Section -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">DASHBOARD</p>
+      <a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2"></i> Summary</a>
+      <a class="nav-link active" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a>
+      <a class="nav-link" href="/marketwatch" target="_blank"><i class="bi bi-graph-up-arrow"></i> Market Watch</a>
+    </div>
+  
+    <!-- Management Section -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">MANAGEMENT</p>
+      <a class="nav-link" href="/users"><i class="bi bi-person-fill"></i> Users</a>
+      <a class="nav-link" href="/invoices"><i class="bi bi-receipt-cutoff"></i> Invoices</a>
+      <a class="nav-link" href="/change-plan"><i class="bi bi-sliders"></i> Change Plan</a>
+    </div>
+  
+    <!-- Support Section -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">SUPPORT</p>
+      <a class="nav-link" href="tel:+91XXXXXXXX"><i class="bi bi-telephone-fill"></i> Call</a>
+      <a class="nav-link" href="mailto:support@dhanbot.com"><i class="bi bi-envelope-fill"></i> Email</a>
+    </div>
+  
     <div class="px-3 mt-auto mb-4">
       <button class="logout btn w-100" onclick="logout()">Logout</button>
     </div>
