@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+v<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -46,8 +46,10 @@
     table {
       font-size: 0.95rem;
     }
-    .table-responsive {
+    .table-responsive,
+    .section-box {
       overflow: visible !important;
+      position: relative;
     }
     .table thead {
       background-color: #f1f4f8;
@@ -92,9 +94,11 @@
     }
     
     .dropdown-menu {
-      z-index: 1050 !important;
+      z-index: 2000 !important;     /* Ensure it's above cards and modals */
       position: absolute !important;
       inset: auto !important;
+      transform: translateY(0px) !important;
+      display: block; /* Optional: for debugging only, remove later */
     }
     
 
