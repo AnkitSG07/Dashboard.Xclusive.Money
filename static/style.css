@@ -1,5 +1,3 @@
-/* Mantis-Inspired Light Theme CSS */
-
 body {
   margin: 0;
   padding: 0;
@@ -172,7 +170,7 @@ input#symbol-selector:focus {
 
 /* Fix dropdown hiding */
 .dropdown-menu {
-  z-index: 2000 !important;
+  z-index: 9999 !important;
   position: absolute !important;
 }
 
