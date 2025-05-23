@@ -172,17 +172,15 @@ v<!DOCTYPE html>
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- ✅ Master Orders Section -->
-  <div class="section-box">
+    <div class="section-box">
     <h5><i class="bi bi-card-checklist"></i> Master Orders</h5>
     <p>Cancel or square-off trades copied to children from the master.</p>
     <div class="sticky-toolbar bg-white p-2 border-bottom d-flex gap-2" style="position: sticky; top: 0; z-index: 10;">
       <button class="btn btn-danger btn-sm" onclick="cancelSelectedOrders()">Cancel Selected</button>
       <button class="btn btn-warning btn-sm" onclick="squareOffAllOrders()">Square Off All</button>
     </div>
-    <div class="table-responsive" tabindex="-1">
+    <div class="table-responsive" style="margin-top: 60px;">
       <table class="table table-bordered table-hover">
         <thead class="table-light">
           <tr>
@@ -200,7 +198,9 @@ v<!DOCTYPE html>
       </table>
     </div>
   </div>
-
+</div> <!-- ✅ this closes .main-content -->
+  
+<!----------------------------section ends------------------------------------->
   <!-- Add Account Modal -->
   <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -475,6 +475,7 @@ function loadAccounts() {
                   <button class="btn btn-sm btn-outline-primary" onclick="updateMultiplier('${child.client_id}')">Save</button>
                 </div>
               </td>
+              <td> <!-- ✅ WRAP this Actions column in a TD -->
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     Actions
