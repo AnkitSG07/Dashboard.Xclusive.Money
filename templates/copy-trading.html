@@ -14,28 +14,19 @@ v<!DOCTYPE html>
       background-color: #f5f7fa;
       font-family: 'Poppins', sans-serif;
     }
-    .section-box {
-      padding: 20px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      margin-bottom: 30px;
-      transition: all 0.3s ease;
-      overflow: visible !important;
-    }
-    .section-box:hover {
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    }
+  
     .navbar {
       background-color: #ffffff;
       border-bottom: 1px solid #e3e6ea;
       box-shadow: 0 2px 4px rgba(0,0,0,0.03);
     }
+  
     .navbar-brand {
       font-weight: 700;
       color: #007bff !important;
       font-size: 1.4rem;
     }
+  
     .profile-img {
       width: 36px;
       height: 36px;
@@ -43,49 +34,63 @@ v<!DOCTYPE html>
       object-fit: cover;
       border: 2px solid #007bff;
     }
-    table {
+  
+    .table {
       font-size: 0.95rem;
     }
+  
     .table thead {
       background-color: #f1f4f8;
     }
+  
     .table-hover tbody tr:hover {
       background-color: #f9fcff;
     }
+  
     .badge {
       font-size: 0.75rem;
       padding: 5px 8px;
       border-radius: 50px;
     }
+  
     .btn-sm {
       font-size: 0.75rem;
       padding: 4px 8px;
     }
+  
     .logout {
       background: #ff4d4d;
       color: #fff;
       border: none;
       font-weight: 500;
     }
+  
     .logout:hover {
       background: #e60000;
     }
+  
     h5 i {
       color: #007bff;
       margin-right: 5px;
     }
+  
     .modal-content {
       border-radius: 12px;
     }
+  
     .form-label {
       font-weight: 500;
     }
+  
     .btn-primary, .btn-outline-primary {
       border-radius: 30px;
     }
-    
-
+    .main-content {
+      margin-left: 240px;
+      padding: 20px;
+    }
   </style>
+
 </head>
 <body>
   <!-- Top Navbar -->
@@ -473,7 +478,7 @@ function loadAccounts() {
                   <button class="btn btn-sm btn-outline-primary" onclick="updateMultiplier('${child.client_id}')">Save</button>
                 </div>
               </td>
-              <td style="position: relative;">
+              <div class="dropdown" style="position: relative; z-index: 1;">
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     Actions
