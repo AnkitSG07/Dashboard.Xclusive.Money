@@ -7,54 +7,40 @@ body {
   color: #212529;
 }
 
+/* Layout Fix: Content Margin */
+.main-content {
+  margin-left: 240px;
+  padding: 20px;
+}
+
+/* Headings */
 h3 {
   color: #333;
   font-weight: 600;
   margin-top: 30px;
 }
 
-/* === Layout Fix: Shift Content from Sidebar === */
-.main-content {
-  margin-left: 240px;
-  padding: 20px;
-}
-
-/* === Reusable Components === */
-.webhook-box {
-  background-color: #ffffff;
-  border: 1px solid #dee2e6;
-  color: #0d6efd;
-  padding: 12px 18px;
-  font-family: monospace;
+/* Section Boxes */
+.section-box {
+  background: #fff;
   border-radius: 10px;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
-}
-
-.card {
-  background: #ffffff;
-  border-left: 4px solid #0d6efd;
-  border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-weight: 500;
-  color: #212529;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  position: relative;
+  overflow: visible;
 }
 
-.card:hover {
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-}
-
-/* === Tables === */
+/* Tables */
 table {
   background: #ffffff;
   border-collapse: collapse;
   margin-top: 15px;
   border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: visible;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   width: 100%;
 }
-
 th, td {
   padding: 12px;
   text-align: center;
@@ -63,24 +49,26 @@ th, td {
   position: relative;
   overflow: visible;
 }
-
 th {
   background: #f1f3f5;
   color: #212529;
   font-weight: 600;
 }
-
 tr:hover {
   background: #f8f9fa;
 }
 
-/* === Dropdown Fix (inside table) === */
+/* Table responsiveness */
 .table-responsive {
-  overflow-x: auto;
+  overflow: visible !important;
   position: relative;
   z-index: 1;
 }
 
+/* Dropdown Fix inside table */
+.dropdown {
+  position: relative;
+}
 .dropdown-menu {
   z-index: 9999 !important;
   position: absolute !important;
@@ -90,7 +78,7 @@ tr:hover {
   transform: translateY(0) !important;
 }
 
-/* === Form Input === */
+/* Form Input */
 input#symbol-selector {
   background: #ffffff;
   border: 1px solid #ced4da;
@@ -101,25 +89,33 @@ input#symbol-selector {
   width: 100%;
   max-width: 400px;
 }
-
 input#symbol-selector:focus {
   outline: none;
   border-color: #0d6efd;
   box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
 }
 
-/* === TradingView Chart === */
+/* TradingView Chart */
 #tradingview_chart {
   width: 100%;
   height: 500px;
 }
-
 #notifDot {
   width: 10px;
   height: 10px;
 }
 
-/* === Sidebar === */
+/* Sticky Toolbar */
+.sticky-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1500;
+  background-color: #fff;
+  padding: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Sidebar */
 .sidebar {
   position: fixed;
   top: 0;
@@ -134,7 +130,6 @@ input#symbol-selector:focus {
   border-right: 1px solid #dee2e6;
   z-index: 1000;
 }
-
 .sidebar a {
   display: block;
   width: 100%;
@@ -144,11 +139,11 @@ input#symbol-selector:focus {
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .sidebar a:hover {
   color: #0d6efd;
 }
 
+/* Sidebar Toggle */
 .toggle-sidebar {
   display: none;
   position: fixed;
@@ -164,7 +159,7 @@ input#symbol-selector:focus {
   cursor: pointer;
 }
 
-/* === Logout Button === */
+/* Logout */
 .logout {
   margin-top: auto;
   align-self: center;
@@ -178,33 +173,11 @@ input#symbol-selector:focus {
   box-shadow: 0 0 10px rgba(13, 110, 253, 0.2);
   transition: background 0.3s ease;
 }
-
 .logout:hover {
   background-color: #0b5ed7;
 }
 
-/* === Section Box === */
-.section-box {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: visible;
-}
-
-/* === Sticky Toolbar === */
-.sticky-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 1500;
-  background-color: #fff;
-  padding: 10px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-/* === Responsive === */
+/* Mobile Responsive */
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
