@@ -152,15 +152,20 @@ def poll_and_copy_trades():
                         master_qty = order.get("quantity") or order.get("orderQuantity") or 1
                         copied_qty = max(1, int(float(master_qty) * multiplier))
 
-                        print(f"➡️ Copying to child {child_id} | Qty: {copied_qty} (Multiplier: {multiplier})")
+                        security_id = order.get("securityId") or order.get("security_id") or ""
+                        exchange_segment = (order.get("exchangeSegment") or order.get("exchange_segment") or "NSE").upper()
+                        transaction_type = (order.get("transactionType") or order.get("transaction_type") or "BUY").upper()
+                        order_type = (order.get("orderType") or order.get("order_type") or "MARKET").upper()
+                        product_type = (order.get("productType") or order.get("ProductType") or order.get("product_type") or "INTRADAY").upper()
+                        price = float(order.get("price") or order.get("orderPrice") or 0)
+                        trading_symbol = order.get("tradingSymbol") or order.get("symbol") or "UNKNOWN"
 
-                        security_id = order.get("securityId") or order.get("security_id")
-                        exchange_segment = order.get("exchangeSegment") or order.get("exchange_segment")
-                        transaction_type = order.get("transactionType") or order.get("transaction_type")
-                        order_type = order.get("orderType") or order.get("order_type")
-                        product_type = order.get("ProductType") or order.get("product_type")
-                        price = order.get("price") or order.get("orderPrice") or 0
-                        trading_symbol = order.get("tradingSymbol") or order.get("symbol", "")
+                        # Validate essential fields
+                        if not security_id or not exchange_segment or not transaction_type or not order_type or not product_type:
+                            print(f"⚠️ Skipping order {order_id}: Missing required fields.")
+                            continue
+
+                        print(f"➡️ Copying to child {child_id} | Qty: {copied_qty} (Multiplier: {multiplier})")
 
                         response = dhan_child.place_order(
                             security_id=security_id,
@@ -204,7 +209,6 @@ def poll_and_copy_trades():
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
-
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
