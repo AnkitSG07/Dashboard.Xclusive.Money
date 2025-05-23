@@ -215,6 +215,58 @@ scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
 scheduler.start()
 print("✅ Background copy trader scheduler is running...")
 
+@app.route('/api/order-book/<client_id>', methods=['GET'])
+def get_order_book(client_id):
+    try:
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+
+        masters = accounts.get("masters", [])
+        master = next((m for m in masters if m.get("client_id") == client_id), None)
+        if not master:
+            return jsonify({"error": "Master not found"}), 404
+
+        access_token = master.get("access_token")
+        broker = master.get("broker", "dhan").lower()
+
+        # === Handle each broker separately ===
+        if broker == "dhan":
+            from dhanhq import dhanhq
+            broker_api = dhanhq(client_id, access_token)
+            orders = broker_api.get_order_list().get("data", [])
+        elif broker == "angel":
+            # TODO: Add Angel One integration here
+            return jsonify({"error": "Angel One order fetch not implemented"}), 501
+        elif broker == "zerodha":
+            # TODO: Add Zerodha integration here
+            return jsonify({"error": "Zerodha order fetch not implemented"}), 501
+        else:
+            return jsonify({"error": f"Unsupported broker: {broker}"}), 400
+
+        # === Format the output ===
+        formatted = []
+        for order in orders:
+            formatted.append({
+                "order_id": order.get("orderId"),
+                "side": order.get("transactionType", "NA"),
+                "status": order.get("orderStatus", "NA"),
+                "symbol": order.get("tradingSymbol", "—"),
+                "product_type": order.get("productType", "—"),
+                "placed_qty": order.get("orderQuantity", 0),
+                "filled_qty": order.get("filledQuantity", 0),
+                "avg_price": order.get("averagePrice", 0),
+                "order_time": order.get("orderTimestamp", "").replace("T", " ").split(".")[0],
+                "remarks": order.get("remarks", "—")
+            })
+
+        return jsonify(formatted), 200
+
+    except Exception as e:
+        print(f"❌ Error in get_order_book(): {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
