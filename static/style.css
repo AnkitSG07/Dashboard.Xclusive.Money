@@ -2,33 +2,87 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Poppins', sans-serif;
-  background-color: #f5f7fa;
+  font-family: 'Public Sans', sans-serif;
+  background-color: #f4f6f8;
   color: #212529;
 }
 
 /* Layout Fix: Content Margin */
 .main-content {
   margin-left: 240px;
-  padding: 20px;
+  padding: 24px;
 }
 
 /* Headings */
-h3 {
-  color: #333;
+h3, h5, h6 {
+  color: #212b36;
   font-weight: 600;
-  margin-top: 30px;
+  margin-bottom: 16px;
 }
 
-/* Section Boxes */
+/* Section Cards */
 .section-box {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  position: relative;
-  overflow: visible;
+  background: linear-gradient(145deg, #f0f0f3, #ffffff);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease-in-out;
+}
+.section-box:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+/* Buttons */
+.btn {
+  border-radius: 12px;
+  font-weight: 600;
+  padding: 8px 16px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #7635dc;
+  border: none;
+  color: #fff;
+}
+.btn-primary:hover {
+  background-color: #5e2bbf;
+}
+
+.btn-info {
+  background-color: #00b8d9;
+  border: none;
+  color: white;
+}
+.btn-info:hover {
+  background-color: #0094b1;
+}
+
+.btn-secondary {
+  background-color: #637381;
+  border: none;
+  color: white;
+}
+.btn-secondary:hover {
+  background-color: #4a5562;
+}
+
+.btn-danger {
+  background-color: #ff4842;
+  color: #fff;
+}
+.btn-danger:hover {
+  background-color: #d93025;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+.btn-warning:hover {
+  background-color: #e0a800;
 }
 
 /* Tables */
@@ -37,7 +91,7 @@ table {
   border-collapse: collapse;
   margin-top: 15px;
   border-radius: 12px;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   width: 100%;
 }
@@ -46,8 +100,6 @@ th, td {
   text-align: center;
   border-bottom: 1px solid #dee2e6;
   font-size: 14px;
-  position: relative;
-  overflow: visible;
 }
 th {
   background: #f1f3f5;
@@ -58,51 +110,39 @@ tr:hover {
   background: #f8f9fa;
 }
 
-/* Table responsiveness */
 .table-responsive {
-  overflow: visible !important;
+  overflow-x: auto;
   position: relative;
   z-index: 1;
 }
 
-/* Dropdown Fix inside table */
+/* Dropdown */
 .dropdown {
   position: relative;
 }
 .dropdown-menu {
   z-index: 9999 !important;
   position: absolute !important;
-  inset: auto !important;
   top: 100% !important;
   left: 0 !important;
   transform: translateY(0) !important;
 }
 
-/* Form Input */
+/* Inputs */
 input#symbol-selector {
   background: #ffffff;
   border: 1px solid #ced4da;
   color: #212529;
   border-radius: 8px;
   padding: 10px 14px;
-  transition: all 0.3s ease;
   width: 100%;
   max-width: 400px;
+  transition: all 0.3s ease;
 }
 input#symbol-selector:focus {
   outline: none;
-  border-color: #0d6efd;
-  box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
-}
-
-/* TradingView Chart */
-#tradingview_chart {
-  width: 100%;
-  height: 500px;
-}
-#notifDot {
-  width: 10px;
-  height: 10px;
+  border-color: #7635dc;
+  box-shadow: 0 0 5px rgba(118, 53, 220, 0.3);
 }
 
 /* Sticky Toolbar */
@@ -135,12 +175,12 @@ input#symbol-selector:focus {
   width: 100%;
   color: #212529;
   text-decoration: none;
-  padding: 10px 0;
+  padding: 12px 0;
   font-weight: 500;
   transition: all 0.2s ease;
 }
 .sidebar a:hover {
-  color: #0d6efd;
+  color: #7635dc;
 }
 
 /* Sidebar Toggle */
@@ -149,7 +189,7 @@ input#symbol-selector:focus {
   position: fixed;
   top: 15px;
   left: 15px;
-  background: #0d6efd;
+  background: #7635dc;
   color: #fff;
   padding: 8px 14px;
   border: none;
@@ -163,18 +203,37 @@ input#symbol-selector:focus {
 .logout {
   margin-top: auto;
   align-self: center;
-  background-color: #0d6efd;
+  background-color: #7635dc;
   border: none;
   color: white;
   padding: 10px 20px;
   border-radius: 30px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(13, 110, 253, 0.2);
+  box-shadow: 0 0 10px rgba(118, 53, 220, 0.2);
   transition: background 0.3s ease;
 }
 .logout:hover {
-  background-color: #0b5ed7;
+  background-color: #5e2bbf;
+}
+
+/* Card Box Style (Optional Widget) */
+.card-box {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0px 8px 24px rgba(0,0,0,0.06);
+  text-align: center;
+  margin-bottom: 20px;
+}
+.card-box h4 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.card-box p {
+  color: #637381;
+  font-size: 14px;
 }
 
 /* Mobile Responsive */
