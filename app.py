@@ -440,26 +440,31 @@ def get_master_orders():
         with open(path, "r") as f:
             mappings = json.load(f)
 
+        master_id_filter = request.args.get("master_id")
+
         master_summary = {}
 
         for entry in mappings:
+            master_id = entry["master_client_id"]
+            if master_id_filter and master_id != master_id_filter:
+                continue  # ⛔ skip non-matching masters
+
             mid = entry["master_order_id"]
             if mid not in master_summary:
                 master_summary[mid] = {
                     "master_order_id": mid,
                     "symbol": entry["symbol"],
-                    "master_client_id": entry["master_client_id"],
+                    "master_client_id": master_id,
                     "master_broker": entry.get("master_broker", "Unknown"),
                     "status": "ACTIVE",
                     "total_children": 0,
                     "child_statuses": [],
-                    "timestamp": "—"
+                    "timestamp": entry.get("timestamp", "—")
                 }
 
             master_summary[mid]["total_children"] += 1
             master_summary[mid]["child_statuses"].append(entry["status"])
 
-        # Final status cleanup
         for summary in master_summary.values():
             if all(s != "ACTIVE" for s in summary["child_statuses"]):
                 summary["status"] = "CANCELLED"
@@ -468,6 +473,7 @@ def get_master_orders():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/api/square-off', methods=['POST'])
