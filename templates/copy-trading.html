@@ -464,9 +464,15 @@ v<!DOCTYPE html>
                       <thead>
                         <tr>
                           <th>Order ID</th>
-                          <th>Symbol</th>
-                          <th>Qty</th>
+                          <th>Side</th>
                           <th>Status</th>
+                          <th>Trading Symbol</th>
+                          <th>Product Type</th>
+                          <th>Placed Quantity</th>
+                          <th>Filled Quantity</th>
+                          <th>Average Price</th>
+                          <th>Order Time</th>
+                          <th>Remarks</th>
                         </tr>
                       </thead>
                       <tbody id="orders-body-${master.client_id}">
@@ -519,22 +525,44 @@ v<!DOCTYPE html>
         });
     }
 
-    function toggleOrderBook(masterId) {
-      const row = document.getElementById(`order-book-${masterId}`);
-      const tbody = document.getElementById(`orders-body-${masterId}`);
+    function toggleOrderBook(clientId) {
+      const row = document.getElementById(`order-book-${clientId}`);
+      const tbody = document.getElementById(`orders-body-${clientId}`);
     
       if (row.style.display === "none") {
-        fetch(`/api/master-orders?master_id=${masterId}`)
+        fetch(`/api/order-book/${clientId}`)
           .then(res => res.json())
           .then(data => {
-            tbody.innerHTML = data.map(order => `
-              <tr>
-                <td>${order.master_order_id}</td>
-                <td>${order.symbol}</td>
-                <td>${order.quantity || '-'}</td>
-                <td>${order.status}</td>
-              </tr>
-            `).join('');
+            tbody.innerHTML = "";
+            if (Array.isArray(data)) {
+              if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center">No recent orders found.</td></tr>`;
+              } else {
+                data.forEach(order => {
+                  tbody.innerHTML += `
+                    <tr>
+                      <td>${order.order_id || '-'}</td>
+                      <td>${order.side || '-'}</td>
+                      <td>${order.status || '-'}</td>
+                      <td>${order.symbol || '-'}</td>
+                      <td>${order.product_type || '-'}</td>
+                      <td>${order.placed_qty || '-'}</td>
+                      <td>${order.filled_qty || '-'}</td>
+                      <td>${order.avg_price || '-'}</td>
+                      <td>${order.order_time || '-'}</td>
+                      <td>${order.remarks || '-'}</td>
+                    </tr>
+                  `;
+                });
+              }
+            } else {
+              tbody.innerHTML = `<tr><td colspan="10">Error loading order book</td></tr>`;
+            }
+            row.style.display = "table-row";
+          })
+          .catch(err => {
+            console.error("Order book fetch failed:", err);
+            tbody.innerHTML = `<tr><td colspan="10">Failed to load order book</td></tr>`;
             row.style.display = "table-row";
           });
       } else {
