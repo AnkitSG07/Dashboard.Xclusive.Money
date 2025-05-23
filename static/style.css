@@ -153,6 +153,40 @@ input#symbol-selector:focus {
   background-color: #0b5ed7;
 }
 
+/* Section Styling */
+.section-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Table responsiveness */
+.table-responsive {
+  overflow-x: auto;
+  position: relative;
+}
+
+/* Fix dropdown hiding */
+.dropdown-menu {
+  z-index: 2000 !important;
+  position: absolute !important;
+}
+
+/* Sticky toolbar */
+.sticky-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1500;
+  background-color: #fff;
+  padding: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
