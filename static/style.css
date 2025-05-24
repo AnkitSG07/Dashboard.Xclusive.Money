@@ -141,34 +141,55 @@ input#symbol-selector:focus {
   top: 0;
   left: 0;
   height: 100vh;
-  width: 260px;
-  background: #ffffff;
-  box-shadow: 2px 0 10px rgba(145, 158, 171, 0.12);
-  padding: 30px 20px;
+  width: 200px; /* Slimmer width */
+  background-color: #ffffff;
+  border-right: 1px solid #dee2e6;
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  padding: 0;
+  font-size: 15px;
 }
+
 .sidebar h2 {
   font-size: 22px;
   font-weight: 700;
-  margin-bottom: 24px;
+  color: #7635dc;
+  text-align: center;
+  padding: 24px 0;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+}
+.sidebar .nav {
+  flex-grow: 1;
+  padding: 16px 0;
+}
+.sidebar .nav-item {
+  padding: 8px 24px;
 }
 .sidebar .nav-link {
-  font-weight: 500;
   color: #637381;
-  padding: 12px 0;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 10px;
-  text-decoration: none;
+  padding: 10px;
+  border-radius: 10px;
+  transition: 0.2s;
 }
+.sidebar .nav-link.active,
 .sidebar .nav-link:hover {
-  color: #7635dc;
-}
-.sidebar .nav-link.active {
+  background-color: #f4f6f8;
   color: #7635dc;
   font-weight: 600;
+}
+
+.sidebar .nav-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: #919eab;
+  padding: 0 24px;
+  margin-top: 20px;
+  text-transform: uppercase;
 }
 .sidebar hr {
   border: none;
@@ -183,6 +204,30 @@ input#symbol-selector:focus {
   margin-bottom: 6px;
   text-transform: uppercase;
 }
+/*--------Navbar*/
+
+.navbar {
+  height: 64px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e3e6ea;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.navbar .navbar-brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: #212b36;
+}
+
+.navbar .user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 /* Logout Button */
 .logout {
@@ -195,6 +240,7 @@ input#symbol-selector:focus {
   font-weight: 600;
   width: 100%;
 }
+
 .logout:hover {
   background-color: #d93025;
 }
@@ -227,6 +273,7 @@ input#symbol-selector:focus {
   color: #637381;
   font-size: 14px;
 }
+
 
 /* Mobile */
 @media (max-width: 768px) {
