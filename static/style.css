@@ -95,10 +95,10 @@ h3, h5, h6 {
 }
 
 /* Navbar */
-/* === Modern Navbar Enhancements === */
 .navbar {
   height: 64px;
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid #e3e6ea;
   display: flex;
   align-items: center;
@@ -229,29 +229,17 @@ input#symbol-selector:focus {
   display: flex;
   flex-direction: column;
   font-size: 15px;
-  z-index: 100;
-  padding: 0;
-}
-
-.sidebar h2 {
-  font-size: 22px;
-  font-weight: 700;
-  color: #7635dc;
-  text-align: center;
-  padding: 24px 0;
-  margin: 0;
-  border-bottom: 1px solid #eee;
+  z-index: 998; /* Now below navbar */
+  padding-top: 64px; /* Align below navbar */
 }
 
 .sidebar .nav {
   flex-grow: 1;
   padding: 16px 0;
 }
-
 .sidebar .nav-item {
   padding: 8px 24px;
 }
-
 .sidebar .nav-link {
   color: #637381;
   font-weight: 500;
@@ -262,14 +250,12 @@ input#symbol-selector:focus {
   border-radius: 10px;
   transition: 0.2s;
 }
-
 .sidebar .nav-link.active,
 .sidebar .nav-link:hover {
   background-color: #f4f6f8;
   color: #7635dc;
   font-weight: 600;
 }
-
 .sidebar .nav-title {
   font-size: 12px;
   font-weight: 700;
@@ -277,7 +263,6 @@ input#symbol-selector:focus {
   margin: 20px 24px 6px;
   text-transform: uppercase;
 }
-
 .sidebar hr {
   border: none;
   border-top: 1px solid #e0e3e7;
@@ -321,7 +306,7 @@ input#symbol-selector:focus {
 /* Sticky Toolbar */
 .sticky-toolbar {
   position: sticky;
-  top: 0;
+  top: 64px;
   background: #fff;
   padding: 10px;
   z-index: 1500;
