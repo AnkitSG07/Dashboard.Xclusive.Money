@@ -106,10 +106,11 @@ h3, h5, h6 {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 200px; /* 👈 Shift right to make space for sidebar */
+  width: calc(100% - 200px); /* 👈 Take remaining space */
   z-index: 999;
 }
+
 
 .navbar-brand {
   font-size: 20px;
@@ -229,8 +230,8 @@ input#symbol-selector:focus {
   display: flex;
   flex-direction: column;
   font-size: 15px;
-  z-index: 998; /* Now below navbar */
-  padding-top: 64px; /* Align below navbar */
+  z-index: 1001; /* Ensure it sits above navbar if needed */
+  padding-top: 0; /* 👈 Remove navbar offset */
 }
 
 .sidebar .nav {
@@ -324,8 +325,9 @@ input#symbol-selector:focus {
 /* Mobile */
 @media (max-width: 768px) {
   .main-content {
-    margin-left: 0;
-    padding: 20px;
+    margin-left: 200px;
+    padding: 24px;
+    padding-top: 80px;
   }
   .sidebar {
     transform: translateX(-100%);
