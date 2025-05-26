@@ -1403,14 +1403,17 @@ def dhan_dashboard():
 @app.route("/Summary")
 def summary():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        # Only send the inner content for AJAX
         return render_template("Summary.html")
-    return render_template("layout.html")
+    else:
+        # Send full layout with content included
+        return render_template("layout.html", content_template="Summary.html")
 
 @app.route("/Copy-trading")
 def copytrading():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template("copy-trading.html")
-    return render_template("layout.html")
+    return render_template("layout.html", content_template="copy-trading.html")
 
 if __name__ == '__main__':
         app.run(debug=True)
