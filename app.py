@@ -1403,10 +1403,7 @@ def dhan_dashboard():
 @app.route("/Summary")
 def summary():
     return render_template("Summary.html")
-    
-@app.route("/add-account")
-def summary():
-    return render_template("add-account.html")
+
 
 
 
