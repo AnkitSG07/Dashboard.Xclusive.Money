@@ -1407,7 +1407,7 @@ def summary():
     return render_template("layout.html")
 
 @app.route("/Copy-trading")
-def summary():
+def copytrading():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template("copy-trading.html")
     return render_template("layout.html")
