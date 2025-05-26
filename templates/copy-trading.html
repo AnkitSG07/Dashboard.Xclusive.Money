@@ -8,9 +8,9 @@
     <div class="section-box">
       <h5><i class="bi bi-plus-circle"></i> Add Trading Account</h5>
       <p>Currently we support only <strong>Dhan Broker</strong>. More brokers coming soon.</p>
-      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-        <i class="bi bi-person-plus"></i> Add Dhan Account
-      </button>
+    <button class="btn btn-outline-primary" onclick="openAddAccountModal()">
+      <i class="bi bi-person-plus"></i> Add Dhan Account
+    </button>
     </div>
     
     <!-- Master Account Section -->
@@ -317,6 +317,11 @@
         alert("Something went wrong.");
       });
     });
+
+    function openAddAccountModal() {
+        const modal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+        modal.show();
+    }
 
     function loadAccounts() {
       fetch("/api/accounts")
