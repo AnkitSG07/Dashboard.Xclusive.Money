@@ -273,7 +273,10 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
 .table-responsive {
   overflow-x: auto;
   overflow-y: visible;
+  position: relative;
+  z-index: 1;
 }
+
 
 /*──────────────────────────────────────────────────────────────────────────
    9. Inputs & Forms
@@ -391,12 +394,19 @@ input#symbol-selector:focus,
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
 
-.table .dropdown {
-  position: relative;
+/* Fix Bootstrap dropdown inside tables being clipped */
+.table .dropdown-menu {
+  z-index: 9999 !important;
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+  transition: all 0.15s ease;
+  pointer-events: none;
 }
 
-.table .dropdown-menu {
-  position: absolute !important;
-  z-index: 1050; /* Higher than cards, tooltips, etc. */
-  transform: translate3d(0px, 38px, 0px) !important;
+.table .dropdown.show .dropdown-menu {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
+
