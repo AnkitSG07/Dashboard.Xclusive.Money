@@ -1400,6 +1400,15 @@ def dashboard():
 def dhan_dashboard():
     return render_template("dhan-dashboard.html")
 
+@app.route("/Summary")
+def summary():
+    return render_template("Summary.html")
+    
+@app.route("/add-account")
+def summary():
+    return render_template("add-account.html")
+
+
 
 if __name__ == '__main__':
         app.run(debug=True)
