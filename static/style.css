@@ -391,14 +391,12 @@ input#symbol-selector:focus,
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
 
-.dropdown-menu {
-  z-index: 9999 !important;  /* Higher than .section-box and table */
-  position: absolute;
+.table .dropdown {
+  position: relative;
 }
 
-.section-box,
-.table-responsive,
-.table td {
-  position: relative;
-  overflow: visible; /* Prevents the dropdown from getting clipped */
+.table .dropdown-menu {
+  position: absolute !important;
+  z-index: 1050; /* Higher than cards, tooltips, etc. */
+  transform: translate3d(0px, 38px, 0px) !important;
 }
