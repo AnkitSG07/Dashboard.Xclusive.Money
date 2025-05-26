@@ -389,17 +389,10 @@ input#symbol-selector:focus,
 /*──────────────────────────────────────────────────────────────────────────
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
-.table .dropdown {
-  position: relative;
-  z-index: 1055;
+.dropdown-menu {
+  z-index: 9999;
 }
 
-.dropdown-menu {
-  z-index: 2000 !important;
-  position: absolute !important;
-  transform: translate3d(0, 40px, 0) !important;
-  inset: auto auto auto 0px !important;
-}
 
 
 
