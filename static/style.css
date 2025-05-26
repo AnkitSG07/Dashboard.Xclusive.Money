@@ -113,7 +113,7 @@ body {
     width: auto;
     max-height: 90px;
     display: inline-block;
-    vertical-align: middle;
+    vertical-align: left;
 }
 .sidebar .nav-title {
   padding: 0 24px;
