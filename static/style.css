@@ -109,7 +109,11 @@ body {
   box-shadow: 4px 0 12px var(--shadow-light);
 }
 .sidebar-logo img {
-  display: block; margin: 0 auto 24px;
+    height: 78px;
+    width: auto;
+    max-height: 90px;
+    display: inline-block;
+    vertical-align: middle;
 }
 .sidebar .nav-title {
   padding: 0 24px;
