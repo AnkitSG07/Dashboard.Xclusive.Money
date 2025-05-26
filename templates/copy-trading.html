@@ -432,8 +432,12 @@
               `;
             });
           });
-            
-    enableDropdowns();
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Failed to load accounts.");
+        });
+        enableDropdowns();
 
     function toggleChildList(clientId) {
       const row = document.getElementById(`child-list-${clientId}`);
