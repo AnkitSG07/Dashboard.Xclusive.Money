@@ -392,7 +392,7 @@ input#symbol-selector:focus,
 ──────────────────────────────────────────────────────────────────────────*/
 
 .dropdown-menu {
-  z-index: 2000 !important;  /* Higher than .section-box and table */
+  z-index: 9999 !important;  /* Higher than .section-box and table */
   position: absolute;
 }
 
