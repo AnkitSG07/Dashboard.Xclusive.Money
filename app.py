@@ -1402,10 +1402,9 @@ def dhan_dashboard():
 
 @app.route("/Summary")
 def summary():
-    return render_template("Summary.html")
-
-
-
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return render_template("Summary.html")
+    return render_template("layout.html")
 
 if __name__ == '__main__':
         app.run(debug=True)
