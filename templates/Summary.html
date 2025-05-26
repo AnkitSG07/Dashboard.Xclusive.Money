@@ -14,21 +14,21 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-logo text-center py-3">
-        <img src="/static/logo.png" alt="DhanBot Logo" style="max-width: 140px; height: auto;">
+        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo" style="max-width: 140px; height: auto;">
       </div>
       <div class="nav">
         <p class="nav-title">Dashboard</p>
-        <a class="nav-link active" href="/Summary"><i class="bi bi-speedometer2"></i> Summary</a>
+        <a class="nav-link" href="/Summary"><i class="bi bi-speedometer2"></i> Summary</a>
+        <a class="nav-link" href="/add-account"><i class="bi bi-graph-up-arrow"></i> Add Account</a>
         <a class="nav-link" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a>
-        <a class="nav-link" href="/marketwatch"><i class="bi bi-graph-up-arrow"></i> Market Watch</a>
 
         <p class="nav-title">Pages</p>
         <div class="nav-link nav-collapse">
           <i class="bi bi-lock"></i> Authentication <i class="bi bi-chevron-down arrow"></i>
         </div>
         <div class="submenu">
-          <a href="/login">Login</a>
-          <a href="/signup">Sign Up</a>
+          <a class="nav-link" href="/log-in"><i class="bi bi-person-fill"></i> Log in</a>
+          <a class="nav-link" href="/sign-up"><i class="bi bi-receipt-cutoff"></i> Sign up</a>
         </div>
 
         <p class="nav-title">Management</p>
