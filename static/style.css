@@ -272,6 +272,7 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
 }
 .table-responsive {
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -390,18 +391,14 @@ input#symbol-selector:focus,
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
 
-/* Ensure dropdown in table overflows properly and renders on top */
-.table .dropdown {
-  position: relative;
-  z-index: 1;
-  overflow: visible;
+.dropdown-menu {
+  z-index: 2000 !important;  /* Higher than .section-box and table */
+  position: absolute;
 }
 
-.table .dropdown-menu {
-  position: absolute !important;
-  z-index: 2000 !important;
-  inset: auto auto auto 0px !important;
-  will-change: transform;
-  transform: translateY(100%) !important;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+.section-box,
+.table-responsive,
+.table td {
+  position: relative;
+  overflow: visible; /* Prevents the dropdown from getting clipped */
 }
