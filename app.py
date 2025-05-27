@@ -1402,7 +1402,7 @@ def dhan_dashboard():
 
 @app.route("/Summary")
 def summary():
-    return render_template("summary.html")  # or "Summary.html" if that's your file name
+    return render_template("Summary.html")  # or "Summary.html" if that's your file name
 
 @app.route("/copy-trading")
 def copytrading():
