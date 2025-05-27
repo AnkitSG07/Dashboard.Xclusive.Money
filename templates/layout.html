@@ -70,7 +70,7 @@
       </nav>
 
       <!-- Content -->
-      <div class="container py-4" id="page-container">
+      <div class="container py-4" id="page-container" data-page="{{ request.path }}">
         {% block content %}{% endblock %}
       </div>
     </div>
@@ -93,6 +93,8 @@
           if (newContent) {
             document.querySelector('#page-container').innerHTML = newContent.innerHTML;
             history.pushState(null, '', url);
+            enableDropdowns();  // ✅ already here
+            reinitializePageScripts();
           } else {
             window.location.href = url;
           }
@@ -121,13 +123,13 @@
     }
 
     function reinitializePageScripts() {
-      const currentPage = window.location.pathname;
-  
-      if (currentPage === "/copy-trading") {
+      const page = document.querySelector('#page-container')?.dataset.page;
+      if (page === "copy-trading") {
         if (typeof loadAccounts === 'function') loadAccounts();
         if (typeof loadMasterOrders === 'function') loadMasterOrders();
       }
     }
+
   
     // Run once after the layout is loaded
     document.addEventListener('DOMContentLoaded', enableDropdowns);
