@@ -185,12 +185,13 @@
 <script>
 window.pageScripts = window.pageScripts || {};
 window.pageScripts["copy-trading"] = function () {
-  // ---- Modal and Form Handlers ----
+  // Show Add Account Modal
   window.openAddAccountModal = function () {
     const modal = new bootstrap.Modal(document.getElementById('addAccountModal'));
     modal.show();
   };
 
+  // Role select (show/hide master dropdown)
   document.getElementById("role").addEventListener("change", function () {
     const role = this.value;
     const linkedMasterDiv = document.getElementById("linkedMasterDiv");
@@ -323,7 +324,8 @@ window.pageScripts["copy-trading"] = function () {
     addAccountForm.dataset.listenerAttached = "true";
   }
 
-  // ---- Table and Account Management ----
+  // TABLE AND DATA LOADERS
+
   window.loadAccounts = function() {
     fetch("/api/accounts")
       .then(res => res.json())
@@ -331,11 +333,10 @@ window.pageScripts["copy-trading"] = function () {
         const mastersList = data.masters || [];
         const masterBody = document.getElementById("master-table-body");
         const childrenBody = document.getElementById("children-table-body");
-        masterBody.innerHTML = "";
+        masterBody.innerHTML = ""; // Always clear before repopulating!
         childrenBody.innerHTML = "";
 
         mastersList.forEach(master => {
-          // Master row
           masterBody.innerHTML += `
             <tr>
               <td><i class="bi bi-bank"></i> ${master.broker}</td>
@@ -722,6 +723,10 @@ window.pageScripts["copy-trading"] = function () {
       alert("Failed to update multiplier.");
     });
   };
+
+  // CRUCIAL: Always reload data when page is (re)loaded by SPA/layout!
+  window.loadAccounts();
+  window.loadMasterOrders();
 };
 </script>
 {% endblock %}
