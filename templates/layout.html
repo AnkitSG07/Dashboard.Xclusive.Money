@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Summary - DhanBot</title>
+  <title>{% block title %}Summary - DhanBot{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
@@ -76,117 +76,98 @@
     </div>
   </div>
 
-  <!-- SPA Navigation JS -->
-  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-      link.addEventListener('click', function (e) {
-        e.preventDefault();
-        const url = this.getAttribute('href');
-        fetch(url, {
-          headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(res => res.text())
-        .then(html => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const newContent = doc.querySelector('#page-container');
-          if (newContent) {
-            document.querySelector('#page-container').innerHTML = newContent.innerHTML;
-            history.pushState(null, '', url);
+    // Logout function, global
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
 
-            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-              link.classList.toggle('active', link.getAttribute('href') === url);
-            });
+    // Enable all dropdowns on the page
+    function enableDropdowns() {
+      document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(trigger => {
+        if (!trigger._bs_dropdown) new bootstrap.Dropdown(trigger);
+      });
+    }
 
-            enableDropdowns();
-
-            setTimeout(() => {
-              reinitializePageScripts();
-            }, 50);
-          } else {
-            window.location.href = url;
+    // Sidebar submenu toggle logic
+    function setupSidebarSubmenus() {
+      document.querySelectorAll('.nav-collapse').forEach(toggle => {
+        toggle.addEventListener('click', function () {
+          toggle.classList.toggle('active');
+          const submenu = toggle.nextElementSibling;
+          if (submenu && submenu.classList.contains('submenu')) {
+            submenu.style.display = submenu.style.display === 'flex' ? 'none' : 'flex';
           }
-        })
-        .catch(err => {
-          console.error('Failed to load:', err);
-          window.location.href = url;
         });
       });
-    });
+    }
 
-    window.addEventListener('popstate', () => {
-      location.reload();
-    });
+    // Highlight active page in sidebar
+    function highlightActivePage() {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if (window.location.pathname === link.getAttribute('href')) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
 
-  function logout() {
-    localStorage.clear();
-    window.location.href = "/login";
-  }
-
-  function enableDropdowns() {
-    const triggers = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-    triggers.forEach(trigger => new bootstrap.Dropdown(trigger));
-  }
-
-  function reinitializePageScripts() {
-    const page = document.querySelector('#page-container')?.dataset.page;
-
-    if (page === "copy-trading") {
-      if (typeof loadAccounts === 'function') loadAccounts();
-      if (typeof loadMasterOrders === 'function') loadMasterOrders();
-
-      // ✅ Attach submit handler to Add Account Form
-      const form = document.getElementById("addAccountForm");
-      if (form && !form.dataset.listenerAttached) {
-        form.addEventListener("submit", function (e) {
+    // SPA navigation for sidebar
+    function setupSidebarSPALinks() {
+      document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', function (e) {
+          const url = this.getAttribute('href');
+          if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
           e.preventDefault();
-
-          const clientId = document.getElementById("clientId").value.trim();
-          const username = document.getElementById("username").value.trim();
-          const accessToken = document.getElementById("accessToken").value.trim();
-          const multiplier = document.getElementById("multiplier").value.trim();
-          const role = document.getElementById("role").value;
-          const linkedMasterId = document.getElementById("linkedMaster")?.value;
-
-          fetch("/api/add-account", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              client_id: clientId,
-              username: username,
-              access_token: accessToken,
-              multiplier: multiplier,
-              role: role,
-              linked_master_id: linkedMasterId || null
-            })
+          fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
           })
-          .then(res => res.json())
-          .then(data => {
-            alert(data.message || "Account added successfully");
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
-            modal.hide();
-            loadAccounts();
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newContent = doc.querySelector('#page-container');
+            if (newContent) {
+              document.querySelector('#page-container').innerHTML = newContent.innerHTML;
+              history.pushState(null, '', url);
+              highlightActivePage();
+              enableDropdowns();
+              setTimeout(reinitializePageScripts, 50);
+            } else {
+              window.location.href = url;
+            }
           })
           .catch(err => {
-            console.error(err);
-            alert("Something went wrong.");
+            console.error('Failed to load:', err);
+            window.location.href = url;
           });
         });
+      });
+    }
 
-        form.dataset.listenerAttached = "true";
+    // Per-page script hook
+    function reinitializePageScripts() {
+      const page = document.querySelector('#page-container')?.dataset.page;
+      if (window.pageScripts && typeof window.pageScripts[page] === "function") {
+        window.pageScripts[page]();
       }
     }
-  }
 
-  // ✅ Run on hard refresh
-  window.addEventListener('DOMContentLoaded', () => {
-    enableDropdowns();
-    setTimeout(reinitializePageScripts, 50);
-  });
-</script>
+    // Handle browser navigation (back/forward)
+    window.addEventListener('popstate', () => location.reload());
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-{% block scripts %}{% endblock %}
+    // Initial setup
+    window.addEventListener('DOMContentLoaded', () => {
+      enableDropdowns();
+      setupSidebarSubmenus();
+      highlightActivePage();
+      setupSidebarSPALinks();
+      setTimeout(reinitializePageScripts, 50);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
