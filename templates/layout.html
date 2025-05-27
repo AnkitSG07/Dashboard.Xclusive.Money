@@ -78,74 +78,107 @@
   </div>
 
   <!-- SPA Navigation JS -->
+  
   <script>
-  document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-      const url = this.getAttribute('href');
-      fetch(url, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(res => res.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newContent = doc.querySelector('#page-container');
-        if (newContent) {
-          document.querySelector('#page-container').innerHTML = newContent.innerHTML;
-          history.pushState(null, '', url);
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        const url = this.getAttribute('href');
+        fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const newContent = doc.querySelector('#page-container');
+          if (newContent) {
+            document.querySelector('#page-container').innerHTML = newContent.innerHTML;
+            history.pushState(null, '', url);
 
-          // Highlight the active sidebar tab
-          document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-            link.classList.toggle('active', link.getAttribute('href') === url);
-          });
+            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+              link.classList.toggle('active', link.getAttribute('href') === url);
+            });
 
-          enableDropdowns();         
-          setTimeout(() => {
-            reinitializePageScripts();
-          }, 0);
- 
-        } else {
+            enableDropdowns();
+
+            setTimeout(() => {
+              reinitializePageScripts();
+            }, 50);
+          } else {
+            window.location.href = url;
+          }
+        })
+        .catch(err => {
+          console.error('Failed to load:', err);
           window.location.href = url;
-        }
-      })
-      .catch(err => {
-        console.error('Failed to load:', err);
-        window.location.href = url;
+        });
       });
     });
-  });
 
-  window.addEventListener('popstate', () => {
-    location.reload();
-  });
-
-  function logout() {
-    localStorage.clear();
-    window.location.href = "/login";
-  }
-
-  function enableDropdowns() {
-    const triggers = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-    triggers.forEach(trigger => {
-      new bootstrap.Dropdown(trigger);
+    window.addEventListener('popstate', () => {
+      location.reload();
     });
-  }
 
-  function reinitializePageScripts() {
-    const page = document.querySelector('#page-container')?.dataset.page;
-    setTimeout(() => {
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
+
+    function enableDropdowns() {
+      const triggers = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+      triggers.forEach(trigger => new bootstrap.Dropdown(trigger));
+    }
+
+    function reinitializePageScripts() {
+      const page = document.querySelector('#page-container')?.dataset.page;
       if (page === "copy-trading") {
         if (typeof loadAccounts === 'function') loadAccounts();
         if (typeof loadMasterOrders === 'function') loadMasterOrders();
-      }
-    }, 10); // slight delay ensures page scripts load
-  }
 
-  // Initial call on page load
-  document.addEventListener('DOMContentLoaded', enableDropdowns);
-    
+        const form = document.getElementById("addAccountForm");
+        if (form && !form.dataset.listenerAttached) {
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const clientId = document.getElementById("clientId").value.trim();
+            const username = document.getElementById("username").value.trim();
+            const accessToken = document.getElementById("accessToken").value.trim();
+            const multiplier = document.getElementById("multiplier").value.trim();
+            const role = document.getElementById("role").value;
+            const linkedMasterId = document.getElementById("linkedMaster")?.value;
+
+            fetch("/api/add-account", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                client_id: clientId,
+                username: username,
+                access_token: accessToken,
+                multiplier: multiplier,
+                role: role,
+                linked_master_id: linkedMasterId || null
+              })
+            })
+            .then(res => res.json())
+            .then(data => {
+              alert(data.message || "Account added successfully");
+              const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
+              modal.hide();
+              loadAccounts();
+            })
+            .catch(err => {
+              console.error(err);
+              alert("Something went wrong.");
+            });
+          });
+          form.dataset.listenerAttached = "true";
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', enableDropdowns);
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
