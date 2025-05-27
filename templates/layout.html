@@ -70,7 +70,7 @@
       </nav>
 
       <!-- Content -->
-      <div class="container py-4" id="page-container" data-page="{{ request.path | replace('/', '') }}">
+      <div class="container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
         {% block content %}{% endblock %}
       </div>
     </div>
@@ -130,8 +130,13 @@
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const newContent = doc.querySelector('#page-container');
+            const pageContainer = document.querySelector('#page-container');
             if (newContent) {
-              document.querySelector('#page-container').innerHTML = newContent.innerHTML;
+              pageContainer.innerHTML = newContent.innerHTML;
+              // --- FIX: Update the data-page attribute! ---
+              if (newContent.dataset.page) {
+                pageContainer.dataset.page = newContent.dataset.page;
+              }
               history.pushState(null, '', url);
               highlightActivePage();
               enableDropdowns();
