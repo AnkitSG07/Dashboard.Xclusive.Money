@@ -784,12 +784,15 @@ input#symbol-selector:focus,
 /*──────────────────────────────────────────────────────────────────────────
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
-.table-responsive {
+.table-responsive,
+.table,
+.table tr,
+.table td,
+.table th,
+.section-box {
   overflow: visible !important;
 }
-.table .dropdown {
-  position: relative;
-}
+
 .table .dropdown-menu {
   z-index: 9999 !important;
 }
