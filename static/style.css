@@ -270,12 +270,6 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
 .table tbody tr:hover td {
   background-color: var(--primary-light);
 }
-.table-responsive {
-  overflow-x: auto;
-  overflow-y: visible;
-  position: relative;
-  z-index: 1;
-}
 
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -793,8 +787,10 @@ input#symbol-selector:focus,
 .table-responsive {
   overflow: visible !important;
 }
+.table .dropdown {
+  position: relative;
+}
 .table .dropdown-menu {
   z-index: 9999 !important;
 }
-
 
