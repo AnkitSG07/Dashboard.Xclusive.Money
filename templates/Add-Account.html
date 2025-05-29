@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+{% block title %}Account Configuration - DhanBot{% endblock %}
+
+{% block content %}
+<div class="section-box d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4>Account Configuration</h4>
+    <p>Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
+  </div>
+  <button id="add-account-btn" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Add New Account
+  </button>
+</div>
+
+<!-- Account Stats Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="card-box text-center">
+      <p>Total capacity</p>
+      <h4>10</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-box text-center">
+      <p>Master capacity</p>
+      <h4>1</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-box text-center">
+      <p>Children capacity</p>
+      <h4>9</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-box text-center">
+      <p>Plan name</p>
+      <h4>Professional</h4>
+    </div>
+  </div>
+</div>
+
+<!-- Inline Add Account Section (hidden by default) -->
+<div id="add-account-section" class="card p-4 mb-4" style="display:none;">
+  <h5 class="mb-3">Add New Account</h5>
+  <!-- Broker Icons -->
+  <div class="mb-3 d-flex gap-3 flex-wrap">
+    <img src="/static/brokers/aliceblue.svg" class="broker-icon" data-broker="aliceblue" title="Alice Blue" style="width:40px; cursor:pointer;" />
+    <img src="/static/brokers/fyers.svg" class="broker-icon" data-broker="fyers" title="Fyers" style="width:40px; cursor:pointer;" />
+    <img src="/static/brokers/finvasia.svg" class="broker-icon" data-broker="finvasia" title="Finvasia" style="width:40px; cursor:pointer;" />
+    <img src="/static/brokers/flattrade.svg" class="broker-icon" data-broker="flattrade" title="Flattrade" style="width:40px; cursor:pointer;" />
+    <img src="/static/brokers/dhan.svg" class="broker-icon" data-broker="dhan" title="Dhan" style="width:40px; cursor:pointer;" />
+    <!-- Add more as needed -->
+  </div>
+  <!-- Dynamic Broker Fields -->
+  <form id="broker-credentials-form" method="POST" action="/add_account">
+    <div id="broker-fields"></div>
+    <button type="submit" class="btn btn-success mt-3" style="display:none;" id="submit-account-btn">Add Account</button>
+    <button type="button" class="btn btn-link mt-3" onclick="document.getElementById('add-account-section').style.display='none'">Cancel</button>
+  </form>
+</div>
+
+<!-- Accounts Table (replace with your dynamic data if needed) -->
+<div class="card-box">
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Broker</th>
+          <th>Client ID</th>
+          <th>Opening Balance</th>
+          <th>Auto-Login</th>
+          <th>Last Login Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Sample Row, replace with Jinja loop -->
+        <tr>
+          <td><img src="/static/brokers/dhan.svg" style="width:24px;"> Dhan</td>
+          <td>123456</td>
+          <td>₹1,00,000</td>
+          <td><span class="badge bg-success">Active</span></td>
+          <td>29-05-2025 08:02:10</td>
+          <td>
+            <button class="btn btn-outline-success btn-sm">Reconnect</button>
+          </td>
+        </tr>
+        <!-- End Sample Row -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const brokerFields = {
+  aliceblue: [
+    { label: "Client ID", name: "client_id", type: "text" },
+    { label: "API Key", name: "api_key", type: "password" },
+    { label: "Secret Key", name: "secret_key", type: "password" }
+  ],
+  dhan: [
+    { label: "Client ID", name: "client_id", type: "text" },
+    { label: "Access Token", name: "access_token", type: "password" }
+  ],
+  fyers: [
+    { label: "Client ID", name: "client_id", type: "text" },
+    { label: "App ID", name: "app_id", type: "text" },
+    { label: "App Secret", name: "app_secret", type: "password" },
+    { label: "Access Token", name: "access_token", type: "password" }
+  ],
+  // Add more broker field mappings here
+};
+
+function showBrokerFields(broker) {
+  const fields = brokerFields[broker];
+  const container = document.getElementById("broker-fields");
+  const submitBtn = document.getElementById("submit-account-btn");
+  container.innerHTML = "";
+  if (!fields) {
+    submitBtn.style.display = "none";
+    return;
+  }
+  fields.forEach(f => {
+    container.innerHTML += `
+      <div class="mb-3">
+        <label class="form-label">${f.label}</label>
+        <input class="form-control" name="${f.name}" type="${f.type}" required>
+      </div>
+    `;
+  });
+  submitBtn.style.display = "inline-block";
+}
+
+document.querySelectorAll('.broker-icon').forEach(icon => {
+  icon.onclick = function() {
+    document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
+    icon.classList.add('border-primary');
+    showBrokerFields(icon.dataset.broker);
+  }
+});
+
+document.getElementById('add-account-btn').onclick = function() {
+  document.getElementById('add-account-section').style.display = 'block';
+}
+</script>
+{% endblock %}
