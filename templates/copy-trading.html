@@ -668,28 +668,28 @@ window.pageScripts["copy-trading"] = function () {
           `;
           document.body.appendChild(spinner);
 
-          fetch("/api/square-off", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              master_id: masterId,
-              symbol: symbol
-            })
+        fetch("/api/square-off", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: childId,
+            symbol: symbol,
+            is_master: false
           })
-          .then(res => res.json())
-          .then(data => {
-            alert(data.message + "\n" + (data.details ? data.details.join("\n") : ''));
-            window.loadAccounts();
-          })
-          .catch(err => {
-            console.error(err);
-            alert("Failed to square off positions.");
-          })
-          .finally(() => {
-            document.body.removeChild(spinner);
-            document.body.removeChild(modal);
-          });
-        };
+        })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message + "\n" + (data.details ? data.details.join("\n") : ''));
+          window.loadAccounts();
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Failed to square off positions.");
+        })
+        .finally(() => {
+          document.body.removeChild(spinner);
+          document.body.removeChild(modal);
+        });
 
         document.getElementById("cancelSquareOff").onclick = function() {
           document.body.removeChild(modal);
