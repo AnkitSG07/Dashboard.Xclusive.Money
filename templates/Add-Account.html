@@ -96,55 +96,97 @@
 
 {% block scripts %}
 <script>
-const brokerFields = {
-  aliceblue: [
-    { label: "Client ID", name: "client_id", type: "text" },
-    { label: "API Key", name: "api_key", type: "password" },
-    { label: "Secret Key", name: "secret_key", type: "password" }
-  ],
-  dhan: [
-    { label: "Client ID", name: "client_id", type: "text" },
-    { label: "Access Token", name: "access_token", type: "password" }
-  ],
-  fyers: [
-    { label: "Client ID", name: "client_id", type: "text" },
-    { label: "App ID", name: "app_id", type: "text" },
-    { label: "App Secret", name: "app_secret", type: "password" },
-    { label: "Access Token", name: "access_token", type: "password" }
-  ],
-  // Add more broker field mappings here
-};
+if (!window.pageScripts) window.pageScripts = {};
 
-function showBrokerFields(broker) {
-  const fields = brokerFields[broker];
-  const container = document.getElementById("broker-fields");
-  const submitBtn = document.getElementById("submit-account-btn");
-  container.innerHTML = "";
-  if (!fields) {
-    submitBtn.style.display = "none";
-    return;
+window.pageScripts["Add-Account"] = function() {
+  // Broker field definitions (keep inside the function or move global if shared)
+  const brokerFields = {
+    aliceblue: [
+      { label: "Client ID", name: "client_id", type: "text" },
+      { label: "API Key", name: "api_key", type: "password" },
+      { label: "Secret Key", name: "secret_key", type: "password" }
+    ],
+    dhan: [
+      { label: "Client ID", name: "client_id", type: "text" },
+      { label: "Access Token", name: "access_token", type: "password" }
+    ],
+    fyers: [
+      { label: "Client ID", name: "client_id", type: "text" },
+      { label: "App ID", name: "app_id", type: "text" },
+      { label: "App Secret", name: "app_secret", type: "password" },
+      { label: "Access Token", name: "access_token", type: "password" }
+    ],
+    // Add more brokers here
+  };
+
+  function showBrokerFields(broker) {
+    const fields = brokerFields[broker];
+    const container = document.getElementById("broker-fields");
+    const submitBtn = document.getElementById("submit-account-btn");
+    container.innerHTML = "";
+    if (!fields) {
+      submitBtn.style.display = "none";
+      return;
+    }
+    fields.forEach(f => {
+      container.innerHTML += `
+        <div class="mb-3">
+          <label class="form-label">${f.label}</label>
+          <input class="form-control" name="${f.name}" type="${f.type}" required>
+        </div>
+      `;
+    });
+    submitBtn.style.display = "inline-block";
   }
-  fields.forEach(f => {
-    container.innerHTML += `
-      <div class="mb-3">
-        <label class="form-label">${f.label}</label>
-        <input class="form-control" name="${f.name}" type="${f.type}" required>
-      </div>
-    `;
+
+  // Bind Add Account button
+  const addAccountBtn = document.getElementById('add-account-btn');
+  if (addAccountBtn) {
+    addAccountBtn.onclick = function() {
+      document.getElementById('add-account-section').style.display = 'block';
+    };
+  }
+
+  // Bind broker icons
+  document.querySelectorAll('.broker-icon').forEach(icon => {
+    icon.onclick = function() {
+      document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
+      icon.classList.add('border-primary');
+      showBrokerFields(icon.dataset.broker);
+    };
   });
-  submitBtn.style.display = "inline-block";
-}
 
-document.querySelectorAll('.broker-icon').forEach(icon => {
-  icon.onclick = function() {
-    document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
-    icon.classList.add('border-primary');
-    showBrokerFields(icon.dataset.broker);
+  // (Optional) If you want to AJAX-submit the form without full reload:
+  const brokerForm = document.getElementById('broker-credentials-form');
+  if (brokerForm) {
+    brokerForm.onsubmit = function(e) {
+      e.preventDefault();
+      const formData = new FormData(brokerForm);
+      const data = {};
+      for (const [key, value] of formData.entries()) data[key] = value;
+      // Add broker field (find selected icon)
+      const selected = document.querySelector('.broker-icon.border-primary');
+      if (selected) data['broker'] = selected.dataset.broker;
+      else return alert('Please select a broker');
+      // Default to master for now; you may want a selector or radio button
+      data['role'] = 'master';
+
+      fetch('/api/add-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.message) {
+          alert(resp.message);
+          location.reload(); // Refresh the table; you can also AJAX-refresh it
+        } else {
+          alert(resp.error || 'Unknown error');
+        }
+      });
+    };
   }
-});
-
-document.getElementById('add-account-btn').onclick = function() {
-  document.getElementById('add-account-section').style.display = 'block';
-}
+};
 </script>
 {% endblock %}
