@@ -790,7 +790,9 @@ input#symbol-selector:focus,
 /*──────────────────────────────────────────────────────────────────────────
    14. Dropdown
 ──────────────────────────────────────────────────────────────────────────*/
-
+.table-responsive {
+  overflow: visible !important;
+}
 .table .dropdown-menu {
   z-index: 9999 !important;
 }
