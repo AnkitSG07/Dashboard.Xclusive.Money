@@ -1405,5 +1405,9 @@ def summary():
 def copytrading():
     return render_template("copy-trading.html")
 
+@app.route("/Add-Account")
+def AddAccount():
+    return render_template("Add-Account.html")
+
 if __name__ == '__main__':
         app.run(debug=True)
