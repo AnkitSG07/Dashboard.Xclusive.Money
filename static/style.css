@@ -395,18 +395,404 @@ input#symbol-selector:focus,
 ──────────────────────────────────────────────────────────────────────────*/
 
 /* Fix Bootstrap dropdown inside tables being clipped */
-.table .dropdown-menu {
-  z-index: 9999 !important;
-  display: block;
-  visibility: hidden;
-  opacity: 0;
-  transition: all 0.15s ease;
-  pointer-events: none;
+/* ========================================================================
+   style.css – Copy Trading Dashboard “Top Developer” Trading System Theme
+   ======================================================================== */
+
+/*──────────────────────────────────────────────────────────────────────────
+   1. Color Palette & Variables
+──────────────────────────────────────────────────────────────────────────*/
+:root {
+  /* Primary Green */
+  --primary-light:    #E6F9EC;
+  --primary-main:     #17AE13;
+  --primary-dark:     #008D00;
+
+  /* Info Blue */
+  --info-light:       #E4F6FF;
+  --info-main:        #20AEF3;
+  --info-dark:        #188BD0;
+
+  /* Warning Amber */
+  --warning-light:    #FFF4E6;
+  --warning-main:     #FB9A23;
+  --warning-dark:     #D17B00;
+
+  /* Error Red */
+  --error-light:      #FFE2E2;
+  --error-main:       #FF3F56;
+  --error-dark:       #C72E42;
+
+  /* Neutrals */
+  --bg-page:          #F4F6F8;
+  --bg-card:          #FFFFFF;
+  --bg-sidebar:       #FFFFFF;
+  --bg-navbar:        rgba(255, 255, 255, 0.85);
+  --bg-sticky:        #FFFFFF;
+
+  --text-primary:     #212529;
+  --text-secondary:   #637381;
+  --text-muted:       #919EAB;
+  --divider:          #E0E3E7;
+  --shadow-light:     rgba(0, 0, 0, 0.05);
+  --shadow-strong:    rgba(0, 0, 0, 0.12);
 }
 
-.table .dropdown.show .dropdown-menu {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
+/*──────────────────────────────────────────────────────────────────────────
+   2. Global & Reset
+──────────────────────────────────────────────────────────────────────────*/
+* {
+  box-sizing: border-box;
+  margin: 0; padding: 0;
 }
+html, body {
+  height: 100%;
+}
+body {
+  font-family: 'Public Sans', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   3. Navbar
+──────────────────────────────────────────────────────────────────────────*/
+.navbar {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 55px;
+  background-color: var(--bg-navbar);
+  backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--divider);
+  z-index: 999;
+}
+.navbar-brand {
+  font-size: 20px; font-weight: 700;
+  color: var(--text-primary);
+}
+.navbar-icons {
+  display: flex; gap: 16px; align-items: center;
+}
+.navbar-icons i {
+  font-size: 18px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color .2s;
+}
+.navbar-icons i:hover {
+  color: var(--primary-main);
+}
+.profile-img {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-main);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   4. Sidebar
+──────────────────────────────────────────────────────────────────────────*/
+.sidebar {
+  position: fixed; top: 0; left: 0;
+  width: 240px; height: 100vh;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--divider);
+  display: flex; flex-direction: column;
+  padding: 24px 0;
+  overflow-y: auto;
+  z-index: 1001;
+  box-shadow: 4px 0 12px var(--shadow-light);
+}
+.sidebar-logo img {
+    height: 78px;
+    width: auto;
+    max-height: 90px;
+    display: inline-block;
+    vertical-align: left;
+}
+.sidebar .nav-title {
+  padding: 0 24px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin: 20px 0 8px;
+}
+.sidebar .nav-link {
+  display: flex; align-items: center; gap: 20px;
+  padding: 12px 24px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-radius: 8px;
+  transition: background .2s, color .2s;
+  text-decoration: none;
+}
+.sidebar .nav-link i {
+  font-size: 18px;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+}
+.sidebar .nav-link:hover i,
+.sidebar .nav-link.active i {
+  color: var(--primary-main);
+}
+.sidebar .submenu {
+  display: none; flex-direction: column;
+  padding-left: 36px; margin-top: 4px;
+}
+.sidebar .submenu a {
+  padding: 6px 0; font-size: 14px;
+  color: var(--text-secondary); text-decoration: none;
+}
+.sidebar .submenu a:hover {
+  color: var(--primary-main);
+}
+.sidebar .nav-collapse.active + .submenu {
+  display: flex;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   5. Main Content & Layout
+──────────────────────────────────────────────────────────────────────────*/
+.main-content {
+  margin-left: 240px;
+  padding: 24px; padding-top: 80px;
+}
+h3, h5, h6 {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+h3 { font-size: 24px; color: var(--text-primary); }
+h5, h6 { font-size: 18px; color: var(--text-primary); }
+
+/*──────────────────────────────────────────────────────────────────────────
+   6. Section Boxes (Cards)
+──────────────────────────────────────────────────────────────────────────*/
+.section-box {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 24px var(--shadow-strong);
+  transition: box-shadow .3s ease;
+}
+.section-box:hover {
+  box-shadow: 0 12px 32px var(--shadow-strong);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   7. Buttons
+──────────────────────────────────────────────────────────────────────────*/
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  transition: background .2s, color .2s;
+}
+.btn-sm {
+  font-size: 12px; padding: 4px 10px;
+}
+.btn-primary {
+  background-color: var(--primary-main);
+  color: #fff; border: none;
+}
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+}
+.btn-outline-primary {
+  border: 1px solid var(--primary-main);
+  color: var(--primary-main);
+  background: transparent;
+}
+.btn-outline-primary:hover {
+  background-color: var(--primary-light);
+}
+.btn-info {
+  background-color: var(--info-main);
+  color: #fff; border: none;
+}
+.btn-info:hover {
+  background-color: var(--info-dark);
+}
+.btn-secondary {
+  background-color: var(--divider);
+  color: var(--text-secondary); border: none;
+}
+.btn-secondary:hover {
+  background-color: var(--bg-card);
+}
+.btn-danger {
+  background-color: var(--error-main);
+  color: #fff; border: none;
+}
+.btn-danger:hover {
+  background-color: var(--error-dark);
+}
+.btn-warning {
+  background-color: var(--warning-main);
+  color: #212529; border: none;
+}
+.btn-warning:hover {
+  background-color: var(--warning-dark);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   8. Tables
+──────────────────────────────────────────────────────────────────────────*/
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px var(--shadow-light);
+  margin-top: 15px;
+}
+.table th, .table td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--divider);
+}
+.table th {
+  background: var(--primary-main);
+  color: #fff;
+  font-weight: 600;
+}
+.table tbody tr:hover td {
+  background-color: var(--primary-light);
+}
+.table-responsive {
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+  z-index: 1;
+}
+
+
+/*──────────────────────────────────────────────────────────────────────────
+   9. Inputs & Forms
+──────────────────────────────────────────────────────────────────────────*/
+input#symbol-selector,
+.modal-content .form-control,
+.modal-content .form-select,
+.navbar-search .form-control {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--divider);
+  background: #fff;
+  color: var(--text-primary);
+}
+input#symbol-selector:focus,
+.modal-content .form-control:focus,
+.modal-content .form-select:focus,
+.navbar-search .form-control:focus {
+  outline: none;
+  border-color: var(--primary-main);
+  box-shadow: 0 0 0 3px rgba(23,174,19,0.15);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   10. Sidebar & Table Overrides
+──────────────────────────────────────────────────────────────────────────*/
+/* Make sure table–light headers are green */
+.table-light th {
+  background: var(--primary-main) !important;
+  color: #fff !important;
+  border: none !important;
+}
+/* Clean up borders */
+.table-bordered, .table-bordered th, .table-bordered td {
+  border: none !important;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   11. Sticky Toolbar
+──────────────────────────────────────────────────────────────────────────*/
+.sticky-toolbar {
+  position: sticky;
+  top: 64px;
+  background: var(--primary-main);
+  padding: 10px;
+  z-index: 1500;
+  border-bottom: none;
+}
+.sticky-toolbar .btn-danger,
+.sticky-toolbar .btn-warning {
+  background: #fff;
+  color: var(--text-primary);
+  border: none;
+}
+.sticky-toolbar .btn-danger:hover { background: var(--error-main); color: #fff; }
+.sticky-toolbar .btn-warning:hover{ background: var(--warning-dark); color: #fff; }
+
+/*──────────────────────────────────────────────────────────────────────────
+   12. Miscellaneous
+──────────────────────────────────────────────────────────────────────────*/
+.logout {
+  margin-top: auto;
+  background-color: var(--error-main);
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 24px;
+  font-weight: 600;
+  width: 100%;
+}
+.logout:hover {
+  background-color: var(--error-dark);
+}
+.card-box {
+  background: var(--bg-card);
+  padding: 20px; border-radius: 16px;
+  box-shadow: 0 8px 24px var(--shadow-light);
+  text-align: center; margin-bottom: 20px;
+}
+.card-box h4 {
+  font-size: 28px; font-weight: 700; margin-bottom: 5px;
+}
+.card-box p {
+  color: var(--text-secondary); font-size: 14px;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   13. Responsive
+──────────────────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    padding-top: 70px;
+  }
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .3s ease-in-out;
+  }
+  .sidebar.show {
+    transform: translateX(0);
+  }
+  .toggle-sidebar {
+    display: block; position: fixed;
+    top: 16px; left: 16px;
+    background-color: var(--primary-main);
+    color: #fff;
+    padding: 10px;
+    border: none; border-radius: 8px;
+    z-index: 1100; cursor: pointer;
+  }
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   14. Dropdown
+──────────────────────────────────────────────────────────────────────────*/
+
+.table .dropdown-menu {
+  z-index: 9999 !important;
+}
+
 
