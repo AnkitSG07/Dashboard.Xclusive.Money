@@ -2,13 +2,20 @@
 
 from .dhan import DhanBroker
 from .zerodha import ZerodhaBroker
-# import other brokers...
+from .aliceblue import AliceBlueBroker
+from .fyers import FyersBroker
+# add other imports as needed
 
 def get_broker_class(broker_name):
-    if broker_name.lower() == "dhan":
+    name = broker_name.lower()
+    if name == "dhan":
         return DhanBroker
-    if broker_name.lower() == "zerodha":
+    elif name == "zerodha":
         return ZerodhaBroker
-    # add more...
-    raise Exception("Unknown broker")
-
+    elif name == "aliceblue":
+        return AliceBlueBroker
+    elif name == "fyers":
+        return FyersBroker
+    # add more as you add brokers
+    else:
+        raise Exception(f"Unknown broker: {broker_name}")
