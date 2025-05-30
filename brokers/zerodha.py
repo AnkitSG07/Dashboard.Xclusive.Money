@@ -1,47 +1,76 @@
 # brokers/zerodha.py
 
 from .base import BrokerBase
-from kiteconnect import KiteConnect, KiteTicker
+
+try:
+    from kiteconnect import KiteConnect
+except ImportError:
+    KiteConnect = None
 
 class ZerodhaBroker(BrokerBase):
-    def __init__(self, api_key, api_secret, access_token):
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.access_token = access_token
+    def __init__(self, client_id, access_token, **kwargs):
+        super().__init__(client_id, access_token, **kwargs)
+        if KiteConnect is None:
+            raise ImportError("kiteconnect library not installed.")
+        # You might need to set your API key as well, e.g.:
+        api_key = kwargs.get("api_key")  # Pass via kwargs when creating the instance
+        if not api_key:
+            raise ValueError("Zerodha requires 'api_key' as well.")
         self.kite = KiteConnect(api_key=api_key)
         self.kite.set_access_token(access_token)
+        self.client_id = client_id
 
-    @classmethod
-    def login_url(cls, api_key, redirect_url):
-        kite = KiteConnect(api_key=api_key)
-        return kite.login_url(redirect_url=redirect_url)
-
-    @classmethod
-    def get_access_token(cls, api_key, api_secret, request_token):
-        kite = KiteConnect(api_key=api_key)
-        data = kite.generate_session(request_token, api_secret=api_secret)
-        return data['access_token']
-
-    def get_positions(self):
-        return self.kite.positions()
+    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MARKET", product="MIS", price=None):
+        """
+        Place a Zerodha order.
+        Args:
+            tradingsymbol: e.g. 'RELIANCE'
+            exchange: e.g. 'NSE'
+            transaction_type: 'BUY' or 'SELL'
+            quantity: integer
+            order_type: 'MARKET', 'LIMIT', etc.
+            product: 'MIS', 'CNC', etc.
+            price: required if order_type is 'LIMIT'
+        """
+        params = {
+            "tradingsymbol": tradingsymbol,
+            "exchange": exchange,
+            "transaction_type": transaction_type.upper(),
+            "quantity": int(quantity),
+            "order_type": order_type.upper(),
+            "product": product.upper(),
+        }
+        if order_type.upper() == "LIMIT" and price:
+            params["price"] = float(price)
+        try:
+            order_id = self.kite.place_order(
+                variety=self.kite.VARIETY_REGULAR,
+                **params
+            )
+            return {"status": "success", "order_id": order_id}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
 
     def get_order_list(self):
-        return self.kite.orders()
+        try:
+            orders = self.kite.orders()
+            return {"status": "success", "data": orders}
+        except Exception as e:
+            return {"status": "failure", "error": str(e), "data": []}
 
-    def place_order(self, symbol, quantity, transaction_type, order_type, product, price=0):
-        # transaction_type: "BUY"/"SELL"
-        # order_type: "MARKET"/"LIMIT"
-        # product: "CNC"/"MIS"/"NRML"
-        # exchange and variety can be improved to be dynamic
-        return self.kite.place_order(
-            variety='regular',
-            exchange='NSE',
-            tradingsymbol=symbol,
-            transaction_type=transaction_type,
-            quantity=quantity,
-            order_type=order_type,
-            product=product,
-            price=price
-        )
+    def get_positions(self):
+        try:
+            positions = self.kite.positions()
+            return {"status": "success", "data": positions}
+        except Exception as e:
+            return {"status": "failure", "error": str(e), "data": []}
 
+    def cancel_order(self, order_id):
+        try:
+            self.kite.cancel_order(variety=self.kite.VARIETY_REGULAR, order_id=order_id)
+            return {"status": "success", "order_id": order_id}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
+
+    # Add more helper methods as needed
 
