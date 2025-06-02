@@ -13,7 +13,7 @@ def get_broker_class(broker_name):
         "aliceblue": "AliceBlueBroker",
         "fyers": "FyersBroker",
         "finvasia": "FinvasiaBroker",
-        "dhan": "DhanBroker",
+        "dhan": "DhanAPI",
         "flattrade": "FlattradeBroker",
         "acagarwal": "ACAgarwalBroker",
         "motilaloswal": "MotilalOswalBroker",
