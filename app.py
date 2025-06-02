@@ -846,26 +846,27 @@ def add_account():
 
 @app.route('/api/accounts')
 def get_accounts():
-    if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            db = json.load(f)
-    else:
-        db = {"accounts": []}
-    masters = []
-    for acc in db["accounts"]:
-        if acc.get("role") == "master":
-            # Attach children to each master
-            children = [child for child in db["accounts"] if child.get("role") == "child" and child.get("linked_master_id") == acc["client_id"]]
-            acc_copy = dict(acc)
-            acc_copy["children"] = children
-            masters.append(acc_copy)
-    return jsonify({
-        "masters": masters,
-        "accounts": db["accounts"]  # for UI use
-    })
-
-    except Exception as e:
+    try:  # <-- ADD THIS LINE
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                db = json.load(f)
+        else:
+            db = {'accounts': []}
+        masters = []
+        for acc in db["accounts"]:
+            if acc.get("role") == "master":
+                # Attach children to each master
+                children = [child for child in db["accounts"] if child.get("role") == "child" and child.get("linked_master_id") == acc.get("client_id")]
+                acc_copy = dict(acc)
+                acc_copy["children"] = children
+                masters.append(acc_copy)
+        return jsonify({
+            "masters": masters,
+            "accounts": db["accounts"]  # for UI use
+        })
+    except Exception as e:   # <-- INDENT THIS TO MATCH try
         return jsonify({"error": str(e)}), 500
+
 
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
