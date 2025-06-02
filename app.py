@@ -802,72 +802,53 @@ def add_account():
     username = data.get("username")
     broker = data.get("broker")
     role = data.get("role")
-    multiplier = float(data.get("multiplier", 1))
+    multiplier = data.get("multiplier")
     linked_master_id = data.get("linked_master_id")
+    access_token = data.get("access_token")
+    # ... collect other credentials as needed
 
-    if not all([client_id, broker, username, role]):
-        return jsonify({"error": "Missing required fields"}), 400
+    # Load or create accounts.json with "masters"
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            accounts = json.load(f)
+    else:
+        accounts = {"masters": []}
 
-    # Collect credentials (all extra keys except role, client_id, username, broker, multiplier, linked_master_id)
-    exclude_keys = {"client_id", "username", "broker", "role", "multiplier", "linked_master_id"}
-    credentials = {k: v for k, v in data.items() if k not in exclude_keys}
+    if role == "master":
+        # Add as a new master
+        accounts["masters"].append({
+            "broker": broker,
+            "client_id": client_id,
+            "username": username,
+            "status": "Connected",
+            "credentials": {"access_token": access_token},
+            "children": []
+        })
+    elif role == "child":
+        # Link to existing master
+        found = None
+        for master in accounts["masters"]:
+            if master["client_id"] == linked_master_id:
+                found = master
+                break
+        if not found:
+            return jsonify({"error": "Master not found for linking child"}), 400
+        found["children"].append({
+            "broker": broker,
+            "client_id": client_id,
+            "username": username,
+            "status": "Connected",
+            "credentials": {"access_token": access_token},
+            "copy_status": "Off",
+            "multiplier": float(multiplier or 1)
+        })
+    else:
+        return jsonify({"error": "Invalid role"}), 400
 
-    try:
-        if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
-        else:
-            accounts = {"masters": []}
+    with open("accounts.json", "w") as f:
+        json.dump(accounts, f, indent=2)
 
-        if "masters" not in accounts:
-            accounts["masters"] = []
-
-        if role.lower() == "master":
-            accounts["masters"].append({
-                "broker": broker,
-                "client_id": client_id,
-                "username": username,
-                "status": "Connected",
-                "credentials": credentials,
-                "children": []
-            })
-            message = f"✅ Master account {username} ({broker}) added."
-
-        elif role.lower() == "child":
-            if not linked_master_id:
-                return jsonify({"error": "Missing linked_master_id for child"}), 400
-
-            found_master = None
-            for master in accounts["masters"]:
-                if master["client_id"] == linked_master_id or master["username"] == linked_master_id:
-                    found_master = master
-                    break
-
-            if not found_master:
-                return jsonify({"error": "Linked master not found"}), 400
-
-            found_master["children"].append({
-                "broker": broker,
-                "client_id": client_id,
-                "username": username,
-                "status": "Connected",
-                "credentials": credentials,
-                "copy_status": "Off",
-                "multiplier": multiplier
-            })
-            message = f"✅ Child account {username} ({broker}) added under master {found_master['username']}."
-
-        else:
-            return jsonify({"error": "Invalid role (must be 'master' or 'child')"}), 400
-
-        # Save back to file
-        with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
-
-        return jsonify({"message": message}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"message": f"✅ Account {username} ({role}) added."}), 200
 
 # Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
