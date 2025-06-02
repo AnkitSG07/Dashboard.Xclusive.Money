@@ -265,6 +265,14 @@ scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
 scheduler.start()
 print("✅ Background copy trader scheduler is running...")
 
+def get_broker_class(broker_name):
+    if broker_name.lower() == "dhan":
+        from brokers.dhan import DhanApi
+        return DhanApi
+    # ... other brokers as needed
+    raise Exception(f"Unsupported broker: {broker_name}")
+
+
 # --- Order Book Endpoint ---
 @app.route('/api/order-book/<client_id>', methods=['GET'])
 def get_order_book(client_id):
