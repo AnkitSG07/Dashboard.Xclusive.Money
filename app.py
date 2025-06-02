@@ -287,9 +287,8 @@ def get_broker_class(broker_name):
 def get_order_book(client_id):
     try:
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
-
-        masters = accounts.get("masters", [])
+            db = json.load(f)
+        masters = [acc for acc in db.get("accounts", []) if acc.get("role") == "master"]
         master = next((m for m in masters if m.get("client_id") == client_id), None)
         if not master:
             return jsonify({"error": "Master not found"}), 404
