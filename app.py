@@ -11,12 +11,22 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
+import tempfile
+import shutil
 
 app = Flask(__name__)
 CORS(app)
 
 RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
 RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
+
+def safe_write_json(path, data):
+    dirpath = os.path.dirname(path) or '.'
+    with tempfile.NamedTemporaryFile('w', delete=False, dir=dirpath) as tmp:
+        json.dump(data, tmp, indent=2)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+    shutil.move(tmp.name, path)
 
 def broker_api(obj):
     """
@@ -253,8 +263,7 @@ def poll_and_copy_trades():
                 print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
                 db[last_copied_key] = new_last_trade_id
 
-        with open("accounts.json", "w") as f:
-            json.dump(db, f, indent=2)
+        safe_write_json("accounts.json", db)
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
@@ -749,8 +758,8 @@ def change_master():
             found = acc
     if not found:
         return jsonify({"error": "Child not found."}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
+    safe_write_json("accounts.json", db)
+
     return jsonify({"message": f"Child {child_id} now linked to master {new_master_id}."}), 200
 
 @app.route('/api/remove-child', methods=['POST'])
@@ -774,8 +783,8 @@ def remove_child():
             found = acc
     if not found:
         return jsonify({"error": "Child not found."}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
+    safe_write_json("accounts.json", db)
+
     return jsonify({"message": f"Child {client_id} removed from master."}), 200
 
 
@@ -805,8 +814,8 @@ def update_multiplier():
             found = acc
     if not found:
         return jsonify({"error": "Child account not found"}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
+    safe_write_json("accounts.json", db)
+
     return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
 
 
@@ -846,17 +855,19 @@ def add_account():
         "multiplier": 1,
         "copy_status": "Off"
     })
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
+    safe_write_json("accounts.json", db)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
 
 
 @app.route('/api/accounts')
 def get_accounts():
-    try:  # <-- ADD THIS LINE
+    try:
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 db = json.load(f)
+            # Validation:
+            if "accounts" not in db or not isinstance(db["accounts"], list):
+                raise ValueError("Corrupt accounts.json: missing 'accounts' list")
         else:
             db = {'accounts': []}
         masters = []
@@ -869,10 +880,12 @@ def get_accounts():
                 masters.append(acc_copy)
         return jsonify({
             "masters": masters,
-            "accounts": db["accounts"]  # for UI use
+            "accounts": db["accounts"]
         })
-    except Exception as e:   # <-- INDENT THIS TO MATCH try
+    except Exception as e:
+        print(f"❌ Error in /api/accounts: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 
 # Set master account
@@ -894,12 +907,15 @@ def set_master():
             if acc.get("client_id") == client_id:
                 acc["role"] = "master"
                 acc.pop("linked_master_id", None)
-                found = True
+                acc["copy_status"] = "Off"
+                acc["multiplier"] = 1
+                found = True    # <-- This line was missing!
+
         if not found:
             return jsonify({"error": "Account not found"}), 404
 
-        with open("accounts.json", "w") as f:
-            json.dump(db, f, indent=2)
+        safe_write_json("accounts.json", db)
+
         return jsonify({"message": "Set as master successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -923,17 +939,18 @@ def set_child():
             if acc.get("client_id") == client_id:
                 acc["role"] = "child"
                 acc["linked_master_id"] = linked_master_id
-                found = True
+                acc["copy_status"] = "Off"
+                acc["multiplier"] = 1
+                found = True   # <-- This line was missing!
+
         if not found:
             return jsonify({"error": "Account not found"}), 404
 
-        with open("accounts.json", "w") as f:
-            json.dump(db, f, indent=2)
+        safe_write_json("accounts.json", db)
+
         return jsonify({"message": "Set as child successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 # Start copying for a child account
 @app.route('/api/start-copy', methods=['POST'])
@@ -948,17 +965,18 @@ def start_copy():
             db = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
-    found = None
+
+    found = False
     for acc in db["accounts"]:
         if acc["client_id"] == client_id:
             acc["role"] = "child"
             acc["linked_master_id"] = master_id
             acc["copy_status"] = "On"
-            found = acc
+            found = True
     if not found:
         return jsonify({"error": "Child account not found."}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
+
+    safe_write_json("accounts.json", db)
     return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."})
 
 
@@ -974,17 +992,17 @@ def stop_copy():
             db = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
-    found = None
+
+    found = False
     for acc in db["accounts"]:
         if acc["client_id"] == client_id and acc.get("linked_master_id") == master_id:
             acc["copy_status"] = "Off"
-            found = acc
+            found = True
     if not found:
         return jsonify({"error": "Child account not found."}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
-    return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."})
 
+    safe_write_json("accounts.json", db)
+    return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."})
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
