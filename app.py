@@ -111,9 +111,12 @@ def poll_and_copy_trades():
             return
 
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+            db = json.load(f)
 
-        masters = accounts.get("masters", [])
+        all_accounts = db.get("accounts", [])
+        # Find all masters
+        masters = [acc for acc in all_accounts if acc.get("role") == "master"]
+
         if not masters:
             print("⚠️ No master accounts configured.")
             return
@@ -130,13 +133,13 @@ def poll_and_copy_trades():
                 continue
 
             last_copied_key = f"last_copied_trade_id_{master_id}"
-            last_copied_trade_id = accounts.get(last_copied_key)
+            last_copied_trade_id = db.get(last_copied_key)
             new_last_trade_id = None
 
             # Get master orders using standard interface
             try:
                 orders_resp = master_api.get_order_list()
-                order_list = orders_resp.get("data", orders_resp.get("orders", []))  # support for different APIs
+                order_list = orders_resp.get("data", orders_resp.get("orders", []))
             except Exception as e:
                 print(f"❌ Error fetching orders for master {master_id}: {e}")
                 continue
@@ -147,6 +150,9 @@ def poll_and_copy_trades():
 
             order_list = sorted(order_list, key=lambda x: x.get("orderTimestamp", x.get("order_time", "")), reverse=True)
 
+            # Find all children linked to this master
+            children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
+
             for order in order_list:
                 order_id = order.get("orderId") or order.get("order_id")
                 if not order_id:
@@ -156,7 +162,6 @@ def poll_and_copy_trades():
                     print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
                     break
 
-                # Status check (try to use most general key)
                 order_status = order.get("orderStatus") or order.get("status") or ""
                 if order_status.upper() not in ["TRADED", "FILLED", "COMPLETE"]:
                     print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order_status})")
@@ -165,7 +170,6 @@ def poll_and_copy_trades():
                 print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
                 new_last_trade_id = new_last_trade_id or order_id
 
-                children = master.get("children", [])
                 if not children:
                     print(f"ℹ️ [{master_id}] No children to copy trades to.")
                     continue
@@ -193,7 +197,6 @@ def poll_and_copy_trades():
                     )
                     copied_qty = max(1, int(float(master_qty) * multiplier))
 
-                    # Broker-independent field mapping:
                     symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
                     exchange = order.get("exchange") or order.get("exchangeSegment") or order.get("exchange_segment") or "NSE"
                     transaction_type = (
@@ -215,10 +218,6 @@ def poll_and_copy_trades():
                     ).upper()
                     price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
 
-                    # You may add broker-specific mapping here if absolutely needed
-                    # but generally above should be enough for standardized brokers
-
-                    # Place order using child's broker interface
                     try:
                         response = child_api.place_order(
                             tradingsymbol=symbol,
@@ -237,7 +236,6 @@ def poll_and_copy_trades():
                             order_id_child = response.get("order_id") or response.get("orderId")
                             print(f"✅ Copied to {child['client_id']} (Order ID: {order_id_child})")
                             save_log(child['client_id'], symbol, transaction_type, copied_qty, "SUCCESS", str(response))
-                            # Save broker-aware order mapping (for square-off etc.)
                             save_order_mapping(
                                 master_order_id=order_id,
                                 child_order_id=order_id_child,
@@ -253,13 +251,14 @@ def poll_and_copy_trades():
 
             if new_last_trade_id:
                 print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
-                accounts[last_copied_key] = new_last_trade_id
+                db[last_copied_key] = new_last_trade_id
 
         with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
+            json.dump(db, f, indent=2)
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
+
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
