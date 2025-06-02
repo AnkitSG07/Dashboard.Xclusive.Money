@@ -30,11 +30,14 @@ def safe_write_json(path, data):
 
 def broker_api(obj):
     broker = obj.get("broker", "Unknown").lower()
-    credentials = obj.get("credentials", {}).copy()
-    # Make sure client_id is passed as kwarg!
-    credentials["client_id"] = obj.get("client_id")
+    credentials = obj.get("credentials", {})
+    client_id = obj.get("client_id")
+    access_token = credentials.get("access_token")
     BrokerClass = get_broker_class(broker)
-    return BrokerClass(**credentials)
+    # Remove access_token from credentials dict to avoid duplication
+    rest = {k: v for k, v in credentials.items() if k != "access_token"}
+    return BrokerClass(client_id, access_token, **rest)
+
 
 
 def find_account_by_client_id(accounts, client_id):
