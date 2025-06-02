@@ -871,28 +871,60 @@ def get_accounts():
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
 def set_master():
-    data = request.json
-    client_id = data.get("client_id")
-    if not client_id:
-        return jsonify({"error": "Missing client_id"}), 400
-    if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            db = json.load(f)
-    else:
-        return jsonify({"error": "No accounts file found"}), 500
-    found = None
-    for acc in db["accounts"]:
-        if acc["client_id"] == client_id:
-            acc["role"] = "master"
-            acc["linked_master_id"] = None
-            found = acc
-        elif acc.get("role") == "master" and acc["client_id"] != client_id:
-            acc["role"] = None  # Only one master at a time
-    if not found:
-        return jsonify({"error": "Client ID not found."}), 404
-    with open("accounts.json", "w") as f:
-        json.dump(db, f, indent=2)
-    return jsonify({'message': f"✅ Set {client_id} as master successfully."})
+    try:
+        client_id = request.json.get('client_id')
+        if not client_id:
+            return jsonify({"error": "Missing client_id"}), 400
+
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                db = json.load(f)
+        else:
+            db = {"accounts": []}
+
+        found = False
+        for acc in db["accounts"]:
+            if acc.get("client_id") == client_id:
+                acc["role"] = "master"
+                acc.pop("linked_master_id", None)
+                found = True
+        if not found:
+            return jsonify({"error": "Account not found"}), 404
+
+        with open("accounts.json", "w") as f:
+            json.dump(db, f, indent=2)
+        return jsonify({"message": "Set as master successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/set-child', methods=['POST'])
+def set_child():
+    try:
+        client_id = request.json.get('client_id')
+        linked_master_id = request.json.get('linked_master_id')
+        if not client_id or not linked_master_id:
+            return jsonify({"error": "Missing client_id or linked_master_id"}), 400
+
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                db = json.load(f)
+        else:
+            db = {"accounts": []}
+
+        found = False
+        for acc in db["accounts"]:
+            if acc.get("client_id") == client_id:
+                acc["role"] = "child"
+                acc["linked_master_id"] = linked_master_id
+                found = True
+        if not found:
+            return jsonify({"error": "Account not found"}), 404
+
+        with open("accounts.json", "w") as f:
+            json.dump(db, f, indent=2)
+        return jsonify({"message": "Set as child successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
