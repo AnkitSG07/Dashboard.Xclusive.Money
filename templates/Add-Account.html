@@ -12,7 +12,7 @@
   </button>
 </div>
 
-<!-- Account Stats Cards -->
+<!-- Account Stats Cards (static for now, dynamic optional) -->
 <div class="row g-4 mb-4">
   <div class="col-md-3">
     <div class="card-box text-center">
@@ -53,14 +53,14 @@
     <!-- Add more as needed -->
   </div>
   <!-- Dynamic Broker Fields -->
-  <form id="broker-credentials-form" method="POST" action="/add_account">
+  <form id="broker-credentials-form">
     <div id="broker-fields"></div>
     <button type="submit" class="btn btn-success mt-3" style="display:none;" id="submit-account-btn">Add Account</button>
     <button type="button" class="btn btn-link mt-3" onclick="document.getElementById('add-account-section').style.display='none'">Cancel</button>
   </form>
 </div>
 
-<!-- Accounts Table (replace with your dynamic data if needed) -->
+<!-- Accounts Table (sample, you should load with AJAX for real data) -->
 <div class="card-box">
   <div class="table-responsive">
     <table class="table align-middle">
@@ -68,30 +68,17 @@
         <tr>
           <th>Broker</th>
           <th>Client ID</th>
-          <th>Opening Balance</th>
-          <th>Auto-Login</th>
-          <th>Last Login Time</th>
+          <th>Username</th>
+          <th>Status</th>
           <th>Action</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- Sample Row, replace with Jinja loop -->
-        <tr>
-          <td><img src="/static/brokers/dhan.svg" style="width:24px;"> Dhan</td>
-          <td>123456</td>
-          <td>₹1,00,000</td>
-          <td><span class="badge bg-success">Active</span></td>
-          <td>29-05-2025 08:02:10</td>
-          <td>
-            <button class="btn btn-outline-success btn-sm">Reconnect</button>
-          </td>
-        </tr>
-        <!-- End Sample Row -->
+      <tbody id="accounts-table-body">
+        <!-- Filled dynamically with JS (optional: can use Jinja loop if rendering server-side) -->
       </tbody>
     </table>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -99,7 +86,7 @@
 if (!window.pageScripts) window.pageScripts = {};
 
 window.pageScripts["Add-Account"] = function() {
-  // Broker field definitions (keep inside the function or move global if shared)
+  // Broker field definitions
   const brokerFields = {
     aliceblue: [
       { label: "Client ID", name: "client_id", type: "text" },
@@ -116,7 +103,7 @@ window.pageScripts["Add-Account"] = function() {
       { label: "App Secret", name: "app_secret", type: "password" },
       { label: "Access Token", name: "access_token", type: "password" }
     ],
-    // Add more brokers here
+    // Add more brokers here as needed
   };
 
   function showBrokerFields(broker) {
@@ -128,6 +115,13 @@ window.pageScripts["Add-Account"] = function() {
       submitBtn.style.display = "none";
       return;
     }
+    // Optional username field (visible for all)
+    container.innerHTML += `
+      <div class="mb-3">
+        <label class="form-label">Username (for your reference)</label>
+        <input class="form-control" name="username" type="text" required>
+      </div>
+    `;
     fields.forEach(f => {
       container.innerHTML += `
         <div class="mb-3">
@@ -156,7 +150,7 @@ window.pageScripts["Add-Account"] = function() {
     };
   });
 
-  // (Optional) If you want to AJAX-submit the form without full reload:
+  // AJAX submit form (NO role/multiplier)
   const brokerForm = document.getElementById('broker-credentials-form');
   if (brokerForm) {
     brokerForm.onsubmit = function(e) {
@@ -164,12 +158,10 @@ window.pageScripts["Add-Account"] = function() {
       const formData = new FormData(brokerForm);
       const data = {};
       for (const [key, value] of formData.entries()) data[key] = value;
-      // Add broker field (find selected icon)
+      // Get broker type from selected icon
       const selected = document.querySelector('.broker-icon.border-primary');
       if (selected) data['broker'] = selected.dataset.broker;
       else return alert('Please select a broker');
-      // Default to master for now; you may want a selector or radio button
-      data['role'] = 'master';
 
       fetch('/api/add-account', {
         method: 'POST',
@@ -180,13 +172,33 @@ window.pageScripts["Add-Account"] = function() {
       .then(resp => {
         if (resp.message) {
           alert(resp.message);
-          location.reload(); // Refresh the table; you can also AJAX-refresh it
+          location.reload();
         } else {
           alert(resp.error || 'Unknown error');
         }
       });
     };
   }
+
+  // (Optional) Load accounts dynamically for table:
+  fetch('/api/accounts')
+    .then(res => res.json())
+    .then(data => {
+      const body = document.getElementById("accounts-table-body");
+      if (!body) return;
+      const accounts = data.accounts || [];
+      body.innerHTML = accounts.map(acc => `
+        <tr>
+          <td><img src="/static/brokers/${acc.broker}.svg" style="width:24px;"> ${acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)}</td>
+          <td>${acc.client_id}</td>
+          <td>${acc.username || '-'}</td>
+          <td><span class="badge bg-success">${acc.status || 'Connected'}</span></td>
+          <td>
+            <button class="btn btn-outline-success btn-sm" onclick="alert('Reconnect coming soon')">Reconnect</button>
+          </td>
+        </tr>
+      `).join('');
+    });
 };
 </script>
 {% endblock %}
