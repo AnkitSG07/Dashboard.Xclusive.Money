@@ -326,117 +326,157 @@ window.pageScripts["copy-trading"] = function () {
 
   // TABLE AND DATA LOADERS
 
-  window.loadAccounts = function() {
-    fetch("/api/accounts")
-      .then(res => res.json())
-      .then(data => {
-        const mastersList = data.masters || [];
-        const masterBody = document.getElementById("master-table-body");
-        const childrenBody = document.getElementById("children-table-body");
-        masterBody.innerHTML = ""; // Always clear before repopulating!
-        childrenBody.innerHTML = "";
-        mastersList.forEach(master => {
-          masterBody.innerHTML += `
-            <tr>
-              <td><i class="bi bi-bank"></i> ${master.broker}</td>
-              <td>${master.client_id}</td>
-              <td>${master.username}</td>
-              <td><span class="badge bg-success">${master.status}</span></td>
-              <td>
-                <button class="btn btn-sm btn-primary" onclick="window.setAsMaster('${master.client_id}')">Set as Master</button>
-                <button class="btn btn-sm btn-info" onclick="window.toggleOrderBook('${master.client_id}')">Order Book</button>
-                <button class="btn btn-sm btn-secondary" onclick="window.toggleChildList('${master.client_id}')">View Children</button>
-              </td>
-            </tr>
-            <tr id="order-book-${master.client_id}" style="display: none;">
-              <td colspan="5">
-                <div class="p-2 bg-light rounded">
-                  <table class="table table-sm table-bordered mb-0">
-                    <thead>
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Side</th>
-                        <th>Status</th>
-                        <th>Trading Symbol</th>
-                        <th>Product Type</th>
-                        <th>Placed Quantity</th>
-                        <th>Filled Quantity</th>
-                        <th>Average Price</th>
-                        <th>Order Time</th>
-                        <th>Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody id="orders-body-${master.client_id}">
-                      <!-- Orders will be loaded dynamically -->
-                    </tbody>
-                  </table>
-                </div>
-              </td>
-            </tr>
-            <tr id="child-list-${master.client_id}" style="display: none;">
-              <td colspan="7">
-                <div class="p-2 bg-light rounded">
-                  <h6>Linked Child Accounts</h6>
-                  <table class="table table-sm table-bordered mb-0">
-                    <thead>
-                      <tr>
-                        <th>Client ID</th>
-                        <th>Username</th>
-                        <th>Status</th>
-                        <th>Copy Status</th>
-                        <th>Multiplier</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="child-rows-${master.client_id}">
-                      <!-- Filled by JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </td>
-            </tr>
-          `;
+window.loadAccounts = function() {
+  fetch("/api/accounts")
+    .then(res => res.json())
+    .then(data => {
+      const accounts = data.accounts || [];
+      const masters = accounts.filter(a => a.role === 'master');
+      const children = accounts.filter(a => a.role === 'child');
+      // Build a mapping: master_client_id => array of children
+      const masterToChildren = {};
+      masters.forEach(m => masterToChildren[m.client_id] = []);
+      children.forEach(child => {
+        if (child.linked_master_id && masterToChildren[child.linked_master_id]) {
+          masterToChildren[child.linked_master_id].push(child);
+        }
+      });
 
-          (master.children || []).forEach(child => {
-            childrenBody.innerHTML += `
+      // Master table
+      const masterBody = document.getElementById("master-table-body");
+      masterBody.innerHTML = "";
+      masters.forEach(master => {
+        masterBody.innerHTML += `
+          <tr>
+            <td><i class="bi bi-bank"></i> ${master.broker}</td>
+            <td>${master.client_id}</td>
+            <td>${master.username}</td>
+            <td><span class="badge bg-success">${master.status}</span></td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="window.setAsMaster('${master.client_id}')">Set as Master</button>
+              <button class="btn btn-sm btn-info" onclick="window.toggleOrderBook('${master.client_id}')">Order Book</button>
+              <button class="btn btn-sm btn-secondary" onclick="window.toggleChildList('${master.client_id}')">View Children</button>
+            </td>
+          </tr>
+          <tr id="order-book-${master.client_id}" style="display: none;">
+            <td colspan="5">
+              <!-- order book table here as before -->
+              <div class="p-2 bg-light rounded">
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Side</th>
+                      <th>Status</th>
+                      <th>Trading Symbol</th>
+                      <th>Product Type</th>
+                      <th>Placed Quantity</th>
+                      <th>Filled Quantity</th>
+                      <th>Average Price</th>
+                      <th>Order Time</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-body-${master.client_id}"></tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          <tr id="child-list-${master.client_id}" style="display: none;">
+            <td colspan="7">
+              <div class="p-2 bg-light rounded">
+                <h6>Linked Child Accounts</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Client ID</th>
+                      <th>Username</th>
+                      <th>Status</th>
+                      <th>Copy Status</th>
+                      <th>Multiplier</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="child-rows-${master.client_id}">
+                    <!-- Filled by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      // Child table (list all children, grouped by their master in table column)
+      const childrenBody = document.getElementById("children-table-body");
+      childrenBody.innerHTML = "";
+      children.forEach(child => {
+        // Find the master for this child
+        const master = masters.find(m => m.client_id === child.linked_master_id) || {};
+        childrenBody.innerHTML += `
+          <tr>
+            <td><i class="bi bi-bank"></i> ${child.broker}</td>
+            <td>${master.username || "-"}</td>
+            <td>${child.client_id}</td>
+            <td>${child.username}</td>
+            <td><span class="badge bg-success">${child.status}</span></td>
+            <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || "-"}</span></td>
+            <td>
+              <div class="input-group input-group-sm">
+                <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
+                <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${child.client_id}')">Save</button>
+              </div>
+            </td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                  Actions
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="window.startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.removeChild('${child.client_id}')">Remove</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.openChangeMaster('${child.client_id}')">Change Master</a></li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      // If you have any code to enable dropdowns
+      if (window.enableDropdowns) window.enableDropdowns();
+
+      // (Optional) -- To load children under each master in View Children
+      masters.forEach(master => {
+        const kids = masterToChildren[master.client_id] || [];
+        const tbody = document.getElementById(`child-rows-${master.client_id}`);
+        if (tbody) {
+          if (kids.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6">No child accounts linked.</td></tr>`;
+          } else {
+            tbody.innerHTML = kids.map(child => `
               <tr>
-                <td><i class="bi bi-bank"></i> ${child.broker}</td>
-                <td>${master.username}</td>
                 <td>${child.client_id}</td>
                 <td>${child.username}</td>
                 <td><span class="badge bg-success">${child.status}</span></td>
-                <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status}</span></td>
+                <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || '-'}</span></td>
+                <td>${child.multiplier || 1}</td>
                 <td>
-                  <div class="input-group input-group-sm">
-                    <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
-                    <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${child.client_id}')">Save</button>
-                  </div>
-                </td>
-                <td>
-                  <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                      Actions
-                    </button>
-                    <ul class="dropdown-menu">
-                      <li><a class="dropdown-item" href="#" onclick="window.startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
-                      <li><a class="dropdown-item" href="#" onclick="window.stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
-                      <li><a class="dropdown-item" href="#" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
-                      <li><a class="dropdown-item" href="#" onclick="window.removeChild('${child.client_id}')">Remove</a></li>
-                      <li><a class="dropdown-item" href="#" onclick="window.openChangeMaster('${child.client_id}')">Change Master</a></li>
-                    </ul>
-                  </div>
+                  <button class="btn btn-sm btn-danger" onclick="window.removeChild('${child.client_id}')">Remove</button>
                 </td>
               </tr>
-            `;
-          });
-        });
-        if (window.enableDropdowns) enableDropdowns();
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Failed to load accounts.");
+            `).join('');
+          }
+        }
       });
-  };
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to load accounts.");
+    });
+};
 
   window.toggleChildList = function(clientId) {
     const row = document.getElementById(`child-list-${clientId}`);
