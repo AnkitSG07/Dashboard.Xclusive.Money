@@ -730,33 +730,47 @@ def change_master():
     new_master_id = data.get("new_master_id")
     if not child_id or not new_master_id:
         return jsonify({"error": "Missing child_id or new_master_id"}), 400
-
-    try:
+    if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+            db = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+    found = None
+    for acc in db["accounts"]:
+        if acc["client_id"] == child_id:
+            acc["linked_master_id"] = new_master_id
+            found = acc
+    if not found:
+        return jsonify({"error": "Child not found."}), 404
+    with open("accounts.json", "w") as f:
+        json.dump(db, f, indent=2)
+    return jsonify({"message": f"Child {child_id} now linked to master {new_master_id}."}), 200
 
-        child, old_master = find_account_by_client_id(accounts, child_id)
-        if not child or not old_master:
-            return jsonify({"error": "Child not found"}), 404
+@app.route('/api/remove-child', methods=['POST'])
+def remove_child():
+    data = request.json
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            db = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+    found = None
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id and acc.get("role") == "child":
+            acc["role"] = None
+            acc["linked_master_id"] = None
+            acc["copy_status"] = "Off"
+            acc["multiplier"] = 1
+            found = acc
+    if not found:
+        return jsonify({"error": "Child not found."}), 404
+    with open("accounts.json", "w") as f:
+        json.dump(db, f, indent=2)
+    return jsonify({"message": f"Child {client_id} removed from master."}), 200
 
-        # Remove from old master
-        old_master["children"] = [c for c in old_master.get("children", []) if c["client_id"] != child_id]
-
-        # Add to new master
-        new_master, _ = find_account_by_client_id(accounts, new_master_id)
-        if not new_master:
-            return jsonify({"error": "New master not found"}), 404
-        if "children" not in new_master:
-            new_master["children"] = []
-        new_master["children"].append(child)
-
-        with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
-
-        return jsonify({"message": f"✅ Child {child_id} moved to new master {new_master_id}"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # PATCH for /api/update-multiplier
 @app.route('/api/update-multiplier', methods=['POST'])
@@ -764,30 +778,28 @@ def update_multiplier():
     data = request.json
     client_id = data.get("client_id")
     new_multiplier = data.get("multiplier")
-
     if not client_id or new_multiplier is None:
         return jsonify({"error": "Missing required fields"}), 400
-
     try:
         new_multiplier = float(new_multiplier)
         if new_multiplier < 0.1:
             return jsonify({"error": "Multiplier must be at least 0.1"}), 400
     except ValueError:
         return jsonify({"error": "Invalid multiplier format"}), 400
-
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+            db = json.load(f)
     else:
         return jsonify({"error": "No accounts found"}), 400
-
-    child, _ = find_account_by_client_id(accounts, client_id)
-    if not child:
+    found = None
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id:
+            acc["multiplier"] = new_multiplier
+            found = acc
+    if not found:
         return jsonify({"error": "Child account not found"}), 404
-
-    child["multiplier"] = new_multiplier
     with open("accounts.json", "w") as f:
-        json.dump(accounts, f, indent=2)
+        json.dump(db, f, indent=2)
     return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
 
 
@@ -798,106 +810,59 @@ def market_watch():
 @app.route('/api/add-account', methods=['POST'])
 def add_account():
     data = request.json
-    client_id = data.get("client_id")
-    username = data.get("username")
-    broker = data.get("broker")
-    role = data.get("role")
-    multiplier = data.get("multiplier")
-    linked_master_id = data.get("linked_master_id")
-    access_token = data.get("access_token")
-    # ... collect other credentials as needed
-
-    # Load or create accounts.json with "masters"
+    broker = data.get('broker')
+    client_id = data.get('client_id')
+    username = data.get('username')
+    credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id', 'username')}
+    if not broker or not client_id or not username:
+        return jsonify({'error': 'Missing broker, client_id or username'}), 400
+    # Load DB
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+            db = json.load(f)
     else:
-        accounts = {"masters": []}
-
-    if role == "master":
-        # Add as a new master
-        accounts["masters"].append({
-            "broker": broker,
-            "client_id": client_id,
-            "username": username,
-            "status": "Connected",
-            "credentials": {"access_token": access_token},
-            "children": []
-        })
-    elif role == "child":
-        # Link to existing master
-        found = None
-        for master in accounts["masters"]:
-            if master["client_id"] == linked_master_id:
-                found = master
-                break
-        if not found:
-            return jsonify({"error": "Master not found for linking child"}), 400
-        found["children"].append({
-            "broker": broker,
-            "client_id": client_id,
-            "username": username,
-            "status": "Connected",
-            "credentials": {"access_token": access_token},
-            "copy_status": "Off",
-            "multiplier": float(multiplier or 1)
-        })
-    else:
-        return jsonify({"error": "Invalid role"}), 400
-
+        db = {"accounts": []}
+    # Check duplicate
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id and acc["broker"] == broker:
+            return jsonify({'error': 'Account already exists'}), 400
+    db["accounts"].append({
+        "broker": broker,
+        "client_id": client_id,
+        "username": username,
+        "credentials": credentials,
+        "status": "Connected",
+        "auto_login": True,
+        "last_login": datetime.now().isoformat(),
+        "role": None,
+        "linked_master_id": None,
+        "multiplier": 1,
+        "copy_status": "Off"
+    })
     with open("accounts.json", "w") as f:
-        json.dump(accounts, f, indent=2)
+        json.dump(db, f, indent=2)
+    return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
 
-    return jsonify({"message": f"✅ Account {username} ({role}) added."}), 200
 
-# Get all trading accounts (sample data for now)
 @app.route('/api/accounts')
 def get_accounts():
-    try:
-        if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
-        else:
-            accounts = {"masters": []}
-
-        # Don't leak tokens! Mask credentials (remove or mask tokens)
-        def mask_creds(credentials):
-            # Only keep non-sensitive fields (or mask sensitive)
-            # Example: Only show api_key partially
-            result = {}
-            for k, v in credentials.items():
-                if 'token' in k or 'secret' in k:
-                    result[k] = '****'
-                elif 'api_key' in k:
-                    result[k] = v[:4] + '****' if len(v) > 4 else '****'
-                else:
-                    result[k] = v
-            return result
-
-        formatted = []
-        for master in accounts.get("masters", []):
-            formatted.append({
-                "role": "master",
-                "broker": master.get("broker"),
-                "client_id": master.get("client_id"),
-                "username": master.get("username"),
-                "status": master.get("status"),
-                "credentials": mask_creds(master.get("credentials", {})),
-                "children": [
-                    {
-                        "broker": child.get("broker"),
-                        "client_id": child.get("client_id"),
-                        "username": child.get("username"),
-                        "status": child.get("status"),
-                        "credentials": mask_creds(child.get("credentials", {})),
-                        "copy_status": child.get("copy_status"),
-                        "multiplier": child.get("multiplier")
-                    }
-                    for child in master.get("children", [])
-                ]
-            })
-
-        return jsonify({"masters": formatted}), 200
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            db = json.load(f)
+    else:
+        db = {"accounts": []}
+    masters = []
+    for acc in db["accounts"]:
+        if acc.get("role") == "master":
+            # Attach children to each master
+            children = [child for child in db["accounts"] if child.get("role") == "child" and child.get("linked_master_id") == acc["client_id"]]
+            acc_copy = dict(acc)
+            acc_copy["children"] = children
+            masters.append(acc_copy)
+    return jsonify({
+        "masters": masters,
+        "accounts": db["accounts"]  # for UI use
+    })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -907,35 +872,25 @@ def get_accounts():
 def set_master():
     data = request.json
     client_id = data.get("client_id")
-
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
-
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+            db = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
-
     found = None
-    for master in accounts.get("masters", []):
-        if master["client_id"] == client_id:
-            found = master
-            break
-        for child in master.get("children", []):
-            if child["client_id"] == client_id:
-                found = child
-                break
-
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id:
+            acc["role"] = "master"
+            acc["linked_master_id"] = None
+            found = acc
+        elif acc.get("role") == "master" and acc["client_id"] != client_id:
+            acc["role"] = None  # Only one master at a time
     if not found:
-        return jsonify({"error": f"Client ID {client_id} not found in accounts."}), 404
-
-    # Store entire account as master (can be master or child)
-    accounts["master"] = found
-
+        return jsonify({"error": "Client ID not found."}), 404
     with open("accounts.json", "w") as f:
-        json.dump(accounts, f, indent=2)
-
+        json.dump(db, f, indent=2)
     return jsonify({'message': f"✅ Set {client_id} as master successfully."})
 
 
@@ -946,29 +901,25 @@ def start_copy():
     data = request.json
     client_id = data.get("client_id")
     master_id = data.get("master_id")
-
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
-
-    try:
-        if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
-        else:
-            return jsonify({"error": "No accounts file found"}), 500
-
-        child, master = find_account_by_client_id(accounts, client_id)
-        if not child or not master or master.get("client_id") != master_id:
-            return jsonify({"error": "❌ Child account or master not found."}), 404
-
-        child["copy_status"] = "On"
-
-        with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
-        return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            db = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+    found = None
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id:
+            acc["role"] = "child"
+            acc["linked_master_id"] = master_id
+            acc["copy_status"] = "On"
+            found = acc
+    if not found:
+        return jsonify({"error": "Child account not found."}), 404
+    with open("accounts.json", "w") as f:
+        json.dump(db, f, indent=2)
+    return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."})
 
 
 @app.route('/api/stop-copy', methods=['POST'])
@@ -976,29 +927,23 @@ def stop_copy():
     data = request.json
     client_id = data.get("client_id")
     master_id = data.get("master_id")
-
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
-
-    try:
-        if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
-        else:
-            return jsonify({"error": "No accounts file found"}), 500
-
-        child, master = find_account_by_client_id(accounts, client_id)
-        if not child or not master or master.get("client_id") != master_id:
-            return jsonify({"error": "❌ Child account or master not found."}), 404
-
-        child["copy_status"] = "Off"
-
-        with open("accounts.json", "w") as f:
-            json.dump(accounts, f, indent=2)
-        return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            db = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+    found = None
+    for acc in db["accounts"]:
+        if acc["client_id"] == client_id and acc.get("linked_master_id") == master_id:
+            acc["copy_status"] = "Off"
+            found = acc
+    if not found:
+        return jsonify({"error": "Child account not found."}), 404
+    with open("accounts.json", "w") as f:
+        json.dump(db, f, indent=2)
+    return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."})
 
 
 # === Endpoint to fetch passive alert logs ===
