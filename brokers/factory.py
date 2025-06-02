@@ -1,45 +1,32 @@
 # brokers/factory.py
 
-from .base import BrokerBase
+import importlib
 
-from .zerodha import ZerodhaBroker
-from .aliceblue import AliceBlueBroker
-from .fyers import FyersBroker
-from .finvasia import FinvasiaBroker
-from .dhan import DhanBroker
-from .flattrade import FlattradeBroker
-from .acagarwal import ACAgarwalBroker
-from .motilaloswal import MotilalOswalBroker
-from .kotakneo import KotakNeoBroker
-from .tradejini import TradejiniBroker
-from .zebu import ZebuBroker
-from .enrichmoney import EnrichMoneyBroker
-from .broker1 import Broker1
-
-BROKER_CLASS_MAP = {
-    "zerodha": ZerodhaBroker,
-    "aliceblue": AliceBlueBroker,
-    "fyers": FyersBroker,
-    "finvasia": FinvasiaBroker,
-    "dhan": DhanBroker,
-    "flattrade": FlattradeBroker,
-    "acagarwal": ACAgarwalBroker,
-    "motilaloswal": MotilalOswalBroker,
-    "kotakneo": KotakNeoBroker,
-    "tradejini": TradejiniBroker,
-    "zebu": ZebuBroker,
-    "enrichmoney": EnrichMoneyBroker,
-    "broker1": Broker1,  # Custom/unlisted broker logic
-}
-
-def get_broker_instance(broker_name, client_id, access_token, **kwargs):
+def get_broker_class(broker_name):
     """
-    Factory to instantiate broker objects dynamically.
-    Example usage:
-        broker = get_broker_instance("zerodha", client_id, access_token)
+    Dynamically import and return the appropriate broker adapter class.
+    Example: get_broker_class('zerodha') -> ZerodhaBroker class
     """
-    name = str(broker_name or "").lower()
-    broker_class = BROKER_CLASS_MAP.get(name)
-    if not broker_class:
-        raise ValueError(f"Broker '{broker_name}' is not supported in this system.")
-    return broker_class(client_id, access_token, **kwargs)
+    name = broker_name.lower().replace(" ", "").replace("_", "")
+    mapping = {
+        "zerodha": "ZerodhaBroker",
+        "aliceblue": "AliceBlueBroker",
+        "fyers": "FyersBroker",
+        "finvasia": "FinvasiaBroker",
+        "dhan": "DhanBroker",
+        "flattrade": "FlattradeBroker",
+        "acagarwal": "ACAgarwalBroker",
+        "motilaloswal": "MotilalOswalBroker",
+        "kotakneo": "KotakNeoBroker",
+        "tradejini": "TradejiniBroker",
+        "zebu": "ZebuBroker",
+        "enrichmoney": "EnrichMoneyBroker",
+        "broker1": "Broker1Broker"
+    }
+    if name not in mapping:
+        raise ValueError(f"Unknown broker: {broker_name}")
+    try:
+        module = importlib.import_module(f".{name}", __package__ or "brokers")
+        return getattr(module, mapping[name])
+    except Exception as e:
+        raise ImportError(f"Failed to load broker '{broker_name}': {e}")
