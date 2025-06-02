@@ -31,9 +31,11 @@ def safe_write_json(path, data):
 def broker_api(obj):
     broker = obj.get("broker", "Unknown").lower()
     credentials = obj.get("credentials", {}).copy()
+    # Make sure client_id is passed as kwarg!
     credentials["client_id"] = obj.get("client_id")
     BrokerClass = get_broker_class(broker)
     return BrokerClass(**credentials)
+
 
 def find_account_by_client_id(accounts, client_id):
     """
