@@ -29,11 +29,9 @@ def safe_write_json(path, data):
     shutil.move(tmp.name, path)
 
 def broker_api(obj):
-    """
-    Returns a broker API instance for the given account/child/master dict.
-    """
     broker = obj.get("broker", "Unknown").lower()
-    credentials = obj.get("credentials", {})
+    credentials = obj.get("credentials", {}).copy()
+    credentials["client_id"] = obj.get("client_id")
     BrokerClass = get_broker_class(broker)
     return BrokerClass(**credentials)
 
