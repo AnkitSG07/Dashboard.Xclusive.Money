@@ -432,28 +432,11 @@ def webhook(user_id):
             )
             return jsonify({"status": "FAILED", "reason": reason}), 400
 
-        # SUCCESS
-        success_msg = response.get("remarks", "Trade placed successfully")
+        # If order was SUCCESSFUL, trigger instant copying for all children!
         poll_and_copy_trades()
+
+        success_msg = response.get("remarks", "Trade placed successfully")
         return jsonify({"status": "SUCCESS", "result": str(success_msg)}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/child-orders', methods=['GET'])
-def get_child_orders():
-    master_order_id = request.args.get("master_order_id")
-
-    if not master_order_id:
-        return jsonify({"error": "Missing master_order_id"}), 400
-
-    try:
-        with open("order_mappings.json", "r") as f:
-            mappings = json.load(f)
-
-        child_rows = [m for m in mappings if m["master_order_id"] == master_order_id]
-
-        return jsonify(child_rows), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
