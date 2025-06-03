@@ -1,79 +1,117 @@
 # brokers/aliceblue.py
 
 import requests
+import pyotp
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
-    # Constants for Alice Blue
-    EXCHANGE = "NSE"       # or "BSE", "MCX"
-    PRODUCT = "MIS"        # "CNC" for delivery, "MIS" for intraday
-    ORDER_TYPE = "MARKET"  # "LIMIT" or "MARKET"
-    BUY = "BUY"
-    SELL = "SELL"
+    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
+    
+    def __init__(self, client_id, password, totp_secret, **kwargs):
+        super().__init__(client_id, password, totp_secret=totp_secret, **kwargs)
+        self.client_id = client_id
+        self.password = password
+        self.totp_secret = totp_secret
+        self.session_id = None
 
-    def __init__(self, client_id, access_token, **kwargs):
-        super().__init__(client_id, access_token, **kwargs)
-        self.base_url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api"
-        self.headers = {
-            "Authorization": f"Bearer {access_token}",
+    def _get_totp(self):
+        return pyotp.TOTP(self.totp_secret).now()
+
+    def login(self):
+        """Obtain session ID using client_id, password, and TOTP code."""
+        url = self.BASE_URL + "customer/login"
+        totp_code = self._get_totp()
+        data = {
+            "userId": self.client_id,
+            "userData": self.password,
+            "totp": totp_code
+        }
+        resp = requests.post(url, json=data, timeout=10)
+        r = resp.json()
+        if r.get("stat") != "Ok" or "sessionID" not in r:
+            raise Exception(f"AliceBlue login failed: {r.get('emsg') or r}")
+        self.session_id = r["sessionID"]
+        return self.session_id
+
+    def _headers(self):
+        # Login if needed
+        if not self.session_id:
+            self.login()
+        # The header format: Authorization: Bearer <userId> <sessionID>
+        return {
+            "Authorization": f"Bearer {self.client_id} {self.session_id}",
             "Content-Type": "application/json"
         }
 
-    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY",
-                    quantity=1, order_type="MARKET", product="MIS", price=0, **extra):
-        payload = {
-            "com_id": tradingsymbol,               # symbol e.g. "RELIANCE-EQ"
-            "exch": exchange,                      # "NSE", "BSE", "MCX"
-            "transtype": transaction_type,         # "BUY"/"SELL"
-            "qty": int(quantity),
-            "prctyp": order_type,                  # "MARKET"/"LIMIT"
-            "prc": float(price) if price else 0,
-            "prd": product                        # "MIS"/"CNC"
+    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1, order_type="MARKET", product="MIS", price=None, **kwargs):
+        url = self.BASE_URL + "placeOrder"
+        data = {
+            "symbol": tradingsymbol,
+            "exchange": exchange,
+            "transaction_type": transaction_type,  # "BUY" or "SELL"
+            "quantity": int(quantity),
+            "order_type": order_type,              # "MARKET" or "LIMIT"
+            "product_type": product,               # "MIS", "CNC", etc.
+            "price": float(price) if price else 0
         }
-        r = requests.post(f"{self.base_url}/placeOrder", json=payload, headers=self.headers, timeout=10)
+        # AliceBlue API might expect slightly different keys—update if needed as per latest docs.
+        resp = requests.post(url, json=data, headers=self._headers(), timeout=10)
         try:
-            resp = r.json()
+            r = resp.json()
         except Exception:
-            resp = {"status": "failure", "error": r.text}
-        # Alice Blue returns {"stat": "Ok", "norenordno": "..."} on success
-        if resp.get("stat", "").upper() == "OK":
-            return {"status": "success", "order_id": resp.get("norenordno"), **resp}
-        return {"status": "failure", **resp}
+            return {"status": "failure", "error": resp.text}
+        if r.get("stat") == "Ok" and r.get("NOrdNo"):
+            return {"status": "success", "order_id": r["NOrdNo"], **r}
+        return {"status": "failure", **r}
 
     def get_order_list(self):
-        # Gets all orders for the day
-        r = requests.get(f"{self.base_url}/orderBook", headers=self.headers, timeout=10)
+        url = self.BASE_URL + "orderBook"
+        resp = requests.get(url, headers=self._headers(), timeout=10)
         try:
-            data = r.json()
+            data = resp.json()
         except Exception:
-            return {"status": "failure", "error": r.text}
-        if isinstance(data, dict) and "orders" in data:
-            return {"status": "success", "orders": data["orders"]}
-        # Sometimes it's a list
-        if isinstance(data, list):
-            return {"status": "success", "orders": data}
-        return {"status": "failure", "error": data}
+            return {"status": "failure", "error": resp.text}
+        # AliceBlue returns list of orders in "orders" key or directly as list
+        return {"status": "success", "orders": data.get("OrderBook", data)}
 
     def cancel_order(self, order_id):
-        payload = {"norenordno": order_id}
-        r = requests.post(f"{self.base_url}/cancelOrder", json=payload, headers=self.headers, timeout=10)
+        url = self.BASE_URL + "cancelOrder"
+        data = {"NOrdNo": order_id}
+        resp = requests.post(url, json=data, headers=self._headers(), timeout=10)
         try:
-            resp = r.json()
+            r = resp.json()
         except Exception:
-            resp = {"status": "failure", "error": r.text}
-        if resp.get("stat", "").upper() == "OK":
-            return {"status": "success", **resp}
-        return {"status": "failure", **resp}
+            return {"status": "failure", "error": resp.text}
+        if r.get("stat") == "Ok":
+            return {"status": "success", **r}
+        return {"status": "failure", **r}
 
     def get_positions(self):
-        r = requests.get(f"{self.base_url}/positionBook", headers=self.headers, timeout=10)
+        url = self.BASE_URL + "positions"
+        resp = requests.get(url, headers=self._headers(), timeout=10)
         try:
-            data = r.json()
+            data = resp.json()
         except Exception:
-            return {"status": "failure", "error": r.text}
-        if isinstance(data, list):
-            return {"status": "success", "positions": data}
-        return {"status": "failure", "error": data}
+            return {"status": "failure", "error": resp.text}
+        return {"status": "success", "positions": data.get("Positions", data)}
 
-    # ... Implement more endpoints as needed ...
+    def get_fund_limits(self):
+        url = self.BASE_URL + "limits"
+        resp = requests.get(url, headers=self._headers(), timeout=10)
+        try:
+            data = resp.json()
+        except Exception:
+            return {"status": "failure", "error": resp.text}
+        return {"status": "success", "data": data}
 
+# Factory support:
+# In your accounts.json, store:
+# {
+#   "broker": "aliceblue",
+#   "client_id": "AB12345",
+#   "credentials": {
+#       "password": "yourpassword",
+#       "totp_secret": "32CHARS"
+#   }
+# }
+# Factory: get_broker_class("aliceblue")(client_id, password, totp_secret)
