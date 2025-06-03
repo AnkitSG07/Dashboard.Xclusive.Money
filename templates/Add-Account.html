@@ -115,6 +115,16 @@ window.pageScripts["Add-Account"] = function() {
       { label: "App Secret", name: "app_secret", type: "password" },
       { label: "Access Token", name: "access_token", type: "password" }
     ],
+    finvasia: [
+      { label: "Finvasia Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "Vendor Code", name: "vendor_code", type: "text" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "IMEI", name: "imei", type: "text" },
+      { label: "TOTP Key", name: "totp_key", type: "text" },
+      { label: "Access Token (optional: if logged in somewhere else)", name: "access_token", type: "text" }
+    ]
+
     // Add more brokers here as needed
   };
 
