@@ -306,12 +306,13 @@ scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
 scheduler.start()
 print("✅ Background copy trader scheduler is running...")
 
-def get_broker_class(broker_name):
-    if broker_name.lower() == "dhan":
-        from brokers.dhan import DhanBroker   # ✅
-        return DhanBroker
-    # ... other brokers as needed
-    raise Exception(f"Unsupported broker: {broker_name}")
+def place_order(self, tradingsymbol=None, security_id=None, ...):
+    if not security_id and tradingsymbol:
+        # Here you import or access the SYMBOL_MAP from your backend
+        from app import SYMBOL_MAP  # or wherever it lives
+        security_id = SYMBOL_MAP.get(tradingsymbol.upper())
+        if not security_id:
+            raise Exception(f"Unknown tradingsymbol: {tradingsymbol}")
 
 
 
