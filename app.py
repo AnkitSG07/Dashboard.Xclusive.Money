@@ -245,7 +245,7 @@ def poll_and_copy_trades():
                             quantity=copied_qty,
                             order_type=order_type,
                             product=product_type,
-                            price=price if order_type == "LIMIT" else None
+                            price=price or 0  # Always pass price, even if 0 for MARKET
                         )
                         if isinstance(response, dict) and response.get("status") == "failure":
                             error_msg = response.get("error") or response.get("remarks") or "Unknown error"
