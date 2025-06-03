@@ -5,20 +5,41 @@ try:
 except ImportError:
     SmartConnect = None
 
+
 class FinvasiaBroker(BrokerBase):
-    def __init__(self, client_id, access_token, api_key=None, **kwargs):
+    def __init__(self, client_id, password=None, vendor_code=None, api_key=None,
+                 imei=None, totp_key=None, access_token=None, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
         if SmartConnect is None:
             raise ImportError("SmartApi not installed")
-        self.api = SmartConnect(api_key=api_key)
-        self.api.generateSession(client_id, access_token)
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MARKET", product="INTRADAY", price=None):
+        self.api_key = api_key
+        self.api = SmartConnect(api_key=api_key)
+
+        # Case 1: Use access token if provided
+        if access_token:
+            self.api.setAccessToken(access_token)
+            self.access_token = access_token
+        # Case 2: Perform full login with password, TOTP, etc.
+        elif all([password, vendor_code, totp_key]):
+            session = self.api.generateSession(
+                client_id=client_id,
+                password=password,
+                totp=totp_key,
+                vendor_code=vendor_code,
+                imei=imei or "web-client-01"
+            )
+            self.access_token = session["data"]["access_token"]
+        else:
+            raise ValueError("Insufficient login credentials provided for Finvasia.")
+
+    def place_order(self, tradingsymbol, exchange, transaction_type, quantity,
+                    order_type="MARKET", product="INTRADAY", price=None):
         try:
             data = {
                 "variety": "NORMAL",
                 "tradingsymbol": tradingsymbol,
-                "symboltoken": "",  # You will need symbol-token mapping
+                "symboltoken": "",  # You will need to handle token lookup
                 "transactiontype": transaction_type.upper(),
                 "exchange": exchange.upper(),
                 "ordertype": order_type.upper(),
@@ -54,7 +75,6 @@ class FinvasiaBroker(BrokerBase):
             return {"status": "failure", "error": str(e)}
 
     def get_profile(self):
-        # Finvasia does not provide user profile in SmartAPI; you can mock this
         return {"status": "success", "data": {"client_id": self.client_id}}
 
     def check_token_valid(self):
