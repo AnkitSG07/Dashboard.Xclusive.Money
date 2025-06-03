@@ -17,8 +17,33 @@ class DhanBroker(BrokerBase):
             "access-token": access_token,
             "Content-Type": "application/json"
         }
+        # self.symbol_map is already initialized by base class
 
-    def place_order(self, security_id, exchange_segment, transaction_type, quantity, order_type, product_type, price=0, **extra):
+    def place_order(
+        self,
+        tradingsymbol=None,
+        security_id=None,
+        exchange_segment=None,
+        transaction_type=None,
+        quantity=None,
+        order_type="MARKET",
+        product_type="INTRADAY",
+        price=0,
+        **extra
+    ):
+        # --- Symbol mapping ---
+        if not security_id:
+            if tradingsymbol and self.symbol_map:
+                security_id = self.symbol_map.get(tradingsymbol.upper())
+            if not security_id:
+                raise Exception(f"DhanBroker: 'security_id' required (tradingsymbol={tradingsymbol})")
+
+        if not exchange_segment:
+            exchange_segment = self.NSE
+
+        if not product_type:
+            product_type = self.INTRA
+
         payload = {
             "dhanClientId": self.client_id,
             "securityId": security_id,
@@ -32,7 +57,7 @@ class DhanBroker(BrokerBase):
             "triggerPrice": "",
             "afterMarketOrder": False,
         }
-        # Optionally handle disclosedQuantity, boProfitValue, boStopLossValue, etc.
+
         r = requests.post(f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -57,7 +82,5 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": r.text}
 
     def get_positions(self):
-        # Implement as per Dhan docs (usually /positions endpoint)
+        # Not implemented yet
         return {"status": "failure", "error": "Not Implemented"}
-
-    # ... Implement other methods as required ...
