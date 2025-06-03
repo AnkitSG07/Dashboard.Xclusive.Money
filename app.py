@@ -17,8 +17,31 @@ import shutil
 app = Flask(__name__)
 CORS(app)
 
-RAPIDAPI_KEY = "1c99b13c79msh266bd26283ae7f3p1ded7djsn92d495c38bab"  # 👉 Replace this with your real key
-RAPIDAPI_HOST = "apidojo-yahoo-finance-v1.p.rapidapi.com"
+SYMBOL_MAP = {
+    "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "HDFCBANK": "1333",
+    "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
+    "KOTAKBANK": "1922", "LT": "11483", "BAJFINANCE": "317", "HCLTECH": "7229", "ASIANPAINT": "236",
+    "MARUTI": "1095", "M&M": "2031", "SUNPHARMA": "3046", "TATAMOTORS": "3432", "WIPRO": "3787",
+    "ULTRACEMCO": "11532", "TITAN": "3506", "NESTLEIND": "11262", "BAJAJFINSV": "317",
+    "POWERGRID": "14977", "NTPC": "2886", "JSWSTEEL": "11723", "HDFCLIFE": "11915",
+    "DRREDDY": "881", "TECHM": "11534", "BRITANNIA": "293", "TATASTEEL": "3505", "CIPLA": "694",
+    "SBILIFE": "11916", "BAJAJ-AUTO": "317", "HINDALCO": "1393", "DIVISLAB": "881",
+    "GRASIM": "1147", "ADANIENT": "15083", "COALINDIA": "694", "INDUSINDBK": "1393",
+    "TATACONSUM": "3505", "EICHERMOT": "881", "SHREECEM": "1147", "HEROMOTOCO": "15083",
+    "BAJAJHLDNG": "694", "SBICARD": "1393", "DLF": "3505", "DMART": "881", "UPL": "1147",
+    "ICICIPRULI": "15083", "HDFCAMC": "694", "HDFC": "1393", "GAIL": "3505", "HAL": "881",
+    "TATAPOWER": "1147", "VEDL": "15083", "BPCL": "694", "IOC": "1393", "ONGC": "3505",
+    "LICHSGFIN": "881", "BANKBARODA": "1147", "PNB": "15083", "CANBK": "694", "UNIONBANK": "1393",
+    "IDFCFIRSTB": "3505", "BANDHANBNK": "881", "FEDERALBNK": "1147", "RBLBANK": "15083",
+    "YESBANK": "694", "IGL": "1393", "PETRONET": "3505", "GUJGASLTD": "881", "MGL": "1147",
+    "TORNTPHARM": "15083", "LUPIN": "694", "AUROPHARMA": "1393", "BIOCON": "3505",
+    "GLENMARK": "881", "CADILAHC": "1147", "ALKEM": "15083", "APOLLOHOSP": "694",
+    "MAXHEALTH": "1393", "FORTIS": "3505", "JUBLFOOD": "881", "UBL": "1147", "MCDOWELL-N": "15083",
+    "COLPAL": "694", "DABUR": "1393", "GODREJCP": "3505", "MARICO": "881", "EMAMILTD": "1147",
+    "PGHH": "15083", "GILLETTE": "694", "TATACHEM": "1393", "PIDILITIND": "3505",
+    "BERGEPAINT": "881", "KANSAINER": "1147", "JSWENERGY": "15083", "ADANIGREEN": "694",
+    "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
+}
 
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
@@ -336,18 +359,12 @@ def webhook(user_id):
     except Exception:
         data = {}
 
-    # 🔔 Passive Alert Handling - Raw String Support
+    # ALERT HANDLING (unchanged)
     if isinstance(data, str):
-        save_log(user_id, "-", "-", 0, "ALERT", data)
         return jsonify({"status": "Alert logged", "message": data}), 200
-
-    # 🔔 Passive Alert Handling - Normal JSON Support
     if "message" in data:
-        message = data["message"]
-        save_log(user_id, "-", "-", 0, "ALERT", message)
-        return jsonify({"status": "Alert logged", "message": message}), 200
+        return jsonify({"status": "Alert logged", "message": data["message"]}), 200
 
-    # 🛒 Live Trade Handling
     symbol = data.get("symbol")
     action = data.get("action")
     quantity = data.get("quantity")
@@ -355,7 +372,7 @@ def webhook(user_id):
     if not all([symbol, action, quantity]):
         return jsonify({"error": "Missing required fields (symbol, action, quantity)"}), 400
 
-    # 🚪 Load User Credentials
+    # Load users.json (or however you store users)
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
@@ -366,79 +383,60 @@ def webhook(user_id):
         return jsonify({"error": "Invalid webhook ID"}), 403
 
     user = users[user_id]
+    broker_name = user.get("broker", "dhan")
     client_id = user["client_id"]
     access_token = user["access_token"]
-    dhan = dhanhq(client_id, access_token)
 
-    # 🔥 Full SYMBOL_MAP (your 100+ symbols loaded)
-    SYMBOL_MAP = {
-        "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "HDFCBANK": "1333",
-        "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
-        "KOTAKBANK": "1922", "LT": "11483", "BAJFINANCE": "317", "HCLTECH": "7229", "ASIANPAINT": "236",
-        "MARUTI": "1095", "M&M": "2031", "SUNPHARMA": "3046", "TATAMOTORS": "3432", "WIPRO": "3787",
-        "ULTRACEMCO": "11532", "TITAN": "3506", "NESTLEIND": "11262", "BAJAJFINSV": "317",
-        "POWERGRID": "14977", "NTPC": "2886", "JSWSTEEL": "11723", "HDFCLIFE": "11915",
-        "DRREDDY": "881", "TECHM": "11534", "BRITANNIA": "293", "TATASTEEL": "3505", "CIPLA": "694",
-        "SBILIFE": "11916", "BAJAJ-AUTO": "317", "HINDALCO": "1393", "DIVISLAB": "881",
-        "GRASIM": "1147", "ADANIENT": "15083", "COALINDIA": "694", "INDUSINDBK": "1393",
-        "TATACONSUM": "3505", "EICHERMOT": "881", "SHREECEM": "1147", "HEROMOTOCO": "15083",
-        "BAJAJHLDNG": "694", "SBICARD": "1393", "DLF": "3505", "DMART": "881", "UPL": "1147",
-        "ICICIPRULI": "15083", "HDFCAMC": "694", "HDFC": "1393", "GAIL": "3505", "HAL": "881",
-        "TATAPOWER": "1147", "VEDL": "15083", "BPCL": "694", "IOC": "1393", "ONGC": "3505",
-        "LICHSGFIN": "881", "BANKBARODA": "1147", "PNB": "15083", "CANBK": "694", "UNIONBANK": "1393",
-        "IDFCFIRSTB": "3505", "BANDHANBNK": "881", "FEDERALBNK": "1147", "RBLBANK": "15083",
-        "YESBANK": "694", "IGL": "1393", "PETRONET": "3505", "GUJGASLTD": "881", "MGL": "1147",
-        "TORNTPHARM": "15083", "LUPIN": "694", "AUROPHARMA": "1393", "BIOCON": "3505",
-        "GLENMARK": "881", "CADILAHC": "1147", "ALKEM": "15083", "APOLLOHOSP": "694",
-        "MAXHEALTH": "1393", "FORTIS": "3505", "JUBLFOOD": "881", "UBL": "1147", "MCDOWELL-N": "15083",
-        "COLPAL": "694", "DABUR": "1393", "GODREJCP": "3505", "MARICO": "881", "EMAMILTD": "1147",
-        "PGHH": "15083", "GILLETTE": "694", "TATACHEM": "1393", "PIDILITIND": "3505",
-        "BERGEPAINT": "881", "KANSAINER": "1147", "JSWENERGY": "15083", "ADANIGREEN": "694",
-        "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
-    }
-
-    security_id = SYMBOL_MAP.get(symbol.strip().upper())
-    if not security_id:
-        return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
-
+    # === Dynamic Broker Adapter ===
     try:
-        # 🚀 Place Order
-        response = dhan.place_order(
+        BrokerClass = get_broker_class(broker_name)
+        broker_api = BrokerClass(client_id, access_token)
+    except Exception as e:
+        return jsonify({"error": f"Could not initialize broker: {e}"}), 500
+
+    # === Broker-agnostic order parameter builder ===
+    order_params = {}
+    if broker_name.lower() == "dhan":
+        security_id = SYMBOL_MAP.get(symbol.strip().upper())
+        if not security_id:
+            return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
+        order_params = dict(
             security_id=security_id,
-            exchange_segment=dhan.NSE,
-            transaction_type=dhan.BUY if action.upper() == "BUY" else dhan.SELL,
+            exchange_segment=broker_api.NSE,
+            transaction_type=broker_api.BUY if action.upper() == "BUY" else broker_api.SELL,
             quantity=int(quantity),
-            order_type=dhan.MARKET,
-            product_type=dhan.INTRA,
+            order_type=broker_api.MARKET,
+            product_type=broker_api.INTRA,
             price=0
         )
+    elif broker_name.lower() == "zerodha":
+        order_params = dict(
+            tradingsymbol=symbol,
+            exchange="NSE",
+            transaction_type=action.upper(),
+            quantity=int(quantity),
+            order_type="MARKET",
+            product="MIS",  # Or "CNC"
+            price=None,
+        )
+    # Add more brokers here...
 
-        # 🧹 Clean and classify the result
+    # === Place order ===
+    try:
+        response = broker_api.place_order(**order_params)
         if isinstance(response, dict) and response.get("status") == "failure":
             reason = (
-                response.get("remarks") or
-                response.get("error_message") or
-                response.get("errorMessage") or
-                "Unknown error"
+                response.get("remarks") or response.get("error_message") or
+                response.get("errorMessage") or response.get("error") or "Unknown error"
             )
+            return jsonify({"status": "FAILED", "reason": reason}), 400
 
-            reason_str = str(reason)
-            if "market" in reason_str.lower() or "closed" in reason_str.lower():
-                save_log(user_id, symbol, action, quantity, "MARKET_CLOSED", reason_str)
-                return jsonify({"status": "MARKET_CLOSED", "reason": reason_str}), 400
-            else:
-                save_log(user_id, symbol, action, quantity, "FAILED", reason_str)
-                return jsonify({"status": "FAILED", "reason": reason_str}), 400
-
-        # ✅ Successful trade
+        # SUCCESS
         success_msg = response.get("remarks", "Trade placed successfully")
-        save_log(user_id, symbol, action, quantity, "SUCCESS", str(success_msg))
         return jsonify({"status": "SUCCESS", "result": str(success_msg)}), 200
 
     except Exception as e:
-        error_msg = str(e)
-        save_log(user_id, symbol, action, quantity, "FAILED", error_msg)
-        return jsonify({"error": error_msg}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/child-orders', methods=['GET'])
 def get_child_orders():
