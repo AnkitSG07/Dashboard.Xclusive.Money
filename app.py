@@ -308,10 +308,11 @@ print("✅ Background copy trader scheduler is running...")
 
 def get_broker_class(broker_name):
     if broker_name.lower() == "dhan":
-        from brokers.dhan import DhanApi
-        return DhanApi
+        from brokers.dhan import DhanBroker   # ✅
+        return DhanBroker
     # ... other brokers as needed
     raise Exception(f"Unsupported broker: {broker_name}")
+
 
 
 # --- Order Book Endpoint ---
