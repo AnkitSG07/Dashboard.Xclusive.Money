@@ -800,10 +800,10 @@ input#symbol-selector:focus,
 15
 
 .broker-icon.broker-card {
-    width: 64px;
-    height: 64px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
-    border-radius: 16px;
+    border-radius: 10px;
     background: #fff;
     padding: 10px;
     box-shadow: 0 2px 8px rgba(80,80,80,0.07);
