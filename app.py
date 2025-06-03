@@ -309,7 +309,6 @@ print("✅ Background copy trader scheduler is running...")
 def place_order(self, tradingsymbol=None, security_id=None, **kwargs):
     # kwargs can include exchange_segment, transaction_type, quantity, order_type, product_type, price, etc.
     if not security_id and tradingsymbol:
-        from app import SYMBOL_MAP  # or wherever it lives
         security_id = SYMBOL_MAP.get(tradingsymbol.upper())
         if not security_id:
             raise Exception(f"Unknown tradingsymbol: {tradingsymbol}")
