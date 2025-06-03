@@ -435,6 +435,7 @@ def webhook(user_id):
 
         # SUCCESS
         success_msg = response.get("remarks", "Trade placed successfully")
+        poll_and_copy_trades()
         return jsonify({"status": "SUCCESS", "result": str(success_msg)}), 200
 
     except Exception as e:
