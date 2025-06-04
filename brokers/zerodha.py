@@ -3,6 +3,7 @@
 
 import requests
 import pyotp
+import time
 
 from .base import BrokerBase
 
@@ -30,12 +31,15 @@ class ZerodhaBroker(BrokerBase):
         self.totp_secret = totp_secret
 
         self.kite = KiteConnect(api_key=api_key)
+        self.token_time = None
         if access_token:
             self.kite.set_access_token(access_token)
             self.access_token = access_token
+            self.token_time = time.time()
         elif all([password, totp_secret, api_secret]):
             self.access_token = self.create_session()
             self.kite.set_access_token(self.access_token)
+            self.token_time = time.time()
         else:
             raise ValueError("access_token or login credentials required for Zerodha.")
 
@@ -73,6 +77,22 @@ class ZerodhaBroker(BrokerBase):
         )
         return session_data["access_token"]
 
+    def ensure_token(self):
+        """Refresh token if expired or invalid."""
+        if not self.access_token:
+            self.access_token = self.create_session()
+            self.kite.set_access_token(self.access_token)
+            self.token_time = time.time()
+            return
+        # Simple time based check (Zerodha tokens last ~8-12 hours). Re-login if >7h
+        if self.token_time and time.time() - self.token_time > 7 * 3600:
+            try:
+                self.kite.profile()
+            except Exception:
+                self.access_token = self.create_session()
+                self.kite.set_access_token(self.access_token)
+                self.token_time = time.time()
+
     # ================= Standard BrokerBase methods ==================
     def place_order(
         self,
@@ -85,6 +105,7 @@ class ZerodhaBroker(BrokerBase):
         price=None,
         **extra,
     ):
+        self.ensure_token()
         params = {
             "tradingsymbol": tradingsymbol,
             "exchange": exchange,
@@ -105,6 +126,7 @@ class ZerodhaBroker(BrokerBase):
             return {"status": "failure", "error": str(e)}
 
     def get_order_list(self):
+        self.ensure_token()
         try:
             orders = self.kite.orders()
             return {"status": "success", "data": orders}
@@ -112,6 +134,7 @@ class ZerodhaBroker(BrokerBase):
             return {"status": "failure", "error": str(e), "data": []}
 
     def cancel_order(self, order_id):
+        self.ensure_token()
         try:
             self.kite.cancel_order(
                 variety=self.kite.VARIETY_REGULAR,
@@ -122,6 +145,7 @@ class ZerodhaBroker(BrokerBase):
             return {"status": "failure", "error": str(e)}
 
     def get_positions(self):
+        self.ensure_token()
         try:
             positions = self.kite.positions()
             return {"status": "success", "data": positions.get("net", [])}
@@ -129,6 +153,7 @@ class ZerodhaBroker(BrokerBase):
             return {"status": "failure", "error": str(e), "data": []}
 
     def get_profile(self):
+        self.ensure_token()
         try:
             profile = self.kite.profile()
             return {"status": "success", "data": profile}
