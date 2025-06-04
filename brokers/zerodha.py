@@ -1,103 +1,143 @@
-from kiteconnect import KiteConnect
-import pyotp
+# brokers/zerodha.py
+"""Zerodha broker adapter using KiteConnect."""
+
 import requests
+import pyotp
+
 from .base import BrokerBase
 
+try:
+    from kiteconnect import KiteConnect
+except ImportError:  # pragma: no cover - kiteconnect might not be installed during tests
+    KiteConnect = None
+
+
 class ZerodhaBroker(BrokerBase):
-    def __init__(self, client_id, api_key, api_secret, password=None, totp_key=None, **kwargs):
-        super().__init__(client_id, api_key, **kwargs)
-        self.client_id = client_id
+    """Adapter for Zerodha KiteConnect API."""
+    BASE_URL = "https://kite.zerodha.com/api"
+
+    def __init__(self, client_id, access_token=None, api_key=None,
+                 api_secret=None, password=None, totp_secret=None, **kwargs):
+        super().__init__(client_id, access_token or "", **kwargs)
+        if KiteConnect is None:
+            raise ImportError("kiteconnect not installed")
+        if not api_key:
+            raise ValueError("api_key is required for Zerodha.")
+
         self.api_key = api_key
         self.api_secret = api_secret
         self.password = password
-        self.totp_key = totp_key
-        self.access_token = None
-        self.kite = KiteConnect(api_key=self.api_key)
+        self.totp_secret = totp_secret
 
-        # If you already have a valid access_token, load it here
-        # If not, do TOTP login
-        self._auto_login()
+        self.kite = KiteConnect(api_key=api_key)
+        if access_token:
+            self.kite.set_access_token(access_token)
+            self.access_token = access_token
+        elif all([password, totp_secret, api_secret]):
+            self.access_token = self.create_session()
+            self.kite.set_access_token(self.access_token)
+        else:
+            raise ValueError("access_token or login credentials required for Zerodha.")
 
-    def _auto_login(self):
-        """
-        Use TOTP + password to login and obtain request_token automatically.
-        Exchange for access_token.
-        """
-        try:
-            # 1. Generate TOTP
-            totp = pyotp.TOTP(self.totp_key).now() if self.totp_key else None
+    def get_totp(self):
+        """Return current TOTP using the secret."""
+        return pyotp.TOTP(self.totp_secret).now()
 
-            # 2. Start a session and do POST to Zerodha's login
-            s = requests.Session()
-            login_url = "https://kite.zerodha.com/api/login"
-            resp = s.post(login_url, data={"user_id": self.client_id, "password": self.password})
-            if resp.status_code != 200 or not resp.json().get("data"):
-                raise Exception(f"Login failed: {resp.text}")
-            # 3. Authenticate with TOTP (2FA)
-            twofa_url = "https://kite.zerodha.com/api/twofa"
-            resp2 = s.post(twofa_url, data={"user_id": self.client_id, "request_id": resp.json()["data"]["request_id"], "twofa_value": totp})
-            if resp2.status_code != 200 or not resp2.json().get("data"):
-                raise Exception(f"TOTP 2FA failed: {resp2.text}")
+    def create_session(self):
+        """Login using password and TOTP to obtain an access token."""
+        sess = requests.Session()
+        r = sess.post(f"{self.BASE_URL}/login", data={
+            "user_id": self.client_id,
+            "password": self.password
+        }, timeout=10)
+        resp = r.json()
+        if resp.get("status") != "success":
+            raise Exception(resp.get("message", "Login failed"))
 
-            # 4. Get request_token by following the redirect after 2FA
-            # (Skip this if you handle this on frontend, or use kiteconnect's web flow)
-            # Otherwise, use KiteConnect's manual method if you have the request_token:
-            raise Exception("Please use kiteconnect's web login flow to obtain request_token, or automate with Selenium/Playwright.")
-        except Exception as e:
-            # In real prod, you'd store and refresh access_token via web flow.
-            # For now, expect manual request_token via web flow.
-            pass
+        request_id = resp["data"]["request_id"]
+        twofa = self.get_totp()
+        r = sess.post(f"{self.BASE_URL}/twofa", data={
+            "user_id": self.client_id,
+            "request_id": request_id,
+            "twofa_value": twofa,
+            "twofa_type": "totp"
+        }, timeout=10)
+        resp = r.json()
+        if resp.get("status") != "success":
+            raise Exception(resp.get("message", "TwoFA failed"))
 
-    def set_access_token(self, request_token):
-        """
-        Once you have the request_token (from web flow, or headless), exchange for access_token.
-        """
-        data = self.kite.generate_session(request_token, api_secret=self.api_secret)
-        self.access_token = data["access_token"]
-        self.kite.set_access_token(self.access_token)
+        request_token = resp["data"]["request_token"]
+        session_data = self.kite.generate_session(
+            request_token,
+            api_secret=self.api_secret,
+        )
+        return session_data["access_token"]
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type, product, price=None, **kwargs):
-        """
-        Place order using access_token
-        """
-        if not self.access_token:
-            raise Exception("No access_token, please login.")
+    # ================= Standard BrokerBase methods ==================
+    def place_order(
+        self,
+        tradingsymbol,
+        exchange,
+        transaction_type,
+        quantity,
+        order_type="MARKET",
+        product="MIS",
+        price=None,
+        **extra,
+    ):
+        params = {
+            "tradingsymbol": tradingsymbol,
+            "exchange": exchange,
+            "transaction_type": transaction_type.upper(),
+            "quantity": int(quantity),
+            "order_type": order_type.upper(),
+            "product": product.upper(),
+        }
+        if order_type.upper() == "LIMIT" and price is not None:
+            params["price"] = float(price)
         try:
             order_id = self.kite.place_order(
-                variety="regular",
-                exchange=exchange,
-                tradingsymbol=tradingsymbol,
-                transaction_type=transaction_type,
-                quantity=int(quantity),
-                order_type=order_type,
-                product=product,
-                price=float(price) if price else None,
-                validity="DAY"
+                variety=self.kite.VARIETY_REGULAR,
+                **params
             )
             return {"status": "success", "order_id": order_id}
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e)}
 
     def get_order_list(self):
-        """
-        Fetch orders using access_token
-        """
-        if not self.access_token:
-            raise Exception("No access_token, please login.")
         try:
             orders = self.kite.orders()
             return {"status": "success", "data": orders}
-        except Exception as e:
-            return {"status": "failure", "error": str(e)}
+        except Exception as e:  # pragma: no cover - network call
+            return {"status": "failure", "error": str(e), "data": []}
 
     def cancel_order(self, order_id):
-        """
-        Cancel a regular order
-        """
-        if not self.access_token:
-            raise Exception("No access_token, please login.")
         try:
-            result = self.kite.cancel_order(variety="regular", order_id=order_id)
-            return {"status": "success", "result": result}
-        except Exception as e:
+            self.kite.cancel_order(
+                variety=self.kite.VARIETY_REGULAR,
+                order_id=order_id
+            )
+            return {"status": "success", "order_id": order_id}
+        except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e)}
+
+    def get_positions(self):
+        try:
+            positions = self.kite.positions()
+            return {"status": "success", "data": positions.get("net", [])}
+        except Exception as e:  # pragma: no cover - network call
+            return {"status": "failure", "error": str(e), "data": []}
+
+    def get_profile(self):
+        try:
+            profile = self.kite.profile()
+            return {"status": "success", "data": profile}
+        except Exception as e:  # pragma: no cover - network call
+            return {"status": "failure", "error": str(e), "data": None}
+
+    def check_token_valid(self):
+        try:
+            self.kite.profile()
+            return True
+        except Exception:  # pragma: no cover - network call
+            return False
