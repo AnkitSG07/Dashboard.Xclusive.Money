@@ -800,37 +800,29 @@ input#symbol-selector:focus,
 15
 
 .broker-avatar-wrap {
-  width: 64px;  /* slightly bigger for click/tap */
-  height: 64px;
-  border-radius: 50%;
-  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 6px 10px 6px 0;
-  box-shadow: 0 2px 8px rgba(44,56,80,0.08);
+  margin: 8px 10px 8px 0;
 }
 
-.broker-icon.broker-card {
-  width: 110px;
-  height: 110px;
-  object-fit: contain;
-  border-radius: 100%;
+.broker-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
   background: #fff;
-  padding: 5px;
-  box-shadow: none;
-  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(44,56,80,0.07);
+  border: 2px solid #f3f3f3;
+  object-fit: contain;
+  padding: 7px;
   transition: box-shadow 0.18s, border 0.18s;
   cursor: pointer;
 }
 
-.broker-avatar-wrap:hover .broker-icon.broker-card,
-.broker-icon.broker-card.border-primary {
+.broker-avatar:hover,
+.broker-avatar.selected,
+.broker-avatar.border-primary {
   border-color: #16c784;
+  box-shadow: 0 4px 16px rgba(22,199,132,0.12);
   background: #f6fffa;
-  box-shadow: 0 2px 12px rgba(22,199,132,0.13);
 }
-
-
-
-
