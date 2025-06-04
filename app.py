@@ -1,4 +1,5 @@
 from brokers.factory import get_broker_class
+from brokers.zerodha import ZerodhaBroker
 from flask import Flask, request, jsonify, render_template
 from dhanhq import dhanhq
 import sqlite3
@@ -329,32 +330,14 @@ def start_scheduler():
 @app.route("/connect-zerodha", methods=["POST"])
 def connect_zerodha():
     data = request.json
-    user_id = data.get("user_id")
-    api_key = data.get("api_key")
-    api_secret = data.get("api_secret")
-    request_token = data.get("request_token")
-
-    from zerodha import Zerodha
-    z = Zerodha(api_key, api_secret)
-    access_token = z.generate_session(request_token)
-
-    # Save to your user_credentials.json or DB
-    with open("user_credentials.json", "r") as f:
-        users = json.load(f)
-
-    users[user_id] = {
-        "broker": "zerodha",
-        "client_id": data.get("client_id"),
-        "access_token": access_token,
-        "api_key": api_key,
-        "api_secret": api_secret
-    }
-
-    with open("user_credentials.json", "w") as f:
-        json.dump(users, f, indent=2)
-
-    return jsonify({"message": "Zerodha connected successfully."})
-
+    broker = ZerodhaBroker(
+        client_id=data.get("client_id"),
+        api_key=data.get("api_key"),
+        api_secret=data.get("api_secret"),
+        password=data.get("password"),
+        totp_secret=data.get("totp_secret"),
+    )
+    return jsonify({"access_token": broker.access_token})
 
 # --- Order Book Endpoint ---
 @app.route('/api/order-book/<client_id>', methods=['GET'])
