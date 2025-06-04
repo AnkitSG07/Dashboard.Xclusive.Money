@@ -164,9 +164,11 @@ def poll_and_copy_trades():
             credentials = master.get("credentials", {})
             BrokerClass = get_broker_class(master_broker)
             try:
+                rest = {k: v for k, v in credentials.items() if k != "access_token"}
                 master_api = BrokerClass(
                     client_id=master.get("client_id"),
-                    access_token=credentials.get("access_token")
+                    access_token=credentials.get("access_token"),
+                    **rest
                 )
             except Exception as e:
                 print(f"❌ Could not initialize master API ({master_broker}): {e}")
@@ -223,9 +225,11 @@ def poll_and_copy_trades():
                     child_credentials = child.get("credentials", {})
                     try:
                         ChildBrokerClass = get_broker_class(child_broker)
+                        rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
                         child_api = ChildBrokerClass(
                             client_id=child.get("client_id"),
-                            access_token=child_credentials.get("access_token")
+                            access_token=child_credentials.get("access_token"),
+                            **rest_child
                         )
                     except Exception as e:
                         print(f"❌ Could not initialize child API ({child_broker}): {e}")
