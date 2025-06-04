@@ -269,15 +269,28 @@ def poll_and_copy_trades():
                     price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
 
                     try:
-                        response = child_api.place_order(
-                            tradingsymbol=symbol,
-                            exchange=exchange,
-                            transaction_type=transaction_type,
-                            quantity=copied_qty,
-                            order_type=order_type,
-                            product=product_type,
-                            price=price or 0  # Always pass price, even if 0 for MARKET
-                        )
+                        if child_broker == "dhan":
+                            security_id = order.get("securityId") or order.get("security_id") or SYMBOL_MAP.get(symbol.upper())
+                            response = child_api.place_order(
+                                security_id=security_id,
+                                exchange_segment=exchange,
+                                transaction_type=transaction_type,
+                                quantity=copied_qty,
+                                order_type=order_type,
+                                product_type=product_type,
+                                price=price or 0
+                            )
+                        else:
+                            response = child_api.place_order(
+                                tradingsymbol=symbol,
+                                exchange=exchange,
+                                transaction_type=transaction_type,
+                                quantity=copied_qty,
+                                order_type=order_type,
+                                product=product_type,
+                                price=price or 0  # Always pass price, even if 0 for MARKET
+                            )
+                        
                         if isinstance(response, dict) and response.get("status") == "failure":
                             error_msg = response.get("error") or response.get("remarks") or "Unknown error"
                             print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
@@ -309,10 +322,12 @@ def poll_and_copy_trades():
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
 
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
-scheduler.start()
-print("✅ Background copy trader scheduler is running...")
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=poll_and_copy_trades, trigger="interval", seconds=10)
+    scheduler.start()
+    print("✅ Background copy trader scheduler is running...")
+    return scheduler
 
 
 # --- Order Book Endpoint ---
@@ -1200,4 +1215,5 @@ def AddAccount():
     return render_template("Add-Account.html")
 
 if __name__ == '__main__':
-        app.run(debug=True)
+    start_scheduler()
+    app.run(debug=True)
