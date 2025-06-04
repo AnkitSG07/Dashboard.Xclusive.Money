@@ -1204,8 +1204,8 @@ def home():
     return render_template("index.html")
 
 @app.route('/register')
-def dashboard():
-    return render_template("login.html")
+def login():
+    return render_template("log-in.html")
 
 @app.route('/dhan-dashboard')
 def dhan_dashboard():
