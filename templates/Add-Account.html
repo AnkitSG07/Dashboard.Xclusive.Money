@@ -130,6 +130,9 @@
     <div class="broker-avatar-wrap">
       <img src="/static/images/dhan.jpg" class="broker-icon" data-broker="dhan" title="Dhan" />
     </div>
+    <div class="broker-avatar-wrap">
+      <img src="/static/images/zerodha.png" class="broker-icon" data-broker="zerodha" title="Zerodha" />
+    </div>
     <!-- Add more as needed -->
   </div>
 
@@ -282,6 +285,11 @@ window.pageScripts["Add-Account"] = function() {
       { label: "Client ID", name: "client_id", type: "text" },
       { label: "App ID", name: "app_id", type: "text" },
       { label: "App Secret", name: "app_secret", type: "password" },
+      { label: "Access Token", name: "access_token", type: "password" }
+    ],
+    zerodha: [
+      { label: "Client ID", name: "client_id", type: "text" },
+      { label: "API Key", name: "api_key", type: "text" },
       { label: "Access Token", name: "access_token", type: "password" }
     ],
     // Add more brokers here as needed
