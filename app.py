@@ -43,13 +43,6 @@ SYMBOL_MAP = {
     "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
 }
 
-def place_order(self, tradingsymbol=None, security_id=None, **kwargs):
-    # kwargs can include exchange_segment, transaction_type, quantity, order_type, product_type, price, etc.
-    if not security_id and tradingsymbol:
-        security_id = SYMBOL_MAP.get(tradingsymbol.upper())
-        if not security_id:
-            raise Exception(f"Unknown tradingsymbol: {tradingsymbol}")
-
 
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
