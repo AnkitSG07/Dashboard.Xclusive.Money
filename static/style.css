@@ -799,14 +799,14 @@ input#symbol-selector:focus,
 
 15
 
-.broker-avatar-wrap {
+.broker-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 8px 10px 8px 0;
 }
 
-.broker-avatar {
+.broker-icon {
   width: 96px;
   height: 96px;
   border-radius: 50%;
@@ -819,9 +819,9 @@ input#symbol-selector:focus,
   cursor: pointer;
 }
 
-.broker-avatar:hover,
-.broker-avatar.selected,
-.broker-avatar.border-primary {
+.broker-icon:hover,
+.broker-icon.selected,
+.broker-icon.border-primary {
   border-color: #16c784;
   box-shadow: 0 4px 16px rgba(22,199,132,0.12);
   background: #f6fffa;
