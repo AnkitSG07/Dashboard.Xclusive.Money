@@ -82,5 +82,8 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": r.text}
 
     def get_positions(self):
-        # Not implemented yet
-        return {"status": "failure", "error": "Not Implemented"}
+        r = requests.get(f"{self.api_base}/positions", headers=self.headers, timeout=10)
+        try:
+            return {"status": "success", "data": r.json()}
+        except Exception:
+            return {"status": "failure", "error": r.text}
