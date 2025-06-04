@@ -1,7 +1,77 @@
-{% extends "layout.html" %}
-{% block title %}Account Configuration - DhanBot{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Configuration - DhanBot</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="d-flex">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-logo text-center py-3">
+        <img src="/static/images/logo.svg" alt="DhanBot Logo" style="max-width: 140px; height: auto;">
+      </div>
+      <div class="nav">
+        <p class="nav-title">Dashboard</p>
+        <a class="nav-link" href="/Summary"><i class="bi bi-speedometer2"></i> Summary</a>
+        <a class="nav-link" href="/Add-Account"><i class="bi bi-graph-up-arrow"></i> Add Account</a>
+        <a class="nav-link" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a>
 
-{% block content %}
+        <p class="nav-title">Pages</p>
+        <div class="nav-link nav-collapse">
+          <i class="bi bi-lock"></i> Authentication <i class="bi bi-chevron-down arrow"></i>
+        </div>
+        <div class="submenu">
+          <a class="nav-link" href="/log-in"><i class="bi bi-person-fill"></i> Log in</a>
+          <a class="nav-link" href="/sign-up"><i class="bi bi-receipt-cutoff"></i> Sign up</a>
+        </div>
+
+        <p class="nav-title">Management</p>
+        <div class="nav-link nav-collapse">
+          <i class="bi bi-people"></i> Management <i class="bi bi-chevron-down arrow"></i>
+        </div>
+        <div class="submenu">
+          <a class="nav-link" href="/users"><i class="bi bi-person-fill"></i> Users</a>
+          <a class="nav-link" href="/invoices"><i class="bi bi-receipt-cutoff"></i> Invoices</a>
+          <a class="nav-link" href="/change-plan"><i class="bi bi-sliders"></i> Change Plan</a>
+        </div>
+
+        <p class="nav-title">Support</p>
+        <div class="nav-link nav-collapse">
+          <i class="bi bi-question-circle"></i> Support <i class="bi bi-chevron-down arrow"></i>
+        </div>
+        <div class="submenu">
+          <a class="nav-link" href="tel:+91XXXXXXXX"><i class="bi bi-telephone-fill"></i> Call</a>
+          <a class="nav-link" href="mailto:support@dhanbot.com"><i class="bi bi-envelope-fill"></i> Email</a>
+        </div>
+      </div>
+      <div class="px-3 mt-auto mb-4">
+        <button class="logout btn w-100" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content flex-grow-1">
+      <!-- Navbar -->
+      <nav class="navbar">
+        <div class="navbar-brand">
+          <img src="/static/logo.svg" alt="Logo" style="height: 32px;">
+        </div>
+        <div class="navbar-icons">
+          <i class="bi bi-bell"></i>
+          <i class="bi bi-gear"></i>
+          <img src="/static/user.png" alt="User" class="profile-img">
+        </div>
+      </nav>
+
+      <!-- Content -->
+      <div class="container py-4" id="page-container" data-page="Add-Account">
+        
 <div class="section-box d-flex justify-content-between align-items-center mb-4">
   <div>
     <h4>Account Configuration</h4>
@@ -63,7 +133,6 @@
     <!-- Add more as needed -->
   </div>
 
-
   <!-- Dynamic Broker Fields -->
   <form id="broker-credentials-form">
     <div id="broker-fields"></div>
@@ -91,9 +160,109 @@
     </table>
   </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Logout function, global
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
+
+    // Enable all dropdowns on the page
+    function enableDropdowns() {
+      document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(trigger => {
+        if (!trigger._bs_dropdown) new bootstrap.Dropdown(trigger);
+      });
+    }
+
+    // Sidebar submenu toggle logic
+    function setupSidebarSubmenus() {
+      document.querySelectorAll('.nav-collapse').forEach(toggle => {
+        toggle.addEventListener('click', function () {
+          toggle.classList.toggle('active');
+          const submenu = toggle.nextElementSibling;
+          if (submenu && submenu.classList.contains('submenu')) {
+            submenu.style.display = submenu.style.display === 'flex' ? 'none' : 'flex';
+          }
+        });
+      });
+    }
+
+    // Highlight active page in sidebar
+    function highlightActivePage() {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if (window.location.pathname === link.getAttribute('href')) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
+
+    // SPA navigation for sidebar
+    function setupSidebarSPALinks() {
+      document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', function (e) {
+          const url = this.getAttribute('href');
+          if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
+          e.preventDefault();
+          fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          })
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newContent = doc.querySelector('#page-container');
+            const pageContainer = document.querySelector('#page-container');
+            if (newContent) {
+              pageContainer.innerHTML = newContent.innerHTML;
+              // --- FIX: Update the data-page attribute! ---
+              if (newContent.dataset.page) {
+                pageContainer.dataset.page = newContent.dataset.page;
+              }
+              history.pushState(null, '', url);
+              highlightActivePage();
+              enableDropdowns();
+              setTimeout(reinitializePageScripts, 50);
+            } else {
+              window.location.href = url;
+            }
+          })
+          .catch(err => {
+            console.error('Failed to load:', err);
+            window.location.href = url;
+          });
+        });
+      });
+    }
+
+    // Per-page script hook
+    function reinitializePageScripts() {
+      const page = document.querySelector('#page-container')?.dataset.page;
+      if (window.pageScripts && typeof window.pageScripts[page] === "function") {
+        window.pageScripts[page]();
+      }
+    }
+
+    // Handle browser navigation (back/forward)
+    window.addEventListener('popstate', () => location.reload());
+
+    // Initial setup
+    window.addEventListener('DOMContentLoaded', () => {
+      enableDropdowns();
+      setupSidebarSubmenus();
+      highlightActivePage();
+      setupSidebarSPALinks();
+      setTimeout(reinitializePageScripts, 50);
+    });
+  </script>
+  
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 
@@ -115,16 +284,6 @@ window.pageScripts["Add-Account"] = function() {
       { label: "App Secret", name: "app_secret", type: "password" },
       { label: "Access Token", name: "access_token", type: "password" }
     ],
-    finvasia: [
-      { label: "Finvasia Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "Vendor Code", name: "vendor_code", type: "text" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "IMEI", name: "imei", type: "text" },
-      { label: "TOTP Key", name: "totp_key", type: "text" },
-      { label: "Access Token (optional: if logged in somewhere else)", name: "access_token", type: "text" }
-    ]
-
     // Add more brokers here as needed
   };
 
@@ -223,4 +382,6 @@ window.pageScripts["Add-Account"] = function() {
     });
 };
 </script>
-{% endblock %}
+
+</body>
+</html>
