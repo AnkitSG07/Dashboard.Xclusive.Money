@@ -867,8 +867,12 @@ def add_account():
         db = {"accounts": []}
     # Check duplicate
     for acc in db["accounts"]:
-        if acc["client_id"] == client_id and acc["broker"] == broker:
-            return jsonify({'error': 'Account already exists'}), 400
+        if (
+            acc.get("client_id") == client_id
+            and acc.get("broker") == broker
+            and acc.get("owner") == user
+        ):
+        return jsonify({'error': 'Account already exists'}), 400
     db["accounts"].append({
         "broker": broker,
         "client_id": client_id,
