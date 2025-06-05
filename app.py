@@ -15,6 +15,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import tempfile
 import shutil
 from functools import wraps
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = "change-me"
@@ -1230,6 +1231,50 @@ def get_account_stats(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/users", methods=["GET", "POST"])
+@login_required
+def user_profile():
+    username = session.get("user")
+    users = {}
+    if os.path.exists("users.json"):
+        with open("users.json", "r") as f:
+            try:
+                users = json.load(f)
+            except Exception:
+                users = {}
+
+    user = users.get(username, {})
+
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "")
+        last_name = request.form.get("last_name", "")
+        plan = request.form.get("plan", "")
+
+        user["first_name"] = first_name
+        user["last_name"] = last_name
+        user["plan"] = plan
+
+        file = request.files.get("profile_image")
+        if file and file.filename:
+            image_dir = os.path.join("static", "profile_images")
+            os.makedirs(image_dir, exist_ok=True)
+            filename = secure_filename(username + "_" + file.filename)
+            file.save(os.path.join(image_dir, filename))
+            user["profile_image"] = os.path.join("profile_images", filename)
+
+        users[username] = user
+        with open("users.json", "w") as f:
+            json.dump(users, f, indent=2)
+
+    profile_data = {
+        "email": username,
+        "first_name": user.get("first_name", ""),
+        "last_name": user.get("last_name", ""),
+        "plan": user.get("plan", "Free"),
+        "profile_image": user.get("profile_image", "user.png"),
+    }
+
+    return render_template("user.html", user=profile_data)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
