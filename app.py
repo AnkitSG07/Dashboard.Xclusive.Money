@@ -1229,8 +1229,8 @@ def login():
         if username in auth and auth[username]["password"] == password:
             session["user"] = username
             return redirect(url_for("summary"))
-        return render_template("log-in.html", error="Invalid credentials")
-    return render_template("log-in.html")
+        return render_template("login.html", error="Invalid credentials")
+    return render_template("login.html")
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
