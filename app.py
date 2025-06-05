@@ -930,7 +930,179 @@ def get_accounts():
     except Exception as e:
         print(f"❌ Error in /api/accounts: {str(e)}")
         return jsonify({"error": str(e)}), 500
+@app.route('/api/groups', methods=['GET'])
+@login_required
+def get_groups():
+    """Return all account groups for the logged-in user."""
+    user = session.get("user")
+    groups_path = "groups.json"
+    if os.path.exists(groups_path):
+        with open(groups_path, "r") as f:
+            db = json.load(f)
+    else:
+        db = {"groups": []}
+    groups = [g for g in db.get("groups", []) if g.get("owner") == user]
+    return jsonify(groups)
 
+
+@app.route('/api/create-group', methods=['POST'])
+@login_required
+def create_group():
+    """Create a new account group."""
+    data = request.json
+    name = data.get("name")
+    members = data.get("members", [])
+    if not name:
+        return jsonify({"error": "Missing group name"}), 400
+
+    groups_path = "groups.json"
+    if os.path.exists(groups_path):
+        with open(groups_path, "r") as f:
+            db = json.load(f)
+    else:
+        db = {"groups": []}
+
+    user = session.get("user")
+    for g in db.get("groups", []):
+        if g.get("name") == name and g.get("owner") == user:
+            return jsonify({"error": "Group already exists"}), 400
+
+    db.setdefault("groups", []).append({
+        "name": name,
+        "owner": user,
+        "members": members
+    })
+    safe_write_json(groups_path, db)
+    return jsonify({"message": f"Group '{name}' created"})
+
+
+@app.route('/api/groups/<group_name>/add', methods=['POST'])
+@login_required
+def add_account_to_group(group_name):
+    """Add an account to an existing group."""
+    client_id = request.json.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    groups_path = "groups.json"
+    if os.path.exists(groups_path):
+        with open(groups_path, "r") as f:
+            db = json.load(f)
+    else:
+        return jsonify({"error": "Group database not found"}), 500
+
+    user = session.get("user")
+    for g in db.get("groups", []):
+        if g.get("name") == group_name and g.get("owner") == user:
+            if client_id not in g.get("members", []):
+                g.setdefault("members", []).append(client_id)
+                safe_write_json(groups_path, db)
+                return jsonify({"message": f"Added {client_id} to {group_name}"})
+            return jsonify({"message": "Account already in group"})
+
+    return jsonify({"error": "Group not found"}), 404
+
+
+@app.route('/api/groups/<group_name>/remove', methods=['POST'])
+@login_required
+def remove_account_from_group(group_name):
+    """Remove an account from a group."""
+    client_id = request.json.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    groups_path = "groups.json"
+    if os.path.exists(groups_path):
+        with open(groups_path, "r") as f:
+            db = json.load(f)
+    else:
+        return jsonify({"error": "Group database not found"}), 500
+
+    user = session.get("user")
+    for g in db.get("groups", []):
+        if g.get("name") == group_name and g.get("owner") == user:
+            if client_id in g.get("members", []):
+                g["members"].remove(client_id)
+                safe_write_json(groups_path, db)
+                return jsonify({"message": f"Removed {client_id} from {group_name}"})
+            return jsonify({"error": "Account not in group"}), 400
+
+    return jsonify({"error": "Group not found"}), 404
+
+
+@app.route('/api/group-order', methods=['POST'])
+@login_required
+def place_group_order():
+    """Place the same order across all accounts in a group."""
+    data = request.json
+    group_name = data.get("group_name")
+    symbol = data.get("symbol")
+    action = data.get("action")
+    quantity = data.get("quantity")
+
+    if not all([group_name, symbol, action, quantity]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    groups_path = "groups.json"
+    if os.path.exists(groups_path):
+        with open(groups_path, "r") as f:
+            groups_db = json.load(f)
+    else:
+        return jsonify({"error": "No groups configured"}), 400
+
+    group = None
+    user = session.get("user")
+    for g in groups_db.get("groups", []):
+        if g.get("name") == group_name and g.get("owner") == user:
+            group = g
+            break
+    if not group:
+        return jsonify({"error": "Group not found"}), 404
+
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            accounts_db = json.load(f)
+    else:
+        return jsonify({"error": "No accounts configured"}), 500
+
+    accounts = [a for a in accounts_db.get("accounts", []) if a.get("client_id") in group.get("members", [])]
+
+    results = []
+    for acc in accounts:
+        try:
+            api = broker_api(acc)
+            broker_name = acc.get("broker", "dhan").lower()
+            order_params = {}
+            if broker_name == "dhan":
+                security_id = SYMBOL_MAP.get(symbol.upper())
+                order_params = dict(
+                    security_id=security_id,
+                    exchange_segment=api.NSE,
+                    transaction_type=api.BUY if action.upper() == "BUY" else api.SELL,
+                    quantity=int(quantity),
+                    order_type=api.MARKET,
+                    product_type=api.INTRA,
+                    price=0
+                )
+            else:
+                order_params = dict(
+                    tradingsymbol=symbol,
+                    exchange="NSE",
+                    transaction_type=action.upper(),
+                    quantity=int(quantity),
+                    order_type="MARKET",
+                    product="MIS",
+                    price=None,
+                )
+            resp = api.place_order(**order_params)
+            if isinstance(resp, dict) and resp.get("status") == "failure":
+                results.append({"client_id": acc.get("client_id"), "status": "FAILED", "reason": clean_response_message(resp)})
+            else:
+                results.append({"client_id": acc.get("client_id"), "status": "SUCCESS"})
+        except Exception as e:
+            results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
+
+    return jsonify(results)
 
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
