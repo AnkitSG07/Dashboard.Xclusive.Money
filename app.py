@@ -1263,7 +1263,7 @@ def home():
 
 @app.route('/register')
 def login():
-    return render_template("log-in.html")
+    return render_template("login.html")
 
 @app.route('/dhan-dashboard')
 def dhan_dashboard():
