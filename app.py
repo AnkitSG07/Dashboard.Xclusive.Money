@@ -1224,7 +1224,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("email") or request.form.get("username")
         password = request.form.get("password")
-        with open("auth.json", "r") as f:
+        with open("users.json", "r") as f:
             auth = json.load(f)
         if username in auth and auth[username]["password"] == password:
             session["user"] = username
@@ -1237,7 +1237,7 @@ def signup():
     if request.method == "POST":
         username = request.form.get("email") or request.form.get("username")
         password = request.form.get("password")
-        with open("auth.json", "r+") as f:
+        with open("users.json", "r+") as f:
             auth = json.load(f)
             if username in auth:
                 return render_template("sign-up.html", error="User already exists")
