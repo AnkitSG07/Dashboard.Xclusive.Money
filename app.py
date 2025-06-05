@@ -1103,7 +1103,7 @@ def place_group_order():
             results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
 
     return jsonify(results)
-
+    
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
 def set_master():
