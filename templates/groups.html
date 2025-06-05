@@ -16,6 +16,45 @@
     <tbody></tbody>
   </table>
 </div>
+
+<div class="section-box mt-4">
+  <h5 class="mb-3">Add Account to Group</h5>
+  <form id="addMemberForm" class="row g-2">
+    <div class="col-auto">
+      <select class="form-select" id="addGroupSelect"></select>
+    </div>
+    <div class="col-auto">
+      <select class="form-select" id="accountSelect"></select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary" type="submit">Add</button>
+    </div>
+  </form>
+</div>
+
+<div class="section-box mt-4">
+  <h5 class="mb-3">Place Group Order</h5>
+  <form id="groupOrderForm" class="row gy-2 gx-2 align-items-end">
+    <div class="col-auto">
+      <select class="form-select" id="orderGroupSelect"></select>
+    </div>
+    <div class="col-auto">
+      <input type="text" class="form-control" id="orderSymbol" placeholder="Symbol">
+    </div>
+    <div class="col-auto">
+      <select class="form-select" id="orderAction">
+        <option value="BUY">BUY</option>
+        <option value="SELL">SELL</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <input type="number" class="form-control" id="orderQty" placeholder="Qty">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-success" type="submit">Send Order</button>
+    </div>
+  </form>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -32,8 +71,22 @@ window.pageScripts["groups"] = function() {
           tr.innerHTML = `<td>${g.name}</td><td>${(g.members || []).join(', ')}</td>`;
           tbody.appendChild(tr);
         });
+        const opts = groups.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+        document.getElementById('addGroupSelect').innerHTML = opts;
+        document.getElementById('orderGroupSelect').innerHTML = opts;
       });
   }
+
+  function loadAccounts() {
+    fetch('/api/accounts')
+      .then(r => r.json())
+      .then(data => {
+        const accounts = data.accounts || [];
+        const opts = accounts.map(a => `<option value="${a.client_id}">${a.client_id}</option>`).join('');
+        document.getElementById('accountSelect').innerHTML = opts;
+      });
+  }
+
   document.getElementById('createGroupForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const name = document.getElementById('groupName').value.trim();
@@ -41,7 +94,40 @@ window.pageScripts["groups"] = function() {
     fetch('/api/create-group', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name}) })
       .then(() => { document.getElementById('groupName').value=''; loadGroups(); });
   });
+
+  document.getElementById('addMemberForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const group = document.getElementById('addGroupSelect').value;
+    const client_id = document.getElementById('accountSelect').value;
+    if(!group || !client_id) return;
+    fetch(`/api/groups/${encodeURIComponent(group)}/add`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_id})
+    })
+    .then(r=>r.json())
+    .then(resp=>{ alert(resp.message || resp.error || 'Done'); loadGroups(); });
+  });
+
+  document.getElementById('groupOrderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const group_name = document.getElementById('orderGroupSelect').value;
+    const symbol = document.getElementById('orderSymbol').value.trim();
+    const action = document.getElementById('orderAction').value;
+    const quantity = document.getElementById('orderQty').value;
+    if(!group_name || !symbol || !quantity) return;
+    fetch('/api/group-order', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({group_name, symbol, action, quantity})
+    })
+    .then(r=>r.json())
+    .then(data=>alert(JSON.stringify(data, null, 2)))
+    .catch(err=>alert('Error: '+err));
+  });
+
   loadGroups();
+  loadAccounts();
 };
 </script>
 {% endblock %}
