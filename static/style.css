@@ -101,6 +101,10 @@ body {
   border: 3px solid var(--primary-main);
   margin-bottom: 10px;
 }
+.profile-card {
+  max-width: 800px;
+  margin: auto;
+}
 
 /*──────────────────────────────────────────────────────────────────────────
    4. Sidebar
