@@ -1,6 +1,6 @@
 from brokers.factory import get_broker_class
 from brokers.zerodha import ZerodhaBroker
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from dhanhq import dhanhq
 import sqlite3
 import os
@@ -14,10 +14,11 @@ from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
 import tempfile
 import shutil
+from functools import wraps
 
 app = Flask(__name__)
+app.secret_key = "change-me"
 CORS(app)
-
 SYMBOL_MAP = {
     "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "IDEA": "532822", "HDFCBANK": "1333",
     "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
@@ -139,6 +140,15 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
 
     with open(path, "w") as f:
         json.dump(mappings, f, indent=2)
+
+# Authentication decorator
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
 
 def poll_and_copy_trades():
     print("🔄 poll_and_copy_trades() triggered...")
@@ -839,7 +849,9 @@ def market_watch():
     return render_template("marketwatch.html")
 
 @app.route('/api/add-account', methods=['POST'])
+@login_required
 def add_account():
+    user = session.get("user")
     data = request.json
     broker = data.get('broker')
     client_id = data.get('client_id')
@@ -862,6 +874,7 @@ def add_account():
         "client_id": client_id,
         "username": username,
         "credentials": credentials,
+        "owner": user,
         "status": "Connected",
         "auto_login": True,
         "last_login": datetime.now().isoformat(),
@@ -875,32 +888,35 @@ def add_account():
 
 
 @app.route('/api/accounts')
+@login_required
 def get_accounts():
     try:
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
                 db = json.load(f)
-            # Validation:
             if "accounts" not in db or not isinstance(db["accounts"], list):
                 raise ValueError("Corrupt accounts.json: missing 'accounts' list")
         else:
             db = {'accounts': []}
+
+        user = session.get("user")
+        accounts = [a for a in db["accounts"] if a.get("owner") == user]
+
         masters = []
-        for acc in db["accounts"]:
+        for acc in accounts:
             if acc.get("role") == "master":
                 # Attach children to each master
-                children = [child for child in db["accounts"] if child.get("role") == "child" and child.get("linked_master_id") == acc.get("client_id")]
+                children = [child for child in accounts if child.get("role") == "child" and child.get("linked_master_id") == acc.get("client_id")]
                 acc_copy = dict(acc)
                 acc_copy["children"] = children
                 masters.append(acc_copy)
         return jsonify({
             "masters": masters,
-            "accounts": db["accounts"]
+            "accounts": accounts
         })
     except Exception as e:
         print(f"❌ Error in /api/accounts: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
 
 
 # Set master account
@@ -916,10 +932,11 @@ def set_master():
                 db = json.load(f)
         else:
             db = {"accounts": []}
-
+            
+        user = session.get("user")
         found = False
         for acc in db["accounts"]:
-            if acc.get("client_id") == client_id:
+            if acc.get("client_id") == client_id and acc.get("owner") == user:
                 acc["role"] = "master"
                 acc.pop("linked_master_id", None)
                 acc["copy_status"] = "Off"
@@ -936,6 +953,7 @@ def set_master():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/set-child', methods=['POST'])
+@login_required
 def set_child():
     try:
         client_id = request.json.get('client_id')
@@ -949,9 +967,10 @@ def set_child():
         else:
             db = {"accounts": []}
 
+        user = session.get("user")
         found = False
         for acc in db["accounts"]:
-            if acc.get("client_id") == client_id:
+            if acc.get("client_id") == client_id and acc.get("owner") == user:
                 acc["role"] = "child"
                 acc["linked_master_id"] = linked_master_id
                 acc["copy_status"] = "Off"
@@ -969,6 +988,7 @@ def set_child():
 
 # Start copying for a child account
 @app.route('/api/start-copy', methods=['POST'])
+@login_required
 def start_copy():
     data = request.json
     client_id = data.get("client_id")
@@ -983,7 +1003,7 @@ def start_copy():
 
     found = False
     for acc in db["accounts"]:
-        if acc["client_id"] == client_id:
+        if acc["client_id"] == client_id and acc.get("owner") == user::
             acc["role"] = "child"
             acc["linked_master_id"] = master_id
             acc["copy_status"] = "On"
@@ -996,6 +1016,7 @@ def start_copy():
 
 
 @app.route('/api/stop-copy', methods=['POST'])
+@login_required
 def stop_copy():
     data = request.json
     client_id = data.get("client_id")
@@ -1008,9 +1029,10 @@ def stop_copy():
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
+    user = session.get("user")
     found = False
     for acc in db["accounts"]:
-        if acc["client_id"] == client_id and acc.get("linked_master_id") == master_id:
+        if acc["client_id"] == client_id and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "Off"
             found = True
     if not found:
@@ -1195,6 +1217,42 @@ def get_account_stats(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("email") or request.form.get("username")
+        password = request.form.get("password")
+        with open("auth.json", "r") as f:
+            auth = json.load(f)
+        if username in auth and auth[username]["password"] == password:
+            session["user"] = username
+            return redirect(url_for("summary"))
+        return render_template("log-in.html", error="Invalid credentials")
+    return render_template("log-in.html")
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form.get("email") or request.form.get("username")
+        password = request.form.get("password")
+        with open("auth.json", "r+") as f:
+            auth = json.load(f)
+            if username in auth:
+                return render_template("sign-up.html", error="User already exists")
+            auth[username] = {"password": password}
+            f.seek(0)
+            json.dump(auth, f, indent=2)
+            f.truncate()
+        session["user"] = username
+        return redirect(url_for("summary"))
+    return render_template("sign-up.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("home"))
 
 
 
