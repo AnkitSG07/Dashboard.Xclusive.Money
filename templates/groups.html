@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %}Groups - DhanBot{% endblock %}
+{% block content %}
+<div class="section-box">
+  <h4 class="mb-3">Account Groups</h4>
+  <form id="createGroupForm" class="mb-3">
+    <div class="input-group">
+      <input type="text" class="form-control" id="groupName" placeholder="Group Name">
+      <button class="btn btn-primary" type="submit">Create</button>
+    </div>
+  </form>
+  <table class="table table-bordered" id="groupsTable">
+    <thead class="table-light">
+      <tr><th>Name</th><th>Members</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.pageScripts = window.pageScripts || {};
+window.pageScripts["groups"] = function() {
+  function loadGroups() {
+    fetch('/api/groups')
+      .then(r => r.json())
+      .then(groups => {
+        const tbody = document.querySelector('#groupsTable tbody');
+        tbody.innerHTML = '';
+        groups.forEach(g => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${g.name}</td><td>${(g.members || []).join(', ')}</td>`;
+          tbody.appendChild(tr);
+        });
+      });
+  }
+  document.getElementById('createGroupForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('groupName').value.trim();
+    if(!name) return;
+    fetch('/api/create-group', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name}) })
+      .then(() => { document.getElementById('groupName').value=''; loadGroups(); });
+  });
+  loadGroups();
+};
+</script>
+{% endblock %}
