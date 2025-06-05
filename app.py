@@ -856,23 +856,29 @@ def add_account():
     broker = data.get('broker')
     client_id = data.get('client_id')
     username = data.get('username')
+    
     credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id', 'username')}
+    
     if not broker or not client_id or not username:
         return jsonify({'error': 'Missing broker, client_id or username'}), 400
+
     # Load DB
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
             db = json.load(f)
     else:
         db = {"accounts": []}
-    # Check duplicate
+
+    # Check for duplicates
     for acc in db["accounts"]:
         if (
             acc.get("client_id") == client_id
             and acc.get("broker") == broker
             and acc.get("owner") == user
         ):
-        return jsonify({'error': 'Account already exists'}), 400
+            return jsonify({'error': 'Account already exists'}), 400
+
+    # Add new account
     db["accounts"].append({
         "broker": broker,
         "client_id": client_id,
@@ -887,9 +893,9 @@ def add_account():
         "multiplier": 1,
         "copy_status": "Off"
     })
+
     safe_write_json("accounts.json", db)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
-
 
 @app.route('/api/accounts')
 @login_required
