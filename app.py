@@ -1539,6 +1539,11 @@ def copytrading():
 def AddAccount():
     return render_template("Add-Account.html")
 
+@app.route("/groups")
+@login_required
+def groups_page():
+    return render_template("groups.html")
+
 scheduler = start_scheduler()
 
 if __name__ == '__main__':
