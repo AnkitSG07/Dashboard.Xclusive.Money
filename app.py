@@ -16,6 +16,8 @@ import tempfile
 import shutil
 from functools import wraps
 from werkzeug.utils import secure_filename
+import random
+import string
 
 app = Flask(__name__)
 app.secret_key = "change-me"
@@ -1244,23 +1246,46 @@ def user_profile():
                 users = {}
 
     user = users.get(username, {})
+    message = ""
 
     if request.method == "POST":
-        first_name = request.form.get("first_name", "")
-        last_name = request.form.get("last_name", "")
-        plan = request.form.get("plan", "")
+        action = request.form.get("action")
 
-        user["first_name"] = first_name
-        user["last_name"] = last_name
-        user["plan"] = plan
+        if action == "save_profile":
+            first_name = request.form.get("first_name", "")
+            last_name = request.form.get("last_name", "")
 
-        file = request.files.get("profile_image")
-        if file and file.filename:
-            image_dir = os.path.join("static", "profile_images")
-            os.makedirs(image_dir, exist_ok=True)
-            filename = secure_filename(username + "_" + file.filename)
-            file.save(os.path.join(image_dir, filename))
-            user["profile_image"] = os.path.join("profile_images", filename)
+            user["first_name"] = first_name
+            user["last_name"] = last_name
+
+            file = request.files.get("profile_image")
+            if file and file.filename:
+                image_dir = os.path.join("static", "profile_images")
+                os.makedirs(image_dir, exist_ok=True)
+                filename = secure_filename(username + "_" + file.filename)
+                file.save(os.path.join(image_dir, filename))
+                user["profile_image"] = os.path.join("profile_images", filename)
+            message = "Profile updated"
+
+        elif action == "send_otp" and not user.get("mobile"):
+            mobile = request.form.get("mobile")
+            if mobile:
+                otp = "".join(random.choices(string.digits, k=6))
+                user["pending_mobile"] = mobile
+                user["otp"] = otp
+                print(f"OTP for {mobile}: {otp}")
+                message = f"OTP sent to {mobile}"
+
+        elif action == "verify_otp" and user.get("pending_mobile"):
+            otp_input = request.form.get("otp")
+            if otp_input == user.get("otp"):
+                user["mobile"] = user.get("pending_mobile")
+                user.pop("pending_mobile", None)
+                user.pop("otp", None)
+                user["mobile_verified"] = True
+                message = "Mobile number verified"
+            else:
+                message = "Invalid OTP"
 
         users[username] = user
         with open("users.json", "w") as f:
@@ -1272,9 +1297,13 @@ def user_profile():
         "last_name": user.get("last_name", ""),
         "plan": user.get("plan", "Free"),
         "profile_image": user.get("profile_image", "user.png"),
+        "mobile": user.get("mobile"),
+        "pending_mobile": user.get("pending_mobile"),
+        "mobile_verified": user.get("mobile_verified", False),
     }
 
-    return render_template("user.html", user=profile_data)
+    return render_template("user.html", user=profile_data, message=message)
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
