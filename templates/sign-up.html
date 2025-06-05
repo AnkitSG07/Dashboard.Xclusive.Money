@@ -18,7 +18,7 @@
         <meta name="twitter:card" content="summary_large_image"> <!-- to have large image post format in Twitter -->
 
         <!-- Webpage Title -->
-        <title>Sign Up - Ioniq</title>
+        <title>Xclusive Money</title>
         
         <!-- Styles -->
         <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -27,21 +27,19 @@
         <link href="{{ url_for('static', filename='swiper.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='styles1.css') }}" rel="stylesheet">
         
-        
         <!-- Favicon  -->
-        <link rel="icon" href="images/favicon.png">
+        <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}">
     </head>
-    <body>
+    <body data-bs-spy="scroll" data-bs-target="#navbarExample">
         
         <!-- Navigation -->
         <nav id="navbarExample" class="navbar navbar-expand-lg fixed-top navbar-light" aria-label="Main navigation">
             <div class="container">
 
                 <!-- Image Logo -->
-                <a class="navbar-brand logo-image" href="index.html"><img src="images/logo.svg" alt="alternative"></a> 
-
+                <a class="navbar-brand logo-image" href="templates/index.html"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Xclusive Money logo">
                 <!-- Text Logo - Use this if you don't have a graphic logo -->
-                <!-- <a class="navbar-brand logo-text" href="index.html">Ioniq</a> -->
+                <!-- <a class="navbar-brand logo-text" href="index.html">XM</a> -->
 
                 <button class="navbar-toggler p-0 border-0" type="button" id="navbarSideCollapse" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -50,30 +48,26 @@
                 <div class="navbar-collapse offcanvas-collapse" id="navbarsExampleDefault">
                     <ul class="navbar-nav ms-auto navbar-nav-scroll">
                         <li class="nav-item">
-                            <a class="nav-link active" aria-current="page" href="index.html">Home</a>
+                            <a class="nav-link active" aria-current="page" href="#header"></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="index.html#features">Features</a>
+                            <a class="nav-link" href="#features">Features</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="index.html#details">Details</a>
+                            <a class="nav-link" href="#details">Details</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="index.html#pricing">Pricing</a>
+                            <a class="nav-link" href="#pricing">Pricing</a>
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-bs-toggle="dropdown" aria-expanded="false">Drop</a>
                             <ul class="dropdown-menu" aria-labelledby="dropdown01">
-                                <li><a class="dropdown-item" href="article.html">Article Details</a></li>
-                                <li><div class="dropdown-divider"></div></li>
-                                <li><a class="dropdown-item" href="terms.html">Terms Conditions</a></li>
-                                <li><div class="dropdown-divider"></div></li>
-                                <li><a class="dropdown-item" href="privacy.html">Privacy Policy</a></li>
+                                <li><a class="dropdown-item" href="templates/">-----</a></li>
                             </ul>
                         </li>
                     </ul>
                     <span class="nav-item">
-                        <a class="btn-outline-sm" href="log-in.html">Log in</a>
+                        <a class="btn-outline-sm" href="{{ url_for('login') }}">Log in</a>
                     </span>
                 </div> <!-- end of navbar-collapse -->
             </div> <!-- end of container -->
