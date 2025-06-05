@@ -99,20 +99,20 @@
                 <div class="row">
                     <div class="col-xl-6 offset-xl-3">
                         <div class="text-box mt-5 mb-5">
-                            <p class="mb-4">Fill out the form below to sign up for the service. Already signed up? Then just <a class="blue" href="log-in.html">Log In</a></p>
+                            <p class="mb-4">Fill out the form below to sign up for the service. Already signed up? Then just <a class="blue" href="{{ url_for('login') }}">Log In</a></p>
 
                             <!-- Sign Up Form -->
-                            <form>
+                            <form method="post" action="{{ url_for('signup') }}">
                                 <div class="mb-4 form-floating">
-                                    <input type="email" class="form-control" id="floatingInput" placeholder="name@example.com">
+                                    <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com" required>
                                     <label for="floatingInput">Email address</label>
                                 </div>
                                 <div class="mb-4 form-floating">
-                                    <input type="text" class="form-control" id="floatingInput2" placeholder="Your name">
+                                    <input type="text" name="username" class="form-control" id="floatingInput2" placeholder="Your name" required>
                                     <label for="floatingInput">Your name</label>
                                 </div>
                                 <div class="mb-4 form-floating">
-                                    <input type="password" class="form-control" id="floatingPassword" placeholder="Password">
+                                    <input type="password" name="password" class="form-control" id="floatingPassword" placeholder="Password" required>
                                     <label for="floatingPassword">Password</label>
                                 </div>
                                 <div class="mb-4 form-check">
