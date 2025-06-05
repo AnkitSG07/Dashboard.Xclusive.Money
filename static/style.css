@@ -93,6 +93,14 @@ body {
   object-fit: cover;
   border: 2px solid var(--primary-main);
 }
+.profile-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary-main);
+  margin-bottom: 10px;
+}
 
 /*──────────────────────────────────────────────────────────────────────────
    4. Sidebar
