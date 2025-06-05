@@ -1001,6 +1001,8 @@ def start_copy():
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
+    user = session.get("user")
+
     found = False
     for acc in db["accounts"]:
         if acc["client_id"] == client_id and acc.get("owner") == user:
