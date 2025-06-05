@@ -146,10 +146,10 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if not session.get("user"):
-            return redirect(url_for("login"))
+            return redirect(url_for("login_page"))
         return view(*args, **kwargs)
     return wrapped
-
+    
 def poll_and_copy_trades():
     print("🔄 poll_and_copy_trades() triggered...")
 
