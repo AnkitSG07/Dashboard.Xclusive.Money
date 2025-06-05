@@ -4,7 +4,7 @@
 {% block content %}
 <div class="section-box d-flex justify-content-between align-items-center">
   <div>
-    <h4>Welcome back <span>👋</span></h4>
+    <h4>Welcome back {{ session['user'] }} <span>👋</span></h4>
     <p>Be fearful when others are greedy. Be greedy when others are fearful</p>
     <button class="btn btn-primary me-2">Copy Trading</button>
     <button class="btn btn-outline-primary">Account Configuration</button>
