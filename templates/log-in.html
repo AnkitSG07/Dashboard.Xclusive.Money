@@ -22,10 +22,11 @@
         
         <!-- Styles -->
         <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-        <link href="css/bootstrap.min.css" rel="stylesheet">
-        <link href="css/fontawesome-all.min.css" rel="stylesheet">
-        <link href="css/swiper.css" rel="stylesheet">
-        <link href="css/styles.css" rel="stylesheet">
+        <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='fontawesome-all.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='swiper.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='styles1.css') }}" rel="stylesheet">
+        
         
         <!-- Favicon  -->
         <link rel="icon" href="images/favicon.png">
@@ -201,10 +202,10 @@
         <!-- end of back to top button -->
             
         <!-- Scripts -->
-        <script src="js/bootstrap.min.js"></script> <!-- Bootstrap framework -->
-        <script src="js/swiper.min.js"></script> <!-- Swiper for image and text sliders -->
-        <script src="js/purecounter.min.js"></script> <!-- Purecounter counter for statistics numbers -->
-        <script src="js/replaceme.min.js"></script> <!-- ReplaceMe for rotating text -->
-        <script src="js/scripts.js"></script> <!-- Custom scripts -->
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/swiper.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/purecounter.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/replaceme.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
     </body>
 </html>
