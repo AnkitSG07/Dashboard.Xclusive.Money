@@ -1262,18 +1262,22 @@ def home():
     return render_template("index.html")
 
 @app.route('/dhan-dashboard')
+@login_required
 def dhan_dashboard():
     return render_template("dhan-dashboard.html")
 
 @app.route("/Summary")
+@login_required
 def summary():
     return render_template("Summary.html")  # or "Summary.html" if that's your file name
 
 @app.route("/copy-trading")
+@login_required
 def copytrading():
     return render_template("copy-trading.html")
 
 @app.route("/Add-Account")
+@login_required
 def AddAccount():
     return render_template("Add-Account.html")
 
