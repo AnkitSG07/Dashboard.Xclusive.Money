@@ -106,6 +106,22 @@ body {
   margin: auto;
 }
 
+/* Hero section for page headers */
+.hero-section {
+  background: linear-gradient(135deg, var(--primary-light), #fff);
+  border: 1px solid var(--divider);
+  box-shadow: 0 6px 20px var(--shadow-light);
+  padding: 32px;
+}
+.hero-section h3,
+.hero-section h4 {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.hero-section p {
+  color: var(--text-secondary);
+  margin-bottom: 0;
+
 /*──────────────────────────────────────────────────────────────────────────
    4. Sidebar
 ──────────────────────────────────────────────────────────────────────────*/
