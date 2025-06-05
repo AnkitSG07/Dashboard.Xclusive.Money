@@ -1003,7 +1003,7 @@ def start_copy():
 
     found = False
     for acc in db["accounts"]:
-        if acc["client_id"] == client_id and acc.get("owner") == user::
+        if acc["client_id"] == client_id and acc.get("owner") == user:
             acc["role"] = "child"
             acc["linked_master_id"] = master_id
             acc["copy_status"] = "On"
