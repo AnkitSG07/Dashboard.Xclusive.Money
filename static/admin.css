@@ -1,0 +1,7 @@
+body { overflow-x: hidden; }
+#sidebar-wrapper { width: 220px; }
+#wrapper.toggled #sidebar-wrapper { margin-left: -220px; }
+@media (max-width: 768px) {
+  #sidebar-wrapper { margin-left: -220px; }
+  #wrapper.toggled #sidebar-wrapper { margin-left: 0; }
+}
