@@ -25,9 +25,13 @@
       <td>{{ u.plan }}</td>
       <td>{{ u.last_login }}</td>
       <td>
-        <button class="btn btn-sm btn-warning">Suspend</button>
-        <button class="btn btn-sm btn-info">View</button>
-        <button class="btn btn-sm btn-secondary">Reset Password</button>
+        <form method="post" action="{{ url_for('admin_suspend_user', user_id=u.id) }}" class="d-inline">
+          <button class="btn btn-sm btn-warning">Suspend</button>
+        </form>
+        <a href="{{ url_for('admin_view_user', user_id=u.id) }}" class="btn btn-sm btn-info">View</a>
+        <form method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}" class="d-inline">
+          <button class="btn btn-sm btn-secondary">Reset Password</button>
+        </form>
       </td>
     </tr>
     {% endfor %}
