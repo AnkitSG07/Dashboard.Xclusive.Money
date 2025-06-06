@@ -1,0 +1,34 @@
+{% extends 'admin/base.html' %}
+{% block title %}Trades{% endblock %}
+{% block content %}
+<div class="row mb-3 g-2">
+  <div class="col-auto"><input type="date" class="form-control"></div>
+  <div class="col-auto">
+    <select class="form-select">
+      <option>Status</option>
+      <option>Filled</option>
+      <option>Failed</option>
+    </select>
+  </div>
+  <div class="col-auto"><input class="form-control" placeholder="User"></div>
+  <div class="col-auto"><button class="btn btn-secondary">Filter</button></div>
+</div>
+<table class="table table-bordered">
+  <thead>
+    <tr><th>User</th><th>Symbol</th><th>Action</th><th>Qty</th><th>Price</th><th>Status</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    {% for t in trades %}
+    <tr>
+      <td>{{ t.user }}</td>
+      <td>{{ t.symbol }}</td>
+      <td>{{ t.action }}</td>
+      <td>{{ t.qty }}</td>
+      <td>{{ t.price }}</td>
+      <td>{{ t.status }}</td>
+      <td><button class="btn btn-sm btn-danger">Retry</button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
