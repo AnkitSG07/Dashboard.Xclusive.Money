@@ -1744,15 +1744,25 @@ def groups_page():
 # === Admin routes ===
 @app.route('/adminlogin', methods=['GET', 'POST'])
 def admin_login():
+    import os
+    error = None
+
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        admin = User.query.filter_by(email=email, is_admin=True).first()
-        if admin and admin.check_password(password):
-            session['admin'] = admin.email
-            return redirect(url_for('admin_dashboard'))
-        return render_template('login.html', error='Invalid credentials')
-    return render_template('login.html')
+        input_email = request.form.get('email')
+        input_password = request.form.get('password')
+
+        # Compare with Render env vars
+        admin_email = os.environ.get('ADMIN_EMAIL')
+        admin_password = os.environ.get('ADMIN_PASSWORD')
+
+        if input_email == admin_email and input_password == admin_password:
+            session['admin'] = admin_email
+            return redirect(url_for('admindashboard'))  # Replace with your dashboard route
+        else:
+            error = 'Invalid credentials'
+
+    return render_template('login.html', error=error)
+
 
 @app.route('/adminlogout')
 def admin_logout():
