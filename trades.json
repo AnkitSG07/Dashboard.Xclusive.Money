@@ -1,0 +1,6 @@
+
+  "trades": [
+    {"user": "John", "symbol": "NIFTY", "action": "BUY", "qty": 10, "price": 18000, "status": "Filled"},
+    {"user": "Jane", "symbol": "BANKNIFTY", "action": "SELL", "qty": 5, "price": 42000, "status": "Failed"}
+  ]
+}
