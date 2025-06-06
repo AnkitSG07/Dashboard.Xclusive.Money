@@ -1700,7 +1700,7 @@ def admin_dashboard():
     ]
     trade_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [12,19,3,5,2]}
     signup_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [5,7,4,6,3]}
-    return render_template('admindashboard.html', metrics=metrics, api_status=api_status,
+    return render_template('dashboard.html', metrics=metrics, api_status=api_status,
                            trade_chart=trade_chart, signup_chart=signup_chart)
 
 @app.route('/adminusers')
