@@ -1071,7 +1071,7 @@ def add_account():
         "multiplier": 1,
         "copy_status": "Off"
     })
-        db_user = User.query.filter_by(email=user).first()
+    db_user = User.query.filter_by(email=user).first()
     if db_user:
         existing = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
         if not existing:
