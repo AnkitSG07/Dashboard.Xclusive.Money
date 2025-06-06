@@ -1,0 +1,30 @@
+{% extends 'admin/base.html' %}
+{% block title %}Logs{% endblock %}
+{% block content %}
+<h5>Webhook Logs</h5>
+<table class="table table-bordered mb-4">
+  <thead><tr><th>Status</th><th>Time</th><th>Reason</th></tr></thead>
+  <tbody>
+    {% for log in webhook_logs %}
+    <tr>
+      <td>{{ log.status }}</td>
+      <td>{{ log.time }}</td>
+      <td>{{ log.reason }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h5>System Events</h5>
+<table class="table table-bordered">
+  <thead><tr><th>Type</th><th>Time</th><th>Details</th></tr></thead>
+  <tbody>
+    {% for log in system_logs %}
+    <tr>
+      <td>{{ log.type }}</td>
+      <td>{{ log.time }}</td>
+      <td>{{ log.details }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
