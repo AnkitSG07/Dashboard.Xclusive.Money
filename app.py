@@ -1,6 +1,6 @@
 from brokers.factory import get_broker_class
 from brokers.zerodha import ZerodhaBroker
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
 import sqlite3
 import os
@@ -154,7 +154,7 @@ def seed_dummy_data():
             user.set_password(info.get('password', 'pass'))
             db.session.add(user)
         admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin')
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
         admin = User(email=admin_email, name='Admin', plan='Admin', is_admin=True)
         admin.set_password(admin_password)
         db.session.add(admin)
@@ -1798,10 +1798,67 @@ def admin_settings():
 def admin_profile():
     return render_template('profile.html', admin={'email': session.get('admin')})
 
+# ---- Admin action routes ----
+
+@app.route('/adminusers/<int:user_id>/suspend', methods=['POST'])
+@admin_login_required
+def admin_suspend_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.plan = 'Suspended'
+    db.session.commit()
+    flash(f'User {user.email} suspended.')
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/adminusers/<int:user_id>/reset', methods=['POST'])
+@admin_login_required
+def admin_reset_password(user_id):
+    user = User.query.get_or_404(user_id)
+    new_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    user.set_password(new_pass)
+    db.session.commit()
+    flash(f'New password for {user.email}: {new_pass}')
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/adminusers/<int:user_id>')
+@admin_login_required
+def admin_view_user(user_id):
+    user = User.query.get_or_404(user_id)
+    return render_template('user_detail.html', user=user)
+
+
+@app.route('/adminbrokers/<int:account_id>/revoke', methods=['POST'])
+@admin_login_required
+def admin_revoke_account(account_id):
+    account = Account.query.get_or_404(account_id)
+    account.status = 'Revoked'
+    db.session.commit()
+    flash('Account revoked')
+    return redirect(url_for('admin_brokers'))
+
+
+@app.route('/admintrades/<int:trade_id>/retry', methods=['POST'])
+@admin_login_required
+def admin_retry_trade(trade_id):
+    trade = Trade.query.get_or_404(trade_id)
+    trade.status = 'Pending'
+    db.session.commit()
+    flash('Trade marked for retry')
+    return redirect(url_for('admin_trades'))
+
+
+@app.route('/adminsubscriptions/<int:user_id>/change', methods=['POST'])
+@admin_login_required
+def admin_change_subscription(user_id):
+    user = User.query.get_or_404(user_id)
+    user.plan = 'Pro' if user.plan != 'Pro' else 'Free'
+    db.session.commit()
+    flash(f'Plan updated to {user.plan} for {user.email}')
+    return redirect(url_for('admin_subscriptions'))
+
 with app.app_context():
     db.create_all()
-    if os.environ.get("SEED_DUMMY_DATA", "0").lower() in ("1", "true", "yes"):
-        seed_dummy_data()
 
 scheduler = start_scheduler()
 
