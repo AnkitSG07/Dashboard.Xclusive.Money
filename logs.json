@@ -1,0 +1,10 @@
+{
+  "webhook": [
+    {"status": 200, "time": "2023-09-05 10:00", "reason": "-"},
+    {"status": 500, "time": "2023-09-05 10:10", "reason": "Error parsing"}
+  ],
+  "system": [
+    {"type": "Error", "time": "2023-09-05 09:00", "details": "Token failure"},
+    {"type": "Info", "time": "2023-09-04 18:00", "details": "Daily summary sent"}
+  ]
+}
