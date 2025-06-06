@@ -8,7 +8,7 @@ import json
 import pandas as pd
 from flask_cors import CORS
 import io
-from datetime import datetime
+from datetime import datetime, timedelta, date
 import requests
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -27,6 +27,7 @@ CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quantbot.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+start_time = datetime.utcnow()
 SYMBOL_MAP = {
     "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "IDEA": "532822", "HDFCBANK": "1333",
     "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
@@ -53,6 +54,13 @@ SYMBOL_MAP = {
     "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
 }
 
+BROKER_STATUS_URLS = {
+    "dhan": "https://api.dhan.co",
+    "zerodha": "https://api.kite.trade",
+    "aliceblue": "https://ant.aliceblueonline.com",
+    "finvasia": "https://api.shoonya.com",
+    "fyers": "https://api.fyers.in",
+}
 
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
@@ -96,10 +104,11 @@ def load_logs():
     return WebhookLog.query.all(), SystemLog.query.all()
 
 def load_settings():
-    result = {'trading_enabled': True, 'dhan_api': '', 'zerodha_api': ''}
+    # Return all key/value settings stored in the DB
+    result = {'trading_enabled': True}
     for s in Setting.query.all():
-        if s.key in ['trading_enabled']:
-            result[s.key] = s.value.lower() == 'true'
+        if s.key == 'trading_enabled':
+            result['trading_enabled'] = s.value.lower() == 'true'
         else:
             result[s.key] = s.value
     return result
@@ -114,6 +123,19 @@ def save_settings(settings):
             s.value = str(value)
     db.session.commit()
 
+def format_uptime():
+    delta = datetime.utcnow() - start_time
+    hours, remainder = divmod(int(delta.total_seconds()), 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{hours}h {minutes}m"
+
+
+def check_api(url: str) -> bool:
+    try:
+        resp = requests.get(url, timeout=3)
+        return resp.ok
+    except Exception:
+        return False
 
 def seed_dummy_data():
     if User.query.count() == 0:
@@ -1687,21 +1709,44 @@ def admin_logout():
 def admin_dashboard():
     users = load_users()
     accounts = load_accounts()
+    unique_brokers = {acc.broker for acc in accounts if acc.broker}
+
+    today = date.today()
+    start_today = today.strftime('%Y-%m-%d')
+    end_today = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+    trades_today = Trade.query.filter(Trade.timestamp >= start_today,
+                                     Trade.timestamp < end_today).count()
     metrics = {
         'total_users': len(users),
         'total_accounts': len(accounts),
-        'trades_today': 0,
-        'uptime': '99.9%'
+        'brokers_connected': len(unique_brokers),
+        'trades_today': trades_today,
+        'uptime': format_uptime()
     }
-    api_status = [
-        {'name': 'Dhan', 'online': True},
-        {'name': 'Zerodha', 'online': True},
-        {'name': 'Angel One', 'online': False},
-    ]
-    trade_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [12,19,3,5,2]}
-    signup_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [5,7,4,6,3]}
-    return render_template('dashboard.html', metrics=metrics, api_status=api_status,
-                           trade_chart=trade_chart, signup_chart=signup_chart)
+
+    labels = []
+    trade_counts = []
+    signup_counts = []
+    for i in range(5):
+        day = today - timedelta(days=4 - i)
+        start = day.strftime('%Y-%m-%d')
+        end = (day + timedelta(days=1)).strftime('%Y-%m-%d')
+        labels.append(day.strftime('%a'))
+        trade_counts.append(Trade.query.filter(Trade.timestamp >= start,
+                                               Trade.timestamp < end).count())
+        signup_counts.append(User.query.filter(User.subscription_start >= start,
+                                              User.subscription_start < end).count())
+
+    trade_chart = {'labels': labels, 'data': trade_counts}
+    signup_chart = {'labels': labels, 'data': signup_counts}
+
+    broker_list = sorted({acc.broker.lower() for acc in accounts if acc.broker})
+    api_status = []
+    for name in broker_list:
+        url = BROKER_STATUS_URLS.get(name)
+        online = check_api(url) if url else False
+        api_status.append({'name': name.title(), 'online': online})
+    return render_template('dashboard.html', metrics=metrics, api_status=api_status, trade_chart=trade_chart, signup_chart=signup_chart)
 
 @app.route('/adminusers')
 @admin_login_required
@@ -1713,7 +1758,8 @@ def admin_users():
 @admin_login_required
 def admin_brokers():
     accounts = load_accounts()
-    return render_template('brokers.html', accounts=accounts)
+    broker_names = sorted({acc.broker for acc in accounts if acc.broker})
+    return render_template('brokers.html', accounts=accounts, broker_names=broker_names)
 
 @app.route('/admintrades')
 @admin_login_required
@@ -1740,8 +1786,10 @@ def admin_settings():
     settings = load_settings()
     if request.method == 'POST':
         settings['trading_enabled'] = bool(request.form.get('trading_enabled'))
-        settings['dhan_api'] = request.form.get('dhan_api')
-        settings['zerodha_api'] = request.form.get('zerodha_api')
+        for key, value in request.form.items():
+            if key == 'trading_enabled':
+                continue
+            settings[key] = value
         save_settings(settings)
     return render_template('settings.html', settings=settings)
 
@@ -1752,7 +1800,8 @@ def admin_profile():
 
 with app.app_context():
     db.create_all()
-    seed_dummy_data()
+    if os.environ.get("SEED_DUMMY_DATA", "0").lower() in ("1", "true", "yes"):
+        seed_dummy_data()
 
 scheduler = start_scheduler()
 
