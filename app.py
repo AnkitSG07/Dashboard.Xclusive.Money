@@ -1747,10 +1747,11 @@ def admin_settings():
 def admin_profile():
     return render_template('admin/profile.html', admin={'email': session.get('admin')})
 
+with app.app_context():
+    db.create_all()
+    seed_dummy_data()
+
 scheduler = start_scheduler()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        seed_dummy_data()
     app.run(debug=True)
