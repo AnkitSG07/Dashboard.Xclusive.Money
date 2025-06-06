@@ -1,0 +1,36 @@
+{% extends 'admin/base.html' %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="mb-3 d-flex justify-content-between">
+  <input class="form-control w-auto" placeholder="Search...">
+  <select class="form-select w-auto">
+    <option>All Plans</option>
+    <option>Free</option>
+    <option>Pro</option>
+  </select>
+</div>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>User ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Plan</th><th>Last Login</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ u.phone }}</td>
+      <td>{{ u.plan }}</td>
+      <td>{{ u.last_login }}</td>
+      <td>
+        <button class="btn btn-sm btn-warning">Suspend</button>
+        <button class="btn btn-sm btn-info">View</button>
+        <button class="btn btn-sm btn-secondary">Reset Password</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

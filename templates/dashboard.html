@@ -1,0 +1,78 @@
+{% extends 'admin/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Total Users</h5>
+        <h3>{{ metrics.total_users }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Brokers Connected</h5>
+        <h3>{{ metrics.total_accounts }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Trades Today</h5>
+        <h3>{{ metrics.trades_today }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">System Uptime</h5>
+        <h3>{{ metrics.uptime }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <canvas id="tradeVolumeChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <canvas id="signupChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-4">
+  <h5>API Status</h5>
+  <ul class="list-group list-group-horizontal-md">
+    {% for api in api_status %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ api.name }}<span class="badge bg-{{ 'success' if api.online else 'danger' }}">{{ 'Online' if api.online else 'Down' }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const ctx1 = document.getElementById('tradeVolumeChart');
+new Chart(ctx1, {
+  type: 'line',
+  data: { labels: tradeChart.labels, datasets:[{ label:'Volume', data: tradeChart.data, borderColor:'#0d6efd' }] }
+});
+const ctx2 = document.getElementById('signupChart');
+new Chart(ctx2, {
+  type: 'bar',
+  data: { labels: signupChart.labels, datasets:[{ label:'Signups', data: signupChart.data, backgroundColor:'#0d6efd' }] }
+});
+</script>
+{% endblock %}

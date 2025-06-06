@@ -1,0 +1,28 @@
+{% extends 'admin/base.html' %}
+{% block title %}Brokers{% endblock %}
+{% block content %}
+<div class="mb-3 d-flex justify-content-end">
+  <select class="form-select w-auto">
+    <option>All Brokers</option>
+    <option>Dhan</option>
+    <option>Zerodha</option>
+  </select>
+</div>
+<table class="table table-bordered">
+  <thead>
+    <tr><th>User ID</th><th>Broker</th><th>Client ID</th><th>Token Expiry</th><th>Status</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    {% for acc in accounts %}
+    <tr>
+      <td>{{ acc.user_id }}</td>
+      <td>{{ acc.broker }}</td>
+      <td>{{ acc.client_id }}</td>
+      <td>{{ acc.token_expiry }}</td>
+      <td>{{ acc.status }}</td>
+      <td><button class="btn btn-sm btn-danger">Revoke</button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

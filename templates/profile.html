@@ -1,0 +1,15 @@
+{% extends 'admin/base.html' %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="card mx-auto" style="max-width:500px;">
+  <div class="card-body text-center">
+    <img src="../static/user.png" class="rounded-circle mb-3" style="width:100px;">
+    <h5 class="card-title">{{ admin.email }}</h5>
+    <p class="text-muted">Administrator</p>
+    <button class="btn btn-outline-primary mb-2">Change Password</button>
+    <div>
+      <a href="{{ url_for('admin_logout') }}" class="btn btn-danger">Logout</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
