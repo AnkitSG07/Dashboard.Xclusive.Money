@@ -13,7 +13,11 @@
       <td>{{ sub.subscription_start }}</td>
       <td>{{ sub.subscription_end }}</td>
       <td>{{ sub.payment_status }}</td>
-      <td><button class="btn btn-sm btn-info">Change</button></td>
+      <td>
+        <form method="post" action="{{ url_for('admin_change_subscription', user_id=sub.id) }}">
+          <button class="btn btn-sm btn-info">Change</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
