@@ -18,10 +18,15 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 import random
 import string
+from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "change-me"
 CORS(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quantbot.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 SYMBOL_MAP = {
     "RELIANCE": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "IDEA": "532822", "HDFCBANK": "1333",
     "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
@@ -66,6 +71,107 @@ def broker_api(obj):
     # Remove access_token from credentials dict to avoid duplication
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
     return BrokerClass(client_id, access_token, **rest)
+
+# Utility loaders for admin dashboard
+def load_users():
+    return User.query.all()
+
+def load_accounts():
+    return Account.query.all()
+
+def load_trades():
+    return Trade.query.all()
+
+def load_logs():
+    return WebhookLog.query.all(), SystemLog.query.all()
+
+def load_settings():
+    result = {'trading_enabled': True, 'dhan_api': '', 'zerodha_api': ''}
+    for s in Setting.query.all():
+        if s.key in ['trading_enabled']:
+            result[s.key] = s.value.lower() == 'true'
+        else:
+            result[s.key] = s.value
+    return result
+
+def save_settings(settings):
+    for key, value in settings.items():
+        s = Setting.query.filter_by(key=key).first()
+        if not s:
+            s = Setting(key=key, value=str(value))
+            db.session.add(s)
+        else:
+            s.value = str(value)
+    db.session.commit()
+
+
+def seed_dummy_data():
+    if User.query.count() == 0:
+        if os.path.exists('users.json'):
+            with open('users.json') as f:
+                data = json.load(f)
+            for uid, info in data.items():
+                user = User(
+                    email=info.get('email', uid),
+                    name=info.get('name'),
+                    phone=info.get('phone'),
+                    plan=info.get('plan'),
+                    last_login=info.get('last_login'),
+                    subscription_start=info.get('subscription_start'),
+                    subscription_end=info.get('subscription_end'),
+                    payment_status=info.get('payment_status'),
+                )
+                user.set_password(info.get('password', 'pass'))
+                db.session.add(user)
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin')
+        admin = User(email=admin_email, name='Admin', plan='Admin', is_admin=True)
+        admin.set_password(admin_password)
+        db.session.add(admin)
+
+    if Account.query.count() == 0 and os.path.exists('accounts.json'):
+        with open('accounts.json') as f:
+            data = json.load(f)
+        for acc in data.get('accounts', []):
+            account = Account(
+                user_id=int(acc.get('user_id')),
+                broker=acc.get('broker'),
+                client_id=acc.get('client_id'),
+                token_expiry=acc.get('token_expiry'),
+                status=acc.get('status'),
+            )
+            db.session.add(account)
+
+    if Trade.query.count() == 0 and os.path.exists('trades.json'):
+        with open('trades.json') as f:
+            data = json.load(f)
+        for t in data.get('trades', []):
+            trade = Trade(
+                user_id=1,
+                symbol=t.get('symbol'),
+                action=t.get('action'),
+                qty=t.get('qty'),
+                price=t.get('price'),
+                status=t.get('status'),
+                timestamp=datetime.now().isoformat(),
+            )
+            db.session.add(trade)
+
+    if WebhookLog.query.count() == 0 and os.path.exists('logs.json'):
+        with open('logs.json') as f:
+            data = json.load(f)
+        for log in data.get('webhook', []):
+            db.session.add(WebhookLog(status=log.get('status'), time=log.get('time'), reason=log.get('reason')))
+        for log in data.get('system', []):
+            db.session.add(SystemLog(type=log.get('type'), time=log.get('time'), details=log.get('details')))
+
+    if Setting.query.count() == 0 and os.path.exists('settings.json'):
+        with open('settings.json') as f:
+            data = json.load(f)
+        for k, v in data.items():
+            db.session.add(Setting(key=k, value=str(v)))
+
+    db.session.commit()
 
 
 
@@ -150,6 +256,18 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         if not session.get("user"):
             return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+# Admin authentication
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
+
+def admin_login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("admin"):
+            return redirect(url_for("admin_login"))
         return view(*args, **kwargs)
     return wrapped
     
@@ -1482,10 +1600,11 @@ def login():
     if request.method == "POST":
         username = request.form.get("email") or request.form.get("username")
         password = request.form.get("password")
-        with open("users.json", "r") as f:
-            auth = json.load(f)
-        if username in auth and auth[username]["password"] == password:
-            session["user"] = username
+        user = User.query.filter_by(email=username).first()
+        if user and user.check_password(password):
+            session["user"] = user.email
+            user.last_login = datetime.now().strftime('%Y-%m-%d')
+            db.session.commit()
             return redirect(url_for("summary"))
         return render_template("log-in.html", error="Invalid credentials")
     return render_template("log-in.html")
@@ -1495,15 +1614,13 @@ def signup():
     if request.method == "POST":
         username = request.form.get("email") or request.form.get("username")
         password = request.form.get("password")
-        with open("users.json", "r+") as f:
-            auth = json.load(f)
-            if username in auth:
-                return render_template("sign-up.html", error="User already exists")
-            auth[username] = {"password": password}
-            f.seek(0)
-            json.dump(auth, f, indent=2)
-            f.truncate()
-        session["user"] = username
+        if User.query.filter_by(email=username).first():
+            return render_template("sign-up.html", error="User already exists")
+        user = User(email=username)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        session["user"] = user.email
         return redirect(url_for("summary"))
     return render_template("sign-up.html")
 
@@ -1544,7 +1661,96 @@ def AddAccount():
 def groups_page():
     return render_template("groups.html")
 
+# === Admin routes ===
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        admin = User.query.filter_by(email=email, is_admin=True).first()
+        if admin and admin.check_password(password):
+            session['admin'] = admin.email
+            return redirect(url_for('admin_dashboard'))
+        return render_template('admin/login.html', error='Invalid credentials')
+    return render_template('admin/login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin', None)
+    return redirect(url_for('admin_login'))
+
+@app.route('/admin/dashboard')
+@admin_login_required
+def admin_dashboard():
+    users = load_users()
+    accounts = load_accounts()
+    metrics = {
+        'total_users': len(users),
+        'total_accounts': len(accounts),
+        'trades_today': 0,
+        'uptime': '99.9%'
+    }
+    api_status = [
+        {'name': 'Dhan', 'online': True},
+        {'name': 'Zerodha', 'online': True},
+        {'name': 'Angel One', 'online': False},
+    ]
+    trade_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [12,19,3,5,2]}
+    signup_chart = {'labels': ['Mon','Tue','Wed','Thu','Fri'], 'data': [5,7,4,6,3]}
+    return render_template('admin/dashboard.html', metrics=metrics, api_status=api_status,
+                           trade_chart=trade_chart, signup_chart=signup_chart)
+
+@app.route('/admin/users')
+@admin_login_required
+def admin_users():
+    users = load_users()
+    return render_template('admin/users.html', users=users)
+
+@app.route('/admin/brokers')
+@admin_login_required
+def admin_brokers():
+    accounts = load_accounts()
+    return render_template('admin/brokers.html', accounts=accounts)
+
+@app.route('/admin/trades')
+@admin_login_required
+def admin_trades():
+    trades = load_trades()
+    return render_template('admin/trades.html', trades=trades)
+
+@app.route('/admin/subscriptions')
+@admin_login_required
+def admin_subscriptions():
+    users = load_users()
+    subs = [u for u in users]
+    return render_template('admin/subscriptions.html', subscriptions=subs)
+
+@app.route('/admin/logs')
+@admin_login_required
+def admin_logs():
+    webhook_logs, system_logs = load_logs()
+    return render_template('admin/logs.html', webhook_logs=webhook_logs, system_logs=system_logs)
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@admin_login_required
+def admin_settings():
+    settings = load_settings()
+    if request.method == 'POST':
+        settings['trading_enabled'] = bool(request.form.get('trading_enabled'))
+        settings['dhan_api'] = request.form.get('dhan_api')
+        settings['zerodha_api'] = request.form.get('zerodha_api')
+        save_settings(settings)
+    return render_template('admin/settings.html', settings=settings)
+
+@app.route('/admin/profile')
+@admin_login_required
+def admin_profile():
+    return render_template('admin/profile.html', admin={'email': session.get('admin')})
+
 scheduler = start_scheduler()
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        seed_dummy_data()
     app.run(debug=True)
