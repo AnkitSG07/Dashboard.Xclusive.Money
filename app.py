@@ -1045,12 +1045,12 @@ def add_account():
     # Load DB
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
-        db = {"accounts": []}
+        accounts_data = {"accounts": []}
 
     # Check for duplicates
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if (
             acc.get("client_id") == client_id
             and acc.get("broker") == broker
@@ -1059,7 +1059,7 @@ def add_account():
             return jsonify({'error': 'Account already exists'}), 400
 
     # Add new account
-    db["accounts"].append({
+        accounts_data["accounts"].append({
         "broker": broker,
         "client_id": client_id,
         "username": username,
@@ -1091,7 +1091,7 @@ def add_account():
             existing.status = 'Connected'
         db.session.commit()
 
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
 
 @app.route('/api/accounts')
