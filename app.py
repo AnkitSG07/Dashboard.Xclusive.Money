@@ -1665,7 +1665,7 @@ def groups_page():
     return render_template("groups.html")
 
 # === Admin routes ===
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/adminlogin', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         email = request.form.get('email')
