@@ -1677,12 +1677,12 @@ def admin_login():
         return render_template('login.html', error='Invalid credentials')
     return render_template('login.html')
 
-@app.route('/admin/logout')
+@app.route('/adminlogout')
 def admin_logout():
     session.pop('admin', None)
     return redirect(url_for('admin_login'))
 
-@app.route('/admin/dashboard')
+@app.route('/admindashboard')
 @admin_login_required
 def admin_dashboard():
     users = load_users()
@@ -1703,38 +1703,38 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', metrics=metrics, api_status=api_status,
                            trade_chart=trade_chart, signup_chart=signup_chart)
 
-@app.route('/admin/users')
+@app.route('/adminusers')
 @admin_login_required
 def admin_users():
     users = load_users()
-    return render_template('admin/users.html', users=users)
+    return render_template('users.html', users=users)
 
-@app.route('/admin/brokers')
+@app.route('/adminbrokers')
 @admin_login_required
 def admin_brokers():
     accounts = load_accounts()
-    return render_template('admin/brokers.html', accounts=accounts)
+    return render_template('brokers.html', accounts=accounts)
 
-@app.route('/admin/trades')
+@app.route('/admintrades')
 @admin_login_required
 def admin_trades():
     trades = load_trades()
-    return render_template('admin/trades.html', trades=trades)
+    return render_template('trades.html', trades=trades)
 
-@app.route('/admin/subscriptions')
+@app.route('/adminsubscriptions')
 @admin_login_required
 def admin_subscriptions():
     users = load_users()
     subs = [u for u in users]
-    return render_template('admin/subscriptions.html', subscriptions=subs)
+    return render_template('subscriptions.html', subscriptions=subs)
 
-@app.route('/admin/logs')
+@app.route('/adminlogs')
 @admin_login_required
 def admin_logs():
     webhook_logs, system_logs = load_logs()
-    return render_template('admin/logs.html', webhook_logs=webhook_logs, system_logs=system_logs)
+    return render_template('logs.html', webhook_logs=webhook_logs, system_logs=system_logs)
 
-@app.route('/admin/settings', methods=['GET', 'POST'])
+@app.route('/adminsettings', methods=['GET', 'POST'])
 @admin_login_required
 def admin_settings():
     settings = load_settings()
@@ -1743,12 +1743,12 @@ def admin_settings():
         settings['dhan_api'] = request.form.get('dhan_api')
         settings['zerodha_api'] = request.form.get('zerodha_api')
         save_settings(settings)
-    return render_template('admin/settings.html', settings=settings)
+    return render_template('settings.html', settings=settings)
 
-@app.route('/admin/profile')
+@app.route('/adminprofile')
 @admin_login_required
 def admin_profile():
-    return render_template('admin/profile.html', admin={'email': session.get('admin')})
+    return render_template('profile.html', admin={'email': session.get('admin')})
 
 with app.app_context():
     db.create_all()
