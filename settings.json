@@ -1,0 +1,5 @@
+{
+  "trading_enabled": true,
+  "dhan_api": "abc123",
+  "zerodha_api": "xyz789"
+}
