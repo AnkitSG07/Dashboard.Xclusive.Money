@@ -26,7 +26,11 @@
       <td>{{ t.qty }}</td>
       <td>{{ t.price }}</td>
       <td>{{ t.status }}</td>
-      <td><button class="btn btn-sm btn-danger">Retry</button></td>
+      <td>
+        <form method="post" action="{{ url_for('admin_retry_trade', trade_id=t.id) }}">
+          <button class="btn btn-sm btn-danger">Retry</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
