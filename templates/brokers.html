@@ -21,7 +21,11 @@
       <td>{{ acc.client_id }}</td>
       <td>{{ acc.token_expiry }}</td>
       <td>{{ acc.status }}</td>
-      <td><button class="btn btn-sm btn-danger">Revoke</button></td>
+      <td>
+        <form method="post" action="{{ url_for('admin_revoke_account', account_id=acc.id) }}">
+          <button class="btn btn-sm btn-danger">Revoke</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
