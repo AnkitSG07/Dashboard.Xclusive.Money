@@ -4,8 +4,9 @@
 <div class="mb-3 d-flex justify-content-end">
   <select class="form-select w-auto">
     <option>All Brokers</option>
-    <option>Dhan</option>
-    <option>Zerodha</option>
+    {% for b in broker_names %}
+    <option>{{ b.title() }}</option>
+    {% endfor %}
   </select>
 </div>
 <table class="table table-bordered">
