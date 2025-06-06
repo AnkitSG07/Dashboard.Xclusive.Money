@@ -25,6 +25,7 @@ app = Flask(__name__)
 app.secret_key = "change-me"
 CORS(app)
 DB_PATH = os.path.join("/tmp", "quantbot.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quantbot.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
