@@ -1665,7 +1665,7 @@ def groups_page():
     return render_template("groups.html")
 
 # === Admin routes ===
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -1674,8 +1674,8 @@ def admin_login():
         if admin and admin.check_password(password):
             session['admin'] = admin.email
             return redirect(url_for('admin_dashboard'))
-        return render_template('admin/login.html', error='Invalid credentials')
-    return render_template('admin/login.html')
+        return render_template('login.html', error='Invalid credentials')
+    return render_template('login.html')
 
 @app.route('/admin/logout')
 def admin_logout():
