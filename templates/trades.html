@@ -20,7 +20,7 @@
   <tbody>
     {% for t in trades %}
     <tr>
-      <td>{{ t.user }}</td>
+      <td>{{ t.user.email if t.user else t.user_id }}</td>
       <td>{{ t.symbol }}</td>
       <td>{{ t.action }}</td>
       <td>{{ t.qty }}</td>
