@@ -275,6 +275,23 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
     with open(path, "w") as f:
         json.dump(mappings, f, indent=2)
 
+
+def record_trade(user_email, symbol, action, qty, price, status):
+    """Persist a trade record to the database."""
+    user = User.query.filter_by(email=user_email).first()
+    trade = Trade(
+        user_id=user.id if user else None,
+        symbol=symbol,
+        action=action,
+        qty=int(qty),
+        price=float(price or 0),
+        status=status,
+        timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    )
+    db.session.add(trade)
+    db.session.commit()
+
+
 # Authentication decorator
 def login_required(view):
     @wraps(view)
@@ -368,6 +385,22 @@ def poll_and_copy_trades():
 
                 print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
                 new_last_trade_id = new_last_trade_id or order_id
+                 base_qty = (
+                    order.get("quantity") or
+                    order.get("orderQuantity") or
+                    order.get("qty") or
+                    1
+                )
+                price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
+                transaction_type = (
+                    order.get("transactionType") or
+                    order.get("transaction_type") or
+                    order.get("side") or
+                    "BUY"
+                ).upper()
+                symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
+                master_owner = master.get("owner")
+                record_trade(master_owner, symbol, transaction_type, base_qty, price, order_status.upper())
 
                 if not children:
                     print(f"ℹ️ [{master_id}] No children to copy trades to.")
@@ -393,13 +426,7 @@ def poll_and_copy_trades():
                         continue
 
                     multiplier = float(child.get("multiplier", 1))
-                    master_qty = (
-                        order.get("quantity") or
-                        order.get("orderQuantity") or
-                        order.get("qty") or
-                        1
-                    )
-                    copied_qty = max(1, int(float(master_qty) * multiplier))
+                    copied_qty = max(1, int(float(base_qty) * multiplier))
 
                     symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
                     exchange = order.get("exchange") or order.get("exchangeSegment") or order.get("exchange_segment") or "NSE"
@@ -449,6 +476,7 @@ def poll_and_copy_trades():
                             error_msg = response.get("error") or response.get("remarks") or "Unknown error"
                             print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
                             save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", error_msg)
+                            record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'FAILED')
                         else:
                             order_id_child = response.get("order_id") or response.get("orderId")
                             print(f"✅ Copied to {child['client_id']} (Order ID: {order_id_child})")
@@ -462,6 +490,7 @@ def poll_and_copy_trades():
                                 child_broker=child_broker,
                                 symbol=symbol
                             )
+                            record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'SUCCESS')
                     except Exception as e:
                         print(f"❌ Error copying to {child['client_id']}: {e}")
                         save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", str(e))
@@ -606,17 +635,21 @@ def webhook(user_id):
     try:
         response = broker_api.place_order(**order_params)
         if isinstance(response, dict) and response.get("status") == "failure":
+            status = "FAILED"
             reason = (
                 response.get("remarks") or response.get("error_message") or
                 response.get("errorMessage") or response.get("error") or "Unknown error"
             )
-            return jsonify({"status": "FAILED", "reason": reason}), 400
+            record_trade(user_id, symbol, action.upper(), quantity, order_params.get('price'), status)
+            return jsonify({"status": status, "reason": reason}), 400
 
         # If order was SUCCESSFUL, trigger instant copying for all children!
         poll_and_copy_trades()
+        status = "SUCCESS"
 
         success_msg = response.get("remarks", "Trade placed successfully")
-        return jsonify({"status": "SUCCESS", "result": str(success_msg)}), 200
+        record_trade(user_id, symbol, action.upper(), quantity, order_params.get('price'), status)
+        return jsonify({"status": status, "result": str(success_msg)}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1039,6 +1072,23 @@ def add_account():
         "multiplier": 1,
         "copy_status": "Off"
     })
+        db_user = User.query.filter_by(email=user).first()
+    if db_user:
+        existing = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+        if not existing:
+            account_obj = Account(
+                user_id=db_user.id,
+                broker=broker,
+                client_id=client_id,
+                token_expiry=credentials.get('token_expiry'),
+                status='Connected'
+            )
+            db.session.add(account_obj)
+        else:
+            existing.broker = broker
+            existing.token_expiry = credentials.get('token_expiry')
+            existing.status = 'Connected'
+        db.session.commit()
 
     safe_write_json("accounts.json", db)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
@@ -1239,9 +1289,13 @@ def place_group_order():
                 )
             resp = api.place_order(**order_params)
             if isinstance(resp, dict) and resp.get("status") == "failure":
-                results.append({"client_id": acc.get("client_id"), "status": "FAILED", "reason": clean_response_message(resp)})
+                status = "FAILED"
+                results.append({"client_id": acc.get("client_id"), "status": status, "reason": clean_response_message(resp)})
             else:
-                results.append({"client_id": acc.get("client_id"), "status": "SUCCESS"})
+                status = "SUCCESS"
+                results.append({"client_id": acc.get("client_id"), "status": status})
+
+            record_trade(user, symbol, action.upper(), quantity, order_params.get('price'), status)
         except Exception as e:
             results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
 
