@@ -1757,7 +1757,7 @@ def admin_login():
 
         if input_email == admin_email and input_password == admin_password:
             session['admin'] = admin_email
-            return redirect(url_for('admindashboard'))  # Replace with your dashboard route
+            return redirect(url_for('admin_dashboard'))  # Replace with your dashboard route
         else:
             error = 'Invalid credentials'
 
