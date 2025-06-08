@@ -1746,13 +1746,16 @@ def admin_dashboard():
     today = date.today()
     start_today = today.strftime('%Y-%m-%d')
     end_today = (today + timedelta(days=1)).strftime('%Y-%m-%d')
-    trades_today = Trade.query.filter(Trade.timestamp >= start_today,
-                                     Trade.timestamp < end_today).count()
+    trades_today = Trade.query.filter(Trade.timestamp >= start_today, Trade.timestamp < end_today).count()
+    active_users = User.query.filter(User.last_login >= start_today).count()
+    failed_trades = Trade.query.filter_by(status='Failed').count()
     metrics = {
         'total_users': len(users),
+        'active_users': active_users,
         'total_accounts': len(accounts),
         'brokers_connected': len(unique_brokers),
         'trades_today': trades_today,
+        'failed_trades': failed_trades,
         'uptime': format_uptime()
     }
 
