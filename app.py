@@ -26,7 +26,6 @@ app.secret_key = "change-me"
 CORS(app)
 DB_PATH = os.path.join("/tmp", "quantbot.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quantbot.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 start_time = datetime.utcnow()
@@ -324,9 +323,9 @@ def poll_and_copy_trades():
             return
 
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
 
-        all_accounts = db.get("accounts", [])
+        all_accounts = accounts_data.get("accounts", [])
         # Find all masters
         masters = [acc for acc in all_accounts if acc.get("role") == "master"]
 
@@ -351,7 +350,7 @@ def poll_and_copy_trades():
                 continue
 
             last_copied_key = f"last_copied_trade_id_{master_id}"
-            last_copied_trade_id = db.get(last_copied_key)
+            last_copied_trade_id = accounts_data.get(last_copied_key)
             new_last_trade_id = None
 
             # Get master orders using standard interface
@@ -498,9 +497,9 @@ def poll_and_copy_trades():
 
             if new_last_trade_id:
                 print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
-                db[last_copied_key] = new_last_trade_id
+                accounts_data[last_copied_key] = new_last_trade_id
 
-        safe_write_json("accounts.json", db)
+        safe_write_json("accounts.json", accounts_data)
 
     except Exception as e:
         print(f"❌ poll_and_copy_trades encountered an error: {e}")
@@ -530,8 +529,8 @@ def connect_zerodha():
 def get_order_book(client_id):
     try:
         with open("accounts.json", "r") as f:
-            db = json.load(f)
-        masters = [acc for acc in db.get("accounts", []) if acc.get("role") == "master"]
+            accounts_data = json.load(f)
+        masters = [acc for acc in accounts_data.get("accounts", []) if acc.get("role") == "master"]
         master = next((m for m in masters if m.get("client_id") == client_id), None)
         if not master:
             return jsonify({"error": "Master not found"}), 404
@@ -884,6 +883,19 @@ def get_order_mappings():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/child-orders')
+def child_orders():
+    master_order_id = request.args.get('master_order_id')
+    path = 'order_mappings.json'
+    if not os.path.exists(path):
+        return jsonify([])
+    with open(path, 'r') as f:
+        mappings = json.load(f)
+    if master_order_id:
+        mappings = [m for m in mappings if m.get('master_order_id') == master_order_id]
+    return jsonify(mappings)
+
 # --- Cancel Order Endpoint ---
 @app.route('/api/cancel-order', methods=['POST'])
 def cancel_order():
@@ -953,17 +965,17 @@ def change_master():
         return jsonify({"error": "Missing child_id or new_master_id"}), 400
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
     found = None
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if acc["client_id"] == child_id:
             acc["linked_master_id"] = new_master_id
             found = acc
     if not found:
         return jsonify({"error": "Child not found."}), 404
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
 
     return jsonify({"message": f"Child {child_id} now linked to master {new_master_id}."}), 200
 
@@ -975,11 +987,11 @@ def remove_child():
         return jsonify({"error": "Missing client_id"}), 400
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
     found = None
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id and acc.get("role") == "child":
             acc["role"] = None
             acc["linked_master_id"] = None
@@ -988,7 +1000,7 @@ def remove_child():
             found = acc
     if not found:
         return jsonify({"error": "Child not found."}), 404
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
 
     return jsonify({"message": f"Child {client_id} removed from master."}), 200
 
@@ -1009,17 +1021,17 @@ def update_multiplier():
         return jsonify({"error": "Invalid multiplier format"}), 400
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts found"}), 400
     found = None
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id:
             acc["multiplier"] = new_multiplier
             found = acc
     if not found:
         return jsonify({"error": "Child account not found"}), 404
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
 
     return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
 
@@ -1100,14 +1112,14 @@ def get_accounts():
     try:
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
-                db = json.load(f)
-            if "accounts" not in db or not isinstance(db["accounts"], list):
+                accounts_data = json.load(f)
+            if "accounts" not in accounts_data or not isinstance(accounts_data["accounts"], list):
                 raise ValueError("Corrupt accounts.json: missing 'accounts' list")
         else:
-            db = {'accounts': []}
+            accounts_data = {'accounts': []}
 
         user = session.get("user")
-        accounts = [a for a in db["accounts"] if a.get("owner") == user]
+        accounts = [a for a in accounts_data["accounts"] if a.get("owner") == user]
 
         masters = []
         for acc in accounts:
@@ -1132,10 +1144,10 @@ def get_groups():
     groups_path = "groups.json"
     if os.path.exists(groups_path):
         with open(groups_path, "r") as f:
-            db = json.load(f)
+            groups_data = json.load(f)
     else:
-        db = {"groups": []}
-    groups = [g for g in db.get("groups", []) if g.get("owner") == user]
+        groups_data = {"groups": []}
+    groups = [g for g in groups_data.get("groups", []) if g.get("owner") == user]
     return jsonify(groups)
 
 
@@ -1152,21 +1164,21 @@ def create_group():
     groups_path = "groups.json"
     if os.path.exists(groups_path):
         with open(groups_path, "r") as f:
-            db = json.load(f)
+            groups_data = json.load(f)
     else:
-        db = {"groups": []}
+        groups_data = {"groups": []}
 
     user = session.get("user")
-    for g in db.get("groups", []):
+    for g in groups_data.get("groups", []):
         if g.get("name") == name and g.get("owner") == user:
             return jsonify({"error": "Group already exists"}), 400
 
-    db.setdefault("groups", []).append({
+    groups_data.setdefault("groups", []).append({
         "name": name,
         "owner": user,
         "members": members
     })
-    safe_write_json(groups_path, db)
+    safe_write_json(groups_path, groups_data)
     return jsonify({"message": f"Group '{name}' created"})
 
 
@@ -1181,16 +1193,16 @@ def add_account_to_group(group_name):
     groups_path = "groups.json"
     if os.path.exists(groups_path):
         with open(groups_path, "r") as f:
-            db = json.load(f)
+            groups_data = json.load(f)
     else:
         return jsonify({"error": "Group database not found"}), 500
 
     user = session.get("user")
-    for g in db.get("groups", []):
+    for g in groups_data.get("groups", []):
         if g.get("name") == group_name and g.get("owner") == user:
             if client_id not in g.get("members", []):
                 g.setdefault("members", []).append(client_id)
-                safe_write_json(groups_path, db)
+                safe_write_json(groups_path, groups_data)
                 return jsonify({"message": f"Added {client_id} to {group_name}"})
             return jsonify({"message": "Account already in group"})
 
@@ -1208,16 +1220,16 @@ def remove_account_from_group(group_name):
     groups_path = "groups.json"
     if os.path.exists(groups_path):
         with open(groups_path, "r") as f:
-            db = json.load(f)
+            groups_data = json.load(f)
     else:
         return jsonify({"error": "Group database not found"}), 500
 
     user = session.get("user")
-    for g in db.get("groups", []):
+    for g in groups_data.get("groups", []):
         if g.get("name") == group_name and g.get("owner") == user:
             if client_id in g.get("members", []):
                 g["members"].remove(client_id)
-                safe_write_json(groups_path, db)
+                safe_write_json(groups_path, groups_data)
                 return jsonify({"message": f"Removed {client_id} from {group_name}"})
             return jsonify({"error": "Account not in group"}), 400
 
@@ -1240,13 +1252,13 @@ def place_group_order():
     groups_path = "groups.json"
     if os.path.exists(groups_path):
         with open(groups_path, "r") as f:
-            groups_db = json.load(f)
+            groups_data = json.load(f)
     else:
         return jsonify({"error": "No groups configured"}), 400
 
     group = None
     user = session.get("user")
-    for g in groups_db.get("groups", []):
+    for g in groups_data.get("groups", []):
         if g.get("name") == group_name and g.get("owner") == user:
             group = g
             break
@@ -1255,11 +1267,11 @@ def place_group_order():
 
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            accounts_db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts configured"}), 500
 
-    accounts = [a for a in accounts_db.get("accounts", []) if a.get("client_id") in group.get("members", [])]
+    accounts = [a for a in accounts_data.get("accounts", []) if a.get("client_id") in group.get("members", [])]
 
     results = []
     for acc in accounts:
@@ -1312,13 +1324,13 @@ def set_master():
 
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
-                db = json.load(f)
+            accounts_data = json.load(f)
         else:
-            db = {"accounts": []}
+            accounts_data = {"accounts": []}
             
         user = session.get("user")
         found = False
-        for acc in db["accounts"]:
+        for acc in accounts_data["accounts"]:
             if acc.get("client_id") == client_id and acc.get("owner") == user:
                 acc["role"] = "master"
                 acc.pop("linked_master_id", None)
@@ -1329,7 +1341,7 @@ def set_master():
         if not found:
             return jsonify({"error": "Account not found"}), 404
 
-        safe_write_json("accounts.json", db)
+        safe_write_json("accounts.json", accounts_data)
 
         return jsonify({"message": "Set as master successfully"})
     except Exception as e:
@@ -1346,13 +1358,13 @@ def set_child():
 
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
-                db = json.load(f)
+                accounts_data = json.load(f)
         else:
-            db = {"accounts": []}
+            accounts_data = {"accounts": []}
 
         user = session.get("user")
         found = False
-        for acc in db["accounts"]:
+        for acc in accounts_data["accounts"]:
             if acc.get("client_id") == client_id and acc.get("owner") == user:
                 acc["role"] = "child"
                 acc["linked_master_id"] = linked_master_id
@@ -1363,7 +1375,7 @@ def set_child():
         if not found:
             return jsonify({"error": "Account not found"}), 404
 
-        safe_write_json("accounts.json", db)
+        safe_write_json("accounts.json", accounts_data)
 
         return jsonify({"message": "Set as child successfully"})
     except Exception as e:
@@ -1380,14 +1392,14 @@ def start_copy():
         return jsonify({"error": "Missing client_id or master_id"}), 400
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
     user = session.get("user")
 
     found = False
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id and acc.get("owner") == user:
             acc["role"] = "child"
             acc["linked_master_id"] = master_id
@@ -1396,7 +1408,7 @@ def start_copy():
     if not found:
         return jsonify({"error": "Child account not found."}), 404
 
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."})
 
 
@@ -1410,20 +1422,20 @@ def stop_copy():
         return jsonify({"error": "Missing client_id or master_id"}), 400
     if os.path.exists("accounts.json"):
         with open("accounts.json", "r") as f:
-            db = json.load(f)
+            accounts_data = json.load(f)
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
     user = session.get("user")
     found = False
-    for acc in db["accounts"]:
+    for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "Off"
             found = True
     if not found:
         return jsonify({"error": "Child account not found."}), 404
 
-    safe_write_json("accounts.json", db)
+    safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."})
 
 # === Endpoint to fetch passive alert logs ===
