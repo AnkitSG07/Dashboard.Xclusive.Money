@@ -1048,9 +1048,9 @@ def add_account():
     broker = data.get('broker')
     client_id = data.get('client_id')
     username = data.get('username')
-    
+
     credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id', 'username')}
-    
+
     if not broker or not client_id or not username:
         return jsonify({'error': 'Missing broker, client_id or username'}), 400
 
@@ -1070,8 +1070,8 @@ def add_account():
         ):
             return jsonify({'error': 'Account already exists'}), 400
 
-    # Add new account
-        accounts_data["accounts"].append({
+    # Add to accounts.json
+    accounts_data["accounts"].append({
         "broker": broker,
         "client_id": client_id,
         "username": username,
@@ -1085,6 +1085,8 @@ def add_account():
         "multiplier": 1,
         "copy_status": "Off"
     })
+
+    # Add to SQL DB if available
     db_user = User.query.filter_by(email=user).first()
     if db_user:
         existing = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
