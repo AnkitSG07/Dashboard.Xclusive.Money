@@ -20,6 +20,7 @@ import random
 import string
 from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting
 from werkzeug.security import generate_password_hash, check_password_hash
+import re
 
 app = Flask(__name__)
 app.secret_key = "change-me"
@@ -80,6 +81,18 @@ def safe_read_json(path):
     except json.JSONDecodeError as e:
         print(f"Error reading {path}: {e}")
         return {}
+
+EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
+
+def strip_emojis_from_obj(obj):
+    """Recursively remove emoji characters from strings in lists/dicts."""
+    if isinstance(obj, dict):
+        return {k: strip_emojis_from_obj(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [strip_emojis_from_obj(v) for v in obj]
+    if isinstance(obj, str):
+        return EMOJI_RE.sub('', obj)
+    return obj
 
 def broker_api(obj):
     broker = obj.get("broker", "Unknown").lower()
@@ -357,6 +370,7 @@ def poll_and_copy_trades():
             try:
                 orders_resp = master_api.get_order_list()
                 order_list = orders_resp.get("data", orders_resp.get("orders", []))
+                order_list = strip_emojis_from_obj(order_list)
             except Exception as e:
                 print(f"❌ Error fetching orders for master {master_id}: {e}")
                 continue
@@ -538,6 +552,7 @@ def get_order_book(client_id):
         api = broker_api(master)
         orders_resp = api.get_order_list()
         orders = orders_resp.get("data", orders_resp.get("orders", []))
+        orders = strip_emojis_from_obj(orders)
 
         formatted = []
         for order in orders:
@@ -1564,7 +1579,7 @@ def get_orders(user_id):
         if not isinstance(resp, dict) or "data" not in resp:
             return jsonify({"error": "Unexpected response format", "details": resp}), 500
 
-        orders = resp["data"]  # ✅ the real list of orders now
+        orders = strip_emojis_from_obj(resp["data"])  # ✅ sanitized orders
 
         total_trades = len(orders)
         last_order = orders[0] if orders else {}
