@@ -1324,7 +1324,7 @@ def set_master():
 
         if os.path.exists("accounts.json"):
             with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+                accounts_data = json.load(f)
         else:
             accounts_data = {"accounts": []}
             
