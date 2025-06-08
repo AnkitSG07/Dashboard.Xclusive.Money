@@ -151,68 +151,6 @@ def check_api(url: str) -> bool:
     except Exception:
         return False
 
-def seed_dummy_data():
-    if User.query.count() == 0:
-        data = safe_read_json('users.json')
-        for uid, info in data.items():
-            user = User(
-                email=info.get('email', uid),
-                name=info.get('name'),
-                phone=info.get('phone'),
-                plan=info.get('plan'),
-                last_login=info.get('last_login'),
-                subscription_start=info.get('subscription_start'),
-                subscription_end=info.get('subscription_end'),
-                payment_status=info.get('payment_status'),
-            )
-            user.set_password(info.get('password', 'pass'))
-            db.session.add(user)
-        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
-        admin = User(email=admin_email, name='Admin', plan='Admin', is_admin=True)
-        admin.set_password(admin_password)
-        db.session.add(admin)
-
-    if Account.query.count() == 0:
-        data = safe_read_json('accounts.json')
-        for acc in data.get('accounts', []):
-            account = Account(
-                user_id=int(acc.get('user_id')),
-                broker=acc.get('broker'),
-                client_id=acc.get('client_id'),
-                token_expiry=acc.get('token_expiry'),
-                status=acc.get('status'),
-            )
-            db.session.add(account)
-
-    if Trade.query.count() == 0:
-        data = safe_read_json('trades.json')
-        for t in data.get('trades', []):
-            trade = Trade(
-                user_id=1,
-                symbol=t.get('symbol'),
-                action=t.get('action'),
-                qty=t.get('qty'),
-                price=t.get('price'),
-                status=t.get('status'),
-                timestamp=datetime.now().isoformat(),
-            )
-            db.session.add(trade)
-
-    if WebhookLog.query.count() == 0:
-        data = safe_read_json('logs.json')
-        for log in data.get('webhook', []):
-            db.session.add(WebhookLog(status=log.get('status'), time=log.get('time'), reason=log.get('reason')))
-        for log in data.get('system', []):
-            db.session.add(SystemLog(type=log.get('type'), time=log.get('time'), details=log.get('details')))
-
-    if Setting.query.count() == 0:
-        data = safe_read_json('settings.json')
-        for k, v in data.items():
-            db.session.add(Setting(key=k, value=str(v)))
-
-    db.session.commit()
-
 
 def find_account_by_client_id(accounts, client_id):
     """
