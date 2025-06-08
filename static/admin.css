@@ -38,9 +38,11 @@ body {
 #wrapper.toggled #sidebar-wrapper {
   margin-left: -240px;
 }
+@media (max-width: 768px) {
   #sidebar-wrapper {
     margin-left: -240px;
   }
   #wrapper.toggled #sidebar-wrapper {
     margin-left: 0;
   }
+
