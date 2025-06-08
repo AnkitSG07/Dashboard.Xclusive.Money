@@ -2,7 +2,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-4 col-lg-2">
     <div class="card text-center">
       <div class="card-body">
         <h5 class="card-title">Total Users</h5>
@@ -10,7 +10,7 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-4 col-lg-2">
     <div class="card text-center">
       <div class="card-body">
         <h5 class="card-title">Brokers Connected</h5>
@@ -18,7 +18,15 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4 col-lg-2">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">Failed Trades</h5>
+        <h3>{{ metrics.failed_trades }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
     <div class="card text-center">
       <div class="card-body">
         <h5 class="card-title">Trades Today</h5>
@@ -26,7 +34,7 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-4 col-lg-2">
     <div class="card text-center">
       <div class="card-body">
         <h5 class="card-title">System Uptime</h5>
