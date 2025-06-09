@@ -262,6 +262,8 @@ window.pageScripts["Add-Account"] = function() {
     const resultDiv = document.getElementById("cred-check-result");      
     container.innerHTML = "";
     if (resultDiv) resultDiv.textContent = "";
+    const form = document.getElementById("broker-credentials-form");
+    if (form) form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
     if (!fields) {
       submitBtn.style.display = "none";
       return;
@@ -271,7 +273,8 @@ window.pageScripts["Add-Account"] = function() {
       container.innerHTML += `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}" required></div>`;
     });
     submitBtn.style.display = "inline-block";
-        attachValidation();
+    submitBtn.disabled = true;
+    attachValidation();
   }
 
   function attachValidation() {
@@ -302,6 +305,11 @@ window.pageScripts["Add-Account"] = function() {
       resultDiv.textContent = '';
       return;
     }
+    // show spinner while validating
+    resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Checking...';
+    submitBtn.disabled = true;
+    // clear previous invalid highlighting
+    form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
     const data = {};
     new FormData(form).forEach((v,k) => data[k] = v);
     data['broker'] = broker;
@@ -314,8 +322,12 @@ window.pageScripts["Add-Account"] = function() {
     .then(resp => {
       if (resp.valid) {
         resultDiv.innerHTML = '<span class="text-success">Credentials valid \u2713</span>';
+        submitBtn.disabled = false;
+        form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
       } else {
         resultDiv.innerHTML = `<span class="text-danger">${resp.error || 'Invalid credentials'}</span>`;
+        submitBtn.disabled = true;
+        form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid'));
       }
     })
     .catch(() => {
