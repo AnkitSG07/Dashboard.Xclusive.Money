@@ -1070,6 +1070,31 @@ def update_multiplier():
 def market_watch():
     return render_template("marketwatch.html")
 
+@app.route('/api/check-credentials', methods=['POST'])
+@login_required
+def check_credentials():
+    """Validate broker credentials without saving them."""
+    data = request.json
+    broker = data.get('broker')
+    client_id = data.get('client_id')
+    if not broker or not client_id:
+        return jsonify({'error': 'Missing broker or client_id'}), 400
+
+    credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id')}
+    try:
+        BrokerClass = get_broker_class(broker)
+        access_token = credentials.get('access_token')
+        rest = {k: v for k, v in credentials.items() if k != 'access_token'}
+        broker_obj = BrokerClass(client_id, access_token, **rest)
+        valid = True
+        if hasattr(broker_obj, 'check_token_valid'):
+            valid = broker_obj.check_token_valid()
+        if not valid:
+            return jsonify({'error': 'Invalid broker credentials'}), 400
+        return jsonify({'valid': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 @app.route('/api/add-account', methods=['POST'])
 @login_required
 def add_account():
