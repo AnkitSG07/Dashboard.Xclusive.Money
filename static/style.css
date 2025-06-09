@@ -7,9 +7,10 @@
 ──────────────────────────────────────────────────────────────────────────*/
 :root {
   /* Primary Green */
-  --primary-light:    #E6F9EC;
-  --primary-main:     #17AE13;
-  --primary-dark:     #008D00;
+  /* Primary palette adapted to styles1.css */
+  --primary-light:    #efebfd;
+  --primary-main:     #272556;
+  --primary-dark:     #1b1a3f;    
 
   /* Info Blue */
   --info-light:       #E4F6FF;
@@ -27,14 +28,14 @@
   --error-dark:       #C72E42;
 
   /* Neutrals */
-  --bg-page:          #F4F6F8;
+  --bg-page:          #f9f8f8;
   --bg-card:          #FFFFFF;
   --bg-sidebar:       #FFFFFF;
-  --bg-navbar:        rgba(255, 255, 255, 0.85);
+  --bg-navbar:        #fff2dc;
   --bg-sticky:        #FFFFFF;
 
-  --text-primary:     #212529;
-  --text-secondary:   #637381;
+  --text-primary:     #272556;
+  --text-secondary:   #565578;
   --text-muted:       #919EAB;
   --divider:          #E0E3E7;
   --shadow-light:     rgba(0, 0, 0, 0.05);
@@ -186,12 +187,18 @@ body {
   display: flex;
 }
 
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /*──────────────────────────────────────────────────────────────────────────
    5. Main Content & Layout
 ──────────────────────────────────────────────────────────────────────────*/
 .main-content {
   margin-left: 240px;
   padding: 24px; padding-top: 80px;
+  animation: fadeSlide .5s ease;
 }
 h3, h5, h6 {
   font-weight: 600;
@@ -289,6 +296,7 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
   padding: 12px;
   text-align: center;
   border-bottom: 1px solid var(--divider);
+   transition: background-color .3s;
 }
 .table th {
   background: var(--primary-main);
@@ -298,7 +306,9 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
 .table tbody tr:hover td {
   background-color: var(--primary-light);
 }
-
+.table tbody tr {
+  transition: background-color .3s;
+}
 
 /*──────────────────────────────────────────────────────────────────────────
    9. Inputs & Forms
@@ -425,10 +435,9 @@ input#symbol-selector:focus,
    1. Color Palette & Variables
 ──────────────────────────────────────────────────────────────────────────*/
 :root {
-  /* Primary Green */
-  --primary-light:    #E6F9EC;
-  --primary-main:     #17AE13;
-  --primary-dark:     #008D00;
+  --primary-light:    #efebfd;
+  --primary-main:     #272556;
+  --primary-dark:     #1b1a3f;
 
   /* Info Blue */
   --info-light:       #E4F6FF;
@@ -446,14 +455,14 @@ input#symbol-selector:focus,
   --error-dark:       #C72E42;
 
   /* Neutrals */
-  --bg-page:          #F4F6F8;
+  --bg-page:          #f9f8f8;
   --bg-card:          #FFFFFF;
   --bg-sidebar:       #FFFFFF;
-  --bg-navbar:        rgba(255, 255, 255, 0.85);
+  --bg-navbar:        #fff2dc;
   --bg-sticky:        #FFFFFF;
 
-  --text-primary:     #212529;
-  --text-secondary:   #637381;
+  --text-primary:     #272556;
+  --text-secondary:   #565578;
   --text-muted:       #919EAB;
   --divider:          #E0E3E7;
   --shadow-light:     rgba(0, 0, 0, 0.05);
@@ -680,6 +689,7 @@ h5, h6 { font-size: 18px; color: var(--text-primary); }
   padding: 12px;
   text-align: center;
   border-bottom: 1px solid var(--divider);
+  transition: background-color .3s;
 }
 .table th {
   background: var(--primary-main);
