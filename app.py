@@ -169,8 +169,27 @@ def clean_response_message(response):
     if isinstance(response, dict):
         remarks = response.get("remarks")
         if isinstance(remarks, dict):
-            return remarks.get("errorMessage") or remarks.get("error_message") or str(remarks)
-        return str(remarks) or str(response.get("status")) or str(response)
+            return (
+                remarks.get("errorMessage")
+                or remarks.get("error_message")
+                or str(remarks)
+            )
+
+        # Common error fields returned by different broker APIs
+        error_fields = [
+            remarks,
+            response.get("error"),
+            response.get("errorMessage"),
+            response.get("error_message"),
+            response.get("message"),
+            response.get("reason"),
+        ]
+        for field in error_fields:
+            if field:
+                return str(field)
+
+        return str(response.get("status")) or str(response)
+
     return str(response)
 
 # === Initialize SQLite DB ===
