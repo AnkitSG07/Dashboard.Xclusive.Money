@@ -854,3 +854,21 @@ input#symbol-selector:focus,
   box-shadow: 0 4px 16px rgba(22,199,132,0.12);
   background: #f6fffa;
 }
+.broker-scroll {
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none; /* Firefox */
+}
+.broker-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.broker-icon:hover {
+  transform: scale(1.1);
+}
+
+.broker-scroll > div {
+  flex: 0 0 auto;
+}
+
