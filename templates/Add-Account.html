@@ -104,6 +104,7 @@
   <!-- Dynamic Broker Fields -->
   <form id="broker-credentials-form">
     <div id="broker-fields"></div>
+    <div id="cred-check-result" class="mt-2"></div>
     <button type="submit" class="btn btn-success mt-3" style="display:none;" id="submit-account-btn">Add Account</button>
     <button type="button" class="btn btn-link mt-3" onclick="document.getElementById('add-account-section').style.display='none'">Cancel</button>
   </form>
@@ -258,7 +259,9 @@ window.pageScripts["Add-Account"] = function() {
     const fields = brokerFields[broker];
     const container = document.getElementById("broker-fields");
     const submitBtn = document.getElementById("submit-account-btn");
+    const resultDiv = document.getElementById("cred-check-result");      
     container.innerHTML = "";
+    if (resultDiv) resultDiv.textContent = "";
     if (!fields) {
       submitBtn.style.display = "none";
       return;
@@ -268,6 +271,40 @@ window.pageScripts["Add-Account"] = function() {
       container.innerHTML += `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}" required></div>`;
     });
     submitBtn.style.display = "inline-block";
+        attachValidation();
+  }
+
+  function attachValidation() {
+    document.querySelectorAll('#broker-credentials-form input').forEach(inp => {
+      inp.onblur = validateCredentials;
+    });
+  }
+
+  function validateCredentials() {
+    const resultDiv = document.getElementById('cred-check-result');
+    if (!resultDiv) return;
+    const form = document.getElementById('broker-credentials-form');
+    const selected = document.querySelector('.broker-icon.border-primary');
+    if (!selected) return;
+    const data = {};
+    new FormData(form).forEach((v,k) => data[k] = v);
+    data['broker'] = selected.dataset.broker;
+    fetch('/api/check-credentials', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.valid) {
+        resultDiv.innerHTML = '<span class="text-success">Credentials valid \u2713</span>';
+      } else {
+        resultDiv.innerHTML = `<span class="text-danger">${resp.error || 'Invalid credentials'}</span>`;
+      }
+    })
+    .catch(() => {
+      resultDiv.innerHTML = '<span class="text-danger">Validation failed</span>';
+    });
   }
 
   // Bind Add Account button
