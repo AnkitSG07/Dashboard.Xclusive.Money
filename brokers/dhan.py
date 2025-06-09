@@ -87,3 +87,13 @@ class DhanBroker(BrokerBase):
             return {"status": "success", "data": r.json()}
         except Exception:
             return {"status": "failure", "error": r.text}
+
+    
+    def check_token_valid(self):
+        """Validate the access token by calling a lightweight API."""
+        try:
+            r = requests.get(f"{self.api_base}/orders", headers=self.headers, timeout=5)
+            r.raise_for_status()
+            return True
+        except Exception:
+            return False
