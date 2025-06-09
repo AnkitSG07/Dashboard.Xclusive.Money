@@ -114,27 +114,62 @@
 <div id="add-account-section" class="card p-4 mb-4" style="display:none;">
   <h5 class="mb-3">Add New Account</h5>
   <!-- Broker Icons -->
-  <div class="mb-4 d-flex gap-4 flex-wrap align-items-center justify-content-start">
-    <div class="broker-avatar-wrap">
-      <img src="/static/images/aliceblue.jpg" class="broker-icon" data-broker="aliceblue" title="Alice Blue" />
+<!-- Scrollable Broker Tab Strip -->
+  <div class="broker-scroll d-flex align-items-center gap-4 mb-4 px-2">
+    <div class="text-center">
+      <img src="/static/images/broker1.png" class="broker-icon" data-broker="broker1" title="Broker 1" />
+      <div>Broker 1</div>
     </div>
-    <div class="broker-avatar-wrap">
-      <img src="/static/images/fyers.png" class="broker-icon" data-broker="fyers" title="Fyers" />
-    </div>
-    <div class="broker-avatar-wrap">
-      <img src="/static/images/finvasia.jpg" class="broker-icon" data-broker="finvasia" title="Finvasia" />
-    </div>
-    <div class="broker-avatar-wrap">
-      <img src="/static/images/flattrade.jpg" class="broker-icon" data-broker="flattrade" title="Flattrade" />
-    </div>
-    <div class="broker-avatar-wrap">
-      <img src="/static/images/dhan.jpg" class="broker-icon" data-broker="dhan" title="Dhan" />
-    </div>
-    <div class="broker-avatar-wrap">
+    <div class="text-center">
       <img src="/static/images/zerodha.png" class="broker-icon" data-broker="zerodha" title="Zerodha" />
+      <div>Zerodha</div>
     </div>
-    <!-- Add more as needed -->
+    <div class="text-center">
+      <img src="/static/images/aliceblue.jpg" class="broker-icon" data-broker="aliceblue" title="Alice Blue" />
+      <div>Alice Blue</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/fyers.png" class="broker-icon" data-broker="fyers" title="Fyers" />
+      <div>Fyers</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/finvasia.jpg" class="broker-icon" data-broker="finvasia" title="Finvasia" />
+      <div>Finvasia</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/dhan.jpg" class="broker-icon" data-broker="dhan" title="Dhan" />
+      <div>Dhan</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/flattrade.jpg" class="broker-icon" data-broker="flattrade" title="Flattrade" />
+      <div>Flattrade</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/acagarwal.png" class="broker-icon" data-broker="acagarwal" title="AC Agarwal" />
+      <div>AC Agarwal</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/motilaloswal.png" class="broker-icon" data-broker="motilaloswal" title="Motilal Oswal" />
+      <div>Motilal Oswal</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/kotakneo.png" class="broker-icon" data-broker="kotakneo" title="Kotak Neo" />
+      <div>Kotak Neo</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/tradejini.png" class="broker-icon" data-broker="tradejini" title="Tradejini" />
+      <div>Tradejini</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/zebu.png" class="broker-icon" data-broker="zebu" title="Zebu" />
+      <div>Zebu</div>
+    </div>
+    <div class="text-center">
+      <img src="/static/images/enrichmoney.png" class="broker-icon" data-broker="enrichmoney" title="Enrich Money" />
+      <div>Enrich Money</div>
+    </div>
   </div>
+
 
   <!-- Dynamic Broker Fields -->
   <form id="broker-credentials-form">
@@ -272,30 +307,120 @@ if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts["Add-Account"] = function() {
   // Broker field definitions
   const brokerFields = {
-    aliceblue: [
-      { label: "Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "TOTP Secret", name: "totp_secret", type: "text" }
-    ],
-    dhan: [
-      { label: "Client ID", name: "client_id", type: "text" },
-      { label: "Access Token", name: "access_token", type: "password" }
-    ],
-    fyers: [
-      { label: "Client ID", name: "client_id", type: "text" },
-      { label: "App ID", name: "app_id", type: "text" },
-      { label: "App Secret", name: "app_secret", type: "password" },
-      { label: "Access Token", name: "access_token", type: "password" }
-    ],
-    zerodha: [
-      { label: "Zerodha Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "text" },
-      { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
+  flattrade: [
+    { label: "Flattrade Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  acagarwal: [
+    { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  motilaloswal: [
+    { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "PAN", name: "pan", type: "text" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  kotakneo: [
+    { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "MPIN", name: "mpin", type: "password" },
+    { label: "Client Name", name: "client_name", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  tradejini: [
+    { label: "Tradejini Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "MPIN", name: "mpin", type: "password" },
+    { label: "Client Name", name: "client_name", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  zebu: [
+    { label: "Zebu Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "MPIN", name: "mpin", type: "password" },
+    { label: "Client Name", name: "client_name", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  enrichmoney: [
+    { label: "Enrich Money Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "password" },
+    { label: "MPIN", name: "mpin", type: "password" },
+    { label: "Client Name", name: "client_name", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  dhan: [
+    { label: "Dhan Client ID", name: "client_id", type: "text" },
+    { label: "Access Token", name: "access_token", type: "password" },
+    { label: "Client Name", name: "client_name", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  finvasia: [
+    { label: "Finvasia Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "Vendor Code", name: "vendor_code", type: "text" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "IMEI", name: "imei", type: "text" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Access Token (optional: if logged in somewhere else)", name: "access_token", type: "password" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  fyers: [
+    { label: "Fyers Client ID", name: "client_id", type: "text" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "M-PIN", name: "mpin", type: "password" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  aliceblue: [
+    { label: "Alice Blue Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  zerodha: [
+    { label: "Zerodha Client ID", name: "client_id", type: "text" },
+    { label: "Password", name: "password", type: "password" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "API Secret", name: "api_secret", type: "text" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+  broker1: [
+    { label: "Broker 1 Client ID", name: "client_id", type: "text" },
+    { label: "API Key", name: "api_key", type: "text" },
+    { label: "Secret Key", name: "secret_key", type: "password" },
+    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ]
     // Add more brokers here as needed
   };
 
