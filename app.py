@@ -266,195 +266,191 @@ def admin_login_required(view):
     return wrapped
     
 def poll_and_copy_trades():
-    print("🔄 poll_and_copy_trades() triggered...")
+    """Run trade copying logic with application context for DB access."""
+    with app.app_context():
+        print("🔄 poll_and_copy_trades() triggered...")
+        try:
+            if not os.path.exists("accounts.json"):
+                print("⚠️ No accounts.json file found.")
+                return
 
-    try:
-        if not os.path.exists("accounts.json"):
-            print("⚠️ No accounts.json file found.")
-            return
+            with open("accounts.json", "r") as f:
+                accounts_data = json.load(f)
+            all_accounts = accounts_data.get("accounts", [])
 
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+            # Find all masters
+            masters = [acc for acc in all_accounts if acc.get("role") == "master"]
 
-        all_accounts = accounts_data.get("accounts", [])
-        # Find all masters
-        masters = [acc for acc in all_accounts if acc.get("role") == "master"]
+            if not masters:
+                print("⚠️ No master accounts configured.")
+                return
 
-        if not masters:
-            print("⚠️ No master accounts configured.")
-            return
-
-        for master in masters:
-            master_id = master.get("client_id")
-            master_broker = master.get("broker", "Unknown").lower()
-            credentials = master.get("credentials", {})
-            BrokerClass = get_broker_class(master_broker)
-            try:
-                rest = {k: v for k, v in credentials.items() if k != "access_token"}
-                master_api = BrokerClass(
-                    client_id=master.get("client_id"),
-                    access_token=credentials.get("access_token"),
-                    **rest
-                )
-            except Exception as e:
-                print(f"❌ Could not initialize master API ({master_broker}): {e}")
-                continue
-
-            last_copied_key = f"last_copied_trade_id_{master_id}"
-            last_copied_trade_id = accounts_data.get(last_copied_key)
-            new_last_trade_id = None
-
-            # Get master orders using standard interface
-            try:
-                orders_resp = master_api.get_order_list()
-                order_list = orders_resp.get("data", orders_resp.get("orders", []))
-                order_list = strip_emojis_from_obj(order_list)
-            except Exception as e:
-                print(f"❌ Error fetching orders for master {master_id}: {e}")
-                continue
-
-            if not order_list:
-                print(f"ℹ️ No orders found for master {master_id}.")
-                continue
-
-            order_list = sorted(order_list, key=lambda x: x.get("orderTimestamp", x.get("order_time", "")), reverse=True)
-
-            # Find all children linked to this master
-            children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
-
-            for order in order_list:
-                order_id = order.get("orderId") or order.get("order_id")
-                if not order_id:
+            for master in masters:
+                master_id = master.get("client_id")
+                master_broker = master.get("broker", "Unknown").lower()
+                credentials = master.get("credentials", {})
+                BrokerClass = get_broker_class(master_broker)
+                try:
+                    rest = {k: v for k, v in credentials.items() if k != "access_token"}
+                    master_api = BrokerClass(
+                        client_id=master.get("client_id"),
+                        access_token=credentials.get("access_token"),
+                        **rest
+                    )
+                except Exception as e:
+                    print(f"❌ Could not initialize master API ({master_broker}): {e}")
                     continue
 
-                if order_id == last_copied_trade_id:
-                    print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
-                    break
+                last_copied_key = f"last_copied_trade_id_{master_id}"
+                last_copied_trade_id = accounts_data.get(last_copied_key)
+                new_last_trade_id = None
 
-                order_status = order.get("orderStatus") or order.get("status") or ""
-                if order_status.upper() not in ["TRADED", "FILLED", "COMPLETE"]:
-                    print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order_status})")
+                # Get master orders using standard interface
+                try:
+                    orders_resp = master_api.get_order_list()
+                    order_list = orders_resp.get("data", orders_resp.get("orders", []))
+                    order_list = strip_emojis_from_obj(order_list)
+                except Exception as e:
+                    print(f"❌ Error fetching orders for master {master_id}: {e}")
                     continue
 
-                print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
-                new_last_trade_id = new_last_trade_id or order_id
-                base_qty = (
-                    order.get("quantity") or
-                    order.get("orderQuantity") or
-                    order.get("qty") or 1
-                )
-                price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
-                transaction_type = (
-                    order.get("transactionType") or
-                    order.get("transaction_type") or
-                    order.get("side") or
-                    "BUY"
-                ).upper()
-                symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
-                master_owner = master.get("owner")
-                record_trade(master_owner, symbol, transaction_type, base_qty, price, order_status.upper())
-
-                if not children:
-                    print(f"ℹ️ [{master_id}] No children to copy trades to.")
+                if not order_list:
+                    print(f"ℹ️ No orders found for master {master_id}.")
                     continue
+                order_list = sorted(order_list, key=lambda x: x.get("orderTimestamp", x.get("order_time", "")), reverse=True)
+                children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
 
-                for child in children:
-                    if child.get("copy_status") != "On":
-                        print(f"➡️ Skipping child {child['client_id']} (copy_status is Off)")
+                for order in order_list:
+                    order_id = order.get("orderId") or order.get("order_id")
+                    if not order_id:
                         continue
 
-                    child_broker = child.get("broker", "Unknown").lower()
-                    child_credentials = child.get("credentials", {})
-                    try:
-                        ChildBrokerClass = get_broker_class(child_broker)
-                        rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
-                        child_api = ChildBrokerClass(
-                            client_id=child.get("client_id"),
-                            access_token=child_credentials.get("access_token"),
-                            **rest_child
-                        )
-                    except Exception as e:
-                        print(f"❌ Could not initialize child API ({child_broker}): {e}")
+                    if order_id == last_copied_trade_id:
+                        print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
+                        break
+
+                    order_status = order.get("orderStatus") or order.get("status") or ""
+                    if order_status.upper() not in ["TRADED", "FILLED", "COMPLETE"]:
+                        print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order_status})")
                         continue
 
-                    multiplier = float(child.get("multiplier", 1))
-                    copied_qty = max(1, int(float(base_qty) * multiplier))
-
-                    symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
-                    exchange = order.get("exchange") or order.get("exchangeSegment") or order.get("exchange_segment") or "NSE"
+                    print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
+                    new_last_trade_id = new_last_trade_id or order_id
+                    base_qty = (
+                        order.get("quantity") or
+                        order.get("orderQuantity") or
+                        order.get("qty") or 1
+                    )
+                    price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
                     transaction_type = (
                         order.get("transactionType") or
                         order.get("transaction_type") or
                         order.get("side") or
                         "BUY"
                     ).upper()
-                    order_type = (
-                        order.get("orderType") or
-                        order.get("order_type") or
-                        "MARKET"
-                    ).upper()
-                    product_type = (
-                        order.get("productType") or
-                        order.get("ProductType") or
-                        order.get("product_type") or
-                        "INTRADAY"
-                    ).upper()
-                    price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
+                    symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
+                    master_owner = master.get("owner")
+                    record_trade(master_owner, symbol, transaction_type, base_qty, price, order_status.upper())
+                    if not children:
+                        print(f"ℹ️ [{master_id}] No children to copy trades to.")
+                        continue
+                    for child in children:
+                        if child.get("copy_status") != "On":
+                            print(f"➡️ Skipping child {child['client_id']} (copy_status is Off)")
+                            continue
 
-                    try:
-                        if child_broker == "dhan":
-                            security_id = order.get("securityId") or order.get("security_id") or SYMBOL_MAP.get(symbol.upper())
-                            response = child_api.place_order(
-                                security_id=security_id,
-                                exchange_segment=exchange,
-                                transaction_type=transaction_type,
-                                quantity=copied_qty,
-                                order_type=order_type,
-                                product_type=product_type,
-                                price=price or 0
+                        child_broker = child.get("broker", "Unknown").lower()
+                        child_credentials = child.get("credentials", {})
+                        try:
+                            ChildBrokerClass = get_broker_class(child_broker)
+                            rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
+                            child_api = ChildBrokerClass(
+                                client_id=child.get("client_id"),
+                                access_token=child_credentials.get("access_token"),
+                                **rest_child
                             )
-                        else:
-                            response = child_api.place_order(
-                                tradingsymbol=symbol,
-                                exchange=exchange,
-                                transaction_type=transaction_type,
-                                quantity=copied_qty,
-                                order_type=order_type,
-                                product=product_type,
-                                price=price or 0  # Always pass price, even if 0 for MARKET
-                            )
-                        
-                        if isinstance(response, dict) and response.get("status") == "failure":
-                            error_msg = response.get("error") or response.get("remarks") or "Unknown error"
-                            print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
-                            save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", error_msg)
-                            record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'FAILED')
-                        else:
-                            order_id_child = response.get("order_id") or response.get("orderId")
-                            print(f"✅ Copied to {child['client_id']} (Order ID: {order_id_child})")
-                            save_log(child['client_id'], symbol, transaction_type, copied_qty, "SUCCESS", str(response))
-                            save_order_mapping(
-                                master_order_id=order_id,
-                                child_order_id=order_id_child,
-                                master_id=master_id,
-                                master_broker=master_broker,
-                                child_id=child["client_id"],
-                                child_broker=child_broker,
-                                symbol=symbol
-                            )
-                            record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'SUCCESS')
-                    except Exception as e:
-                        print(f"❌ Error copying to {child['client_id']}: {e}")
-                        save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", str(e))
+                        except Exception as e:
+                            print(f"❌ Could not initialize child API ({child_broker}): {e}")
+                            continue
 
-            if new_last_trade_id:
-                print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
-                accounts_data[last_copied_key] = new_last_trade_id
+                        multiplier = float(child.get("multiplier", 1))
+                        copied_qty = max(1, int(float(base_qty) * multiplier))
 
-        safe_write_json("accounts.json", accounts_data)
+                        symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
+                        exchange = order.get("exchange") or order.get("exchangeSegment") or order.get("exchange_segment") or "NSE"
+                        transaction_type = (
+                            order.get("transactionType") or
+                            order.get("transaction_type") or
+                            order.get("side") or
+                            "BUY"
+                        ).upper()
+                        order_type = (
+                            order.get("orderType") or
+                            order.get("order_type") or
+                            "MARKET"
+                        ).upper()
+                        product_type = (
+                            order.get("productType") or
+                            order.get("ProductType") or
+                            order.get("product_type") or
+                            "INTRADAY"
+                        ).upper()
+                        price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
 
-    except Exception as e:
-        print(f"❌ poll_and_copy_trades encountered an error: {e}")
+                        try:
+                            if child_broker == "dhan":
+                                security_id = order.get("securityId") or order.get("security_id") or SYMBOL_MAP.get(symbol.upper())
+                                response = child_api.place_order(
+                                    security_id=security_id,
+                                    exchange_segment=exchange,
+                                    transaction_type=transaction_type,
+                                    quantity=copied_qty,
+                                    order_type=order_type,
+                                    product_type=product_type,
+                                    price=price or 0
+                                )
+                            else:
+                                response = child_api.place_order(
+                                    tradingsymbol=symbol,
+                                    exchange=exchange,
+                                    transaction_type=transaction_type,
+                                    quantity=copied_qty,
+                                    order_type=order_type,
+                                    product=product_type,
+                                    price=price or 0  # Always pass price, even if 0 for MARKET
+                                )
+
+                            if isinstance(response, dict) and response.get("status") == "failure":
+                                error_msg = response.get("error") or response.get("remarks") or "Unknown error"
+                                print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
+                                save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", error_msg)
+                                record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'FAILED')
+                            else:
+                                order_id_child = response.get("order_id") or response.get("orderId")
+                                print(f"✅ Copied to {child['client_id']} (Order ID: {order_id_child})")
+                                save_log(child['client_id'], symbol, transaction_type, copied_qty, "SUCCESS", str(response))
+                                save_order_mapping(
+                                    master_order_id=order_id,
+                                    child_order_id=order_id_child,
+                                    master_id=master_id,
+                                    master_broker=master_broker,
+                                    child_id=child["client_id"],
+                                    child_broker=child_broker,
+                                    symbol=symbol
+                                )
+                                record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'SUCCESS')
+                        except Exception as e:
+                            print(f"❌ Error copying to {child['client_id']}: {e}")
+                            save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", str(e))
+
+                if new_last_trade_id:
+                    print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
+                    accounts_data[last_copied_key] = new_last_trade_id
+
+            safe_write_json("accounts.json", accounts_data)
+        except Exception as e:
+            print(f"❌ poll_and_copy_trades encountered an error: {e}")
+
 
 
 def start_scheduler():
