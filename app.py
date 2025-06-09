@@ -188,9 +188,11 @@ def clean_response_message(response):
             if field:
                 return str(field)
 
-        return str(response.get("status")) or str(response)
+        # Fallback to raw JSON dump for debugging
+        return json.dumps(response)
 
     return str(response)
+
 
 # === Initialize SQLite DB ===
 def init_db():
