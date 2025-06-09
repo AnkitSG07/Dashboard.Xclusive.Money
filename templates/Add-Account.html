@@ -286,9 +286,25 @@ window.pageScripts["Add-Account"] = function() {
     const form = document.getElementById('broker-credentials-form');
     const selected = document.querySelector('.broker-icon.border-primary');
     if (!selected) return;
+    const broker = selected.dataset.broker;
+    const fields = brokerFields[broker] || [];
+
+    // Only run validation when all required fields are filled
+    const optionalNames = ['email', 'mobile', 'access_token'];
+    let allFilled = form.querySelector('input[name="username"]').value.trim() !== '';
+    fields.forEach(f => {
+      if (!optionalNames.includes(f.name)) {
+        const v = form.querySelector(`input[name="${f.name}"]`).value.trim();
+        if (!v) allFilled = false;
+      }
+    });
+    if (!allFilled) {
+      resultDiv.textContent = '';
+      return;
+    }
     const data = {};
     new FormData(form).forEach((v,k) => data[k] = v);
-    data['broker'] = selected.dataset.broker;
+    data['broker'] = broker;
     fetch('/api/check-credentials', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
