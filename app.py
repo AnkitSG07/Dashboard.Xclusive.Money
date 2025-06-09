@@ -1100,6 +1100,17 @@ def add_account():
         ):
             return jsonify({'error': 'Account already exists'}), 400
 
+        # Validate credentials using broker adapter
+    try:
+        BrokerClass = get_broker_class(broker)
+        access_token = credentials.get('access_token')
+        rest = {k: v for k, v in credentials.items() if k != 'access_token'}
+        broker_obj = BrokerClass(client_id, access_token, **rest)
+        if hasattr(broker_obj, 'check_token_valid') and not broker_obj.check_token_valid():
+            return jsonify({'error': 'Invalid broker credentials'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Credential validation failed: {e}'}), 400
+
     # Add to accounts.json
     accounts_data["accounts"].append({
         "broker": broker,
