@@ -285,6 +285,7 @@ window.pageScripts["Add-Account"] = function() {
 
   function validateCredentials() {
     const resultDiv = document.getElementById('cred-check-result');
+    const submitBtn = document.getElementById('submit-account-btn');
     if (!resultDiv) return;
     const form = document.getElementById('broker-credentials-form');
     const selected = document.querySelector('.broker-icon.border-primary');
