@@ -89,11 +89,23 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": r.text}
 
     
-    def check_token_valid(self):
-        """Validate the access token by calling a lightweight API."""
+    def get_profile(self):
+        """Return profile or fund data to confirm account id."""
+        r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
         try:
-            r = requests.get(f"{self.api_base}/orders", headers=self.headers, timeout=5)
+            return {"status": "success", "data": r.json()}
+        except Exception:
+            return {"status": "failure", "error": r.text}
+
+    def check_token_valid(self):
+        """Validate access token and ensure it belongs to this client_id."""
+        try:
+            r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
             r.raise_for_status()
+            data = r.json()
+            cid = str(data.get("clientId") or data.get("dhanClientId") or "").strip()
+            if cid and cid != str(self.client_id):
+                return False
             return True
         except Exception:
             return False
