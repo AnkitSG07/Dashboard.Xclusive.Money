@@ -64,6 +64,57 @@ BROKER_STATUS_URLS = {
     "fyers": "https://api.fyers.in",
 }
 
+# --- Unified symbol mapping across brokers ---
+# Each entry maps a symbol to broker-specific identifiers. Keys should be
+# uppercase symbols. Values are dictionaries keyed by broker name.
+BROKER_SYMBOL_MAP = {
+    "IDEA": {
+        "dhan": {"security_id": "532822"},
+    },
+    "RELIANCE": {
+        "dhan": {"security_id": "2885"},
+    },
+}
+
+# Brokers supported by factory.py
+BROKER_LIST = [
+    "zerodha",
+    "aliceblue",
+    "fyers",
+    "finvasia",
+    "dhan",
+    "flattrade",
+    "acagarwal",
+    "motilaloswal",
+    "kotakneo",
+    "tradejini",
+    "zebu",
+    "enrichmoney",
+    "broker1",
+]
+
+# Provide default tradingsymbol mappings for all brokers if not specified
+for _sym, _data in BROKER_SYMBOL_MAP.items():
+    for _broker in BROKER_LIST:
+        if _broker not in _data:
+            if _broker == "dhan":
+                sec_id = SYMBOL_MAP.get(_sym.upper())
+                if sec_id:
+                    _data[_broker] = {"security_id": sec_id}
+            else:
+                _data[_broker] = {"tradingsymbol": _sym}
+
+
+# Merge any Dhan security IDs into SYMBOL_MAP for backward compatibility
+for _sym, _data in BROKER_SYMBOL_MAP.items():
+    sec_id = _data.get("dhan", {}).get("security_id")
+    if sec_id:
+        SYMBOL_MAP[_sym] = sec_id
+
+def get_symbol_for_broker(symbol: str, broker: str):
+    """Return mapped symbol details for a broker."""
+    return BROKER_SYMBOL_MAP.get(symbol.upper(), {}).get(broker.lower(), {})
+
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
     with tempfile.NamedTemporaryFile('w', delete=False, dir=dirpath) as tmp:
@@ -419,8 +470,14 @@ def poll_and_copy_trades():
                         price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
 
                         try:
+                            mapping_child = get_symbol_for_broker(symbol, child_broker)
                             if child_broker == "dhan":
-                                security_id = order.get("securityId") or order.get("security_id") or SYMBOL_MAP.get(symbol.upper())
+                                security_id = (
+                                    order.get("securityId")
+                                    or order.get("security_id")
+                                    or mapping_child.get("security_id")
+                                    or SYMBOL_MAP.get(symbol.upper())
+                                )
                                 response = child_api.place_order(
                                     security_id=security_id,
                                     exchange_segment=exchange,
@@ -431,8 +488,9 @@ def poll_and_copy_trades():
                                     price=price or 0
                                 )
                             else:
+                                tradingsymbol = mapping_child.get("tradingsymbol", symbol)
                                 response = child_api.place_order(
-                                    tradingsymbol=symbol,
+                                    tradingsymbol=tradingsymbol,
                                     exchange=exchange,
                                     transaction_type=transaction_type,
                                     quantity=copied_qty,
@@ -576,8 +634,9 @@ def webhook(user_id):
 
     # === Broker-agnostic order parameter builder ===
     order_params = {}
+    mapping = get_symbol_for_broker(symbol, broker_name)
     if broker_name.lower() == "dhan":
-        security_id = SYMBOL_MAP.get(symbol.strip().upper())
+        security_id = mapping.get("security_id") or SYMBOL_MAP.get(symbol.strip().upper())
         if not security_id:
             return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
         order_params = dict(
@@ -590,8 +649,9 @@ def webhook(user_id):
             price=0
         )
     elif broker_name.lower() == "zerodha":
+        tradingsymbol = mapping.get("tradingsymbol", symbol)
         order_params = dict(
-            tradingsymbol=symbol,
+            tradingsymbol=tradingsymbol,
             exchange="NSE",
             transaction_type=action.upper(),
             quantity=int(quantity),
@@ -1251,8 +1311,9 @@ def place_group_order():
             api = broker_api(acc)
             broker_name = acc.get("broker", "dhan").lower()
             order_params = {}
+            mapping = get_symbol_for_broker(symbol, broker_name)
             if broker_name == "dhan":
-                security_id = SYMBOL_MAP.get(symbol.upper())
+                security_id = mapping.get("security_id") or SYMBOL_MAP.get(symbol.upper())
                 order_params = dict(
                     security_id=security_id,
                     exchange_segment=api.NSE,
@@ -1263,8 +1324,9 @@ def place_group_order():
                     price=0
                 )
             else:
+                tradingsymbol = mapping.get("tradingsymbol", symbol)
                 order_params = dict(
-                    tradingsymbol=symbol,
+                    tradingsymbol=tradingsymbol,
                     exchange="NSE",
                     transaction_type=action.upper(),
                     quantity=int(quantity),
