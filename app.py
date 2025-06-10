@@ -1034,6 +1034,29 @@ def remove_child():
 
     return jsonify({"message": f"Child {client_id} removed from master."}), 200
 
+@app.route('/api/remove-master', methods=['POST'])
+def remove_master():
+    data = request.json
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+    if os.path.exists("accounts.json"):
+        with open("accounts.json", "r") as f:
+            accounts_data = json.load(f)
+    else:
+        return jsonify({"error": "No accounts file found"}), 500
+    found = None
+    for acc in accounts_data["accounts"]:
+        if acc["client_id"] == client_id and acc.get("role") == "master":
+            acc["role"] = None
+            acc["copy_status"] = "Off"
+            acc.pop("linked_master_id", None)
+            acc["multiplier"] = 1
+            found = acc
+    if not found:
+        return jsonify({"error": "Master not found."}), 404
+    safe_write_json("accounts.json", accounts_data)
+    return jsonify({"message": f"Master {client_id} removed."}), 200
 
 # PATCH for /api/update-multiplier
 @app.route('/api/update-multiplier', methods=['POST'])
