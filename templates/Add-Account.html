@@ -239,6 +239,7 @@ window.pageScripts["Add-Account"] = function() {
     { label: "Zerodha Client ID", name: "client_id", type: "text" },
     { label: "API Key", name: "api_key", type: "text" },
     { label: "API Secret", name: "api_secret", type: "text" },
+    { label: "Request Token", name: "request_token", type: "text", placeholder: "Paste request_token from Kite URL" },
     { label: "Email Id (optional)", name: "email", type: "text" },
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
@@ -268,11 +269,29 @@ window.pageScripts["Add-Account"] = function() {
     }
     container.innerHTML += `<div class="mb-3"><label class="form-label">Username (for your reference)</label><input class="form-control" name="username" type="text" required></div>`;
     fields.forEach(f => {
-      container.innerHTML += `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}" required></div>`;
+      const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
+      container.innerHTML += `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}"${ph} required></div>`;
     });
+    if (broker === 'zerodha') {
+      container.innerHTML += `<div class="mb-3"><button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">Open Zerodha Login Page</button></div>`;
+    }
     submitBtn.style.display = "inline-block";
     submitBtn.disabled = true;
     attachValidation();
+    if (broker === 'zerodha') {
+      const btn = document.getElementById('zerodha-login-btn');
+      btn.onclick = function() {
+        const apiKey = container.querySelector('input[name="api_key"]').value.trim();
+        if (!apiKey) return alert('Enter API Key first');
+        fetch(`/api/zerodha-login-url?api_key=${encodeURIComponent(apiKey)}`)
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.login_url) window.open(resp.login_url, '_blank');
+            else alert(resp.error || 'Failed to get login URL');
+          })
+          .catch(() => alert('Failed to get login URL'));
+      };
+    }
   }
 
   function attachValidation() {
