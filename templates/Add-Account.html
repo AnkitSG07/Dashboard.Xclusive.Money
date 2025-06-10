@@ -376,13 +376,31 @@ window.pageScripts["Add-Account"] = function() {
   if (brokerForm) {
     brokerForm.onsubmit = function(e) {
       e.preventDefault();
-      const formData = new FormData(brokerForm);
+      const formData = new FormData(brokerForm);   
       const data = {};
       for (const [key, value] of formData.entries()) data[key] = value;
       // Get broker type from selected icon
       const selected = document.querySelector('.broker-icon.border-primary');
       if (selected) data['broker'] = selected.dataset.broker;
       else return alert('Please select a broker');
+      
+      if (data['broker'] === 'zerodha') {
+        fetch('/api/init-zerodha-login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        })
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.login_url) {
+              window.location.href = resp.login_url;
+            } else {
+              alert(resp.error || 'Failed to get login URL');
+            }
+          })
+          .catch(() => alert('Failed to get login URL'));
+        return;
+      }
 
       fetch('/api/add-account', {
         method: 'POST',
