@@ -47,3 +47,7 @@ class BrokerBase(ABC):
 
     def check_token_valid(self):
         raise NotImplementedError("check_token_valid not implemented for this broker.")
+
+    def get_opening_balance(self):
+        """Return opening balance for this account if available."""
+        raise NotImplementedError("get_opening_balance not implemented for this broker.")
