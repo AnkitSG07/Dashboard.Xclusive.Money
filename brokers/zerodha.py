@@ -1,7 +1,9 @@
 # brokers/zerodha.py
 """Zerodha broker adapter using KiteConnect."""
 
-
+import re
+import requests
+import pyotp
 import time
 
 from .base import BrokerBase
@@ -17,7 +19,8 @@ class ZerodhaBroker(BrokerBase):
     BASE_URL = "https://kite.zerodha.com/api"
 
     def __init__(self, client_id, access_token=None, api_key=None,
-                 api_secret=None, request_token=None, **kwargs):
+                 api_secret=None, request_token=None, password=None,
+                 totp_secret=None, **kwargs):
         super().__init__(client_id, access_token or "", **kwargs)
         if KiteConnect is None:
             raise ImportError("kiteconnect not installed")
@@ -27,7 +30,8 @@ class ZerodhaBroker(BrokerBase):
         self.api_key = api_key
         self.api_secret = api_secret
         self.request_token = request_token
-
+        self.password = password
+        self.totp_secret = totp_secret
         self.kite = KiteConnect(api_key=api_key)
         self.token_time = None
         if access_token:
@@ -38,6 +42,12 @@ class ZerodhaBroker(BrokerBase):
             self.access_token = self.create_session(request_token)
             self.kite.set_access_token(self.access_token)
             self.token_time = time.time()
+        elif password and totp_secret and api_secret:
+            req_token = self._login_with_totp(password, totp_secret)
+            self.access_token = self.create_session(req_token)
+            self.kite.set_access_token(self.access_token)
+            self.token_time = time.time()
+        
         else:
             raise ValueError("access_token or login credentials required for Zerodha.")
 
@@ -53,10 +63,53 @@ class ZerodhaBroker(BrokerBase):
         )
         return session_data["access_token"]
 
+    def _login_with_totp(self, password, totp_secret):
+        """Return request token by performing Zerodha login with TOTP."""
+        session = requests.Session()
+        # Step 1: Submit user_id and password
+        resp = session.post(
+            f"{self.BASE_URL}/login",
+            data={"user_id": self.client_id, "password": password},
+            timeout=10,
+        )
+        data = resp.json()
+        if data.get("status") != "success":
+            raise Exception(data.get("message", "Login failed"))
+
+        request_id = data["data"].get("request_id")
+        twofa_type = data["data"].get("twofa_type", "totp")
+        totp = pyotp.TOTP(totp_secret).now()
+
+        # Step 2: Submit TOTP
+        resp = session.post(
+            f"{self.BASE_URL}/twofa",
+            data={
+                "user_id": self.client_id,
+                "request_id": request_id,
+                "twofa_value": totp,
+                "twofa_type": twofa_type,
+            },
+            allow_redirects=True,
+            timeout=10,
+        )
+        # After successful 2FA we get redirected to the connect login URL with request_token
+        # Extract request_token from the final URL
+        match = re.search(r"request_token=([^&]+)", resp.url)
+        if not match:
+            raise Exception("Failed to obtain request token")
+        return match.group(1)
+
     def ensure_token(self):
         """Refresh token if expired or invalid."""
         if not self.access_token and self.request_token:
             self.access_token = self.create_session(self.request_token)
+            self.kite.set_access_token(self.access_token)
+            self.token_time = time.time()
+            return
+
+        if not self.access_token and self.password and self.totp_secret:
+            req = self._login_with_totp(self.password, self.totp_secret)
+            self.access_token = self.create_session(req)
             self.kite.set_access_token(self.access_token)
             self.token_time = time.time()
             return
@@ -65,9 +118,13 @@ class ZerodhaBroker(BrokerBase):
             try:
                 self.kite.profile()
             except Exception:
-                if not self.request_token:
+                if self.request_token:
+                    self.access_token = self.create_session(self.request_token)
+                elif self.password and self.totp_secret:
+                    req = self._login_with_totp(self.password, self.totp_secret)
+                    self.access_token = self.create_session(req)
+                else:
                     raise
-                self.access_token = self.create_session(self.request_token)
                 self.kite.set_access_token(self.access_token)
                 self.token_time = time.time()
 
@@ -140,6 +197,7 @@ class ZerodhaBroker(BrokerBase):
 
     def check_token_valid(self):
         try:
+            self.ensure_token()
             self.kite.profile()
             return True
         except Exception:  # pragma: no cover - network call
