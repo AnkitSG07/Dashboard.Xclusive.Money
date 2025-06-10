@@ -1598,18 +1598,23 @@ def get_logs():
     return jsonify(logs)
 
 # === API to get live portfolio snapshot (holdings) ===
-@app.route("/api/portfolio/<user_id>")
 def get_portfolio(user_id):
+    """Return live positions for any stored account."""
     # Check users.json (external registered users)
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
-    except:
+    except Exception:
         users = {}
 
-    if user_id in users:
-        client_id = users[user_id]["client_id"]
-        access_token = users[user_id]["access_token"]
+    user_obj = users.get(user_id)
+    if not user_obj:
+        # Maybe user_id is actually the broker client_id
+        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
+
+    if user_obj:
+        client_id = user_obj["client_id"]
+        access_token = user_obj["access_token"]
         dhan = dhanhq(client_id, access_token)
         try:
             positions_resp = dhan.get_positions()
@@ -1630,10 +1635,10 @@ def get_portfolio(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # === API to get trade summary and open orders ===
 @app.route("/api/orders/<user_id>")
 def get_orders(user_id):
+    """Return recent orders for a stored account."""
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
@@ -1641,10 +1646,13 @@ def get_orders(user_id):
         print(f"❌ Failed to load users.json: {str(e)}")
         return jsonify({"error": "User DB not found"}), 500
 
-    if user_id not in users:
+    user_obj = users.get(user_id)
+    if not user_obj:
+        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
+    if not user_obj:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    user = users[user_id]
+    user = user_obj
     dhan = dhanhq(user["client_id"], user["access_token"])
 
     try:
@@ -1673,19 +1681,22 @@ def get_orders(user_id):
         print(f"❌ Error while fetching orders for {user_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/account/<user_id>")
 def get_account_stats(user_id):
+    """Return account margin/fund stats."""
     try:
         with open("users.json", "r") as f:
             users = json.load(f)
-    except:
+    except Exception:
         return jsonify({"error": "User DB not found"}), 500
 
-    if user_id not in users:
+    user_obj = users.get(user_id)
+    if not user_obj:
+        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
+    if not user_obj:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    user = users[user_id]
+    user = user_obj
     dhan = dhanhq(user["client_id"], user["access_token"])
 
     try:
@@ -1707,7 +1718,6 @@ def get_account_stats(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/users", methods=["GET", "POST"])
 @login_required
 def user_profile():
