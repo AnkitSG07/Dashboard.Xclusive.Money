@@ -1,6 +1,5 @@
 from brokers.factory import get_broker_class
-from kiteconnect import KiteConnect
-from brokers.zerodha import ZerodhaBroker
+from brokers.zerodha import ZerodhaBroker, KiteConnect
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
 import sqlite3
@@ -815,22 +814,14 @@ def get_master_orders():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/zerodha-login-url")
-def get_zerodha_login_url():
+def zerodha_login_url_route():
     api_key = request.args.get("api_key")
-    api_secret = request.args.get("api_secret")
-    client_id = request.args.get("client_id")
-    username = request.args.get("username")
-
-    if not all([api_key, api_secret, client_id]):
-        return "Missing required parameters", 400
-
+    if not api_key:
+        return jsonify({"error": "api_key required"}), 400
+    if KiteConnect is None:
+        return jsonify({"error": "kiteconnect not installed"}), 500
     kite = KiteConnect(api_key=api_key)
-    login_url = kite.login_url()
-    
-    # Optionally store api_secret & client_id temporarily (e.g., in Redis or session)
-    # For simplicity, append as params (not ideal in production)
-    login_url += f"&api_secret={api_secret}&client_id={client_id}&username={username}"
-    return redirect(login_url)
+    return jsonify({"login_url": kite.login_url()})
 
 @app.route("/kite/callback")
 def kite_callback():
