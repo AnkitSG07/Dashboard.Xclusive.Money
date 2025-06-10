@@ -147,10 +147,25 @@ def strip_emojis_from_obj(obj):
     return obj
 
 def broker_api(obj):
+    """Instantiate a broker adapter using stored account credentials."""
     broker = obj.get("broker", "Unknown").lower()
-    credentials = obj.get("credentials", {})
     client_id = obj.get("client_id")
+
+    # Combine credentials dict with any legacy top-level fields
+    credentials = dict(obj.get("credentials", {}))
+    for key in [
+        "api_key",
+        "api_secret",
+        "request_token",
+        "password",
+        "totp_secret",
+        "access_token",
+    ]:
+        if key in obj and key not in credentials:
+            credentials[key] = obj[key]
+
     access_token = credentials.get("access_token")
+
     BrokerClass = get_broker_class(broker)
     # Remove access_token from credentials dict to avoid duplication
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
@@ -659,10 +674,18 @@ def zerodha_redirect_handler(client_id):
             "broker": "zerodha",
             "client_id": client_id,
             "username": username,
-            "access_token": access_token,
-            "api_key": api_key,
-            "api_secret": api_secret,
-            "credentials": {"access_token": access_token}
+            "credentials": {
+                "access_token": access_token,
+                "api_key": api_key,
+                "api_secret": api_secret,
+            },
+            "status": "Connected",
+            "auto_login": True,
+            "last_login": datetime.now().isoformat(),
+            "role": None,
+            "linked_master_id": None,
+            "multiplier": 1,
+            "copy_status": "Off",
         }
 
         # Store using your own helper
@@ -948,10 +971,18 @@ def kite_callback():
         "broker": "zerodha",
         "client_id": client_id,
         "username": username,
-        "access_token": access_token,
-        "api_key": api_key,
-        "api_secret": api_secret,
-        "credentials": {"access_token": access_token}
+         "credentials": {
+            "access_token": access_token,
+            "api_key": api_key,
+            "api_secret": api_secret,
+        },
+        "status": "Connected",
+        "auto_login": True,
+        "last_login": datetime.now().isoformat(),
+        "role": None,
+        "linked_master_id": None,
+        "multiplier": 1,
+        "copy_status": "Off",
     }
 
     # Save to accounts.json or DB
