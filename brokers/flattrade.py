@@ -161,4 +161,22 @@ class FlattradeBroker:
 # Required for your broker factory logic
 def Flattrade(client_id, access_token=None, **kwargs):
     return FlattradeBroker(client_id, access_token=access_token, **kwargs)
+def get_opening_balance(self):
+    """Return cash balance using limits API if available."""
+    self._check_session()
+    try:
+        url = f"{self.BASE_URL}/limits"
+        resp = requests.get(url, headers=self._headers())
+        resp.raise_for_status()
+        data = resp.json()
+        for key in ["cash", "available_balance", "opening_balance"]:
+            if key in data:
+                return float(data[key])
+        if "result" in data and isinstance(data["result"], dict):
+            for key in ["cash", "available_balance", "opening_balance"]:
+                if key in data["result"]:
+                    return float(data["result"][key])
+        return None
+    except Exception:
+        return None
 
