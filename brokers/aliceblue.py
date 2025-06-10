@@ -102,4 +102,19 @@ class AliceBlueBroker(BrokerBase):
         positions = resp.get("data") or resp.get("positions", []) or []
         return {"status": "success", "positions": positions}
 
+    def get_opening_balance(self):
+        """Return available cash balance if API provides it."""
+        self.ensure_session()
+        try:
+            url = self.BASE_URL + "balance"
+            r = requests.get(url, headers=self.headers, timeout=10)
+            data = r.json()
+            for key in ["available_balance", "cash", "opening_balance"]:
+                if key in data:
+                    return float(data[key])
+            return None
+        except Exception:
+            return None
+
+
     # ... Add more methods if needed (holdings, funds etc.)
