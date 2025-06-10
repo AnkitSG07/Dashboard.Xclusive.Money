@@ -204,16 +204,32 @@ def check_api(url: str) -> bool:
 
 
 def find_account_by_client_id(accounts, client_id):
+    """Return ``(account, parent_master)`` for the provided ``client_id``.
+
+    ``accounts.json`` stores all records in a flat ``accounts`` list.  Values
+    might be saved as strings or numbers depending on how they were imported.
+    To make lookups robust we always compare the string version of the IDs.  If
+    the located account has ``role == 'child'`` the corresponding master is
+    returned as the second tuple element.
     """
-    Returns (account_object, parent_master_object or None) for a given client_id, or (None, None) if not found.
-    """
-    for master in accounts.get("masters", []):
-        if master.get("client_id") == client_id:
-            return master, None
-        for child in master.get("children", []):
-            if child.get("client_id") == client_id:
-                return child, master
-    return None, None
+
+    cid = str(client_id)
+    account = next(
+        (acc for acc in accounts.get("accounts", []) if str(acc.get("client_id")) == cid),
+        None,
+    )
+    if not account:
+        return None, None
+
+    if account.get("role") == "child":
+        master_id = account.get("linked_master_id")
+        master = next(
+            (acc for acc in accounts.get("accounts", []) if str(acc.get("client_id")) == str(master_id)),
+            None,
+        )
+        return account, master
+
+    return account, None
 
 
 def clean_response_message(response):
@@ -1622,13 +1638,13 @@ def get_portfolio(user_id):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    accounts = safe_read_json("accounts.json")
+    found, _ = find_account_by_client_id(accounts, user_id)
+    if not found:
+        return jsonify({"error": "Invalid user ID"}), 403
+
     # Check in accounts.json using utility (for dashboard accounts)
     try:
-        with open("accounts.json", "r") as f:
-            accounts = json.load(f)
-        found, _ = find_account_by_client_id(accounts, user_id)
-        if not found:
-            return jsonify({"error": "Invalid user ID"}), 403
         api = broker_api(found)
         positions_resp = api.get_positions()
         return jsonify(positions_resp)
