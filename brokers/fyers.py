@@ -66,3 +66,14 @@ class FyersBroker(BrokerBase):
         except Exception:
             return False
 
+    def get_opening_balance(self):
+        try:
+            funds = self.api.funds()
+            data = funds.get("fund_limit", funds.get("data", funds))
+            for key in ["equityAmount", "cash", "available_balance", "availableCash"]:
+                if key in data:
+                    return float(data[key])
+            return None
+        except Exception:
+            return None
+
