@@ -562,8 +562,7 @@ def connect_zerodha():
         client_id=data.get("client_id"),
         api_key=data.get("api_key"),
         api_secret=data.get("api_secret"),
-        password=data.get("password"),
-        totp_secret=data.get("totp_secret"),
+        request_token=data.get("request_token"),
     )
     return jsonify({"access_token": broker.access_token})
 
