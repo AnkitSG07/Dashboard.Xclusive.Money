@@ -83,3 +83,14 @@ class FinvasiaBroker(BrokerBase):
             return True
         except Exception:
             return False
+
+    def get_opening_balance(self):
+        try:
+            data = self.api.rmsLimit()
+            info = data.get("data", data)
+            for key in ["net", "availablecash", "available_margin", "cash"]:
+                if key in info:
+                    return float(info[key])
+            return None
+        except Exception:
+            return None
