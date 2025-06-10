@@ -364,11 +364,11 @@ window.pageScripts["Add-Account"] = function() {
       if (selected) data['broker'] = selected.dataset.broker;
       else return alert('Please select a broker');
 
-      if (data.broker === "zerodha") {
-        const url = `/api/zerodha-login-url?api_key=${data.api_key}&api_secret=${data.api_secret}&client_id=${data.client_id}&username=${data.username}`;
-        window.location.href = url;
-        return;
-      }
+      fetch('/api/add-account', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      })
       .then(r => r.json())
       .then(resp => {
         if (resp.message) {
