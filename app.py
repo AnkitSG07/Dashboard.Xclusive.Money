@@ -603,6 +603,44 @@ def get_order_book(client_id):
         print(f"❌ Error in get_order_book(): {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/zerodha_redirects/<client_id>")
+def zerodha_redirect_handler(client_id):
+    from kiteconnect import KiteConnect
+
+    request_token = request.args.get("request_token")
+    api_key = "zrogr9fe42vbvu9h"  # or fetch from DB/accounts.json
+    api_secret = "YOUR_SECRET_HERE"  # fetch securely, do NOT hardcode in real app
+
+    if not request_token:
+        return "❌ No request_token received", 400
+
+    kite = KiteConnect(api_key=api_key)
+
+    try:
+        session_data = kite.generate_session(request_token, api_secret)
+        access_token = session_data["access_token"]
+        user_id = session_data["user_id"]
+        username = session_data["user_name"]
+
+        # Save it in DB or accounts.json
+        account = {
+            "broker": "zerodha",
+            "client_id": client_id,
+            "username": username,
+            "access_token": access_token,
+            "api_key": api_key,
+            "api_secret": api_secret
+        }
+
+        # Store using your own helper
+        save_account_to_user(client_id, account)
+
+        return f"✅ Zerodha account {client_id} connected successfully."
+
+    except Exception as e:
+        return f"❌ Error: {str(e)}", 500
+
+
 
 # === Webhook to place orders using stored user credentials ===
 @app.route("/webhook/<user_id>", methods=["POST"])
