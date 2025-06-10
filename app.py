@@ -18,6 +18,7 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 import random
 import string
+from urllib.parse import quote
 from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
@@ -187,6 +188,23 @@ def save_settings(settings):
         else:
             s.value = str(value)
     db.session.commit()
+
+def save_account_to_user(owner, account):
+    """Persist account credentials in accounts.json."""
+    path = "accounts.json"
+    if os.path.exists(path):
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {"accounts": []}
+    else:
+        data = {"accounts": []}
+
+    entry = dict(account)
+    entry.setdefault("owner", owner)
+    data.setdefault("accounts", []).append(entry)
+    safe_write_json(path, data)
 
 def format_uptime():
     delta = datetime.utcnow() - start_time
@@ -608,19 +626,33 @@ def zerodha_redirect_handler(client_id):
     from kiteconnect import KiteConnect
 
     request_token = request.args.get("request_token")
-    api_key = "zrogr9fe42vbvu9h"  # or fetch from DB/accounts.json
-    api_secret = "YOUR_SECRET_HERE"  # fetch securely, do NOT hardcode in real app
 
     if not request_token:
         return "❌ No request_token received", 400
+
+    pending_path = "pending_zerodha.json"
+    if os.path.exists(pending_path):
+        try:
+            with open(pending_path) as f:
+                pending = json.load(f)
+        except Exception:
+            pending = {}
+    else:
+        pending = {}
+
+    cred = pending.pop(client_id, None)
+    if not cred:
+        return "❌ No pending auth for this client", 400
+
+    api_key = cred.get("api_key")
+    api_secret = cred.get("api_secret")
+    username = cred.get("username") or client_id
 
     kite = KiteConnect(api_key=api_key)
 
     try:
         session_data = kite.generate_session(request_token, api_secret)
         access_token = session_data["access_token"]
-        user_id = session_data["user_id"]
-        username = session_data["user_name"]
 
         # Save it in DB or accounts.json
         account = {
@@ -629,13 +661,14 @@ def zerodha_redirect_handler(client_id):
             "username": username,
             "access_token": access_token,
             "api_key": api_key,
-            "api_secret": api_secret
+            "api_secret": api_secret,
+            "credentials": {"access_token": access_token}
         }
 
         # Store using your own helper
-        save_account_to_user(client_id, account)
-
-        return f"✅ Zerodha account {client_id} connected successfully."
+        save_account_to_user(cred.get("owner", username), account)
+        safe_write_json(pending_path, pending)
+        return redirect(url_for("AddAccount"))
 
     except Exception as e:
         return f"❌ Error: {str(e)}", 500
@@ -860,6 +893,39 @@ def zerodha_login_url_route():
         return jsonify({"error": "kiteconnect not installed"}), 500
     kite = KiteConnect(api_key=api_key)
     return jsonify({"login_url": kite.login_url()})
+
+@app.route('/api/init-zerodha-login', methods=['POST'])
+@login_required
+def init_zerodha_login():
+    data = request.json
+    client_id = data.get('client_id')
+    api_key = data.get('api_key')
+    api_secret = data.get('api_secret')
+    username = data.get('username')
+    if not all([client_id, api_key, api_secret, username]):
+        return jsonify({'error': 'Missing fields'}), 400
+
+    pending_path = 'pending_zerodha.json'
+    if os.path.exists(pending_path):
+        try:
+            with open(pending_path) as f:
+                pending = json.load(f)
+        except Exception:
+            pending = {}
+    else:
+        pending = {}
+
+    pending[client_id] = {
+        'api_key': api_key,
+        'api_secret': api_secret,
+        'username': username,
+        'owner': session.get('user')
+    }
+    safe_write_json(pending_path, pending)
+
+    redirect_uri = f"https://dhan-trading.onrender.com/zerodha_redirects/{client_id}"
+    login_url = f"https://kite.zerodha.com/connect/login?api_key={api_key}&v=3&redirect_uri={quote(redirect_uri, safe='')}"
+    return jsonify({'login_url': login_url})
 
 @app.route("/kite/callback")
 def kite_callback():
