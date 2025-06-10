@@ -204,17 +204,17 @@ class ZerodhaBroker(BrokerBase):
             return False
 
     def get_opening_balance(self):
-    """Return available cash balance using Kite margins API."""
-    self.ensure_token()
-    try:
-        margins = self.kite.margins(segment="equity")
-        data = margins.get("data", margins)
-        if isinstance(data, dict):
-            eq = data.get("equity", data)
-            avail = eq.get("available", eq)
-            for key in ["cash", "liveBalance", "openingBalance"]:
-                if key in avail:
-                    return float(avail[key])
-        return None
-    except Exception:
-        return None
+        """Return available cash balance using Kite margins API."""
+        self.ensure_token()
+        try:
+            margins = self.kite.margins(segment="equity")
+            data = margins.get("data", margins)
+            if isinstance(data, dict):
+                eq = data.get("equity", data)
+                avail = eq.get("available", eq)
+                for key in ["cash", "liveBalance", "openingBalance"]:
+                    if key in avail:
+                        return float(avail[key])
+            return None
+        except Exception:
+            return None
