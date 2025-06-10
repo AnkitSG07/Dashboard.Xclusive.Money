@@ -146,6 +146,35 @@ def strip_emojis_from_obj(obj):
         return EMOJI_RE.sub('', obj)
     return obj
 
+def extract_balance(data):
+    """Recursively search for a numeric balance value in API data."""
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k.lower() in [
+                "balance",
+                "cash",
+                "netbalance",
+                "openingbalance",
+                "availablebalance",
+                "available_cash",
+                "availablecash",
+                "equityamount",
+                "netcash",
+            ]:
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+            val = extract_balance(v)
+            if val is not None:
+                return val
+    elif isinstance(data, list):
+        for item in data:
+            val = extract_balance(item)
+            if val is not None:
+                return val
+    return None
+
 def broker_api(obj):
     """Instantiate a broker adapter using stored account credentials."""
     broker = obj.get("broker", "Unknown").lower()
@@ -170,6 +199,22 @@ def broker_api(obj):
     # Remove access_token from credentials dict to avoid duplication
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
     return BrokerClass(client_id, access_token, **rest)
+
+def get_opening_balance_for_account(acc):
+    """Instantiate broker and try to fetch opening balance."""
+    try:
+        api = broker_api(acc)
+        if hasattr(api, "get_opening_balance"):
+            bal = api.get_opening_balance()
+            if bal is not None:
+                return bal
+        if hasattr(api, "get_profile"):
+            resp = api.get_profile()
+            data = resp.get("data", resp) if isinstance(resp, dict) else resp
+            return extract_balance(data)
+    except Exception as e:
+        print(f"Failed to fetch balance for {acc.get('client_id')}: {e}")
+    return None
 
 # Utility loaders for admin dashboard
 def load_users():
@@ -1402,7 +1447,11 @@ def get_accounts():
 
         user = session.get("user")
         accounts = [a for a in accounts_data["accounts"] if a.get("owner") == user]
-
+        for acc in accounts:
+            bal = get_opening_balance_for_account(acc)
+            if bal is not None:
+                acc["opening_balance"] = bal        
+    
         masters = []
         for acc in accounts:
             if acc.get("role") == "master":
