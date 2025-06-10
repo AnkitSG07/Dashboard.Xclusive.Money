@@ -1,4 +1,5 @@
 from brokers.factory import get_broker_class
+from kiteconnect import KiteConnect
 from brokers.zerodha import ZerodhaBroker
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
@@ -813,6 +814,55 @@ def get_master_orders():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/zerodha-login-url")
+def get_zerodha_login_url():
+    api_key = request.args.get("api_key")
+    api_secret = request.args.get("api_secret")
+    client_id = request.args.get("client_id")
+    username = request.args.get("username")
+
+    if not all([api_key, api_secret, client_id]):
+        return "Missing required parameters", 400
+
+    kite = KiteConnect(api_key=api_key)
+    login_url = kite.login_url()
+    
+    # Optionally store api_secret & client_id temporarily (e.g., in Redis or session)
+    # For simplicity, append as params (not ideal in production)
+    login_url += f"&api_secret={api_secret}&client_id={client_id}&username={username}"
+    return redirect(login_url)
+
+@app.route("/kite/callback")
+def kite_callback():
+    from kiteconnect import KiteConnect
+    request_token = request.args.get("request_token")
+    api_key = request.args.get("api_key")
+    api_secret = request.args.get("api_secret")
+    client_id = request.args.get("client_id")
+    username = request.args.get("username")
+
+    if not all([api_key, api_secret, request_token]):
+        return "Missing parameters", 400
+
+    kite = KiteConnect(api_key=api_key)
+    session = kite.generate_session(request_token, api_secret)
+    access_token = session["access_token"]
+
+    # Save account
+    account = {
+        "broker": "zerodha",
+        "client_id": client_id,
+        "username": username,
+        "access_token": access_token,
+        "api_key": api_key,
+        "api_secret": api_secret,
+        "credentials": {"access_token": access_token}
+    }
+
+    # Save to accounts.json or DB
+    save_account_to_user(username or client_id, account)
+
+    return "✅ Zerodha account connected!"
 
 
 @app.route('/api/square-off', methods=['POST'])
