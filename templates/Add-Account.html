@@ -277,7 +277,7 @@ window.pageScripts["Add-Account"] = function() {
       container.innerHTML += `<div class="mb-3"><button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">Open Zerodha Login Page</button></div>`;
     }
     submitBtn.style.display = "inline-block";
-    submitBtn.disabled = true;
+    submitBtn.disabled = false;
     attachValidation();
     if (broker === 'zerodha') {
       const btn = document.getElementById('zerodha-login-btn');
@@ -326,7 +326,7 @@ window.pageScripts["Add-Account"] = function() {
     }
     // show spinner while validating
     resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Checking...';
-    submitBtn.disabled = true;
+    submitBtn.disabled = false;
     // clear previous invalid highlighting
     form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
     const data = {};
@@ -345,7 +345,7 @@ window.pageScripts["Add-Account"] = function() {
         form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
       } else {
         resultDiv.innerHTML = `<span class="text-danger">${resp.error || 'Invalid credentials'}</span>`;
-        submitBtn.disabled = true;
+        submitBtn.disabled = false;
         form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid'));
       }
     })
