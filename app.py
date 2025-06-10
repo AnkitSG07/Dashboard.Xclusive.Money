@@ -1447,11 +1447,12 @@ def get_accounts():
 
         user = session.get("user")
         accounts = [a for a in accounts_data["accounts"] if a.get("owner") == user]
+
         for acc in accounts:
             bal = get_opening_balance_for_account(acc)
             if bal is not None:
-                acc["opening_balance"] = bal        
-    
+                acc["opening_balance"] = bal
+
         masters = []
         for acc in accounts:
             if acc.get("role") == "master":
@@ -1467,6 +1468,7 @@ def get_accounts():
     except Exception as e:
         print(f"❌ Error in /api/accounts: {str(e)}")
         return jsonify({"error": str(e)}), 500
+        
 @app.route('/api/groups', methods=['GET'])
 @login_required
 def get_groups():
