@@ -232,7 +232,7 @@ window.pageScripts["Add-Account"] = function() {
   aliceblue: [
     { label: "Alice Blue Client ID", name: "client_id", type: "text" },
     { label: "Password", name: "password", type: "password" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
+    { label: "TOTP Secret Key", name: "totp_secret", type: "text", tip: "Generate this TOTP secret in Alice Blue's portal (see 'problem with external TOTP' > 'reset TOTP'), then scan the QR code with Google Authenticator and copy the secret key here. If you reset the secret later, update it here as well." },
     { label: "Email Id (optional)", name: "email", type: "text" },
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
