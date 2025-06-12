@@ -1,3 +1,5 @@
+import pyotp
+from shoonya import ShoonyaApiPy
 from .base import BrokerBase
 
 try:
@@ -7,90 +9,66 @@ except ImportError:
 
 
 class FinvasiaBroker(BrokerBase):
-    def __init__(self, client_id, password=None, vendor_code=None, api_key=None,
-                 imei=None, totp_key=None, access_token=None, **kwargs):
-        super().__init__(client_id, access_token, **kwargs)
-        if SmartConnect is None:
-            raise ImportError("SmartApi not installed")
-
+    def __init__(self, client_id, password, totp_secret, vendor_code, api_key, imei="abc1234", **kwargs):
+        super().__init__(client_id, "", **kwargs)
+        self.client_id = client_id
+        self.password = password
+        self.totp_secret = totp_secret
+        self.vendor_code = vendor_code
         self.api_key = api_key
-        self.api = SmartConnect(api_key=api_key)
+        self.client_id = client_id
+        self.password = password
+        self.totp_secret = totp_secret
+        self.vendor_code = vendor_code
+        self.api_key = api_key
 
-        # Case 1: Use access token if provided
-        if access_token:
-            self.api.setAccessToken(access_token)
-            self.access_token = access_token
-        # Case 2: Perform full login with password, TOTP, etc.
-        elif all([password, vendor_code, totp_key]):
-            session = self.api.generateSession(
-                client_id=client_id,
-                password=password,
-                totp=totp_key,
-                vendor_code=vendor_code,
-                imei=imei or "web-client-01"
-            )
-            self.access_token = session["data"]["access_token"]
-        else:
-            raise ValueError("Insufficient login credentials provided for Finvasia.")
+     def login(self):
+        totp = pyotp.TOTP(self.totp_secret).now()
+        ret = self.api.login(
+            userid=self.client_id,
+            password=self.password,
+            twoFA=totp,
+            vendor_code=self.vendor_code,
+            api_secret=self.api_key,
+            imei=self.imei,
+        )
+        if not ret or ret.get("stat") != "Ok":
+            raise Exception(ret.get("emsg", "Finvasia login failed"))
+        self.session = ret
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity,
-                    order_type="MARKET", product="INTRADAY", price=None):
-        try:
-            data = {
-                "variety": "NORMAL",
-                "tradingsymbol": tradingsymbol,
-                "symboltoken": "",  # You will need to handle token lookup
-                "transactiontype": transaction_type.upper(),
-                "exchange": exchange.upper(),
-                "ordertype": order_type.upper(),
-                "producttype": product.upper(),
-                "duration": "DAY",
-                "price": float(price) if price else 0,
-                "quantity": int(quantity)
-            }
-            result = self.api.placeOrder(orderparams=data)
-            return {"status": "success", "order_id": result["data"]["orderid"]}
-        except Exception as e:
-            return {"status": "failure", "error": str(e)}
-
-    def get_order_list(self):
-        try:
-            orders = self.api.orderBook()
-            return {"status": "success", "data": orders["data"]}
-        except Exception as e:
-            return {"status": "failure", "error": str(e), "data": []}
-
-    def get_positions(self):
-        try:
-            positions = self.api.position()
-            return {"status": "success", "data": positions["data"]}
-        except Exception as e:
-            return {"status": "failure", "error": str(e), "data": []}
-
-    def cancel_order(self, order_id):
-        try:
-            result = self.api.cancelOrder(order_id=order_id, variety="NORMAL")
-            return {"status": "success", "order_id": order_id}
-        except Exception as e:
-            return {"status": "failure", "error": str(e)}
-
-    def get_profile(self):
-        return {"status": "success", "data": {"client_id": self.client_id}}
 
     def check_token_valid(self):
         try:
-            self.api.orderBook()
-            return True
+            resp = self.api.get_limits()
+            return resp.get("stat") == "Ok"
         except Exception:
             return False
 
     def get_opening_balance(self):
-        try:
-            data = self.api.rmsLimit()
-            info = data.get("data", data)
-            for key in ["net", "availablecash", "available_margin", "cash"]:
-                if key in info:
-                    return float(info[key])
-            return None
-        except Exception:
-            return None
+        data = self.api.get_limits()
+        return data.get("cash")
+
+    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, **kwargs):
+        return self.api.place_order(
+            buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
+            product_type=product,
+            exchange=exchange,
+            tradingsymbol=tradingsymbol,
+            quantity=int(quantity),
+            discloseqty=0,
+            price_type=order_type,
+            price=float(price),
+            trigger_price=kwargs.get("trigger_price"),
+            retention="DAY",
+            amo="NO",
+            remarks=kwargs.get("remarks"),
+        )
+        
+    def get_order_list(self):
+        return self.api.get_order_book()
+
+    def cancel_order(self, order_id):
+        return self.api.cancel_order(orderno=order_id)
+
+    def get_positions(self):
+        return self.api.get_positions()
