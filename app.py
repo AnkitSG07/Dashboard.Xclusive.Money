@@ -1375,11 +1375,7 @@ def check_credentials():
     try:
         BrokerClass = get_broker_class(broker)
         if broker == 'aliceblue':
-            password = credentials.get('password')
-            totp_secret = credentials.get('totp_secret')
-            if not all([password, totp_secret]):
-                return jsonify({'error': 'Missing credentials'}), 400
-            broker_obj = BrokerClass(client_id, password, totp_secret)
+            broker_obj = BrokerClass(client_id)
 
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
