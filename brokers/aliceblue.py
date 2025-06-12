@@ -3,14 +3,15 @@ import requests
 import hashlib
 from .base import BrokerBase
 
-ALICEBLUE_API_KEY = os.environ.get("ALICEBLUE_API_KEY")
-
 class AliceBlueBroker(BrokerBase):
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api"
 
     def __init__(self, client_id, **kwargs):
         super().__init__(client_id, None, **kwargs)
-        self.api_key = ALICEBLUE_API_KEY
+        self.client_id = client_id
+        self.api_key = os.environ.get("ALICEBLUE_API_KEY")  # Set your App ID in env
+        if not self.api_key:
+            raise Exception("ALICEBLUE_API_KEY not set in environment")
         self.session_id = None
         self.headers = None
         self.login()
@@ -18,33 +19,22 @@ class AliceBlueBroker(BrokerBase):
     def get_encryption_key(self):
         url = f"{self.BASE_URL}/customer/getAPIEncpkey"
         payload = {"userId": self.client_id}
-        r = requests.post(url, json=payload, timeout=15)
-        try:
-            resp = r.json()
-        except Exception:
-            raise Exception(f"Failed to get encryption key: {r.text}")
+        r = requests.post(url, json=payload, timeout=10)
+        resp = r.json()
         if resp.get("stat") != "Ok":
-            raise Exception(f"Failed to get encryption key: {resp.get('emsg') or resp}")
+            raise Exception(f"Failed to get encryption key: {resp.get('emsg')}")
         return resp["encKey"]
 
     def login(self):
-        # Step 1: Get encryption key
         encKey = self.get_encryption_key()
-
-        # Step 2: SHA-256(userId + apiKey + encKey)
         concat = self.client_id + self.api_key + encKey
         userData = hashlib.sha256(concat.encode()).hexdigest()
-
-        # Step 3: Get session ID
         url = f"{self.BASE_URL}/customer/getUserSID"
         payload = {"userId": self.client_id, "userData": userData}
-        r = requests.post(url, json=payload, timeout=15)
-        try:
-            resp = r.json()
-        except Exception:
-            raise Exception(f"AliceBlue login failed: {r.text}")
+        r = requests.post(url, json=payload, timeout=10)
+        resp = r.json()
         if resp.get("stat") != "Ok":
-            raise Exception(f"AliceBlue login failed: {resp.get('emsg') or resp}")
+            raise Exception(f"AliceBlue login failed: {resp.get('emsg')}")
         self.session_id = resp["sessionID"]
         self.headers = {
             "Content-Type": "application/json",
@@ -54,12 +44,6 @@ class AliceBlueBroker(BrokerBase):
     def ensure_session(self):
         if not self.session_id or not self.headers:
             self.login()
-
-    def safe_json(self, r):
-        try:
-            return r.json()
-        except Exception:
-            return {"status": "failure", "error": r.text}
 
     def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1,
                    order_type="MARKET", product="MIS", price=0, **kwargs):
@@ -78,7 +62,10 @@ class AliceBlueBroker(BrokerBase):
             "validity": "DAY"
         }
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
-        resp = self.safe_json(r)
+        try:
+            resp = r.json()
+        except Exception:
+            resp = {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok" or "NOrdNo" in resp:
             return {"status": "success", "order_id": resp.get("NOrdNo"), **resp}
         return {"status": "failure", **resp}
@@ -87,7 +74,10 @@ class AliceBlueBroker(BrokerBase):
         self.ensure_session()
         url = f"{self.BASE_URL}/orderBook"
         r = requests.get(url, headers=self.headers, timeout=10)
-        resp = self.safe_json(r)
+        try:
+            resp = r.json()
+        except Exception:
+            return {"status": "failure", "error": r.text}
         orders = resp.get("data") or resp.get("OrderBookDetail", []) or []
         return {"status": "success", "orders": orders}
 
@@ -96,7 +86,10 @@ class AliceBlueBroker(BrokerBase):
         url = f"{self.BASE_URL}/cancelOrder"
         payload = {"NOrdNo": order_id}
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
-        resp = self.safe_json(r)
+        try:
+            resp = r.json()
+        except Exception:
+            return {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok":
             return {"status": "success", **resp}
         return {"status": "failure", **resp}
@@ -105,7 +98,10 @@ class AliceBlueBroker(BrokerBase):
         self.ensure_session()
         url = f"{self.BASE_URL}/positions"
         r = requests.get(url, headers=self.headers, timeout=10)
-        resp = self.safe_json(r)
+        try:
+            resp = r.json()
+        except Exception:
+            return {"status": "failure", "error": r.text}
         positions = resp.get("data") or resp.get("positions", []) or []
         return {"status": "success", "positions": positions}
 
@@ -114,13 +110,14 @@ class AliceBlueBroker(BrokerBase):
         url = f"{self.BASE_URL}/balance"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
-            data = self.safe_json(r)
+            data = r.json()
             for key in ["available_balance", "cash", "opening_balance"]:
                 if key in data:
                     return float(data[key])
             return None
         except Exception:
             return None
+            
     def check_token_valid(self):
         # Always valid if instantiated
         return True
