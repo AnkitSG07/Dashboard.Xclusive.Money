@@ -562,6 +562,22 @@ def poll_and_copy_trades():
                             "INTRADAY"
                         ).upper()
                         price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
+                         # --- Map values between different broker conventions ---
+                        if child_broker == "zerodha":
+                            exchange = {
+                                "NSE_EQ": "NSE",
+                                "BSE_EQ": "BSE",
+                                "NFO": "NFO",
+                            }.get(str(exchange).upper(), str(exchange).upper())
+
+                            product_type = {
+                                "INTRADAY": "MIS",
+                                "MARGIN": "MIS",
+                                "DELIVERY": "CNC",
+                                "CNC": "CNC",
+                                "NRML": "NRML",
+                            }.get(str(product_type).upper(), str(product_type).upper())
+
 
                         try:
                             mapping_child = get_symbol_for_broker(symbol, child_broker)
