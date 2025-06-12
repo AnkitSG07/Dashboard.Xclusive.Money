@@ -121,3 +121,6 @@ class AliceBlueBroker(BrokerBase):
             return None
         except Exception:
             return None
+    def check_token_valid(self):
+        # Always valid if instantiated
+        return True
