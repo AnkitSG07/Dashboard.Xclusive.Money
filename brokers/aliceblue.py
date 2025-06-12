@@ -1,4 +1,3 @@
-import os
 import requests
 import hashlib
 from .base import BrokerBase
@@ -6,43 +5,28 @@ from .base import BrokerBase
 class AliceBlueBroker(BrokerBase):
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
-    def __init__(self, client_id, **kwargs):
-        super().__init__(client_id, None, **kwargs)
+    def __init__(self, client_id, api_key, **kwargs):
+        super().__init__(client_id, api_key, **kwargs)
         self.client_id = client_id
-        self.api_key = os.environ.get("ALICEBLUE_API_KEY")  # Set your App ID in env
-        if not self.api_key:
-            raise Exception("ALICEBLUE_API_KEY not set in environment")
+        self.api_key = api_key
         self.session_id = None
         self.headers = None
-        self.login()
+        self.authenticate()
 
-    def get_encryption_key(self):
-        url = f"{self.BASE_URL}/customer/getAPIEncpkey"
-        payload = {"userId": self.client_id}
-        r = requests.post(url, json=payload, timeout=10)
-        resp = r.json()
-        if resp.get("stat") != "Ok" or not resp.get("encKey"):
-            emsg = resp.get("emsg") or "No encryption key returned"
-            raise Exception(f"Failed to get encryption key: {emsg}")
-        return resp["encKey"]
-
-    def login(self):
-        encKey = self.get_encryption_key()
-        if not encKey:
-            raise Exception("Encryption key unavailable")
-        concat = self.client_id + self.api_key + encKey
-        userData = hashlib.sha256(concat.encode()).hexdigest()
-        url = f"{self.BASE_URL}customer/getUserSID"
-        payload = {"userId": self.client_id, "userData": userData}
-        r = requests.post(url, json=payload, timeout=10)
-        try:
-            resp = r.json()
-            if isinstance(resp, list):
-                resp = resp[0] if resp else {}
-        except Exception:
-            raise Exception(f"AliceBlue login failed: {r.text}")
+    def authenticate(self):
+        # Step 1: Get Encryption Key
+        url = self.BASE_URL + "customer/getAPIEncpkey"
+        resp = requests.post(url, json={"userId": self.client_id}, timeout=10).json()
         if resp.get("stat") != "Ok":
-            raise Exception(f"AliceBlue login failed: {resp.get('emsg')}")
+            raise Exception(f"AliceBlue getAPIEncpkey failed: {resp.get('emsg')}")
+        enc_key = resp["encKey"]
+        # Step 2: Generate SHA256(userId + apiKey + encKey)
+        user_data = hashlib.sha256(f"{self.client_id}{self.api_key}{enc_key}".encode()).hexdigest()
+        # Step 3: Get Session ID
+        url = self.BASE_URL + "customer/getUserSID"
+        resp = requests.post(url, json={"userId": self.client_id, "userData": user_data}, timeout=10).json()
+        if resp.get("stat") != "Ok":
+            raise Exception(f"AliceBlue getUserSID failed: {resp.get('emsg')}")
         self.session_id = resp["sessionID"]
         self.headers = {
             "Content-Type": "application/json",
@@ -51,47 +35,27 @@ class AliceBlueBroker(BrokerBase):
 
     def ensure_session(self):
         if not self.session_id or not self.headers:
-            self.login()
+            self.authenticate()
 
-    def place_order(
-        self,
-        tradingsymbol=None,
-        security_id=None,
-        exchange_segment="NSE",
-        transaction_type="BUY",
-        quantity=1,
-        order_type="MKT",
-        product_type="MIS",
-        price=0,
-        **kwargs,
-    ):
-        """Place an order using Alice Blue REST API."""
+    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1,
+                   order_type="MARKET", product="MIS", price=0, **kwargs):
         self.ensure_session()
-        if security_id is None:
-            security_id = kwargs.get("symbol_id")
-
-        order = {
-            "discqty": "0",
-            "trading_symbol": tradingsymbol,
-            "exch": exchange_segment,
-            "transtype": transaction_type,
-            "ret": "DAY",
-            "prctyp": order_type,
-            "qty": str(quantity),
-            "symbol_id": str(security_id) if security_id is not None else "",
-            "price": str(price or 0),
-            "trigPrice": str(kwargs.get("trigger_price", 0)),
-            "pCode": product_type,
-            "complexty": kwargs.get("complexty", "REGULAR"),
-            "orderTag": kwargs.get("order_tag", ""),
-            "deviceNumber": kwargs.get("device_number", "python-device"),
+        url = self.BASE_URL + "placeOrder"
+        payload = {
+            "exchange": exchange,
+            "symbol": tradingsymbol,
+            "transaction_type": transaction_type,
+            "quantity": int(quantity),
+            "order_type": order_type,
+            "product_type": product,
+            "price": float(price) if price else 0,
+            "trigger_price": 0,
+            "disclosed_quantity": 0,
+            "validity": "DAY"
         }
-        url = f"{self.BASE_URL}/placeOrder/executePlaceOrder"
-        r = requests.post(url, json=[order], headers=self.headers, timeout=10)
+        r = requests.post(url, json=payload, headers=self.headers, timeout=10)
         try:
             resp = r.json()
-            if isinstance(resp, list):
-                resp = resp[0] if resp else {}
         except Exception:
             resp = {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok" or "NOrdNo" in resp:
@@ -100,8 +64,8 @@ class AliceBlueBroker(BrokerBase):
 
     def get_order_list(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/positionAndHoldings/positionBook"
-        r = requests.post(url, json={"ret": "DAY"}, headers=self.headers, timeout=10)
+        url = self.BASE_URL + "orderBook"
+        r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
         except Exception:
@@ -111,13 +75,11 @@ class AliceBlueBroker(BrokerBase):
 
     def cancel_order(self, order_id):
         self.ensure_session()
-        url = f"{self.BASE_URL}/cancelOrder"
+        url = self.BASE_URL + "cancelOrder"
         payload = {"NOrdNo": order_id}
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
         try:
             resp = r.json()
-            if isinstance(resp, list):
-                resp = resp[0] if resp else {}
         except Exception:
             return {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok":
@@ -126,13 +88,10 @@ class AliceBlueBroker(BrokerBase):
 
     def get_positions(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/positions"
+        url = self.BASE_URL + "positions"
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
-            if isinstance(resp, list):
-                resp = resp[0] if resp else {}
-
         except Exception:
             return {"status": "failure", "error": r.text}
         positions = resp.get("data") or resp.get("positions", []) or []
@@ -140,7 +99,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_opening_balance(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/balance"
+        url = self.BASE_URL + "balance"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
             data = r.json()
@@ -150,7 +109,12 @@ class AliceBlueBroker(BrokerBase):
             return None
         except Exception:
             return None
-            
+
     def check_token_valid(self):
-        # Always valid if instantiated
-        return True
+        try:
+            self.ensure_session()
+            url = self.BASE_URL + "profile"
+            r = requests.get(url, headers=self.headers, timeout=10)
+            return r.status_code == 200 and "stat" in r.json() and r.json().get("stat") == "Ok"
+        except Exception:
+            return False
