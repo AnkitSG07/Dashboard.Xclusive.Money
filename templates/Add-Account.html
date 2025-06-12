@@ -272,7 +272,10 @@ window.pageScripts["Add-Account"] = function() {
     container.innerHTML += `<div class="mb-3"><label class="form-label">Username (for your reference)</label><input class="form-control" name="username" type="text" required></div>`;
     fields.forEach(f => {
       const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
-      container.innerHTML += `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}"${ph} required></div>`;
+      let html = `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}"${ph} required>`;
+      if (f.tip) html += `<div class="form-text">${f.tip}</div>`;
+      html += `</div>`;
+      container.innerHTML += html;
     });
     if (broker === 'zerodha') {
       container.innerHTML += `<div class="mb-3"><button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">Open Zerodha Login Page</button></div>`;
