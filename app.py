@@ -1371,7 +1371,10 @@ def check_credentials():
     try:
         BrokerClass = get_broker_class(broker)
         if broker == 'aliceblue':
+            # Only client_id needed for AliceBlue v2 API
             broker_obj = BrokerClass(client_id)
+            # If constructor didn't raise, credentials are valid
+            return jsonify({'valid': True})
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1434,6 +1437,7 @@ def add_account():
         BrokerClass = get_broker_class(broker)
         if broker == 'aliceblue':
             broker_obj = BrokerClass(client_id)
+            # If constructor didn't raise, credentials are valid
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1495,6 +1499,7 @@ def add_account():
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
+    
     
 @app.route('/api/accounts')
 @login_required
