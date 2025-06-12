@@ -22,15 +22,21 @@ class AliceBlueBroker(BrokerBase):
     def login(self):
         totp = self.get_totp()
         url = self.BASE_URL + "customer/login"
-        data = {
+        payload = {
             "userId": self.client_id,
             "userData": self.password,
-            "totp": totp
+            "totp": totp,
         }
-        r = requests.post(url, json=data, timeout=10)
-        resp = r.json()
+        try:
+            r = requests.post(url, json=payload, timeout=10)
+            r.raise_for_status()
+            resp = r.json()
+        except requests.RequestException as e:
+            raise Exception(f"AliceBlue login request failed: {e}") from e
+        except ValueError:
+            raise Exception(f"AliceBlue login failed: {r.text}")
         if resp.get("stat") != "Ok":
-            raise Exception(f"AliceBlue login failed: {resp.get('emsg')}")
+            raise Exception(f"AliceBlue login failed: {resp.get('emsg') or resp}")
         self.session_id = resp["sessionID"]
         # Set Authorization header for future API calls
         self.headers = {
