@@ -21,7 +21,7 @@ class AliceBlueBroker(BrokerBase):
 
     def login(self):
         totp = self.get_totp()
-        url = self.BASE_URL + "customer/login"
+        url = self.BASE_URL + "customerLogin"
         payload = {
             "userId": self.client_id,
             "userData": self.password,
