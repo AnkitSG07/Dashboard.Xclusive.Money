@@ -1,5 +1,6 @@
 import requests
 import pyotp
+from alice_blue import AliceBlue
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
@@ -11,6 +12,8 @@ class AliceBlueBroker(BrokerBase):
         super().__init__(client_id, "", **kwargs)
         # Store password for the login call
         self.password = password
+        self.app_id = app_id
+        self.api_secret = api_secret
         self.totp_secret = totp_secret
         self.session_id = None
         self.headers = None
@@ -21,23 +24,15 @@ class AliceBlueBroker(BrokerBase):
 
     def login(self):
         totp = self.get_totp()
-        url = self.BASE_URL + "customerLogin"
-        payload = {
-            "userId": self.client_id,
-            "userData": self.password,
-            "totp": totp,
-        }
+        if not self.app_id or not self.api_secret:
+            raise ValueError("app_id and api_secret are required for AliceBlue")
         try:
-            r = requests.post(url, json=payload, timeout=10)
-            r.raise_for_status()
-            resp = r.json()
-        except requests.RequestException as e:
-            raise Exception(f"AliceBlue login request failed: {e}") from e
-        except ValueError:
-            raise Exception(f"AliceBlue login failed: {r.text}")
-        if resp.get("stat") != "Ok":
-            raise Exception(f"AliceBlue login failed: {resp.get('emsg') or resp}")
-        self.session_id = resp["sessionID"]
+            session_id = AliceBlue.login_and_get_sessionID(
+                self.client_id, self.password, totp, self.app_id, self.api_secret
+            )
+        except Exception as e:  # pragma: no cover - network call
+            raise Exception(f"AliceBlue login failed: {e}") from e
+        self.session_id = session_id
         # Set Authorization header for future API calls
         self.headers = {
             "Content-Type": "application/json",
