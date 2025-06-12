@@ -4,7 +4,7 @@ import hashlib
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
-    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService"
+    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api"
 
     def __init__(self, client_id, **kwargs):
         super().__init__(client_id, None, **kwargs)
@@ -17,7 +17,7 @@ class AliceBlueBroker(BrokerBase):
         self.login()
 
     def get_encryption_key(self):
-        url = f"{self.BASE_URL}/api/customer/getAPIEncpkey"
+        url = f"{self.BASE_URL}/customer/getAPIEncpkey"
         payload = {"userId": self.client_id}
         r = requests.post(url, json=payload, timeout=10)
         resp = r.json()
@@ -32,7 +32,7 @@ class AliceBlueBroker(BrokerBase):
             raise Exception("Encryption key unavailable")
         concat = self.client_id + self.api_key + encKey
         userData = hashlib.sha256(concat.encode()).hexdigest()
-        url = f"{self.BASE_URL}/api/customer/getUserSID"
+        url = f"{self.BASE_URL}customer/getUserSID"
         payload = {"userId": self.client_id, "userData": userData}
         r = requests.post(url, json=payload, timeout=10)
         try:
@@ -86,7 +86,7 @@ class AliceBlueBroker(BrokerBase):
             "orderTag": kwargs.get("order_tag", ""),
             "deviceNumber": kwargs.get("device_number", "python-device"),
         }
-        url = f"{self.BASE_URL}/api/placeOrder/executePlaceOrder"
+        url = f"{self.BASE_URL}/placeOrder/executePlaceOrder"
         r = requests.post(url, json=[order], headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -100,7 +100,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_order_list(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/api/positionAndHoldings/positionBook"
+        url = f"{self.BASE_URL}/positionAndHoldings/positionBook"
         r = requests.post(url, json={"ret": "DAY"}, headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -111,7 +111,7 @@ class AliceBlueBroker(BrokerBase):
 
     def cancel_order(self, order_id):
         self.ensure_session()
-        url = f"{self.BASE_URL}/api/cancelOrder"
+        url = f"{self.BASE_URL}/cancelOrder"
         payload = {"NOrdNo": order_id}
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
         try:
@@ -126,7 +126,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_positions(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/api/positions"
+        url = f"{self.BASE_URL}/positions"
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -140,7 +140,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_opening_balance(self):
         self.ensure_session()
-        url = f"{self.BASE_URL}/api/balance"
+        url = f"{self.BASE_URL}/balance"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
             data = r.json()
