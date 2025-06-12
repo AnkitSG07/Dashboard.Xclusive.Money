@@ -21,12 +21,15 @@ class AliceBlueBroker(BrokerBase):
         payload = {"userId": self.client_id}
         r = requests.post(url, json=payload, timeout=10)
         resp = r.json()
-        if resp.get("stat") != "Ok":
-            raise Exception(f"Failed to get encryption key: {resp.get('emsg')}")
+        if resp.get("stat") != "Ok" or not resp.get("encKey"):
+            emsg = resp.get("emsg") or "No encryption key returned"
+            raise Exception(f"Failed to get encryption key: {emsg}")
         return resp["encKey"]
 
     def login(self):
         encKey = self.get_encryption_key()
+        if not encKey:
+            raise Exception("Encryption key unavailable")
         concat = self.client_id + self.api_key + encKey
         userData = hashlib.sha256(concat.encode()).hexdigest()
         url = f"{self.BASE_URL}/api/customer/getUserSID"
