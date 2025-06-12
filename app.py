@@ -1,4 +1,4 @@
-from brokers.factory import get_broker_class
+Ffrom brokers.factory import get_broker_class
 from brokers.zerodha import ZerodhaBroker, KiteConnect
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
@@ -191,7 +191,6 @@ def broker_api(obj):
         "access_token",
         "vendor_code",
         "imei",
-        # Do NOT add app_id for aliceblue, see below
     ]:
         if key in obj and key not in credentials:
             credentials[key] = obj[key]
@@ -202,9 +201,7 @@ def broker_api(obj):
 
     if broker == "aliceblue":
         # v2 API: Only client_id needed, API Key is loaded from env in aliceblue.py
-        # Do not use password or totp_secret for AliceBlue v2 flow
         return BrokerClass(client_id)
-
     elif broker == "finvasia":
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
@@ -212,7 +209,6 @@ def broker_api(obj):
         api_key = rest.pop("api_key", None)
         imei = rest.pop("imei", "abc1234") or "abc1234"
         return BrokerClass(client_id, password, totp_secret, vendor_code, api_key, imei, **rest)
-
     return BrokerClass(client_id, access_token, **rest)
     
 
@@ -1375,9 +1371,7 @@ def check_credentials():
     try:
         BrokerClass = get_broker_class(broker)
         if broker == 'aliceblue':
-            # v2: Only client_id needed
             broker_obj = BrokerClass(client_id)
-
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1439,9 +1433,7 @@ def add_account():
     try:
         BrokerClass = get_broker_class(broker)
         if broker == 'aliceblue':
-            # v2: Only client_id needed
             broker_obj = BrokerClass(client_id)
-
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1460,7 +1452,6 @@ def add_account():
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
             broker_obj = BrokerClass(client_id, access_token, **rest)
-
 
         if hasattr(broker_obj, 'check_token_valid') and not broker_obj.check_token_valid():
             return jsonify({'error': 'Invalid broker credentials'}), 400
@@ -1504,7 +1495,7 @@ def add_account():
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
-
+    
 @app.route('/api/accounts')
 @login_required
 def get_accounts():
