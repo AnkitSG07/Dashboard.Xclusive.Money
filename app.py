@@ -116,6 +116,14 @@ def get_symbol_for_broker(symbol: str, broker: str):
     """Return mapped symbol details for a broker."""
     return BROKER_SYMBOL_MAP.get(symbol.upper(), {}).get(broker.lower(), {})
 
+def map_order_type(order_type: str, broker: str) -> str:
+    """Convert generic order types to broker specific codes."""
+    if not order_type:
+        return order_type
+    if broker.lower() == "aliceblue" and order_type.upper() == "MARKET":
+        return "MKT"
+    return order_type
+
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
     with tempfile.NamedTemporaryFile('w', delete=False, dir=dirpath) as tmp:
@@ -1688,7 +1696,7 @@ def place_group_order():
                     exchange_segment=api.NSE,
                     transaction_type=api.BUY if action.upper() == "BUY" else api.SELL,
                     quantity=int(quantity),
-                    order_type=api.MARKET,
+                    order_type=map_order_type(api.MARKET, broker_name),
                     product_type=api.INTRA,
                     price=0
                 )
@@ -1699,7 +1707,7 @@ def place_group_order():
                     exchange="NSE",
                     transaction_type=action.upper(),
                     quantity=int(quantity),
-                    order_type="MARKET",
+                    order_type=map_order_type("MARKET", broker_name),
                     product="MIS",
                     price=None,
                 )
