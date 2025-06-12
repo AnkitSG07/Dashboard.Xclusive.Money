@@ -204,7 +204,7 @@ def broker_api(obj):
         totp_secret = rest.pop("totp_secret", None)
         app_id = rest.pop("app_id", None)
         api_secret = rest.pop("api_secret", None)
-        return BrokerClass(client_id, password, totp_secret, app_id, api_secret, **rest
+        return BrokerClass(client_id, password, totp_secret, app_id, api_secret, **rest)
 
     elif broker == "finvasia":
         password = rest.pop("password", None)
