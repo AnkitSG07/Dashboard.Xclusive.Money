@@ -2,12 +2,6 @@ import pyotp
 from shoonya import ShoonyaApiPy
 from .base import BrokerBase
 
-try:
-    from SmartApi import SmartConnect
-except ImportError:
-    SmartConnect = None
-
-
 class FinvasiaBroker(BrokerBase):
     def __init__(self, client_id, password, totp_secret, vendor_code, api_key, imei="abc1234", **kwargs):
         super().__init__(client_id, "", **kwargs)
