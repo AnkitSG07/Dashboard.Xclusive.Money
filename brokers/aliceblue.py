@@ -6,7 +6,7 @@ from .base import BrokerBase
 ALICEBLUE_API_KEY = os.environ.get("ALICEBLUE_API_KEY")
 
 class AliceBlueBroker(BrokerBase):
-    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
+    BASE_URL = "https://ant.aliceblueonline.com/api/"
 
     def __init__(self, client_id, password, totp_secret, **kwargs):
         super().__init__(client_id, password, **kwargs)
