@@ -198,6 +198,10 @@ def broker_api(obj):
     BrokerClass = get_broker_class(broker)
     # Remove access_token from credentials dict to avoid duplication
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
+    if broker == "aliceblue":
+        password = rest.pop("password", None)
+        totp_secret = rest.pop("totp_secret", None)
+        return BrokerClass(client_id, password, totp_secret, **rest)
     return BrokerClass(client_id, access_token, **rest)
 
 def get_opening_balance_for_account(acc):
@@ -1358,9 +1362,16 @@ def check_credentials():
     credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id')}
     try:
         BrokerClass = get_broker_class(broker)
-        access_token = credentials.get('access_token')
-        rest = {k: v for k, v in credentials.items() if k != 'access_token'}
-        broker_obj = BrokerClass(client_id, access_token, **rest)
+        if broker == 'aliceblue':
+            password = credentials.get('password')
+            totp_secret = credentials.get('totp_secret')
+            if not all([password, totp_secret]):
+                return jsonify({'error': 'Missing credentials'}), 400
+            broker_obj = BrokerClass(client_id, password, totp_secret)
+        else:
+            access_token = credentials.get('access_token')
+            rest = {k: v for k, v in credentials.items() if k != 'access_token'}
+            broker_obj = BrokerClass(client_id, access_token, **rest)
         valid = True
         if hasattr(broker_obj, 'check_token_valid'):
             valid = broker_obj.check_token_valid()
