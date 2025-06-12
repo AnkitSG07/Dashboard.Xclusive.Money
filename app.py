@@ -189,23 +189,24 @@ def broker_api(obj):
         "password",
         "totp_secret",
         "access_token",
-        "app_id",
+        "vendor_code",
+        "imei",
+        # Do NOT add app_id for aliceblue, see below
     ]:
         if key in obj and key not in credentials:
             credentials[key] = obj[key]
 
     access_token = credentials.get("access_token")
-
     BrokerClass = get_broker_class(broker)
-    # Remove access_token from credentials dict to avoid duplication
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
+
     if broker == "aliceblue":
+        # Use only client_id, password, totp_secret for AliceBlue.
+        # API key (App ID) is loaded from env in aliceblue.py, not from user data!
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
-        app_id = rest.pop("app_id", None)
-        api_secret = rest.pop("api_secret", None)
-        return BrokerClass(client_id, password, totp_secret, app_id, api_secret, **rest)
-        
+        return BrokerClass(client_id, password, totp_secret, **rest)
+
     elif broker == "finvasia":
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
@@ -213,7 +214,7 @@ def broker_api(obj):
         api_key = rest.pop("api_key", None)
         imei = rest.pop("imei", "abc1234") or "abc1234"
         return BrokerClass(client_id, password, totp_secret, vendor_code, api_key, imei, **rest)
-         
+
     return BrokerClass(client_id, access_token, **rest)
     
 
