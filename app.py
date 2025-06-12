@@ -1414,9 +1414,18 @@ def add_account():
         # Validate credentials using broker adapter
     try:
         BrokerClass = get_broker_class(broker)
-        access_token = credentials.get('access_token')
-        rest = {k: v for k, v in credentials.items() if k != 'access_token'}
-        broker_obj = BrokerClass(client_id, access_token, **rest)
+        if broker == 'aliceblue':
+            password = credentials.get('password')
+            totp_secret = credentials.get('totp_secret')
+            if not all([password, totp_secret]):
+                return jsonify({'error': 'Missing credentials'}), 400
+            broker_obj = BrokerClass(client_id, password, totp_secret)
+        else:
+            access_token = credentials.get('access_token')
+            rest = {k: v for k, v in credentials.items() if k != 'access_token'}
+            broker_obj = BrokerClass(client_id, access_token, **rest)
+
+
         if hasattr(broker_obj, 'check_token_valid') and not broker_obj.check_token_valid():
             return jsonify({'error': 'Invalid broker credentials'}), 400
     except Exception as e:
