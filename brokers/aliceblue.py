@@ -35,7 +35,12 @@ class AliceBlueBroker(BrokerBase):
         url = f"{self.BASE_URL}/api/customer/getUserSID"
         payload = {"userId": self.client_id, "userData": userData}
         r = requests.post(url, json=payload, timeout=10)
-        resp = r.json()
+        try:
+            resp = r.json()
+            if isinstance(resp, list):
+                resp = resp[0] if resp else {}
+        except Exception:
+            raise Exception(f"AliceBlue login failed: {r.text}")
         if resp.get("stat") != "Ok":
             raise Exception(f"AliceBlue login failed: {resp.get('emsg')}")
         self.session_id = resp["sessionID"]
@@ -85,6 +90,8 @@ class AliceBlueBroker(BrokerBase):
         r = requests.post(url, json=[order], headers=self.headers, timeout=10)
         try:
             resp = r.json()
+            if isinstance(resp, list):
+                resp = resp[0] if resp else {}
         except Exception:
             resp = {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok" or "NOrdNo" in resp:
@@ -109,6 +116,8 @@ class AliceBlueBroker(BrokerBase):
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
         try:
             resp = r.json()
+            if isinstance(resp, list):
+                resp = resp[0] if resp else {}
         except Exception:
             return {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok":
@@ -121,6 +130,9 @@ class AliceBlueBroker(BrokerBase):
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
+            if isinstance(resp, list):
+                resp = resp[0] if resp else {}
+
         except Exception:
             return {"status": "failure", "error": r.text}
         positions = resp.get("data") or resp.get("positions", []) or []
