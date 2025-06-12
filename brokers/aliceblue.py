@@ -45,23 +45,41 @@ class AliceBlueBroker(BrokerBase):
         if not self.session_id or not self.headers:
             self.login()
 
-    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1,
-                   order_type="MARKET", product="MIS", price=0, **kwargs):
+    def place_order(
+        self,
+        tradingsymbol=None,
+        security_id=None,
+        exchange_segment="NSE",
+        transaction_type="BUY",
+        quantity=1,
+        order_type="MKT",
+        product_type="MIS",
+        price=0,
+        **kwargs,
+    ):
+        """Place an order using Alice Blue REST API."""
         self.ensure_session()
-        url = f"{self.BASE_URL}/api/placeOrder/executePlaceOrder"
-        payload = {
-            "exchange": exchange,
-            "symbol": tradingsymbol,
-            "transaction_type": transaction_type,
-            "quantity": int(quantity),
-            "order_type": order_type,
-            "product_type": product,
-            "price": float(price) if price else 0,
-            "trigger_price": 0,
-            "disclosed_quantity": 0,
-            "validity": "DAY"
+        if security_id is None:
+            security_id = kwargs.get("symbol_id")
+
+        order = {
+            "discqty": "0",
+            "trading_symbol": tradingsymbol,
+            "exch": exchange_segment,
+            "transtype": transaction_type,
+            "ret": "DAY",
+            "prctyp": order_type,
+            "qty": str(quantity),
+            "symbol_id": str(security_id) if security_id is not None else "",
+            "price": str(price or 0),
+            "trigPrice": str(kwargs.get("trigger_price", 0)),
+            "pCode": product_type,
+            "complexty": kwargs.get("complexty", "REGULAR"),
+            "orderTag": kwargs.get("order_tag", ""),
+            "deviceNumber": kwargs.get("device_number", "python-device"),
         }
-        r = requests.post(url, json=payload, headers=self.headers, timeout=10)
+        url = f"{self.BASE_URL}/api/placeOrder/executePlaceOrder"
+        r = requests.post(url, json=[order], headers=self.headers, timeout=10)
         try:
             resp = r.json()
         except Exception:
@@ -72,8 +90,8 @@ class AliceBlueBroker(BrokerBase):
 
     def get_order_list(self):
         self.ensure_session()
-        uurl = f"{self.BASE_URL}/api/placeOrder/fetchOrderBook"
-        r = requests.get(url, headers=self.headers, timeout=10)
+        url = f"{self.BASE_URL}/api/positionAndHoldings/positionBook"
+        r = requests.post(url, json={"ret": "DAY"}, headers=self.headers, timeout=10)
         try:
             resp = r.json()
         except Exception:
