@@ -1384,7 +1384,6 @@ def check_credentials():
                 return jsonify({'error': 'Missing API Key'}), 400
             broker_obj = BrokerClass(client_id, api_key)
             # If constructor didn't raise, credentials are valid
-            return jsonify({'valid': True})
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
