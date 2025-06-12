@@ -119,10 +119,10 @@ def get_symbol_for_broker(symbol: str, broker: str):
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
     if not order_type:
-        return order_type
-    if broker.lower() == "aliceblue" and order_type.upper() == "MARKET":
+        return ""
+    if broker and broker.lower() == "aliceblue" and order_type.upper() == "MARKET":
         return "MKT"
-    return order_type
+    return str(order_type)
 
 def safe_write_json(path, data):
     dirpath = os.path.dirname(path) or '.'
