@@ -1383,7 +1383,12 @@ def check_credentials():
             if not api_key:
                 return jsonify({'error': 'Missing API Key'}), 400
             broker_obj = BrokerClass(client_id, api_key)
-            # If constructor didn't raise, credentials are valid
+            valid = True
+            if hasattr(broker_obj, 'check_token_valid'):
+                valid = broker_obj.check_token_valid()
+            if not valid:
+                return jsonify({'error': 'Invalid broker credentials'}), 400
+            return jsonify({'valid': True})
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1449,6 +1454,11 @@ def add_account():
             if not api_key:
                 return jsonify({'error': 'Missing API Key'}), 400
             broker_obj = BrokerClass(client_id, api_key)
+            valid = True
+            if hasattr(broker_obj, 'check_token_valid'):
+                valid = broker_obj.check_token_valid()
+            if not valid:
+                return jsonify({'error': 'Invalid broker credentials'}), 400
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
@@ -1463,13 +1473,20 @@ def add_account():
                 api_key=credentials['api_key'],
                 imei=imei
             )
+            valid = True
+            if hasattr(broker_obj, 'check_token_valid'):
+                valid = broker_obj.check_token_valid()
+            if not valid:
+                return jsonify({'error': 'Invalid broker credentials'}), 400
         else:
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
             broker_obj = BrokerClass(client_id, access_token, **rest)
-
-        if hasattr(broker_obj, 'check_token_valid') and not broker_obj.check_token_valid():
-            return jsonify({'error': 'Invalid broker credentials'}), 400
+            valid = True
+            if hasattr(broker_obj, 'check_token_valid'):
+                valid = broker_obj.check_token_valid()
+            if not valid:
+                return jsonify({'error': 'Invalid broker credentials'}), 400
     except Exception as e:
         return jsonify({'error': f'Credential validation failed: {e}'}), 400
 
