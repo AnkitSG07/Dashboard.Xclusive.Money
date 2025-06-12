@@ -202,7 +202,17 @@ def broker_api(obj):
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
         return BrokerClass(client_id, password, totp_secret, **rest)
+
+     elif broker == "finvasia":
+        password = rest.pop("password", None)
+        totp_secret = rest.pop("totp_secret", None)
+        vendor_code = rest.pop("vendor_code", None)
+        api_key = rest.pop("api_key", None)
+        imei = rest.pop("imei", "abc1234") or "abc1234"
+        return BrokerClass(client_id, password, totp_secret, vendor_code, api_key, imei, **rest)
+         
     return BrokerClass(client_id, access_token, **rest)
+    
 
 def get_opening_balance_for_account(acc):
     """Instantiate broker and try to fetch opening balance."""
@@ -1368,6 +1378,21 @@ def check_credentials():
             if not all([password, totp_secret]):
                 return jsonify({'error': 'Missing credentials'}), 400
             broker_obj = BrokerClass(client_id, password, totp_secret)
+
+        elif broker == 'finvasia':
+            required = ['password', 'totp_secret', 'vendor_code', 'api_key']
+            if not all(credentials.get(r) for r in required):
+                return jsonify({'error': 'Missing credentials'}), 400
+            imei = credentials.get('imei') or 'abc1234'
+            credentials['imei'] = imei
+            broker_obj = BrokerClass(
+                client_id=client_id,
+                password=credentials['password'],
+                totp_secret=credentials['totp_secret'],
+                vendor_code=credentials['vendor_code'],
+                api_key=credentials['api_key'],
+                imei=imei
+            )
         else:
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
@@ -1420,6 +1445,21 @@ def add_account():
             if not all([password, totp_secret]):
                 return jsonify({'error': 'Missing credentials'}), 400
             broker_obj = BrokerClass(client_id, password, totp_secret)
+
+        elif broker == 'finvasia':
+            required = ['password', 'totp_secret', 'vendor_code', 'api_key']
+            if not all(credentials.get(r) for r in required):
+                return jsonify({'error': 'Missing credentials'}), 400
+            imei = credentials.get('imei') or 'abc1234'
+            credentials['imei'] = imei
+            broker_obj = BrokerClass(
+                client_id=client_id,
+                password=credentials['password'],
+                totp_secret=credentials['totp_secret'],
+                vendor_code=credentials['vendor_code'],
+                api_key=credentials['api_key'],
+                imei=imei
+            )
         else:
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
