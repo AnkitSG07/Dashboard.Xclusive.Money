@@ -6,7 +6,11 @@ class AliceBlueBroker(BrokerBase):
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
     def __init__(self, client_id, password, totp_secret, **kwargs):
-        super().__init__(client_id, password, **kwargs)
+        """Initialize the broker and perform login."""
+        # Base class expects an access token. We don't have one yet so pass "".
+        super().__init__(client_id, "", **kwargs)
+        # Store password for the login call
+        self.password = password
         self.totp_secret = totp_secret
         self.session_id = None
         self.headers = None
