@@ -189,6 +189,7 @@ def broker_api(obj):
         "password",
         "totp_secret",
         "access_token",
+        "app_id",
     ]:
         if key in obj and key not in credentials:
             credentials[key] = obj[key]
@@ -201,7 +202,9 @@ def broker_api(obj):
     if broker == "aliceblue":
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
-        return BrokerClass(client_id, password, totp_secret, **rest)
+        app_id = rest.pop("app_id", None)
+        api_secret = rest.pop("api_secret", None)
+        return BrokerClass(client_id, password, totp_secret, app_id, api_secret, **rest
 
     elif broker == "finvasia":
         password = rest.pop("password", None)
