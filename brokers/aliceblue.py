@@ -1,12 +1,29 @@
 import requests
+from alice_blue import AliceBlue
 import pyotp
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
-    def __init__(self, client_id, password, totp_secret, app_id, api_secret, **kwargs):
-        super().__init__(client_id, password, **kwargs)
+    def __init__(self, client_id, password, totp_secret, app_id=None,
+                 api_secret=None, **kwargs):
+        """Initialize the broker and perform login.
+
+        Parameters
+        ----------
+        client_id : str
+            The Alice Blue client ID.
+        password : str
+            The login password.
+        totp_secret : str
+            Secret used to generate TOTP codes.
+        app_id : str, optional
+            Application ID required for the official SDK login.
+        api_secret : str, optional
+            API secret required for the official SDK login.
+        """
+        super().__init__(client_id, "", **kwargs)
         self.password = password
         self.totp_secret = totp_secret
         self.app_id = app_id
@@ -19,25 +36,37 @@ class AliceBlueBroker(BrokerBase):
         return pyotp.TOTP(self.totp_secret).now()
 
     def login(self):
+        """Perform login using the official SDK when credentials are provided.
+
+        Falls back to the older HTTP login when ``app_id`` or ``api_secret`` is
+        not supplied. Network errors and JSON parsing failures are surfaced as
+        exceptions with descriptive messages.
+        """
         totp = self.get_totp()
-        url = self.BASE_URL + "customerLogin"  # Correct endpoint (no slash)
-        data = {
-            "userId": self.client_id,
-            "userData": self.password,
-            "totp": totp,
-            "appId": self.app_id,
-            "apiSecret": self.api_secret
-        }
-        try:
-            r = requests.post(url, json=data, timeout=15)
-            if r.status_code != 200:
-                raise Exception(f"Login request failed: {r.status_code} {r.text}")
-            resp = r.json()
-        except Exception as e:
-            raise Exception(f"AliceBlue login failed: {e}")
-        if resp.get("stat") != "Ok":
-            raise Exception(f"AliceBlue login failed: {resp.get('emsg') or resp}")
-        self.session_id = resp["sessionID"]
+        if self.app_id and self.api_secret:
+            try:
+                session_id = AliceBlue.login_and_get_sessionID(
+                    self.client_id, self.password, totp, self.app_id, self.api_secret
+                )
+            except Exception as e:  # pragma: no cover - network call
+                raise Exception(f"AliceBlue login failed: {e}") from e
+        else:
+            url = self.BASE_URL + "customerlogin"
+            data = {
+                "userId": self.client_id,
+                "userData": self.password,
+                "totp": totp,
+            }
+            try:
+                r = requests.post(url, json=data, timeout=10)
+                resp = r.json()
+            except Exception as e:  # pragma: no cover - network call
+                raise Exception(f"AliceBlue login request failed: {e}") from e
+            if resp.get("stat") != "Ok":
+                raise Exception(f"AliceBlue login failed: {resp.get('emsg')}")
+            session_id = resp.get("sessionID")
+
+        self.session_id = session_id
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.client_id} {self.session_id}"
