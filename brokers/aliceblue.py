@@ -4,7 +4,7 @@ import hashlib
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
-    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api"
+    BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
     def __init__(self, client_id, **kwargs):
         super().__init__(client_id, None, **kwargs)
