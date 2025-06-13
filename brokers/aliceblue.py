@@ -166,8 +166,8 @@ class AliceBlueBroker(BrokerBase):
     def check_token_valid(self):
         try:
             self.ensure_session()
-            url = self.BASE_URL + "customer/accountDetails"  # or "customer/getProfile" if that's the correct endpoint!
-            r = requests.get(url, headers=self.headers, timeout=10)
+            url = self.BASE_URL + "customer/accountDetails"
+            r = requests.post(url, headers=self.headers, timeout=10)
             content_type = r.headers.get("Content-Type", "").lower()
             data = None
             if "json" in content_type:
@@ -181,13 +181,19 @@ class AliceBlueBroker(BrokerBase):
                 snippet = r.text[:100]
                 self._last_auth_error = f"HTTP {r.status_code}: {snippet}"
                 return False
-            if r.status_code == 200 and data.get("stat") == "Ok":
+            # The correct check for Alice Blue account detail success:
+            if r.status_code == 200 and data.get("accountStatus", "").lower() == "activated":
                 return True
-            self._last_auth_error = data.get("emsg") or data.get("stat") or str(data)
+            self._last_auth_error = (
+                data.get("accountStatus")
+                or data.get("emsg")
+                or data.get("stat")
+                or str(data)
+            )
             return False
         except Exception as e:
             self._last_auth_error = str(e)
             return False
-
+            
     def last_auth_error(self):
         return self._last_auth_error
