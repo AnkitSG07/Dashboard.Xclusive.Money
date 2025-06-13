@@ -87,34 +87,33 @@ class AliceBlueBroker(BrokerBase):
         if not self.session_id or not self.headers:
             self.authenticate()
 
-    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1,
-               order_type="L", product="MIS", price=0, **kwargs):
-    self.ensure_session()
-    url = self.BASE_URL + "placeOrder/executePlaceOrder"
-    payload = [{
-        "discqty": "0",
-        "trading_symbol": tradingsymbol,
-        "exch": exchange,
-        "transtype": transaction_type,
-        "ret": "DAY",
-        "prctyp": order_type,
-        "qty": str(quantity),
-        "price": str(price),
-        "pCode": product,
-        "symbol_id": kwargs.get("symbol_id", ""),
-        "trigPrice": kwargs.get("trigPrice", "0.00"),
-        "complexty": kwargs.get("complexty", "REGULAR"),
-        "orderTag": kwargs.get("orderTag", ""),
-        "deviceNumber": kwargs.get("deviceNumber", "default")
-    }]
-    r = requests.post(url, data=json.dumps(payload), headers=self.headers, timeout=10)
-    try:
-        resp = r.json()
-    except Exception:
-        resp = {"status": "failure", "error": r.text}
-    if resp.get("stat") == "Ok" or "nestOrderNumber" in resp:
-        return {"status": "success", "order_id": resp.get("nestOrderNumber"), **resp}
-    return {"status": "failure", **resp}
+    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1, order_type="L", product="MIS", price=0, **kwargs):
+        self.ensure_session()
+        url = self.BASE_URL + "placeOrder/executePlaceOrder"
+        payload = [{
+            "discqty": "0",
+            "trading_symbol": tradingsymbol,
+            "exch": exchange,
+            "transtype": transaction_type,
+            "ret": "DAY",
+            "prctyp": order_type,
+            "qty": str(quantity),
+            "price": str(price),
+            "pCode": product,
+            "symbol_id": kwargs.get("symbol_id", ""),
+            "trigPrice": kwargs.get("trigPrice", "0.00"),
+            "complexty": kwargs.get("complexty", "REGULAR"),
+            "orderTag": kwargs.get("orderTag", ""),
+            "deviceNumber": kwargs.get("deviceNumber", "default")
+        }]
+        r = requests.post(url, data=json.dumps(payload), headers=self.headers, timeout=10)
+        try:
+            resp = r.json()
+        except Exception:
+            resp = {"status": "failure", "error": r.text}
+        if resp.get("stat") == "Ok" or "nestOrderNumber" in resp:
+            return {"status": "success", "order_id": resp.get("nestOrderNumber"), **resp}
+        return {"status": "failure", **resp}
 
     def get_order_list(self):
         self.ensure_session()
