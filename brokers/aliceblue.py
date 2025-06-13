@@ -161,18 +161,23 @@ class AliceBlueBroker(BrokerBase):
             return None
 
     def check_token_valid(self):
-        try:
-            self.ensure_session()
-            url = self.BASE_URL + "profile"
-            r = requests.get(url, headers=self.headers, timeout=10)
-            data = r.json()
-            if r.status_code == 200 and data.get("stat") == "Ok":
-                return True
-            self._last_auth_error = data.get("emsg") or data.get("stat") or data
-            return False
-        except Exception as e:
-            self._last_auth_error = str(e)
-            return False
+    try:
+        self.ensure_session()
+        url = self.BASE_URL + "customer/profile"  # or "customer/getProfile" if that's the correct endpoint!
+        print("Token validation URL:", url)
+        print("Token validation headers:", self.headers)
+        r = requests.get(url, headers=self.headers, timeout=10)
+        print("Token validation status code:", r.status_code)
+        print("Token validation response:", r.text)
+        data = r.json()
+        if r.status_code == 200 and data.get("stat") == "Ok":
+            return True
+        self._last_auth_error = data.get("emsg") or data.get("stat") or data
+        return False
+    except Exception as e:
+        self._last_auth_error = str(e)
+        print("Token validation exception:", e)
+        return False
 
     def last_auth_error(self):
         return self._last_auth_error
