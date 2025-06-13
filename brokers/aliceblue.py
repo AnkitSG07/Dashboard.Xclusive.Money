@@ -187,7 +187,6 @@ class AliceBlueBroker(BrokerBase):
             # Success: stat == "Ok" and accountStatus == "Activated"
             if (
                 r.status_code == 200
-                and data.get("stat", "").lower() == "ok"
                 and data.get("accountStatus", "").lower() == "activated"
             ):
                 return True
