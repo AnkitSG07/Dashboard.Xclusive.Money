@@ -7,10 +7,11 @@ class AliceBlueBroker(BrokerBase):
 
     def __init__(self, client_id, api_key, **kwargs):
         super().__init__(client_id, api_key, **kwargs)
-        self.client_id = client_id
-        self.api_key = api_key
+        self.client_id = str(client_id).strip()
+        self.api_key = str(api_key).strip()
         self.session_id = None
         self.headers = None
+        self._last_auth_error = None
         self.authenticate()
 
     def authenticate(self):
@@ -131,6 +132,14 @@ class AliceBlueBroker(BrokerBase):
             self.ensure_session()
             url = self.BASE_URL + "profile"
             r = requests.get(url, headers=self.headers, timeout=10)
-            return r.status_code == 200 and "stat" in r.json() and r.json().get("stat") == "Ok"
-        except Exception:
+            data = r.json()
+            if r.status_code == 200 and data.get("stat") == "Ok":
+                return True
+            self._last_auth_error = data.get("emsg") or data.get("stat") or data
             return False
+        except Exception as e:
+            self._last_auth_error = str(e)
+            return False
+
+    def last_auth_error(self):
+        return self._last_auth_error
