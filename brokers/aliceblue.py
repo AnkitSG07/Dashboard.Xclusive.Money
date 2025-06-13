@@ -1,5 +1,6 @@
 import requests
 import hashlib
+import json
 from .base import BrokerBase
 
 class AliceBlueBroker(BrokerBase):
@@ -17,7 +18,9 @@ class AliceBlueBroker(BrokerBase):
     def authenticate(self):
         # Step 1: Get Encryption Key
         url = self.BASE_URL + "customer/getAPIEncpkey"
-        resp = requests.post(url, json={"userId": self.client_id}, timeout=10)
+        payload = {"userId": self.client_id}
+        headers = {'Content-Type': 'application/json'}
+        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
         try:
             data = resp.json()
         except Exception:
@@ -34,7 +37,12 @@ class AliceBlueBroker(BrokerBase):
 
         # Step 3: Get Session ID
         url = self.BASE_URL + "customer/getUserSID"
-        resp = requests.post(url, json={"userId": self.client_id, "userData": user_data}, timeout=10)
+        payload = {
+            "userId": self.client_id,
+            "userData": user_data
+        }
+        headers = {'Content-Type': 'application/json'}
+        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
         try:
             data = resp.json()
         except Exception:
