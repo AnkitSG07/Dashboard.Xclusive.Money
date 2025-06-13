@@ -88,29 +88,33 @@ class AliceBlueBroker(BrokerBase):
             self.authenticate()
 
     def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1,
-                   order_type="MARKET", product="MIS", price=0, **kwargs):
-        self.ensure_session()
-        url = self.BASE_URL + "placeOrder"
-        payload = {
-            "exchange": exchange,
-            "symbol": tradingsymbol,
-            "transaction_type": transaction_type,
-            "quantity": int(quantity),
-            "order_type": order_type,
-            "product_type": product,
-            "price": float(price) if price else 0,
-            "trigger_price": 0,
-            "disclosed_quantity": 0,
-            "validity": "DAY"
-        }
-        r = requests.post(url, json=payload, headers=self.headers, timeout=10)
-        try:
-            resp = r.json()
-        except Exception:
-            resp = {"status": "failure", "error": r.text}
-        if resp.get("stat") == "Ok" or "NOrdNo" in resp:
-            return {"status": "success", "order_id": resp.get("NOrdNo"), **resp}
-        return {"status": "failure", **resp}
+               order_type="L", product="MIS", price=0, **kwargs):
+    self.ensure_session()
+    url = self.BASE_URL + "placeOrder/executePlaceOrder"
+    payload = [{
+        "discqty": "0",
+        "trading_symbol": tradingsymbol,
+        "exch": exchange,
+        "transtype": transaction_type,
+        "ret": "DAY",
+        "prctyp": order_type,
+        "qty": str(quantity),
+        "price": str(price),
+        "pCode": product,
+        "symbol_id": kwargs.get("symbol_id", ""),
+        "trigPrice": kwargs.get("trigPrice", "0.00"),
+        "complexty": kwargs.get("complexty", "REGULAR"),
+        "orderTag": kwargs.get("orderTag", ""),
+        "deviceNumber": kwargs.get("deviceNumber", "default")
+    }]
+    r = requests.post(url, data=json.dumps(payload), headers=self.headers, timeout=10)
+    try:
+        resp = r.json()
+    except Exception:
+        resp = {"status": "failure", "error": r.text}
+    if resp.get("stat") == "Ok" or "nestOrderNumber" in resp:
+        return {"status": "success", "order_id": resp.get("nestOrderNumber"), **resp}
+    return {"status": "failure", **resp}
 
     def get_order_list(self):
         self.ensure_session()
@@ -163,7 +167,7 @@ class AliceBlueBroker(BrokerBase):
     def check_token_valid(self):
         try:
             self.ensure_session()
-            url = self.BASE_URL + "customer/profile"  # or "customer/getProfile" if that's the correct endpoint!
+            url = self.BASE_URL + "customer/getProfile"  # or "customer/getProfile" if that's the correct endpoint!
             print("Token validation URL:", url)
             print("Token validation headers:", self.headers)
             r = requests.get(url, headers=self.headers, timeout=10)
