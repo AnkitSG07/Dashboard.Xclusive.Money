@@ -10,6 +10,7 @@ class AliceBlueBroker(BrokerBase):
         super().__init__(client_id, api_key, **kwargs)
         self.client_id = str(client_id).strip()
         self.api_key = str(api_key).strip()
+        self.device_number = device_number
         self.session_id = None
         self.headers = None
         self._last_auth_error = None
@@ -87,34 +88,86 @@ class AliceBlueBroker(BrokerBase):
         if not self.session_id or not self.headers:
             self.authenticate()
 
-    def place_order(self, tradingsymbol, exchange="NSE", transaction_type="BUY", quantity=1, order_type="L", product="MIS", price=0, **kwargs):
-        self.ensure_session()
+    def place_order(
+        self,
+        tradingsymbol,
+        exchange="NSE",
+        transaction_type="BUY",
+        quantity=1,
+        order_type="MKT",
+        product="MIS",
+        price=0,
+        symbol_id="",
+        deviceNumber=None,
+        orderTag="order1",
+        complexty="regular",
+        disclosed_qty=0,
+        retention="DAY",
+        trigger_price=""
+    ):
+        """
+        Place an order on Alice Blue using the official API contract.
+    
+        Args:
+            tradingsymbol (str): Trading symbol, e.g., 'ASHOKLEY-EQ'
+            exchange (str): Exchange, e.g., 'NSE'
+            transaction_type (str): 'BUY' or 'SELL'
+            quantity (int): Order quantity
+            order_type (str): 'L', 'MKT', 'SL', 'SL-M'
+            product (str): Product code, e.g., 'MIS', 'CNC', 'NRML', etc.
+            price (float/int/str): Price as required by Alice Blue (string or float)
+            symbol_id (str): Token/ID for the symbol
+            deviceNumber (str): Device ID string (should be unique and persistent per account)
+            orderTag (str): Order tag/remark
+            complexty (str): 'regular', 'BO', 'CO', etc.
+            disclosed_qty (int): Disclosed quantity
+            retention (str): 'DAY' by default
+            trigger_price (str/int): Trigger price for SL/SL-M
+    
+        Returns:
+            dict: Result with status, order_id (if successful), or error message.
+        """
+        # Use stored device_number if not supplied
+        if not deviceNumber and hasattr(self, "device_number"):
+            deviceNumber = self.device_number
+        elif not deviceNumber:
+            deviceNumber = "device123"  # Fallback (should not happen in production)
+    
         url = self.BASE_URL + "placeOrder/executePlaceOrder"
         payload = [{
-            "discqty": "0",
-            "trading_symbol": tradingsymbol,
+            "complexty": complexty,
+            "discqty": str(disclosed_qty),
             "exch": exchange,
-            "transtype": transaction_type,
-            "ret": "DAY",
-            "prctyp": order_type,
-            "qty": str(quantity),
-            "price": str(price),
             "pCode": product,
-            "symbol_id": kwargs.get("symbol_id", ""),
-            "trigPrice": kwargs.get("trigPrice", "0.00"),
-            "complexty": kwargs.get("complexty", "REGULAR"),
-            "orderTag": kwargs.get("orderTag", ""),
-            "deviceNumber": kwargs.get("deviceNumber", "default")
+            "prctyp": order_type,
+            "price": str(price) if price else "0",
+            "qty": int(quantity),
+            "ret": retention,
+            "symbol_id": str(symbol_id),
+            "trading_symbol": tradingsymbol,
+            "transtype": transaction_type.upper(),
+            "trigPrice": str(trigger_price) if trigger_price else "",
+            "orderTag": orderTag,
+            "deviceNumber": deviceNumber
         }]
-        r = requests.post(url, data=json.dumps(payload), headers=self.headers, timeout=10)
+        headers = {
+            'Authorization': f'Bearer {self.client_id} {self.session_id}',
+            'Content-Type': 'application/json'
+        }
         try:
-            resp = r.json()
-        except Exception:
-            resp = {"status": "failure", "error": r.text}
-        if resp.get("stat") == "Ok" or "nestOrderNumber" in resp:
-            return {"status": "success", "order_id": resp.get("nestOrderNumber"), **resp}
-        return {"status": "failure", **resp}
-
+            r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+            try:
+                resp = r.json()
+            except Exception:
+                return {"status": "failure", "error": r.text}
+            # If response is a list, extract the first dict
+            if isinstance(resp, list):
+                resp = resp[0] if resp else {}
+            if resp.get("stat", "").lower() == "ok" and "nestOrderNumber" in resp:
+                return {"status": "success", "order_id": resp["nestOrderNumber"], **resp}
+            return {"status": "failure", **resp}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
     def get_order_list(self):
         self.ensure_session()
         url = self.BASE_URL + "placeOrder/fetchOrderBook"
