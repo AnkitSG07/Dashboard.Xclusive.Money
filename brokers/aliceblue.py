@@ -142,7 +142,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_positions(self):
         self.ensure_session()
-        url = self.BASE_URL + "positionAndHoldings/positionBook
+        url = self.BASE_URL + "positionAndHoldings/positionBook"
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
