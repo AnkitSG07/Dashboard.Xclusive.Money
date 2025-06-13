@@ -208,8 +208,9 @@ def broker_api(obj):
     rest = {k: v for k, v in credentials.items() if k != "access_token"}
 
     if broker == "aliceblue":
-        # v2 API: Only client_id needed, API Key is loaded from env in aliceblue.py
-        return BrokerClass(client_id)
+        api_key = rest.pop("api_key", None)
+        return BrokerClass(client_id, api_key, **rest)
+        
     elif broker == "finvasia":
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
