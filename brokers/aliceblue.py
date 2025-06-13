@@ -166,7 +166,7 @@ class AliceBlueBroker(BrokerBase):
     def check_token_valid(self):
         try:
             self.ensure_session()
-            url = self.BASE_URL + "customer/getProfile"  # or "customer/getProfile" if that's the correct endpoint!
+            url = self.BASE_URL + "customer/accountDetails"  # or "customer/getProfile" if that's the correct endpoint!
             r = requests.get(url, headers=self.headers, timeout=10)
             content_type = r.headers.get("Content-Type", "").lower()
             data = None
