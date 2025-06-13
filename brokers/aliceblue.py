@@ -14,31 +14,40 @@ class AliceBlueBroker(BrokerBase):
         self.authenticate()
 
     def authenticate(self):
-    url = self.BASE_URL + "customer/getAPIEncpkey"
-    print(f"Requesting encKey for userId={self.client_id}")
-    resp = requests.post(url, json={"userId": self.client_id}, timeout=10)
-    print(f"getAPIEncpkey response: {resp.text}")
-    resp = resp.json()
-    if resp.get("stat") != "Ok":
-        raise Exception(f"AliceBlue getAPIEncpkey failed: {resp.get('emsg')}")
-    enc_key = resp["encKey"]
-    print("enc_key:", repr(enc_key))
-    concat_string = f"{self.client_id}{self.api_key}{enc_key}"
-    print("concat_string:", repr(concat_string))
-    user_data = hashlib.sha256(concat_string.encode()).hexdigest()
-    print("user_data hash:", user_data)
-    url = self.BASE_URL + "customer/getUserSID"
-    print(f"Requesting SID with userData={user_data}")
-    resp = requests.post(url, json={"userId": self.client_id, "userData": user_data}, timeout=10)
-    print(f"getUserSID response: {resp.text}")
-    resp = resp.json()
-    if resp.get("stat") != "Ok":
-        raise Exception(f"AliceBlue getUserSID failed: {resp.get('emsg')}")
-    self.session_id = resp["sessionID"]
-    self.headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {self.client_id} {self.session_id}"
-    }
+        # Step 1: Get Encryption Key
+        url = self.BASE_URL + "customer/getAPIEncpkey"
+        resp = requests.post(url, json={"userId": self.client_id}, timeout=10)
+        try:
+            data = resp.json()
+        except Exception:
+            raise Exception(f"AliceBlue getAPIEncpkey HTTP error: {resp.text}")
+        if data.get("stat") != "Ok" or not data.get("encKey"):
+            msg = data.get("emsg") or data.get("stat") or data
+            self._last_auth_error = f"getAPIEncpkey failed: {msg}"
+            raise Exception(f"AliceBlue getAPIEncpkey failed: {msg}")
+        enc_key = data["encKey"]
+
+        # Step 2: Generate SHA256(userId + apiKey + encKey)
+        to_hash = f"{self.client_id}{self.api_key}{enc_key}"
+        user_data = hashlib.sha256(to_hash.encode()).hexdigest()
+
+        # Step 3: Get Session ID
+        url = self.BASE_URL + "customer/getUserSID"
+        resp = requests.post(url, json={"userId": self.client_id, "userData": user_data}, timeout=10)
+        try:
+            data = resp.json()
+        except Exception:
+            raise Exception(f"AliceBlue getUserSID HTTP error: {resp.text}")
+        if data.get("stat") != "Ok" or not data.get("sessionID"):
+            msg = data.get("emsg") or data.get("stat") or data
+            self._last_auth_error = f"getUserSID failed: {msg}"
+            raise Exception(f"AliceBlue getUserSID failed: {msg}")
+        self.session_id = data["sessionID"]
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.client_id} {self.session_id}"
+        }
+        self._last_auth_error = None
 
     def ensure_session(self):
         if not self.session_id or not self.headers:
