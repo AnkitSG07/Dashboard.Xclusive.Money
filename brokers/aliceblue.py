@@ -35,6 +35,31 @@ class AliceBlueBroker(BrokerBase):
         to_hash = f"{self.client_id}{self.api_key}{enc_key}"
         user_data = hashlib.sha256(to_hash.encode()).hexdigest()
 
+        client_id = str(self.client_id).strip()
+        api_key = str(self.api_key).strip()
+        enc_key = str(enc_key).strip()  # from previous step
+        
+        print("client_id:", repr(client_id))
+        print("api_key:", repr(api_key))
+        print("enc_key:", repr(enc_key))
+        
+        to_hash = f"{client_id}{api_key}{enc_key}"
+        print("concat string:", repr(to_hash))
+        
+        user_data = hashlib.sha256(to_hash.encode()).hexdigest()
+        print("sha256:", user_data)
+        
+        payload = {
+            "userId": client_id,
+            "userData": user_data
+        }
+        print("payload:", json.dumps(payload))
+        
+        url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getUserSID"
+        headers = {'Content-Type': 'application/json'}
+        resp = requests.post(url, headers=headers, data=json.dumps(payload))
+        print(resp.text)
+
         # Step 3: Get Session ID
         url = self.BASE_URL + "customer/getUserSID"
         payload = {
