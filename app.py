@@ -1462,6 +1462,22 @@ def add_account():
         ):
             return jsonify({'error': 'Account already exists'}), 400
 
+    # For Alice Blue, generate and add device_number if not already present
+    device_number = None
+    if broker == 'aliceblue':
+        # Use a persistent device_number for this client_id (if already exists, reuse it)
+        for acc in accounts_data["accounts"]:
+            if (
+                acc.get("client_id") == client_id
+                and acc.get("broker") == broker
+                and acc.get("owner") == user
+            ) and acc.get("device_number"):
+                device_number = acc.get("device_number")
+                break
+        if not device_number:
+            device_number = str(uuid.uuid4())
+        credentials['device_number'] = device_number
+
     # Validate credentials using broker adapter
     broker_obj = None # Initialize broker_obj to None
     error_message = None # Initialize error_message
@@ -1473,14 +1489,15 @@ def add_account():
             api_key = credentials.get('api_key')
             if not api_key:
                 return jsonify({'error': 'Missing API Key'}), 400
-            broker_obj = BrokerClass(client_id, api_key)
+            # Pass device_number into the BrokerClass if needed, or ensure it's used in place_order
+            broker_obj = BrokerClass(client_id, api_key, device_number=device_number)
             
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
                 return jsonify({'error': 'Missing credentials'}), 400
             imei = credentials.get('imei') or 'abc1234'
-            credentials['imei'] = imei # Ensure imei is in credentials if not already
+            credentials['imei'] = imei
             broker_obj = BrokerClass(
                 client_id=client_id,
                 password=credentials['password'],
@@ -1505,7 +1522,6 @@ def add_account():
             return jsonify({'error': 'Broker object could not be initialized.'}), 400
 
     except Exception as e:
-        # Catch any exceptions during broker instantiation or the check_token_valid call
         if broker_obj and hasattr(broker_obj, 'last_auth_error') and broker_obj.last_auth_error():
             error_message = broker_obj.last_auth_error()
         else:
@@ -1513,7 +1529,7 @@ def add_account():
         return jsonify({'error': f'Credential validation failed: {error_message}'}), 400
 
     # Add to accounts.json
-    accounts_data["accounts"].append({
+    account_record = {
         "broker": broker,
         "client_id": client_id,
         "username": username,
@@ -1526,7 +1542,10 @@ def add_account():
         "linked_master_id": None,
         "multiplier": 1,
         "copy_status": "Off"
-    })
+    }
+    if broker == "aliceblue":
+        account_record["device_number"] = device_number
+    accounts_data["accounts"].append(account_record)
 
     # Add to SQL DB if available
     db_user = User.query.filter_by(email=user).first()
@@ -1537,8 +1556,6 @@ def add_account():
                 user_id=db_user.id,
                 broker=broker,
                 client_id=client_id,
-                # It's better to store encrypted credentials or not store sensitive parts
-                # if token_expiry is not directly related to authentication, remove it
                 token_expiry=credentials.get('token_expiry'), 
                 status='Connected'
             )
@@ -1551,7 +1568,6 @@ def add_account():
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
-
     
     
 @app.route('/api/accounts')
