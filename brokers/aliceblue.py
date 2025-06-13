@@ -200,10 +200,10 @@ class AliceBlueBroker(BrokerBase):
                 or str(data)
             )
             return False
-
-    except Exception as e:
-        self._last_auth_error = str(e)
-        return False
+            
+        except Exception as e:
+            self._last_auth_error = str(e)
+            return False
             
     def last_auth_error(self):
         return self._last_auth_error
