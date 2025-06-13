@@ -431,7 +431,7 @@ window.pageScripts["Add-Account"] = function() {
         const accounts = data.accounts || [];
         body.innerHTML = accounts.map(acc => `
         <tr>
-          <td><img src="/static/images/${acc.broker}.jpg" style="width:24px;">${acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)}</td>
+          <td><img src="${getBrokerImageUrl(acc.broker)}" style="width:24px;">${acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)}</td>
           <td>${acc.opening_balance ?? '-'}</td>
           <td>${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
