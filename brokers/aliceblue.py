@@ -10,7 +10,7 @@ class AliceBlueBroker(BrokerBase):
         super().__init__(client_id, api_key, **kwargs)
         self.client_id = str(client_id).strip()
         self.api_key = str(api_key).strip()
-        self.device_number = device_number
+        self.device_number = None
         self.session_id = None
         self.headers = None
         self._last_auth_error = None
