@@ -118,7 +118,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_order_list(self):
         self.ensure_session()
-        url = self.BASE_URL + "orderBook"
+        url = self.BASE_URL + "placeOrder/fetchOrderBook"
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -142,7 +142,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_positions(self):
         self.ensure_session()
-        url = self.BASE_URL + "positions"
+        url = self.BASE_URL + "positionAndHoldings/positionBook
         r = requests.get(url, headers=self.headers, timeout=10)
         try:
             resp = r.json()
@@ -153,7 +153,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_opening_balance(self):
         self.ensure_session()
-        url = self.BASE_URL + "balance"
+        url = self.BASE_URL + "positionAndHoldings/holdings"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
             data = r.json()
