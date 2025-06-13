@@ -1373,29 +1373,30 @@ def check_credentials():
     data = request.json
     broker = data.get('broker')
     client_id = data.get('client_id')
+
     if not broker or not client_id:
         return jsonify({'error': 'Missing broker or client_id'}), 400
 
     credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id')}
+    
+    broker_obj = None # Initialize broker_obj to None
+    error_message = None # Initialize error_message
+
     try:
         BrokerClass = get_broker_class(broker)
+        
         if broker == 'aliceblue':
             api_key = credentials.get('api_key')
             if not api_key:
                 return jsonify({'error': 'Missing API Key'}), 400
             broker_obj = BrokerClass(client_id, api_key)
-            valid = True
-            if hasattr(broker_obj, 'check_token_valid'):
-                valid = broker_obj.check_token_valid()
-            if not valid:
-                return jsonify({'error': 'Invalid broker credentials'}), 400
-            return jsonify({'valid': True})
+            
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
                 return jsonify({'error': 'Missing credentials'}), 400
             imei = credentials.get('imei') or 'abc1234'
-            credentials['imei'] = imei
+            credentials['imei'] = imei # Ensure imei is in credentials if not already
             broker_obj = BrokerClass(
                 client_id=client_id,
                 password=credentials['password'],
@@ -1405,17 +1406,31 @@ def check_credentials():
                 imei=imei
             )
         else:
+            # For other brokers, assume access_token based authentication
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
             broker_obj = BrokerClass(client_id, access_token, **rest)
-        valid = True
-        if hasattr(broker_obj, 'check_token_valid'):
+
+        # After instantiation, check token validity if the method exists
+        if broker_obj and hasattr(broker_obj, 'check_token_valid'):
             valid = broker_obj.check_token_valid()
-        if not valid:
-            return jsonify({'error': 'Invalid broker credentials'}), 400
+            if not valid:
+                # If validation fails, try to get a more specific error message
+                error_message = broker_obj.last_auth_error() or 'Invalid broker credentials'
+                return jsonify({'error': error_message}), 400
+        elif not broker_obj:
+            return jsonify({'error': 'Broker object could not be initialized.'}), 400
+        
         return jsonify({'valid': True})
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        # Catch any exceptions during broker instantiation or the check_token_valid call
+        if broker_obj and hasattr(broker_obj, 'last_auth_error') and broker_obj.last_auth_error():
+            error_message = broker_obj.last_auth_error()
+        else:
+            error_message = str(e)
+        return jsonify({'error': f'Credential validation failed: {error_message}'}), 400
+
 
 @app.route('/api/add-account', methods=['POST'])
 @login_required
@@ -1448,24 +1463,24 @@ def add_account():
             return jsonify({'error': 'Account already exists'}), 400
 
     # Validate credentials using broker adapter
+    broker_obj = None # Initialize broker_obj to None
+    error_message = None # Initialize error_message
+
     try:
         BrokerClass = get_broker_class(broker)
+        
         if broker == 'aliceblue':
             api_key = credentials.get('api_key')
             if not api_key:
                 return jsonify({'error': 'Missing API Key'}), 400
             broker_obj = BrokerClass(client_id, api_key)
-            valid = True
-            if hasattr(broker_obj, 'check_token_valid'):
-                valid = broker_obj.check_token_valid()
-            if not valid:
-                return jsonify({'error': 'Invalid broker credentials'}), 400
+            
         elif broker == 'finvasia':
             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
             if not all(credentials.get(r) for r in required):
                 return jsonify({'error': 'Missing credentials'}), 400
             imei = credentials.get('imei') or 'abc1234'
-            credentials['imei'] = imei
+            credentials['imei'] = imei # Ensure imei is in credentials if not already
             broker_obj = BrokerClass(
                 client_id=client_id,
                 password=credentials['password'],
@@ -1474,22 +1489,28 @@ def add_account():
                 api_key=credentials['api_key'],
                 imei=imei
             )
-            valid = True
-            if hasattr(broker_obj, 'check_token_valid'):
-                valid = broker_obj.check_token_valid()
-            if not valid:
-                return jsonify({'error': 'Invalid broker credentials'}), 400
         else:
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
             broker_obj = BrokerClass(client_id, access_token, **rest)
-            valid = True
-            if hasattr(broker_obj, 'check_token_valid'):
-                valid = broker_obj.check_token_valid()
+            
+        # After instantiation, check token validity if the method exists
+        if broker_obj and hasattr(broker_obj, 'check_token_valid'):
+            valid = broker_obj.check_token_valid()
             if not valid:
-                return jsonify({'error': 'Invalid broker credentials'}), 400
+                # If validation fails, try to get a more specific error message
+                error_message = broker_obj.last_auth_error() or 'Invalid broker credentials'
+                return jsonify({'error': error_message}), 400
+        elif not broker_obj:
+            return jsonify({'error': 'Broker object could not be initialized.'}), 400
+
     except Exception as e:
-        return jsonify({'error': f'Credential validation failed: {e}'}), 400
+        # Catch any exceptions during broker instantiation or the check_token_valid call
+        if broker_obj and hasattr(broker_obj, 'last_auth_error') and broker_obj.last_auth_error():
+            error_message = broker_obj.last_auth_error()
+        else:
+            error_message = str(e)
+        return jsonify({'error': f'Credential validation failed: {error_message}'}), 400
 
     # Add to accounts.json
     accounts_data["accounts"].append({
@@ -1516,7 +1537,9 @@ def add_account():
                 user_id=db_user.id,
                 broker=broker,
                 client_id=client_id,
-                token_expiry=credentials.get('token_expiry'),
+                # It's better to store encrypted credentials or not store sensitive parts
+                # if token_expiry is not directly related to authentication, remove it
+                token_expiry=credentials.get('token_expiry'), 
                 status='Connected'
             )
             db.session.add(account_obj)
@@ -1528,6 +1551,7 @@ def add_account():
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Account {username} ({broker}) added."}), 200
+
     
     
 @app.route('/api/accounts')
