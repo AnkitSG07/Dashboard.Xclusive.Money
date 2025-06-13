@@ -167,19 +167,26 @@ class AliceBlueBroker(BrokerBase):
         try:
             self.ensure_session()
             url = self.BASE_URL + "customer/getProfile"  # or "customer/getProfile" if that's the correct endpoint!
-            print("Token validation URL:", url)
-            print("Token validation headers:", self.headers)
             r = requests.get(url, headers=self.headers, timeout=10)
-            print("Token validation status code:", r.status_code)
-            print("Token validation response:", r.text)
-            data = r.json()
+            content_type = r.headers.get("Content-Type", "").lower()
+            data = None
+            if "json" in content_type:
+                try:
+                    data = r.json()
+                except Exception:
+                    snippet = r.text[:100]
+                    self._last_auth_error = f"HTTP {r.status_code}: {snippet}"
+                    return False
+            else:
+                snippet = r.text[:100]
+                self._last_auth_error = f"HTTP {r.status_code}: {snippet}"
+                return False
             if r.status_code == 200 and data.get("stat") == "Ok":
                 return True
-            self._last_auth_error = data.get("emsg") or data.get("stat") or data
+            self._last_auth_error = data.get("emsg") or data.get("stat") or str(data)
             return False
         except Exception as e:
             self._last_auth_error = str(e)
-            print("Token validation exception:", e)
             return False
 
     def last_auth_error(self):
