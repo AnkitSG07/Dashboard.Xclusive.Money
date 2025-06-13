@@ -167,7 +167,9 @@ class AliceBlueBroker(BrokerBase):
         try:
             self.ensure_session()
             url = self.BASE_URL + "customer/accountDetails"
-            r = requests.post(url, headers=self.headers, timeout=10)
+            # According to Alice Blue docs, GET is supported, but POST is safer if you ever add a body.
+            # We'll use GET since the docs specify it and it works for most users.
+            r = requests.get(url, headers=self.headers, timeout=10)
             content_type = r.headers.get("Content-Type", "").lower()
             data = None
             if "json" in content_type:
@@ -181,19 +183,27 @@ class AliceBlueBroker(BrokerBase):
                 snippet = r.text[:100]
                 self._last_auth_error = f"HTTP {r.status_code}: {snippet}"
                 return False
-            # The correct check for Alice Blue account detail success:
-            if r.status_code == 200 and data.get("accountStatus", "").lower() == "activated":
+    
+            # Success: stat == "Ok" and accountStatus == "Activated"
+            if (
+                r.status_code == 200
+                and data.get("stat", "").lower() == "ok"
+                and data.get("accountStatus", "").lower() == "activated"
+            ):
                 return True
+    
+            # Error: stat == "Not_Ok" or emsg present
             self._last_auth_error = (
-                data.get("accountStatus")
-                or data.get("emsg")
+                data.get("emsg")
                 or data.get("stat")
+                or data.get("accountStatus")
                 or str(data)
             )
             return False
-        except Exception as e:
-            self._last_auth_error = str(e)
-            return False
+
+    except Exception as e:
+        self._last_auth_error = str(e)
+        return False
             
     def last_auth_error(self):
         return self._last_auth_error
