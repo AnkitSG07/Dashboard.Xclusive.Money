@@ -1,8 +1,10 @@
 # brokers/dhan.py
 import requests
 from .base import BrokerBase
+from .symbol_map import get_symbol_for_broker
 
 class DhanBroker(BrokerBase):
+    BROKER = "dhan"
     NSE = "NSE_EQ"
     INTRA = "INTRADAY"
     BUY = "BUY"
@@ -32,14 +34,17 @@ class DhanBroker(BrokerBase):
         **extra
     ):
         # --- Symbol mapping ---
+        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not security_id:
             if tradingsymbol and self.symbol_map:
                 security_id = self.symbol_map.get(tradingsymbol.upper())
             if not security_id:
+                security_id = mapping.get("security_id")
+            if not security_id:
                 raise Exception(f"DhanBroker: 'security_id' required (tradingsymbol={tradingsymbol})")
 
         if not exchange_segment:
-            exchange_segment = self.NSE
+            exchange_segment = mapping.get("exchange_segment", self.NSE)
 
         if not product_type:
             product_type = self.INTRA
