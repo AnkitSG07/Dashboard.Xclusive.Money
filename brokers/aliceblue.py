@@ -156,8 +156,8 @@ class AliceBlueBroker(BrokerBase):
             if resp.get("stat", "").lower() == "ok" and "nestOrderNumber" in resp:
                 return {"status": "success", "order_id": resp["nestOrderNumber"], **resp}
             else:
-                error_msg = resp.get("emsg", "Order failed")
-                return {"status": "failure", "error": error_msg, **resp}
+                error_msg = resp.get("emsg") or resp.get("stat") or str(resp)
+                return {"status": "failure", "error": error_msg, "raw": resp}
         except Exception as e:
             return {"status": "failure", "error": str(e)}
 
