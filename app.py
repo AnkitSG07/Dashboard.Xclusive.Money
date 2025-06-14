@@ -73,9 +73,11 @@ BROKER_STATUS_URLS = {
 BROKER_SYMBOL_MAP = {
     "IDEA": {
         "dhan": {"security_id": "532822"},
+        "aliceblue": {"symbol_id": "532822"},
     },
     "RELIANCE": {
         "dhan": {"security_id": "2885"},
+        "aliceblue": {"symbol_id": "2885"},
     },
 }
 
@@ -1762,6 +1764,24 @@ def place_group_order():
                     order_type=map_order_type(api.MARKET, broker_name),
                     product_type=api.INTRA,
                     price=0
+                )
+
+            elif broker_name == "aliceblue":
+                tradingsymbol = mapping.get("tradingsymbol", symbol)
+                symbol_id = (
+                    mapping.get("symbol_id")
+                    or mapping.get("security_id")
+                    or SYMBOL_MAP.get(symbol.upper())
+                )
+                order_params = dict(
+                    tradingsymbol=tradingsymbol,
+                    symbol_id=symbol_id,
+                    exchange="NSE",
+                    transaction_type=action.upper(),
+                    quantity=int(quantity),
+                    order_type=map_order_type("MARKET", broker_name),
+                    product="MIS",
+                    price=None,
                 )
             else:
                 tradingsymbol = mapping.get("tradingsymbol", symbol)
