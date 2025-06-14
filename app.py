@@ -33,31 +33,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 start_time = datetime.utcnow()
 device_number = None
-SYMBOL_MAP = {
-    "RELIANCE": "2885","RELIANCE-EQ": "2885", "TCS": "11536", "INFY": "10999", "ADANIPORTS": "15083", "IDEA": "532822", "HDFCBANK": "1333",
-    "SBIN": "3045", "ICICIBANK": "4963", "AXISBANK": "1343", "ITC": "1660", "HINDUNILVR": "1394",
-    "KOTAKBANK": "1922", "LT": "11483", "BAJFINANCE": "317", "HCLTECH": "7229", "ASIANPAINT": "236",
-    "MARUTI": "1095", "M&M": "2031", "SUNPHARMA": "3046", "TATAMOTORS": "3432", "WIPRO": "3787",
-    "ULTRACEMCO": "11532", "TITAN": "3506", "NESTLEIND": "11262", "BAJAJFINSV": "317",
-    "POWERGRID": "14977", "NTPC": "2886", "JSWSTEEL": "11723", "HDFCLIFE": "11915",
-    "DRREDDY": "881", "TECHM": "11534", "BRITANNIA": "293", "TATASTEEL": "3505", "CIPLA": "694",
-    "SBILIFE": "11916", "BAJAJ-AUTO": "317", "HINDALCO": "1393", "DIVISLAB": "881",
-    "GRASIM": "1147", "ADANIENT": "15083", "COALINDIA": "694", "INDUSINDBK": "1393",
-    "TATACONSUM": "3505", "EICHERMOT": "881", "SHREECEM": "1147", "HEROMOTOCO": "15083",
-    "BAJAJHLDNG": "694", "SBICARD": "1393", "DLF": "3505", "DMART": "881", "UPL": "1147",
-    "ICICIPRULI": "15083", "HDFCAMC": "694", "HDFC": "1393", "GAIL": "3505", "HAL": "881",
-    "TATAPOWER": "1147", "VEDL": "15083", "BPCL": "694", "IOC": "1393", "ONGC": "3505",
-    "LICHSGFIN": "881", "BANKBARODA": "1147", "PNB": "15083", "CANBK": "694", "UNIONBANK": "1393",
-    "IDFCFIRSTB": "3505", "BANDHANBNK": "881", "FEDERALBNK": "1147", "RBLBANK": "15083",
-    "YESBANK": "694", "IGL": "1393", "PETRONET": "3505", "GUJGASLTD": "881", "MGL": "1147",
-    "TORNTPHARM": "15083", "LUPIN": "694", "AUROPHARMA": "1393", "BIOCON": "3505",
-    "GLENMARK": "881", "CADILAHC": "1147", "ALKEM": "15083", "APOLLOHOSP": "694",
-    "MAXHEALTH": "1393", "FORTIS": "3505", "JUBLFOOD": "881", "UBL": "1147", "MCDOWELL-N": "15083",
-    "COLPAL": "694", "DABUR": "1393", "GODREJCP": "3505", "MARICO": "881", "EMAMILTD": "1147",
-    "PGHH": "15083", "GILLETTE": "694", "TATACHEM": "1393", "PIDILITIND": "3505",
-    "BERGEPAINT": "881", "KANSAINER": "1147", "JSWENERGY": "15083", "ADANIGREEN": "694",
-    "ADANITRANS": "1393", "NHPC": "3505", "SJVN": "881", "RECLTD": "1147", "PFC": "15083"
-}
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
@@ -67,58 +42,6 @@ BROKER_STATUS_URLS = {
     "fyers": "https://api.fyers.in",
 }
 
-# --- Unified symbol mapping across brokers ---
-# Each entry maps a symbol to broker-specific identifiers. Keys should be
-# uppercase symbols. Values are dictionaries keyed by broker name.
-BROKER_SYMBOL_MAP = {
-    "IDEA": {
-        "dhan": {"security_id": "532822"},
-        "aliceblue": {"symbol_id": "532822"},
-    },
-    "RELIANCE": {
-        "dhan": {"security_id": "2885"},
-        "aliceblue": {"symbol_id": "2885"},
-    },
-}
-
-# Brokers supported by factory.py
-BROKER_LIST = [
-    "zerodha",
-    "aliceblue",
-    "fyers",
-    "finvasia",
-    "dhan",
-    "flattrade",
-    "acagarwal",
-    "motilaloswal",
-    "kotakneo",
-    "tradejini",
-    "zebu",
-    "enrichmoney",
-    "broker1",
-]
-
-# Provide default tradingsymbol mappings for all brokers if not specified
-for _sym, _data in BROKER_SYMBOL_MAP.items():
-    for _broker in BROKER_LIST:
-        if _broker not in _data:
-            if _broker == "dhan":
-                sec_id = SYMBOL_MAP.get(_sym.upper())
-                if sec_id:
-                    _data[_broker] = {"security_id": sec_id}
-            else:
-                _data[_broker] = {"tradingsymbol": _sym}
-
-
-# Merge any Dhan security IDs into SYMBOL_MAP for backward compatibility
-for _sym, _data in BROKER_SYMBOL_MAP.items():
-    sec_id = _data.get("dhan", {}).get("security_id")
-    if sec_id:
-        SYMBOL_MAP[_sym] = sec_id
-
-def get_symbol_for_broker(symbol: str, broker: str):
-    """Return mapped symbol details for a broker."""
-    return BROKER_SYMBOL_MAP.get(symbol.upper(), {}).get(broker.lower(), {})
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
@@ -611,7 +534,6 @@ def poll_and_copy_trades():
                                     order.get("securityId")
                                     or order.get("security_id")
                                     or mapping_child.get("security_id")
-                                    or SYMBOL_MAP.get(symbol.upper())
                                 )
                                 response = child_api.place_order(
                                     security_id=security_id,
@@ -831,7 +753,7 @@ def webhook(user_id):
     order_params = {}
     mapping = get_symbol_for_broker(symbol, broker_name)
     if broker_name.lower() == "dhan":
-        security_id = mapping.get("security_id") or SYMBOL_MAP.get(symbol.strip().upper())
+        security_id = mapping.get("security_id")
         if not security_id:
             return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
         order_params = dict(
@@ -1755,7 +1677,7 @@ def place_group_order():
             order_params = {}
             mapping = get_symbol_for_broker(symbol, broker_name)
             if broker_name == "dhan":
-                security_id = mapping.get("security_id") or SYMBOL_MAP.get(symbol.upper())
+                security_id = mapping.get("security_id")
                 order_params = dict(
                     security_id=security_id,
                     exchange_segment=api.NSE,
@@ -1771,7 +1693,6 @@ def place_group_order():
                 symbol_id = (
                     mapping.get("symbol_id")
                     or mapping.get("security_id")
-                    or SYMBOL_MAP.get(symbol.upper())
                 )
                 order_params = dict(
                     tradingsymbol=tradingsymbol,
