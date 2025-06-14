@@ -2,8 +2,10 @@ import requests
 import hashlib
 import json
 from .base import BrokerBase
+from .symbol_map import get_symbol_for_broker
 
 class AliceBlueBroker(BrokerBase):
+    BROKER = "aliceblue"
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
     def __init__(self, client_id, api_key, device_number=None, **kwargs):
@@ -90,7 +92,7 @@ class AliceBlueBroker(BrokerBase):
 
     def place_order(
         self,
-        tradingsymbol,
+        tradingsymbol=None,
         exchange="NSE",
         transaction_type="BUY",
         quantity=1,
@@ -105,9 +107,12 @@ class AliceBlueBroker(BrokerBase):
         retention="DAY",
         trigger_price=""
     ):
-        """
-        Place an order on Alice Blue using the official API contract.
-        """
+        """Place an order on Alice Blue using the official API contract."""
+        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
+        if not symbol_id:
+            symbol_id = mapping.get("symbol_id")
+        tradingsymbol = mapping.get("trading_symbol", tradingsymbol)
+        exchange = exchange or mapping.get("exch", exchange)
         if not symbol_id:
             raise ValueError("symbol_id is required")
         # Map order_type to prctyp as per Alice Blue docs
