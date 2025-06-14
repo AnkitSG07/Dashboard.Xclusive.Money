@@ -6,15 +6,15 @@ from .base import BrokerBase
 class AliceBlueBroker(BrokerBase):
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
-    def __init__(self, client_id, api_key, **kwargs):
-        super().__init__(client_id, api_key, **kwargs)
-        self.client_id = str(client_id).strip()
-        self.api_key = str(api_key).strip()
-        self.device_number = None
-        self.session_id = None
-        self.headers = None
-        self._last_auth_error = None
-        self.authenticate()
+    def __init__(self, client_id, api_key, device_number=None, **kwargs):
+    super().__init__(client_id, api_key, **kwargs)
+    self.client_id = str(client_id).strip()
+    self.api_key = str(api_key).strip()
+    self.device_number = device_number
+    self.session_id = None
+    self.headers = None
+    self._last_auth_error = None
+    self.authenticate()
 
     def authenticate(self):
         # Step 1: Get Encryption Key
@@ -108,6 +108,8 @@ class AliceBlueBroker(BrokerBase):
         """
         Place an order on Alice Blue using the official API contract.
         """
+        if not symbol_id:
+            raise ValueError("symbol_id is required")
         # Map order_type to prctyp as per Alice Blue docs
         ORDER_TYPE_MAP = {
             "MARKET": "MKT",
