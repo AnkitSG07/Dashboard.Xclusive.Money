@@ -156,7 +156,13 @@ class AliceBlueBroker(BrokerBase):
             if resp.get("stat", "").lower() == "ok" and "nestOrderNumber" in resp:
                 return {"status": "success", "order_id": resp["nestOrderNumber"], **resp}
             else:
-                error_msg = resp.get("emsg") or resp.get("stat") or str(resp)
+                # Try to extract the most meaningful error message available
+                error_msg = (
+                    resp.get("emsg")
+                    or resp.get("stat")
+                    or resp.get("message")
+                    or str(resp) if resp else "Unknown error: Empty response"
+                )
                 return {"status": "failure", "error": error_msg, "raw": resp}
         except Exception as e:
             return {"status": "failure", "error": str(e)}
