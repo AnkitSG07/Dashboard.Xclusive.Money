@@ -107,42 +107,33 @@ class AliceBlueBroker(BrokerBase):
     ):
         """
         Place an order on Alice Blue using the official API contract.
-    
-        Args:
-            tradingsymbol (str): Trading symbol, e.g., 'ASHOKLEY-EQ'
-            exchange (str): Exchange, e.g., 'NSE'
-            transaction_type (str): 'BUY' or 'SELL'
-            quantity (int): Order quantity
-            order_type (str): 'L', 'MKT', 'SL', 'SL-M'
-            product (str): Product code, e.g., 'MIS', 'CNC', 'NRML', etc.
-            price (float/int/str): Price as required by Alice Blue (string or float)
-            symbol_id (str): Token/ID for the symbol
-            deviceNumber (str): Device ID string (should be unique and persistent per account)
-            orderTag (str): Order tag/remark
-            complexty (str): 'regular', 'BO', 'CO', etc.
-            disclosed_qty (int): Disclosed quantity
-            retention (str): 'DAY' by default
-            trigger_price (str/int): Trigger price for SL/SL-M
-    
-        Returns:
-            dict: Result with status, order_id (if successful), or error message.
         """
-        # Use stored device_number if not supplied
+        # Map order_type to prctyp as per Alice Blue docs
+        ORDER_TYPE_MAP = {
+            "MARKET": "MKT",
+            "MKT": "MKT",
+            "LIMIT": "L",
+            "L": "L",
+            "SL": "SL",
+            "SL-M": "SL-M"
+        }
+        prctyp = ORDER_TYPE_MAP.get(order_type.upper(), "MKT")
+    
         if not deviceNumber and hasattr(self, "device_number"):
             deviceNumber = self.device_number
         elif not deviceNumber:
-            deviceNumber = "device123"  # Fallback (should not happen in production)
+            deviceNumber = "device123"
     
         url = self.BASE_URL + "placeOrder/executePlaceOrder"
         payload = [{
-            "complexty": complexty,
+            "complexty": complexty.upper(),
             "discqty": str(disclosed_qty),
-            "exch": exchange,
-            "pCode": product,
-            "prctyp": order_type,
+            "exch": exchange.upper(),
+            "pCode": product.upper(),
+            "prctyp": prctyp,
             "price": str(price) if price else "0",
             "qty": int(quantity),
-            "ret": retention,
+            "ret": retention.upper(),
             "symbol_id": str(symbol_id),
             "trading_symbol": tradingsymbol,
             "transtype": transaction_type.upper(),
@@ -160,7 +151,6 @@ class AliceBlueBroker(BrokerBase):
                 resp = r.json()
             except Exception:
                 return {"status": "failure", "error": r.text}
-            # If response is a list, extract the first dict
             if isinstance(resp, list):
                 resp = resp[0] if resp else {}
             if resp.get("stat", "").lower() == "ok" and "nestOrderNumber" in resp:
@@ -168,6 +158,8 @@ class AliceBlueBroker(BrokerBase):
             return {"status": "failure", **resp}
         except Exception as e:
             return {"status": "failure", "error": str(e)}
+
+    
     def get_order_list(self):
         self.ensure_session()
         url = self.BASE_URL + "placeOrder/fetchOrderBook"
