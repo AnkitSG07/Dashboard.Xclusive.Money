@@ -1,6 +1,12 @@
 from brokers.factory import get_broker_class
 import uuid
 from brokers.zerodha import ZerodhaBroker, KiteConnect
+try:
+    from brokers.symbol_map import get_symbol_for_broker
+except Exception:  # pragma: no cover - fallback if import fails
+    def get_symbol_for_broker(symbol: str, broker: str) -> dict:
+        """Fallback stub returning empty mapping."""
+        return {}
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
 import sqlite3
