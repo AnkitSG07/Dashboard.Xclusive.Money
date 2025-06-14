@@ -7,6 +7,7 @@ import pyotp
 import time
 
 from .base import BrokerBase
+from .symbol_map import get_symbol_for_broker
 
 try:
     from kiteconnect import KiteConnect
@@ -15,6 +16,7 @@ except ImportError:  # pragma: no cover - kiteconnect might not be installed dur
 
 
 class ZerodhaBroker(BrokerBase):
+    BROKER = "zerodha"
     """Adapter for Zerodha KiteConnect API."""
     BASE_URL = "https://kite.zerodha.com/api"
 
@@ -131,16 +133,19 @@ class ZerodhaBroker(BrokerBase):
     # ================= Standard BrokerBase methods ==================
     def place_order(
         self,
-        tradingsymbol,
-        exchange,
-        transaction_type,
-        quantity,
+        tradingsymbol=None,
+        exchange=None,
+        transaction_type=None,
+        quantity=None,
         order_type="MARKET",
         product="MIS",
         price=None,
         **extra,
     ):
         self.ensure_token()
+        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
+        tradingsymbol = mapping.get("trading_symbol", tradingsymbol)
+        exchange = exchange or mapping.get("exchange", "NSE")
         params = {
             "tradingsymbol": tradingsymbol,
             "exchange": exchange,
