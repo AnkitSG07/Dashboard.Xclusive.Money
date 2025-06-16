@@ -144,14 +144,23 @@ def broker_api(obj):
     if broker == "aliceblue":
         api_key = rest.pop("api_key", None)
         return BrokerClass(client_id, api_key, **rest)
-        
+
     elif broker == "finvasia":
         password = rest.pop("password", None)
         totp_secret = rest.pop("totp_secret", None)
         vendor_code = rest.pop("vendor_code", None)
         api_key = rest.pop("api_key", None)
         imei = rest.pop("imei", "abc1234") or "abc1234"
-        return BrokerClass(client_id, password, totp_secret, vendor_code, api_key, imei, **rest)
+        # Pass args as named, not positional, for clarity and to match the new class
+        return BrokerClass(
+            client_id=client_id,
+            password=password,
+            totp_secret=totp_secret,
+            vendor_code=vendor_code,
+            api_key=api_key,
+            imei=imei,
+            **rest
+        )
 
     elif broker == "groww":
         return BrokerClass(client_id, access_token, **rest)
