@@ -15,6 +15,7 @@ def get_broker_class(broker_name):
         "finvasia": "FinvasiaBroker",
         "dhan": "DhanBroker",
         "flattrade": "FlattradeBroker",
+        "groww": "GrowwBroker",
         "acagarwal": "ACAgarwalBroker",
         "motilaloswal": "MotilalOswalBroker",
         "kotakneo": "KotakNeoBroker",
