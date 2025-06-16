@@ -11,3 +11,4 @@ kiteconnect==5.0.1
 Flask-SQLAlchemy==3.1.1
 alice-blue==2.0.4
 growwapi==0.0.8
+shoonya==0.1.4
