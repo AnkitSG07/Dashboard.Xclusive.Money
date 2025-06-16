@@ -300,7 +300,13 @@ def clean_response_message(response):
         ]
         for field in error_fields:
             if field:
-                return str(field)
+                text = str(field)
+                if text.lower() in {"none", "null", ""}:
+                    continue
+                return text
+
+        if any(field is not None for field in error_fields):
+            return "Unknown error"
 
         # Fallback to raw JSON dump for debugging
         return json.dumps(response)
