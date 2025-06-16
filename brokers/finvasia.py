@@ -59,7 +59,7 @@ class FinvasiaBroker(BrokerBase):
 
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, **kwargs):
         try:
-            return self.api.place_order(
+            resp = self.api.place_order(
                 buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
                 product_type=product,
                 exchange=exchange,
@@ -76,7 +76,7 @@ class FinvasiaBroker(BrokerBase):
         except Exception as e:
             if "Session Expired" in str(e):
                 self.login()
-                return self.api.place_order(
+                resp = self.api.place_order(
                     buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
                     product_type=product,
                     exchange=exchange,
@@ -90,7 +90,14 @@ class FinvasiaBroker(BrokerBase):
                     amo="NO",
                     remarks=kwargs.get("remarks"),
                 )
-            raise
+            else:
+                return {"status": "failure", "error": str(e)}
+
+        if isinstance(resp, dict):
+            if resp.get("stat") == "Ok":
+                return {"status": "success", **resp}
+            return {"status": "failure", **resp}
+        return {"status": "failure", "error": str(resp)}
 
     def get_order_list(self):
         return self.api.get_order_book()
