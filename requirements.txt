@@ -10,3 +10,4 @@ pyotp==2.9.0
 kiteconnect==5.0.1
 Flask-SQLAlchemy==3.1.1
 alice-blue==2.0.4
+growwapi==0.0.8
