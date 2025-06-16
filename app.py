@@ -492,11 +492,19 @@ def poll_and_copy_trades():
                         try:
                             ChildBrokerClass = get_broker_class(child_broker)
                             rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
-                            child_api = ChildBrokerClass(
-                                client_id=child.get("client_id"),
-                                access_token=child_credentials.get("access_token"),
-                                **rest_child
-                            )
+                            if child_broker == "aliceblue":
+                                child_api = ChildBrokerClass(
+                                    child.get("client_id"),
+                                    child_credentials.get("api_key"),
+                                    device_number=child_credentials.get("device_number"),
+                                    **rest_child
+                                )
+                            else:
+                                child_api = ChildBrokerClass(
+                                    client_id=child.get("client_id"),
+                                    access_token=child_credentials.get("access_token"),
+                                    **rest_child
+                                )
                         except Exception as e:
                             print(f"❌ Could not initialize child API ({child_broker}): {e}")
                             continue
