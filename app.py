@@ -411,12 +411,11 @@ def poll_and_copy_trades():
                 credentials = master.get("credentials", {})
                 BrokerClass = get_broker_class(master_broker)
                 try:
-                    rest = {k: v for k, v in credentials.items() if k != "access_token"}
                     if master_broker == "aliceblue":
                         rest = {
                             k: v
-                            for k, v in rest.items()
-                            if k not in ["api_key", "device_number"]
+                            for k, v in credentials.items()
+                            if k not in ("access_token", "api_key", "device_number")
                         }
                         master_api = BrokerClass(
                             master.get("client_id"),
@@ -425,10 +424,11 @@ def poll_and_copy_trades():
                             **rest,
                         )
                     else:
+                        rest = {k: v for k, v in credentials.items() if k != "access_token"}
                         master_api = BrokerClass(
                             client_id=master.get("client_id"),
                             access_token=credentials.get("access_token"),
-                            **rest
+                            **rest,
                         )
                 except Exception as e:
                     print(f"❌ Could not initialize master API ({master_broker}): {e}")
@@ -496,24 +496,33 @@ def poll_and_copy_trades():
                         child_credentials = child.get("credentials", {})
                         try:
                             ChildBrokerClass = get_broker_class(child_broker)
-                            rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
                             if child_broker == "aliceblue":
                                 rest_child = {
                                     k: v
-                                    for k, v in rest_child.items()
-                                    if k not in ["api_key", "device_number"]
+                                    for k, v in child_credentials.items()
+                                    if k
+                                    not in (
+                                        "access_token",
+                                        "api_key",
+                                        "device_number",
+                                    )
                                 }
                                 child_api = ChildBrokerClass(
                                     child.get("client_id"),
                                     child_credentials.get("api_key"),
-                                    device_number=child_credentials.get("device_number"),
+                                    device_number=child_credentials.get(
+                                        "device_number"
+                                    ),
                                     **rest_child,
                                 )
                             else:
+                                rest_child = {
+                                    k: v for k, v in child_credentials.items() if k != "access_token"
+                                }
                                 child_api = ChildBrokerClass(
                                     client_id=child.get("client_id"),
                                     access_token=child_credentials.get("access_token"),
-                                    **rest_child
+                                    **rest_child,
                                 )
                         except Exception as e:
                             print(f"❌ Could not initialize child API ({child_broker}): {e}")
