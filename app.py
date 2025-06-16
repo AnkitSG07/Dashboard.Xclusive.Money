@@ -412,11 +412,19 @@ def poll_and_copy_trades():
                 BrokerClass = get_broker_class(master_broker)
                 try:
                     rest = {k: v for k, v in credentials.items() if k != "access_token"}
-                    master_api = BrokerClass(
-                        client_id=master.get("client_id"),
-                        access_token=credentials.get("access_token"),
-                        **rest
-                    )
+                    if master_broker == "aliceblue":
+                        master_api = BrokerClass(
+                            master.get("client_id"),
+                            credentials.get("api_key"),
+                            device_number=credentials.get("device_number"),
+                            **rest
+                        )
+                    else:
+                        master_api = BrokerClass(
+                            client_id=master.get("client_id"),
+                            access_token=credentials.get("access_token"),
+                            **rest
+                        )
                 except Exception as e:
                     print(f"❌ Could not initialize master API ({master_broker}): {e}")
                     continue
