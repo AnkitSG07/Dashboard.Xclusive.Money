@@ -1,29 +1,26 @@
 import pyotp
-# Shoonya API wrapper import varies by package version
-try:
-    from shoonya import ShoonyaApiPy  # type: ignore
-except Exception:  # pragma: no cover - fallback for older packages
-    try:
-        from shoonya.apis import ShoonyaApiPy  # type: ignore
-    except Exception:
-        from shoonya import Shoonya as ShoonyaApiPy  # type: ignore
+from api_helper import ShoonyaApiPy  # From ShoonyaApi-py cloned from GitHub (AnkitSG07/ShoonyaApi-py)
 from .base import BrokerBase
 
 class FinvasiaBroker(BrokerBase):
+    """
+    Adapter for Finvasia (Shoonya) API using ShoonyaApiPy from the correct GitHub repo.
+    Required:
+        - client_id, password, totp_secret, vendor_code, api_key, imei
+    """
     def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
         super().__init__(client_id, "", **kwargs)
         self.password = password
         self.totp_secret = totp_secret
         self.vendor_code = vendor_code
         self.api_key = api_key
-        self.imei = imei
+        self.imei = imei or "abc1234"
         self.api = ShoonyaApiPy()
         self.session = None
         self._last_auth_error = None
         if all([password, totp_secret, vendor_code, api_key]):
             self.login()
-            
-            
+
     def login(self):
         totp = pyotp.TOTP(self.totp_secret).now()
         ret = self.api.login(
@@ -44,7 +41,6 @@ class FinvasiaBroker(BrokerBase):
         self.session = ret
         self._last_auth_error = None
 
-
     def check_token_valid(self):
         try:
             resp = self.api.get_limits()
@@ -62,21 +58,40 @@ class FinvasiaBroker(BrokerBase):
         return data.get("cash")
 
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, **kwargs):
-        return self.api.place_order(
-            buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
-            product_type=product,
-            exchange=exchange,
-            tradingsymbol=tradingsymbol,
-            quantity=int(quantity),
-            discloseqty=0,
-            price_type=order_type,
-            price=float(price),
-            trigger_price=kwargs.get("trigger_price"),
-            retention="DAY",
-            amo="NO",
-            remarks=kwargs.get("remarks"),
-        )
-        
+        try:
+            return self.api.place_order(
+                buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
+                product_type=product,
+                exchange=exchange,
+                tradingsymbol=tradingsymbol,
+                quantity=int(quantity),
+                discloseqty=0,
+                price_type=order_type,
+                price=float(price),
+                trigger_price=kwargs.get("trigger_price"),
+                retention="DAY",
+                amo="NO",
+                remarks=kwargs.get("remarks"),
+            )
+        except Exception as e:
+            if "Session Expired" in str(e):
+                self.login()
+                return self.api.place_order(
+                    buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
+                    product_type=product,
+                    exchange=exchange,
+                    tradingsymbol=tradingsymbol,
+                    quantity=int(quantity),
+                    discloseqty=0,
+                    price_type=order_type,
+                    price=float(price),
+                    trigger_price=kwargs.get("trigger_price"),
+                    retention="DAY",
+                    amo="NO",
+                    remarks=kwargs.get("remarks"),
+                )
+            raise
+
     def get_order_list(self):
         return self.api.get_order_book()
 
