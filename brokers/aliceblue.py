@@ -166,6 +166,7 @@ class AliceBlueBroker(BrokerBase):
                 # Try to extract the most meaningful error message available
                 error_msg = (
                     resp.get("emsg")
+                    or resp.get("remarks")
                     or resp.get("stat")
                     or resp.get("message")
                     or str(resp) if resp else "Unknown error: Empty response"
