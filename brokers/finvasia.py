@@ -91,13 +91,17 @@ class FinvasiaBroker(BrokerBase):
                     remarks=kwargs.get("remarks"),
                 )
             else:
-                return {"status": "failure", "error": str(e)}
+                msg = str(e) if str(e) else "Unknown error"
+                return {"status": "failure", "error": msg}
+        if resp is None:
+            return {"status": "failure", "error": "No response from Finvasia API"}
 
         if isinstance(resp, dict):
             if resp.get("stat") == "Ok":
                 return {"status": "success", **resp}
             return {"status": "failure", **resp}
-        return {"status": "failure", "error": str(resp)}
+
+        return {"status": "failure", "error": str(resp) if resp is not None else "Unknown error"}
 
     def get_order_list(self):
         return self.api.get_order_book()
