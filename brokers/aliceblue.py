@@ -54,12 +54,12 @@ class AliceBlueBroker(BrokerBase):
         
         payload = {
             "userId": client_id,
-            "userData": user_data
+            "userData": user_data,
         }
         print("payload:", json.dumps(payload))
         
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getUserSID"
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
         resp = requests.post(url, headers=headers, data=json.dumps(payload))
         print(resp.text)
 
