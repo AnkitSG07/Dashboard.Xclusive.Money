@@ -15,6 +15,21 @@ SYMBOL_MAP = {
         "zebu": {"symbol": "ADANIENT-EQ", "token": "25", "exchange": "NSE"},
         "enrichmoney": {"symbol": "ADANIENT-EQ", "token": "25", "exchange": "NSE"},
     },
+    "IDEA": {
+        "zerodha":      {"trading_symbol": "IDEA",       "exchange": "NSE", "token": "926241"},
+        "aliceblue":    {"trading_symbol": "IDEA-EQ",    "symbol_id":  "926241", "exch": "NSE"},
+        "fyers":        {"symbol": "NSE:IDEA-EQ",        "token": "926241"},
+        "finvasia":     {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+        "dhan":         {"security_id": "926241",        "exchange_segment": "NSE_EQ"},
+        "flattrade":    {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+        "acagarwal":    {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+        "motilaloswal": {"symbol": "IDEA",               "token": "926241", "exchange": "NSE"},
+        "kotakneo":     {"symbol": "IDEA",               "token": "926241", "exchange": "NSE"},
+        "tradejini":    {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+        "zebu":         {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+        "enrichmoney":  {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
+    },
+
     "ADANIPORTS": {
         "zerodha": {"trading_symbol": "ADANIPORTS", "exchange": "NSE", "token": "15083"},
         "aliceblue": {"trading_symbol": "ADANIPORTS-EQ", "symbol_id": "15083", "exch": "NSE"},
