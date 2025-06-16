@@ -1,0 +1,908 @@
+Introduction
+Welcome to the Groww Trading API! Our APIs enable you to build and automate trading strategies with seamless access to real-time market data, order placement, portfolio management, and more. Whether you're an experienced algo trader or just starting with automation, Groww's API is designed to be simple, powerful, and developer-friendly.
+
+This SDK wraps our REST-like APIs into easy-to-use Python methods, allowing you to focus on building your trading applications without worrying about the underlying API implementation details.
+
+With the Groww SDK, you can easily execute and modify orders in real time, manage your portfolio, access live market data, and more — all through a clean and intuitive Python interface.
+
+Key Features
+Trade with Ease: Place, modify, and cancel orders across Equity & F&O.
+Real-time Market Data: Fetch live market prices, historical data, and order book depth.
+Secure Authentication: Use industry-standard OAuth 2.0 for seamless and secure access.
+Comprehensive SDK: Get started quickly with our Python SDK.
+WebSockets for Streaming: Subscribe to real-time market feeds and order updates.
+Getting started:
+Step 1: Prerequisites
+Trading on Groww using Groww APIs requires:
+
+A Groww account.
+Basic knowledge of Python and REST APIs.
+A development environment with Python 3.9+ installed.
+Having an active Trading API Subscription. You can purchase a subscription from this page.
+Step 2: Install the Python SDK
+You can install the Python SDK by running this command on your terminal/command prompt.
+
+
+pip install growwapi
+Step 3: Authentication
+There are two ways you can interact with GrowwAPI:
+
+1st Approach (Access Token) (expires at 6 am daily)
+To generate an API access token:
+
+Log in to your Groww account.
+Click on the profile section at the Right-top of your screen.
+Click on the setting icon in the menu.
+In the navigation list, select ‘Trading APIs’
+Click on ‘Generate API keys’ and select ‘Access Token’
+You can create, revoke and manage all your tokens from this page.
+You can use the generated ‘Access Token’ to log in via the Python SDK in the following way:
+
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_generated_access_token"
+ 
+# Initialize Groww API
+growwapi = GrowwAPI(API_AUTH_TOKEN)
+2nd Approach (TOTP flow) (API key & secret) (No expiry)
+Make sure you have the latest SDK version for this. You can upgrade your Python SDK by running this command on your terminal/command prompt.
+
+
+pip install --upgrade growwapi
+Log in to your Groww account.
+Click on the profile section at the Right-top of your screen.
+Click on the setting icon in the menu.
+In the navigation list, select ‘Trading APIs’
+Click on ‘Generate API keys’ and select ‘API key & Secret’ You can create, revoke and manage all your tokens from this page.
+To use the TOTP flow, you have to install the pyotp library. You can that by running this command on your terminal/command prompt.
+
+
+pip install pytop
+You can use the generated ‘API key & secret’ to log in via the Python SDK in the following way:
+
+
+from growwapi import GrowwAPI 
+import pyotp 
+ 
+api_key = "YOUR_API_KEY" 
+totp_gen = pyotp.TOTP('YOUR_API_SECRET') 
+totp = totp_gen.now() 
+ 
+access_token = GrowwAPI.get_access_token(api_key, totp) 
+# Use access_token to initiate GrowwAPi
+growwapi = GrowwAPI(access_token)
+Step 4: Place your First Order
+Use this sample code to place an order.
+
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+place_order_response = groww.place_order(
+    trading_symbol="WIPRO",
+    quantity=1, 
+    validity=groww.VALIDITY_DAY,
+    exchange=groww.EXCHANGE_NSE,
+    segment=groww.SEGMENT_CASH,
+    product=groww.PRODUCT_CNC,
+    order_type=groww.ORDER_TYPE_LIMIT,
+    transaction_type=groww.TRANSACTION_TYPE_BUY,
+    price=250,               # Optional: Price of the stock (for Limit orders)
+    trigger_price=245,       # Optional: Trigger price (if applicable)
+    order_reference_id="Ab-654321234-1628190"  # Optional: User provided 8 to 20 length alphanumeric reference ID to track the order
+)
+print(place_order_response)
+Rate Limits
+The rate limits are applied at the type level, not on individual APIs. This means that all APIs grouped under a type (e.g., Orders, Live Data, Non Trading) share the same limit. If the limit for one API within a type is exhausted, all other APIs in that type will also be rate-limited until the limit window resets.
+
+Orders
+This guide describes how to manage orders using the SDK. You can create, modify, cancel, and retrieve order details.
+
+Place Order
+Use the place_order SDK method to register a new order. When successful, the method returns a unique order ID and its initial status.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+place_order_response = groww.place_order(
+    trading_symbol="WIPRO",
+    quantity=1, 
+    validity=groww.VALIDITY_DAY,
+    exchange=groww.EXCHANGE_NSE,
+    segment=groww.SEGMENT_CASH,
+    product=groww.PRODUCT_CNC,
+    order_type=groww.ORDER_TYPE_LIMIT,
+    transaction_type=groww.TRANSACTION_TYPE_BUY,
+    price=250,               # Optional: Price of the stock (for Limit orders)
+    trigger_price=245,       # Optional: Trigger price (if applicable)
+    order_reference_id="Ab-654321234-1628190"  # Optional: User provided 8 to 20 length alphanumeric reference ID to track the order
+)
+print(place_order_response)
+Request Schema
+Name	Type	Description
+trading_symbol *	string	Trading Symbol of the instrument as defined by the exchange
+quantity *	int	Quantity of instrument to order
+price	float	Price of the instrument in rupees case of Limit order
+trigger_price	float	Trigger price in rupees for the order
+validity *	string	Validity of the order
+exchange *	string	Stock exchange
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+product *	string	Product type
+order_type *	string	Order type
+transaction_type *	string	Transaction Type of the trade
+order_reference_id	string	User provided 8 to 20 length alphanumeric string with atmost two hypens. (-)
+*required parameters
+
+Response
+
+{
+    "groww_order_id": "GMK39038RDT490CCVRO",
+    "order_status": "OPEN",
+    "order_reference_id": "Ab-654321234-1628190",
+    "remark": "Order placed successfully"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+order_status	string	Current status of the placed order
+order_reference_id	string	User provided reference id to track the status of an order.
+remark	string	Remark for the order
+Modify Order
+You can change or update any pending or open orders using the modify_order method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+modify_order_response = groww.modify_order(
+    quantity=1,
+    order_type=groww.ORDER_TYPE_MARKET,
+    segment=groww.SEGMENT_CASH,
+    groww_order_id="GMK39038RDT490CCVRO",
+)
+print(modify_order_response)
+Request Schema
+Name	Type	Description
+quantity *	int	Quantity of instrument to order
+price	float	Price of the instrument in rupees case of Limit order
+trigger_price	float	Trigger price in rupees for the order
+order_type *	string	Order type
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+groww_order_id *	string	Order id generated by Groww for an order
+*required parameters
+
+Response
+
+{
+  "groww_order_id": "GMK39038RDT490CCVRO",
+  "order_status": "OPEN"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+order_status	string	Current status of the placed order
+Cancel Order
+Cancel any pending or open order using the cancel_order method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+cancel_order_response = groww.cancel_order(
+    segment=groww.SEGMENT_CASH,
+    groww_order_id="GMK39038RDT490CCVRO",
+)
+print(cancel_order_response)
+Request Schema
+Name	Type	Description
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+groww_order_id *	string	Order id generated by Groww for an order
+*required parameters
+
+Response
+
+{
+    "groww_order_id": "GMK39038RDT490CCVRO",
+    "order_status": "OPEN"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+order_status	string	Current status of the placed order
+Get Trades for Order
+Retrieve details of trades executed for a particular order using this get_trade_list_for_order method. Maximum page_size is 50.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+trade_list_response = groww.get_trade_list_for_order(
+    groww_order_id="GMK39038RDT490CCVRO",
+    segment=groww.SEGMENT_CASH,
+    page=0, # Optional: Page number for paginated results
+    page_size=50 # Optional: Number of trades to fetch per page (default is 50)
+)
+print(trade_list_response)
+Request Schema
+Name	Type	Description
+groww_order_id *	string	Order id generated by Groww for an order
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+page *	int	The page number for paginated results, used to fetch trade details in multiple pages if there are many trades associated with the order.
+page_size *	int	The number of trades to fetch per page. Maximum is 50. If not provided, it will return the default 50 number of trades.
+*required parameters
+
+Response
+All prices in rupees.
+
+
+{
+    "trade_list": [
+      {
+        "price": 250,
+        "isin": "INE075A01022",
+        "quantity": 1,
+        "groww_order_id": "GMK39038RDT490CCVRO",
+        "groww_trade_id": "",
+        "exchange_trade_id": "202402120123456789",
+        "exchange_order_id": "1100000057528630",
+        "trade_status": "EXECUTED",
+        "trading_symbol": "WIPRO",
+        "remark": "Order placed successfully",
+        "exchange": "NSE",
+        "segment": "CASH",
+        "product": "CNC",
+        "transaction_type": "BUY",
+        "created_at": "2019-08-24T14:15:22Z",
+        "trade_date_time": "2019-08-24T14:15:22Z",
+        "settlement_number": "2024052"
+      }
+    ]
+}
+Response Schema
+Name	Type	Description
+price	int	Price in rupees at which the trade was executed
+isin	string	ISIN (International Securities Identification number) of the traded instrument.
+quantity	int	Number of shares or contracts traded in this execution.
+groww_order_id	string	Order id generated by Groww for an order.
+groww_trade_id	string	Unique identifier for the executed trade within Groww's system.
+exchange_trade_id	string	Trade ID assigned by the exchange for the executed trade.
+exchange_order_id	string	Order ID assigned by the exchange for tracking purposes.
+trade_status	string	Current status of the trade
+trading_symbol	string	Trading symbol of the instrument
+exchange	string	Stock exchange
+segment	string	Segment of the instrument such as CASH, FNO etc.
+product	string	Product type
+transaction_type	string	Transaction Type of the trade
+created_at	string(date-time)	Timestamp when the order was created in the system.
+trade_date_time	string(date-time)	Timestamp when the trade was executed on the exchange.
+settlement_number	string	Settlement ID associated with the trade
+Get Order Status
+Check the status of an order using this get_order_status method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+order_status_response = groww.get_order_status(
+    groww_order_id="GMK39038RDT490CCVRO",
+    segment=groww.SEGMENT_CASH,
+)
+print(order_status_response)
+Request Schema
+Name	Type	Description
+groww_order_id *	string	Order id generated by Groww for an order
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+*required parameters
+
+Response
+
+{
+    "groww_order_id": "GMK39038RDT490CCVRO",
+    "order_status": "OPEN",
+    "remark": "Order placed successfully",
+    "filled_quantity": 100,
+    "order_reference_id": "Ab-654321234-1628190"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+order_status	string	Current status of the placed order
+remark	string	Remark for the order
+filled_quantity	int	Quantity of the order which has been executed.
+order_reference_id	string	User provided reference id to track the status of an order
+Get Order Status by Reference ID
+Check the order status of an order using this get_order_status_by_reference method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+order_status_by_ref_response = groww.get_order_status_by_reference(
+    order_reference_id="Ab-654321234-1628190",
+    segment=groww.SEGMENT_CASH,
+)
+print(order_status_by_ref_response)
+Request Schema
+Name	Type	Description
+order_reference_id *	string	User provided reference id to track the status of an order.
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+*required parameters
+
+Response
+
+{
+    "groww_order_id": "GMK39038RDT490CCVRO",
+    "order_status": "OPEN",
+    "remark": "Order placed successfully",
+    "filled_quantity": 100,
+    "order_reference_id": "Ab-654321234-1628190"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+order_status	string	Current status of the placed order
+remark	string	Remark for the order
+filled_quantity	int	Quantity of the order which has been executed.
+order_reference_id	string	User provided reference id to track the status of an order
+Get Order List
+Review all your orders placed during the day (open, pending, or executed) using the get_order_list method. Maximum page_size is 100.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+order_list_response = groww.get_order_list( # get order list of both CASH and FNO segments.
+    page = 0, # Optional: Page number for paginated results
+    page_size = 100 # Optional: Number of orders to fetch per page (default is 100)
+)
+ 
+cash_order_list_response = groww.get_order_list( # get order list of both CASH segment.
+    segment=groww.SEGMENT_CASH,
+    page = 0, # Optional: Page number for paginated results
+    page_size = 100 # Optional: Number of orders to fetch per page (default is 100)
+)
+ 
+print(order_list_response)
+Request Schema
+Name	Type	Description
+segment	string	Segment of the instrument such as CASH, FNO etc.
+page	int	Represents the page number to fetch the order list results if there are many orders.
+page_size	int	Represents the number of orders to fetch per page. Maximum is 25. If not provided, it will return the default 25 number of orders.
+*required parameters
+
+Response
+All prices in rupees.
+
+
+{
+    "order_list": [
+        {
+            "groww_order_id": "GMK39038RDT490CCVRO",
+            "trading_symbol": "WIPRO",
+            "order_status": "OPEN",
+            "remark": "Order placed successfully",
+            "quantity": 100,
+            "price": 250,
+            "trigger_price": 245,
+            "filled_quantity": 100,
+            "remaining_quantity": 10,
+            "average_fill_price": 250,
+            "deliverable_quantity": 10,
+            "amo_status": "PENDING",
+            "validity": "DAY",
+            "exchange": "NSE",
+            "order_type": "MARKET",
+            "transaction_type": "BUY",
+            "segment": "CASH",
+            "product": "CNC",
+            "created_at": "2019-08-24T14:15:22Z",
+            "exchange_time": "2019-08-24T14:15:22Z",
+            "trade_date": "2019-08-24T14:15:22Z",
+            "order_reference_id": "Ab-654321234-1628190"
+        }
+    ]
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+trading_symbol	string	Groww specific trading symbol of the instrument
+order_status	string	Current status of the placed order
+remark	string	Remark for the order
+quantity	int	Quantity of the instrument to order
+price	int	Price of the instrument in rupees case of Limit order
+trigger_price	int	Trigger price in rupees for the order
+filled_quantity	int	Quantity of the order which has been executed.
+remaining_quantity	int	Quantity remained to be filled
+average_fill_price	int	Avg price of the order placed
+deliverable_quantity	int	The number of shares that are eligible for delivery
+amo_status	string	Status of the order placed after market. (Not applicable during market hours.)
+validity	string	Validity of the order
+exchange	string	Stock exchange
+order_type	string	Order type
+transaction_type	string	Transaction type of the trade
+segment	string	Segment of the instrument such as CASH, FNO etc.
+product	string	Product type
+created_at	string(date-time)	Timestamp when the order was created in the system.
+exchange_time	string(date-time)	Timestamp when the order was processed or acknowledged by the exchange.
+trade_date	string(date-time)	Date on which trade has taken place
+order_reference_id	string	User provided reference id to track the status of an order
+Get Order Details
+View detailed information about a specific order using this get_order_detail method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+order_detail_response = groww.get_order_detail(
+    groww_order_id="GMK39038RDT490CCVRO",
+    segment=groww.SEGMENT_CASH,
+)
+print(order_detail_response)
+Request Schema
+Name	Type	Description
+groww_order_id *	string	Order id generated by Groww for an order
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+*required parameters
+
+Response
+All prices in rupees.
+
+
+{
+    "groww_order_id": "GMK39038RDT490CCVRO",
+    "trading_symbol": "WIPRO",
+    "order_status": "OPEN",
+    "remark": "Order placed successfully",
+    "quantity": 100,
+    "price": 250,
+    "trigger_price": 245,
+    "filled_quantity": 100,
+    "remaining_quantity": 10,
+    "average_fill_price": 250,
+    "deliverable_quantity": 10,
+    "amo_status": "PENDING",
+    "validity": "DAY",
+    "exchange": "NSE",
+    "order_type": "MARKET",
+    "transaction_type": "BUY",
+    "segment": "CASH",
+    "product": "CNC",
+    "created_at": "2019-08-24T14:15:22Z",
+    "exchange_time": "2019-08-24T14:15:22Z",
+    "trade_date": "2019-08-24T14:15:22Z",
+    "order_reference_id": "Ab-654321234-1628190"
+}
+Response Schema
+Name	Type	Description
+groww_order_id	string	Order id generated by Groww for an order
+trading_symbol	string	Groww specific trading symbol of the instrument
+order_status	string	Current status of the placed order
+remark	string	Remark for the order
+quantity	int	Quantity of the instrument to order
+price	int	Price of the instrument in rupees case of Limit order
+trigger_price	int	Trigger price in rupees for the order
+filled_quantity	int	Quantity of the order which has been executed.
+remaining_quantity	int	Quantity remained to be filled
+average_fill_price	int	Avg price of the order placed
+deliverable_quantity	int	The number of shares that are eligible for delivery
+amo_status	string	Status of the order placed after market (Not applicable during market hours.)
+validity	string	Validity of the order
+exchange	string	Stock exchange
+order_type	string	Order type
+transaction_type	string	Transaction type of the trade
+segment	string	Segment of the instrument such as CASH, FNO etc.
+product	string	Product type
+created_at	string(date-time)	Timestamp when the order was created in the system.
+exchange_time	string(date-time)	Timestamp when the order was processed or acknowledged by the exchange.
+trade_date	string(date-time)	Date on which trade has taken place
+order_reference_id	string	User provided reference id to track the status of an order
+
+Portfolio
+This guide describes how to get detailed information about your holdings and positions using our Python SDK.
+
+Get Holdings
+Use the get_holdings_for_user method to fetch your current holdings quickly and see all your stocks in one place.
+
+Holdings represent the user's collection of long-term equity delivery stocks. An asset in a holdings portfolio stays there indefinitely unless it is sold, delisted, or modified by the exchanges. Fundamentally, the assets in the holdings are stored in the user's DEMAT account, as processed by exchanges and clearing institutions.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+# Optional: timeout parameter (in seconds) for the API call; default is typically set by the SDK.
+holdings_response = groww.get_holdings_for_user(timeout=5)
+print(holdings_response)
+Response Payload
+All prices in rupees
+
+
+"holdings": [
+  {
+    "isin": "INE545U01014",
+    "trading_symbol": "RELIANCE",
+    "quantity": 10,
+    "average_price": 100,
+    "pledge_quantity": 2,
+    "demat_locked_quantity": 1,
+    "groww_locked_quantity": 1.5,
+    "repledge_quantity": 0.5,
+    "t1_quantity": 3,
+    "demat_free_quantity": 5,
+    "corporate_action_additional_quantity": 1,
+    "active_demat_transfer_quantity": 1
+  }
+]
+Response Schema
+Name	Type	Description
+isin	string	The ISIN (International Securities Identification number) of the symbol
+trading_symbol	string	The trading symbol of the holding
+quantity	float	The net quantity of the holding
+average_price	int	The average price of the holding
+pledge_quantity	float	The pledged quantity of the holding
+demat_locked_quantity	float	The demat locked quantity of the holding
+groww_locked_quantity	float	The Groww locked quantity of the holding
+repledge_quantity	float	The repledged quantity of the holding
+t1_quantity	float	The T1 quantity of the holding
+demat_free_quantity	float	The demat free quantity of the holding
+corporate_action_additional_quantity	int	The corporate action additional quantity of the holding
+active_demat_transfer_quantity	int	The active demat transfer quantity of the holding
+Get Positions for User
+Fetch all positions associated with your account using this get_positions_for_user method.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+user_positions_response = groww.get_positions_for_user() # returns positions of both CASH and FNO segment.
+cash_positions_response = groww.get_positions_for_user(segment=groww.SEGMENT_CASH) # returns positions of CASH segment.
+ 
+print(user_positions_response)
+Request Schema
+Name	Type	Description
+segment	string	Segment of the instrument such as CASH, FNO etc.
+*required parameters
+
+Response Payload
+All prices in rupees
+
+
+ 
+"positions": [
+  {
+    "trading_symbol": "RELIANCE",
+    "segment": "CASH",
+    "credit_quantity": 10,
+    "credit_price": 12500,
+    "debit_quantity": 5,
+    "debit_price": 12000,
+    "carry_forward_credit_quantity": 8,
+    "carry_forward_credit_price": 12300,
+    "carry_forward_debit_quantity": 3,
+    "carry_forward_debit_price": 11800,
+    "exchange": "NSE",
+    "symbol_isin": "INE123A01016",
+    "quantity": 15,
+    "product": "CNC",
+    "net_carry_forward_quantity": 10,
+    "net_price": 12400,
+    "net_carry_forward_price": 12200
+  }
+]
+Response Schema
+Name	Type	Description
+trading_symbol	string	Trading symbol of the instrument
+segment	string	Segment of the instrument such as CASH, FNO etc.
+credit_quantity	int	Quantity of credited instruments
+credit_price	int	Average price in rupees of credited instruments
+debit_quantity	int	Quantity of debited instruments
+debit_price	int	Average price in rupees of debited instruments
+carry_forward_credit_quantity	int	Quantity of carry forward credited instruments
+carry_forward_credit_price	int	Average price in rupees of carry forward credited instruments
+carry_forward_debit_quantity	int	Quantity of carry forward debited instruments
+carry_forward_debit_price	int	Average price in rupees of carry forward debited instruments
+exchange	string	Stock exchange
+symbol_isin	string	ISIN (International Securities Identification number) of the symbol
+quantity	int	Net quantity of instruments
+product	string	Product type
+net_carry_forward_quantity	int	Net carry forward quantity of instruments
+net_price	int	Net average price in rupees of instruments
+net_carry_forward_price	int	Net average price in rupees of carry forward instruments
+Get Position for Symbol
+Retrieve detailed position information for a specific symbol using this get_position_for_trading_symbol.
+
+Python SDK Usage
+
+from growwapi import GrowwAPI
+ 
+# Groww API Credentials (Replace with your actual credentials)
+API_AUTH_TOKEN = "your_token"
+ 
+# Initialize Groww API
+groww = GrowwAPI(API_AUTH_TOKEN)
+ 
+trading_symbol_position_response = groww.get_position_for_trading_symbol(trading_symbol="RELIANCE", segment=groww.SEGMENT_CASH)
+print(trading_symbol_position_response)
+Request Schema
+Name	Type	Description
+trading_symbol *	string	Trading symbol of the instrument.
+segment *	string	Segment of the instrument such as CASH, FNO etc.
+*required parameter
+
+Response Payload
+All prices in rupees
+
+
+{
+  "positions": [
+    {
+      "trading_symbol": "RELIANCE",
+      "segment": "CASH",
+      "credit_quantity": 10,
+      "credit_price": 12500,
+      "debit_quantity": 5,
+      "debit_price": 12000,
+      "carry_forward_credit_quantity": 8,
+      "carry_forward_credit_price": 12300,
+      "carry_forward_debit_quantity": 3,
+      "carry_forward_debit_price": 11800,
+      "exchange": "NSE",
+      "symbol_isin": "INE123A01016",
+      "quantity": 15,
+      "product": "CNC",
+      "net_carry_forward_quantity": 10,
+      "net_price": 12400,
+      "net_carry_forward_price": 12200
+    }
+  ]
+}
+Response Schema
+Name	Type	Description
+trading_symbol	string	Trading symbol of the instrument.
+segment	string	Segment of the instrument such as CASH, FNO etc.
+credit_quantity	int	Quantity of credited instruments
+credit_price	int	Average price in rupees of credited instruments
+debit_quantity	int	Quantity of debited instruments
+debit_price	int	Average price in rupees of debited instruments
+carry_forward_credit_quantity	int	Quantity of carry forward credited instruments
+carry_forward_credit_price	int	Average price in rupees of carry forward credited instruments
+carry_forward_debit_quantity	int	Quantity of carry forward debited instruments
+carry_forward_debit_price	int	Average price in rupees of carry forward debited instruments
+exchange	string	Stock exchange
+symbol_isin	string	ISIN (International Securities Identification number) of the symbol
+quantity	int	Net quantity of instruments
+product	string	Product type
+net_carry_forward_quantity	int	Net carry forward quantity of instruments
+net_price	int	Net average price in rupees of instruments
+net_carry_forward_price	int	Net average price in rupees of carry forward instruments
+
+
+Annexures
+The SDK uses several fixed parameters to represent various trading parameters.
+
+After Market Order Status
+Value	Description
+NA	Status not available
+PENDING	Order is pending for execution
+DISPATCHED	Order has been dispatched for execution
+PARKED	Order is parked for later execution
+PLACED	Order has been placed in the market
+FAILED	Order execution has failed
+MARKET	Order is a market order
+Exchange
+Value	Description
+BSE	Bombay Stock Exchange - Asia's oldest exchange, known for SENSEX index
+NSE	National Stock Exchange - India's largest exchange by trading volume
+Instrument Type
+Value	Description
+EQ	Equity - Represents ownership in a company
+IDX	Index - Composite value of a group of stocks representing a market
+FUT	Futures - Derivatives contract to buy/sell an asset at a future date
+CE	Call Option - Derivatives contract giving the right to buy an asset
+PE	Put Option - Derivatives contract giving the right to sell an asset
+Order Status
+Value	Description
+NEW	Order is newly created and pending for further processing
+ACKED	Order has been acknowledged by the system
+TRIGGER_PENDING	Order is waiting for a trigger event to be executed
+APPROVED	Order has been approved and is ready for execution
+REJECTED	Order has been rejected by the system
+FAILED	Order execution has failed
+EXECUTED	Order has been successfully executed
+DELIVERY_AWAITED	Order has been executed and waiting for delivery
+CANCELLED	Order has been cancelled
+CANCELLATION_REQUESTED	Request to cancel the order has been initiated
+MODIFICATION_REQUESTED	Request to modify the order has been initiated
+COMPLETED	Order has been completed
+Order Type
+Value	Description
+LIMIT	Specify exact price, may not get filled immediately but ensures price control
+MARKET	Immediate execution at best available price, no price guarantee
+SL	Stop Loss - Protection order that triggers at specified price to limit losses
+SL_M	Stop Loss Market - Market order triggered at specified price to limit losses
+Product
+Value	Description
+CNC	Cash and Carry - For delivery-based equity trading with full upfront payment
+MIS	Margin Intraday Square-off - Higher leverage but must close by day end
+NRML	Regular margin trading allowing overnight positions with standard leverage
+Segment
+Value	Description
+CASH	Regular equity market for trading stocks with delivery option
+FNO	Futures and Options segment for trading derivatives contracts
+Transaction Type
+Value	Description
+BUY	Long position - Profit from price increase, loss from price decrease
+SELL	Short position - Profit from price decrease, loss from price increase
+Validity
+Value	Description
+DAY	Valid until market close on the same trading day
+
+
+Exceptions
+The SDK provides custom exceptions to handle various error scenarios.
+
+Below are the custom exceptions and their business context. These exceptions are located in the growwapi.groww.exceptions module.
+
+GrowwBaseException
+This is the base class for all exceptions in the Groww SDK. It captures the general error message.
+
+Expect this exception as a generic catch-all for errors that do not fall into more specific categories.
+
+Attributes:
+
+msg (str): The error message associated with the exception.
+GrowwAPIException
+This exception is raised for client-related errors, such as invalid requests or authentication failures.
+
+Expect this exception to handle errors related to client-side issues, such as invalid API keys or malformed requests.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPIAuthenticationException
+This exception is raised when authentication with the Groww API fails.
+
+Expect this exception to handle scenarios where the SDK fails to authenticate with the Groww API, indicating issues with the API key or authentication process.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPIAuthorisationException
+This exception is raised when authorization with the Groww API fails.
+
+Expect this exception to handle scenarios where the SDK fails to authorize with the Groww API, indicating issues with the API key or access permissions.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPIBadRequestException
+This exception is raised when a bad request is made to the Groww API.
+
+Expect this exception to handle scenarios where the SDK sends a malformed request to the API, indicating issues with the request payload or parameters.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPINotFoundException
+This exception is raised when the requested resource is not found on the Groww API.
+
+Expect this exception to handle scenarios where the SDK requests a resource that does not exist, indicating a logical error in the code or an outdated reference.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPIRateLimitException
+This exception is raised when the rate limit for the Groww API is exceeded.
+
+Expect this exception to handle scenarios where the SDK makes too many requests to the API within a short period, indicating a need to throttle the request rate.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwAPITimeoutException
+This exception is raised when a request to the Groww API times out.
+
+Expect this exception to handle scenarios where the API request takes too long to respond, indicating potential network issues or server overload.
+
+Attributes:
+
+msg (str): The error message.
+code (str): The error code.
+GrowwFeedException
+This exception is raised for errors related to the Groww feed.
+
+Expect this exception to handle errors related to the feed, such as connection issues or subscription failures.
+
+Attributes:
+
+msg (str): The error message.
+GrowwFeedConnectionException
+This exception is raised when a connection to the Groww feed fails.
+
+Expect this exception to handle errors related to establishing or maintaining a connection to the Groww feed, which is crucial for receiving live market data and updates.
+
+Attributes:
+
+msg (str): The error message.
+GrowwFeedNotSubscribedException
+This exception is raised when trying to access data from a feed that has not been subscribed to. A subscription is required to receive data from the feed.
+
+Expect this exception to handle scenarios where the SDK attempts to retrieve data from a feed that has not been subscribed to, indicating a logical error in the code.
+
+Attributes:
+
+msg (str): The error message.
+topic (str): The topic that must be subscribed to receive messages.
