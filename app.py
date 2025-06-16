@@ -413,11 +413,16 @@ def poll_and_copy_trades():
                 try:
                     rest = {k: v for k, v in credentials.items() if k != "access_token"}
                     if master_broker == "aliceblue":
+                        rest = {
+                            k: v
+                            for k, v in rest.items()
+                            if k not in ["api_key", "device_number"]
+                        }
                         master_api = BrokerClass(
                             master.get("client_id"),
                             credentials.get("api_key"),
                             device_number=credentials.get("device_number"),
-                            **rest
+                            **rest,
                         )
                     else:
                         master_api = BrokerClass(
@@ -493,11 +498,16 @@ def poll_and_copy_trades():
                             ChildBrokerClass = get_broker_class(child_broker)
                             rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
                             if child_broker == "aliceblue":
+                                rest_child = {
+                                    k: v
+                                    for k, v in rest_child.items()
+                                    if k not in ["api_key", "device_number"]
+                                }
                                 child_api = ChildBrokerClass(
                                     child.get("client_id"),
                                     child_credentials.get("api_key"),
                                     device_number=child_credentials.get("device_number"),
-                                    **rest_child
+                                    **rest_child,
                                 )
                             else:
                                 child_api = ChildBrokerClass(
