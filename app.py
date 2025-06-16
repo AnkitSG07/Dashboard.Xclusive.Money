@@ -558,7 +558,7 @@ def poll_and_copy_trades():
                         ).upper()
                         price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
                          # --- Map values between different broker conventions ---
-                        if child_broker == "zerodha":
+                        if child_broker in ("zerodha", "aliceblue"):
                             exchange = {
                                 "NSE_EQ": "NSE",
                                 "BSE_EQ": "BSE",
@@ -593,15 +593,18 @@ def poll_and_copy_trades():
                                 )
                             else:
                                 tradingsymbol = mapping_child.get("tradingsymbol", symbol)
-                                response = child_api.place_order(
-                                    tradingsymbol=tradingsymbol,
-                                    exchange=exchange,
-                                    transaction_type=transaction_type,
-                                    quantity=copied_qty,
-                                    order_type=order_type,
-                                    product=product_type,
-                                    price=price or 0  # Always pass price, even if 0 for MARKET
-                                )
+                                extra_args = {
+                                    "tradingsymbol": tradingsymbol,
+                                    "exchange": exchange,
+                                    "transaction_type": transaction_type,
+                                    "quantity": copied_qty,
+                                    "order_type": order_type,
+                                    "product": product_type,
+                                    "price": price or 0,  # Always pass price, even if 0 for MARKET
+                                }
+                                if child_broker == "aliceblue":
+                                    extra_args["symbol_id"] = mapping_child.get("symbol_id")
+                                response = child_api.place_order(**extra_args)
 
                             if isinstance(response, dict) and response.get("status") == "failure":
                                 error_msg = response.get("error") or response.get("remarks") or "Unknown error"
