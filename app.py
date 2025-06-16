@@ -46,6 +46,7 @@ BROKER_STATUS_URLS = {
     "aliceblue": "https://ant.aliceblueonline.com",
     "finvasia": "https://api.shoonya.com",
     "fyers": "https://api.fyers.in",
+    "groww": "https://groww.in",
 }
 
 
@@ -151,7 +152,11 @@ def broker_api(obj):
         api_key = rest.pop("api_key", None)
         imei = rest.pop("imei", "abc1234") or "abc1234"
         return BrokerClass(client_id, password, totp_secret, vendor_code, api_key, imei, **rest)
+
+    elif broker == "groww":
+        return BrokerClass(client_id, access_token, **rest)
     return BrokerClass(client_id, access_token, **rest)
+    
     
 
 def get_opening_balance_for_account(acc):
@@ -1381,6 +1386,12 @@ def check_credentials():
                 api_key=credentials['api_key'],
                 imei=imei
             )
+
+        elif broker == 'groww':
+            access_token = credentials.get('access_token')
+            if not access_token:
+                return jsonify({'error': 'Missing Access Token'}), 400
+            broker_obj = BrokerClass(client_id, access_token)
         else:
             # For other brokers, assume access_token based authentication
             access_token = credentials.get('access_token')
@@ -1482,6 +1493,12 @@ def add_account():
                 api_key=credentials['api_key'],
                 imei=imei
             )
+
+        elif broker == 'groww':
+            access_token = credentials.get('access_token')
+            if not access_token:
+                return jsonify({'error': 'Missing Access Token'}), 400
+            broker_obj = BrokerClass(client_id, access_token)
         else:
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
