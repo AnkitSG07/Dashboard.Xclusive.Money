@@ -454,7 +454,13 @@ def poll_and_copy_trades():
                 children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
 
                 for order in order_list:
-                    order_id = order.get("orderId") or order.get("order_id")
+                    order_id = (
+                        order.get("orderId")
+                        or order.get("order_id")
+                        or order.get("NOrdNo")
+                        or order.get("nestOrderNumber")
+                        or order.get("orderNumber")
+                    )
                     if not order_id:
                         continue
 
