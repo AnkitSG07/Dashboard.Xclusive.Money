@@ -1,22 +1,31 @@
 import pyotp
-from shoonya import ShoonyaApiPy
+
+# Shoonya API wrapper import varies by package version
+try:
+    from shoonya import ShoonyaApiPy  # type: ignore
+except Exception:  # pragma: no cover - fallback for older packages
+    try:
+        from shoonya.apis import ShoonyaApiPy  # type: ignore
+    except Exception:
+        from shoonya import Shoonya as ShoonyaApiPy  # type: ignore
 from .base import BrokerBase
 
 class FinvasiaBroker(BrokerBase):
-    def __init__(self, client_id, password, totp_secret, vendor_code, api_key, imei="abc1234", **kwargs):
+    def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
         super().__init__(client_id, "", **kwargs)
-        self.client_id = client_id
         self.password = password
         self.totp_secret = totp_secret
         self.vendor_code = vendor_code
         self.api_key = api_key
-        self.client_id = client_id
-        self.password = password
-        self.totp_secret = totp_secret
-        self.vendor_code = vendor_code
-        self.api_key = api_key
+        self.imei = imei
+        self.api = ShoonyaApiPy()
+        self.session = None
+        self._last_auth_error = None
+        if all([password, totp_secret, vendor_code, api_key]):
+            self.login()
 
-     def login(self):
+    def login(self):
+        """Authenticate to Shoonya using the stored credentials."""
         totp = pyotp.TOTP(self.totp_secret).now()
         ret = self.api.login(
             userid=self.client_id,
@@ -27,15 +36,26 @@ class FinvasiaBroker(BrokerBase):
             imei=self.imei,
         )
         if not ret or ret.get("stat") != "Ok":
-            raise Exception(ret.get("emsg", "Finvasia login failed"))
+            msg = ret.get("emsg", "Finvasia login failed") if isinstance(ret, dict) else "Finvasia login failed"
+            if "expir" in msg.lower():
+                self._last_auth_error = "API key expired. Please regenerate API key from Prism and retry."
+            else:
+                self._last_auth_error = "Login failed. Please check your password, TOTP, API key, or vendor code."
+            raise Exception(self._last_auth_error)
         self.session = ret
+        self._last_auth_error = None
 
 
     def check_token_valid(self):
         try:
             resp = self.api.get_limits()
-            return resp.get("stat") == "Ok"
-        except Exception:
+            if resp.get("stat") == "Ok":
+                self._last_auth_error = None
+                return True
+            self._last_auth_error = resp.get("emsg") or resp.get("stat")
+            return False
+        except Exception as e:
+            self._last_auth_error = str(e)
             return False
 
     def get_opening_balance(self):
@@ -66,3 +86,6 @@ class FinvasiaBroker(BrokerBase):
 
     def get_positions(self):
         return self.api.get_positions()
+
+    def last_auth_error(self):
+        return self._last_auth_error

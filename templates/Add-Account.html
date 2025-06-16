@@ -218,10 +218,10 @@ window.pageScripts["Add-Account"] = function() {
   finvasia: [
     { label: "Client ID", name: "client_id", type: "text" },
     { label: "Password", name: "password", type: "password" },
-    { label: "TOTP Secret Key", name: "totp_secret", type: "text", tip: "Get Vendor Code and API Key from Finvasia Prism backoffice (Profile \u2192 API Key section). Generate TOTP Secret in Shoonya (Profile \u2192 Security \u2192 TOTP), scan the QR with Google Authenticator, and copy the secret key here." },
-    { label: "Vendor Code (from Prism)", name: "vendor_code", type: "text" },
-    { label: "API Key (API Secret, from Prism)", name: "api_key", type: "text" },
-    { label: "IMEI (default: abc1234)", name: "imei", type: "text", value: "abc1234" },
+    { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya \u2192 Profile \u2192 Security \u2192 TOTP. Do not enter the 6-digit code." },
+    { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
+    { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
+    { label: "IMEI", name: "imei", type: "text", value: "abc1234", tip: "Use the IMEI registered in Prism (default 'abc1234')." },
     { label: "Email Id (optional)", name: "email", type: "text" },
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
