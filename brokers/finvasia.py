@@ -1,5 +1,12 @@
 import pyotp
-from shoonya import ShoonyaApiPy
+# Shoonya API wrapper import varies by package version
+try:
+    from shoonya import ShoonyaApiPy  # type: ignore
+except Exception:  # pragma: no cover - fallback for older packages
+    try:
+        from shoonya.apis import ShoonyaApiPy  # type: ignore
+    except Exception:
+        from shoonya import Shoonya as ShoonyaApiPy  # type: ignore
 from .base import BrokerBase
 
 class FinvasiaBroker(BrokerBase):
