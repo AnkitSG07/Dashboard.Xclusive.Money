@@ -294,6 +294,7 @@ def clean_response_message(response):
             response.get("error"),
             response.get("errorMessage"),
             response.get("error_message"),
+            response.get("emsg"),
             response.get("message"),
             response.get("reason"),
         ]
