@@ -59,6 +59,10 @@
       <div>Alice Blue</div>
     </div>
     <div class="text-center">
+      <img src="/static/images/groww.png" class="broker-icon" data-broker="groww" title="Groww" />
+      <div>Groww</div>
+    </div>
+    <div class="text-center">
       <img src="/static/images/fyers.png" class="broker-icon" data-broker="fyers" title="Fyers" />
       <div>Fyers</div>
     </div>
@@ -228,6 +232,14 @@ window.pageScripts["Add-Account"] = function() {
     { label: "Email Id (optional)", name: "email", type: "text" },
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
+
+  groww: [
+    { label: "Groww Client ID", name: "client_id", type: "text" },
+    { label: "Access Token", name: "access_token", type: "password" },
+    { label: "Email Id (optional)", name: "email", type: "text" },
+    { label: "Mobile no (optional)", name: "mobile", type: "text" }
+  ],
+          
   aliceblue: [
     { label: "Alice Blue Client ID", name: "client_id", type: "text" },
     { label: "API Key", name: "api_key", type: "text" },
