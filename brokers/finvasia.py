@@ -76,6 +76,20 @@ class FinvasiaBroker(BrokerBase):
 
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, **kwargs):
         product_code = self._normalize_product(product)
+        print("Finvasia place_order params:", dict(
+            buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
+            product_type=product_code,
+            exchange=exchange,
+            tradingsymbol=tradingsymbol,
+            quantity=int(quantity),
+            discloseqty=0,
+            price_type=order_type,
+            price=float(price if price is not None else 0),
+            trigger_price=kwargs.get("trigger_price"),
+            retention="DAY",
+            amo="NO",
+            remarks=kwargs.get("remarks"),
+        ))
         try:
             resp = self.api.place_order(
                 buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
