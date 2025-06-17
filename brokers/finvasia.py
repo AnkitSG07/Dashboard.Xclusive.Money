@@ -22,6 +22,15 @@ class FinvasiaBroker(BrokerBase):
         if all([password, totp_secret, vendor_code, api_key]):
             self.login()
 
+    def _is_logged_in(self):
+        """Check if the underlying Shoonya API is logged in."""
+        if hasattr(self.api, "is_logged_in"):
+            try:
+                return self.api.is_logged_in()
+            except Exception:
+                pass
+        return self.session is not None
+
     def login(self):
         try:
             totp = pyotp.TOTP(self.totp_secret).now()
@@ -88,9 +97,9 @@ class FinvasiaBroker(BrokerBase):
                          to construct a specific tradingsymbol format like 'NSE|25'), but NOT
                          passed directly to ShoonyaApiPy's place_order method.
         """
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in."}
 
         product_code = self._normalize_product(product)
@@ -219,9 +228,9 @@ class FinvasiaBroker(BrokerBase):
 
     def cancel_order(self, order_id):
         """Cancels an order."""
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in for cancellation."}
         
         try:
@@ -255,9 +264,9 @@ class FinvasiaBroker(BrokerBase):
 
     def get_order_list(self):
         """Retrieves the list of all orders."""
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in for order list."}
         try:
             resp = self.api.get_order_book()
@@ -291,9 +300,9 @@ class FinvasiaBroker(BrokerBase):
 
     def get_positions(self):
         """Retrieves current positions."""
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in for positions."}
         try:
             resp = self.api.get_positions()
@@ -327,9 +336,9 @@ class FinvasiaBroker(BrokerBase):
 
     def get_holdings(self):
         """Retrieves current holdings."""
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in for holdings."}
         try:
             resp = self.api.get_holdings()
@@ -363,9 +372,9 @@ class FinvasiaBroker(BrokerBase):
 
     def get_limits(self):
         """Retrieves margin limits."""
-        if not self.api.is_logged_in():
+        if not self._is_logged_in():
             self.login()
-            if not self.api.is_logged_in():
+            if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in for limits."}
         try:
             resp = self.api.get_limits()
