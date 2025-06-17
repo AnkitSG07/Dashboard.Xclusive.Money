@@ -1,6 +1,7 @@
+```python
 import pyotp
 from api_helper import ShoonyaApiPy  # From ShoonyaApi-py cloned from GitHub (AnkitSG07/ShoonyaApi-py)
-from .base import BrokerBase # Assuming BrokerBase is in the same package/module
+from .base import BrokerBase
 
 class FinvasiaBroker(BrokerBase):
     """
@@ -9,9 +10,8 @@ class FinvasiaBroker(BrokerBase):
         - client_id, password, totp_secret, vendor_code, api_key, imei
     """
     def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
-        kwargs.pop("access_token", None) # Remove access_token as Finvasia doesn't use it directly
-        super().__init__(client_id, "", **kwargs) # Pass an empty string for access_token as Finvasia uses susertoken internally
-        self.client_id = client_id # Store client_id for set_session
+        kwargs.pop("access_token", None) # Remove access_token if present from kwargs
+        super().__init__(client_id, "", **kwargs)
         self.password = password
         self.totp_secret = totp_secret
         self.vendor_code = vendor_code
@@ -20,122 +20,72 @@ class FinvasiaBroker(BrokerBase):
         self.api = ShoonyaApiPy()
         self.session = None
         self._last_auth_error = None
-        
-        # Initialize API with session details if provided in kwargs (e.g., for persistent session)
-        if kwargs.get("api_session"):
-            self.session = kwargs["api_session"]
-            # Extract susertoken from the session object returned by a previous login
-            susertoken_val = self.session.get('susertoken') or self.session.get('jData', {}).get('susertoken')
-            
-            if susertoken_val and self.password: # Ensure password is also available for set_session
-                self.api.set_session(userid=self.client_id, password=self.password, usertoken=susertoken_val)
-                if not self.check_token_valid(): # Verify if the provided session token is still valid
-                    print("Provided API session token is invalid, attempting re-login.")
-                    if all([password, totp_secret, vendor_code, api_key]):
-                        self.login()
-                    else:
-                        raise Exception("Invalid session and insufficient credentials to re-login.")
-            else:
-                raise Exception("Invalid api_session provided or password missing for Finvasia set_session.")
-        elif all([password, totp_secret, vendor_code, api_key]):
+        if all([password, totp_secret, vendor_code, api_key]):
             self.login()
-        else:
-            raise Exception("Insufficient credentials for Finvasia broker initialization. "
-                            "Please provide password, TOTP secret, vendor code, and API key or a valid api_session.")
 
     def login(self):
-        totp = pyotp.TOTP(self.totp_secret).now()
         try:
+            totp = pyotp.TOTP(self.totp_secret).now()
             ret = self.api.login(
                 userid=self.client_id,
                 password=self.password,
                 twoFA=totp,
                 vendor_code=self.vendor_code,
                 api_secret=self.api_key,
-                imei=self.imei,
+                imei=self.imei
             )
-        except Exception as e:
-            # Catch network errors or exceptions from the ShoonyaApiPy login call
-            self._last_auth_error = f"Network or API error during login: {e}"
-            raise Exception(self._last_auth_error)
-
-        if not isinstance(ret, dict) or ret.get("stat") != "Ok":
-            msg = ret.get("emsg", "Finvasia login failed: Unknown error") if isinstance(ret, dict) else "Finvasia login failed: No valid response received."
-            if "expir" in msg.lower() or "token invalid" in msg.lower():
-                self._last_auth_error = "API key or session expired/invalid. Please regenerate API key from Prism or ensure credentials are correct."
-            elif "not match" in msg.lower() or "incorrect" in msg.lower():
-                 self._last_auth_error = "Login failed: Credentials (password, TOTP, API key, or vendor code) are incorrect."
-            else:
-                self._last_auth_error = f"Finvasia login failed: {msg}"
-            raise Exception(self._last_auth_error)
-        
-        self.session = ret # Store the full session response
-        # **CRITICAL FIX:** Correctly pass userid, password, and usertoken to set_session
-        susertoken_val = self.session.get('susertoken') or self.session.get('jData', {}).get('susertoken')
-        if susertoken_val:
-            self.api.set_session(userid=self.client_id, password=self.password, usertoken=susertoken_val)
-        else:
-            raise Exception("Finvasia login successful but susertoken not found in response, cannot set session.")
-
-        self._last_auth_error = None
-        print(f"Successfully logged in to Finvasia for {self.client_id}.")
-
-    def check_token_valid(self):
-        """Checks if the current session token is valid by making a simple API call."""
-        try:
-            # Use get_limits which is a simple, common call to validate session
-            resp = self.api.get_limits() 
-            if resp and resp.get("stat") == "Ok":
+            if ret and ret.get("stat") == "Ok":
+                self.session = ret # Store the session info if needed, or just status
                 self._last_auth_error = None
-                return True
-            self._last_auth_error = resp.get("emsg", "Session invalid (no specific error message).") if resp else "No response from get_limits API."
-            return False
+                print(f"Finvasia login successful for {self.client_id}")
+                return {"status": "success", "message": "Login successful"}
+            else:
+                error_msg = ret.get("emsg", "Unknown login error") if ret else "No response from login API"
+                self._last_auth_error = error_msg
+                print(f"Finvasia login failed for {self.client_id}: {error_msg}")
+                return {"status": "failure", "error": error_msg}
         except Exception as e:
-            self._last_auth_error = f"Error checking token validity: {e}"
-            return False
+            error_msg = f"Exception during Finvasia login: {e}"
+            self._last_auth_error = error_msg
+            print(error_msg)
+            return {"status": "failure", "error": error_msg}
 
-    def get_opening_balance(self):
-        """Returns the full limits data, as it contains more than just cash."""
-        data = self.api.get_limits()
-        if data and data.get("stat") == "Ok":
-            return {"status": "success", **data}
-        return {"status": "failure", "error": data.get("emsg", "Failed to retrieve limits.") if data else "No response from get_limits."}
-
-    def _normalize_product(self, product: str) -> str:
-        """Convert common product names to Finvasia codes."""
-        if not product:
-            return ""
-        p = str(product).strip().upper()
-        mapping = {
-            "MIS": "M",
-            "INTRADAY": "M",
-            "CNC": "C",
-            "DELIVERY": "C",
-            "NRML": "H",
-            "NORMAL": "H",
-        }
-        return mapping.get(p, p)
+    def _normalize_product(self, product_type):
+        """Normalize product type for Finvasia API."""
+        product_type = product_type.upper()
+        if product_type in ["MIS", "INTRA"]:
+            return "M"  # Margin Intraday Square Off
+        elif product_type in ["CNC", "CARRYFORWARD"]:
+            return "C"  # Cash & Carry / Delivery
+        elif product_type in ["NRML", "NORMAL"]:
+            return "H"  # Normal/Holding (for F&O carryforward)
+        return product_type # Return as is if not in common aliases
 
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, token=None, **kwargs):
         """
         Places an order with Finvasia.
         Args:
-            tradingsymbol (str): The trading symbol (e.g., "IDEA").
+            tradingsymbol (str): The trading symbol (e.g., "ADANIENT-EQ").
             exchange (str): The exchange (e.g., "NSE").
             transaction_type (str): "BUY" or "SELL".
             quantity (int): Order quantity.
             order_type (str): "MKT", "LMT", "SL", "SL-M".
             product (str): "CNC", "MIS", "NRML" (will be normalized to "C", "M", "H").
             price (float): Price for LIMIT/SL orders. **Assumed to be in Rupees; converted to Paise.**
-            token (str): Finvasia's unique instrument token (e.g., "926241" for IDEA-EQ). **REQUIRED for Finvasia.**
+            token (str): Finvasia's unique instrument token (e.g., "25"). This parameter
+                         is accepted by this wrapper for potential internal use (e.g., if you need
+                         to construct a specific tradingsymbol format like 'NSE|25'), but NOT
+                         passed directly to ShoonyaApiPy's place_order method.
         """
-        if token is None:
-            return {"status": "failure", "error": "Finvasia requires 'token' for order placement."}
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in."}
 
         product_code = self._normalize_product(product)
         
-        # **CRITICAL: Convert price to paise**
-        price_in_paise = int(float(price) * 100) if order_type.upper() in ["LMT", "SL"] and price is not None else 0
+        # Convert price to paise for Finvasia API
+        price_in_paise = int(float(price) * 100) if order_type.upper() in ["LMT", "SL", "SL-M"] and price is not None else 0
         
         trigger_price_in_paise = 0
         if kwargs.get("trigger_price") is not None:
@@ -145,16 +95,17 @@ class FinvasiaBroker(BrokerBase):
             buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
             product_type=product_code,
             exchange=exchange,
-            tradingsymbol=tradingsymbol,
+            tradingsymbol=tradingsymbol, # Use the actual tradingsymbol (e.g., "ADANIENT-EQ")
             quantity=int(quantity),
-            discloseqty=0, # Typically 0 for most orders
+            discloseqty=0, # Typically 0 for most orders unless specified
             price_type=order_type,
             price=price_in_paise,
             trigger_price=trigger_price_in_paise,
-            retention="DAY", # or "IOC"
-            amo="NO", # After Market Order
-            remarks=kwargs.get("remarks"),
-            token=token # **Pass the Finvasia instrument token**
+            retention="DAY", # "DAY", "IOC", "GTD", etc.
+            amo="NO", # After Market Order: "YES" or "NO"
+            remarks=kwargs.get("remarks", ""),
+            # token parameter is NOT passed directly to self.api.place_order
+            # as ShoonyaApiPy handles instrument identification via tradingsymbol and exchange.
         )
         print("Finvasia place_order params:", order_params)
 
@@ -162,12 +113,15 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.place_order(**order_params)
         except Exception as e:
             # Attempt re-login on session expiry and retry the order
-            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e):
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
                 print(f"Session expired or invalid. Attempting re-login for {self.client_id}...")
                 try:
-                    self.login()
-                    print("Re-login successful. Retrying order.")
-                    resp = self.api.place_order(**order_params) # Retry order after successful re-login
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying order.")
+                        resp = self.api.place_order(**order_params) # Retry order after successful re-login
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
                 except Exception as retry_e:
                     msg = f"Re-login failed or order retry failed after re-login: {retry_e}"
                     return {"status": "failure", "error": msg}
@@ -175,14 +129,14 @@ class FinvasiaBroker(BrokerBase):
                 msg = str(e) if str(e) else "Unknown error during place_order"
                 return {"status": "failure", "error": msg}
         
-        # Handle cases where ShoonyaApiPy might return None for failed calls
+        # Handle cases where ShoonyaApiPy might return None for failed calls or unexpected responses
         if resp is None:
-            return {"status": "failure", "error": "No response received from Finvasia API (place_order)."}
+            return {"status": "failure", "error": "No response received from Finvasia API (place_order). Check API status."}
 
         if isinstance(resp, dict):
             if resp.get("stat") == "Ok":
                 # Finvasia returns orderno on success
-                return {"status": "success", "order_id": resp.get("norenordno"), **resp}
+                return {"status": "success", "order_id": resp.get("norenordno"), "message": resp.get("emsg", "Order placed successfully."), **resp}
             return {"status": "failure", "error": resp.get("emsg", "Order placement failed with unknown error."), **resp}
 
         return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
@@ -198,41 +152,48 @@ class FinvasiaBroker(BrokerBase):
             new_price (float, optional): New price for LIMIT/SL orders. **Assumed to be in Rupees; converted to Paise.**
             new_order_type (str, optional): New order type ("MKT", "LMT", "SL", "SL-M").
             new_trigger_price (float, optional): New trigger price. **Assumed to be in Rupees; converted to Paise.**
-            token (str): Finvasia's unique instrument token. **REQUIRED.**
+            token (str): Finvasia's unique instrument token. Accepted by this method,
+                         but NOT passed directly to ShoonyaApiPy's modify_order.
         """
-        if token is None:
-            return {"status": "failure", "error": "Finvasia requires 'token' for order modification."}
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for modification."}
 
         modify_params = {
             "orderno": order_id,
             "exchange": exchange,
             "tradingsymbol": tradingsymbol,
-            "token": token, # **Pass the Finvasia instrument token**
+            # token parameter is NOT passed directly to self.api.modify_order
         }
         if new_quantity is not None:
             modify_params["newquantity"] = int(new_quantity)
         if new_price is not None:
-            # **CRITICAL: Convert price to paise for modify**
+            # Convert new_price to paise for modify_order
             modify_params["newprice"] = int(float(new_price) * 100)
         if new_order_type is not None:
-            modify_params["newprice_type"] = new_order_type
+            modify_params["newprice_type"] = new_order_type # This parameter is named newprice_type in Shoonya
         if new_trigger_price is not None:
-            # **CRITICAL: Convert trigger price to paise for modify**
+            # Convert new_trigger_price to paise for modify_order
             modify_params["newtriggerprice"] = int(float(new_trigger_price) * 100)
         
-        # Add other potential modification parameters if needed (e.g., new_product_type)
-        # For now, product_type is usually not changed in modify, only price/qty/order_type
+        # remarks for modify if applicable
+        if kwargs.get("remarks"):
+            modify_params["remarks"] = kwargs["remarks"]
 
         print("Finvasia modify_order params:", modify_params)
         try:
             resp = self.api.modify_order(**modify_params)
         except Exception as e:
-            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e):
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
                 print(f"Session expired or invalid during modify. Attempting re-login for {self.client_id}...")
                 try:
-                    self.login()
-                    print("Re-login successful. Retrying modify order.")
-                    resp = self.api.modify_order(**modify_params)
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying modify order.")
+                        resp = self.api.modify_order(**modify_params)
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
                 except Exception as retry_e:
                     msg = f"Re-login failed or modify retry failed after re-login: {retry_e}"
                     return {"status": "failure", "error": msg}
@@ -241,92 +202,197 @@ class FinvasiaBroker(BrokerBase):
                 return {"status": "failure", "error": msg}
         
         if resp is None:
-            return {"status": "failure", "error": "No response received from Finvasia API (modify_order)."}
+            return {"status": "failure", "error": "No response received from Finvasia API (modify_order). Check API status."}
 
         if isinstance(resp, dict):
             if resp.get("stat") == "Ok":
-                return {"status": "success", "order_id": resp.get("norenordno"), **resp}
+                return {"status": "success", "order_id": resp.get("norenordno"), "message": resp.get("emsg", "Order modified successfully."), **resp}
             return {"status": "failure", "error": resp.get("emsg", "Order modification failed with unknown error."), **resp}
         
         return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
 
-
-    def get_order_list(self):
-        """Fetches the full order book."""
-        resp = self.api.get_order_book()
-        if resp and resp.get("stat") == "Ok":
-            return {"status": "success", "orders": resp.get("items", [])} # Finvasia returns a list of orders in "items" key
-        return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order list.") if resp else "No response from get_order_book."}
-
-    def get_order_status(self, order_id):
-        """
-        Fetches the status of a specific order.
-        Note: Finvasia's get_order_book returns all orders. You might need to filter or
-        if a direct single-order status API is available, use that.
-        For now, this fetches all and filters.
-        """
-        order_book_resp = self.get_order_list()
-        if order_book_resp.get("status") == "success":
-            for order in order_book_resp.get("orders", []):
-                if order.get("norenordno") == str(order_id): # Ensure type match
-                    return {"status": "success", "order": order}
-            return {"status": "failure", "error": f"Order with ID {order_id} not found."}
-        return {"status": "failure", "error": order_book_resp.get("error", "Failed to retrieve order status.")}
-
-    def get_trade_list_for_order(self, order_id):
-        """
-        Fetches trade details for a specific order.
-        Note: ShoonyaApiPy's get_trade_book returns all trades. This method filters for a specific order.
-        """
-        trade_book_resp = self.api.get_trade_book()
-        if trade_book_resp and trade_book_resp.get("stat") == "Ok":
-            trades = [trade for trade in trade_book_resp.get("items", []) if trade.get("norenordno") == str(order_id)]
-            if trades:
-                return {"status": "success", "trades": trades}
-            return {"status": "success", "trades": [], "message": f"No trades found for order ID {order_id}."}
-        return {"status": "failure", "error": trade_book_resp.get("emsg", "Failed to retrieve trade list.") if trade_book_resp else "No response from get_trade_book."}
-
     def cancel_order(self, order_id):
-        """Cancels a specific order by its order ID."""
+        """Cancels an order."""
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for cancellation."}
+        
         try:
             resp = self.api.cancel_order(orderno=order_id)
         except Exception as e:
-            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e):
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
                 print(f"Session expired or invalid during cancel. Attempting re-login for {self.client_id}...")
                 try:
-                    self.login()
-                    print("Re-login successful. Retrying cancel order.")
-                    resp = self.api.cancel_order(orderno=order_id)
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying cancel order.")
+                        resp = self.api.cancel_order(orderno=order_id)
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
                 except Exception as retry_e:
                     msg = f"Re-login failed or cancel retry failed after re-login: {retry_e}"
                     return {"status": "failure", "error": msg}
             else:
                 msg = str(e) if str(e) else "Unknown error during cancel_order"
                 return {"status": "failure", "error": msg}
-
+            
         if resp is None:
             return {"status": "failure", "error": "No response received from Finvasia API (cancel_order)."}
 
         if isinstance(resp, dict):
             if resp.get("stat") == "Ok":
-                return {"status": "success", "order_id": order_id, **resp}
+                return {"status": "success", "message": resp.get("emsg", "Order cancelled successfully."), **resp}
             return {"status": "failure", "error": resp.get("emsg", "Order cancellation failed with unknown error."), **resp}
         
         return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
 
+    def get_order_list(self):
+        """Retrieves the list of all orders."""
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for order list."}
+        try:
+            resp = self.api.get_order_book()
+        except Exception as e:
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
+                print(f"Session expired or invalid during get_order_book. Attempting re-login for {self.client_id}...")
+                try:
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying get_order_book.")
+                        resp = self.api.get_order_book()
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
+                except Exception as retry_e:
+                    msg = f"Re-login failed or get_order_book retry failed after re-login: {retry_e}"
+                    return {"status": "failure", "error": msg}
+            else:
+                msg = str(e) if str(e) else "Unknown error during get_order_book"
+                return {"status": "failure", "error": msg}
+
+        if resp is None:
+            return {"status": "failure", "error": "No response received from Finvasia API (get_order_book)."}
+
+        if isinstance(resp, list): # Order book is usually a list of orders
+            # Optionally, you can transform the order structure to a common format here
+            return {"status": "success", "orders": resp}
+        elif isinstance(resp, dict) and resp.get("stat") == "Not_Ok":
+            return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order book.")}
+
+        return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
+
     def get_positions(self):
-        """Fetches all open positions."""
-        resp = self.api.get_positions()
-        if resp and resp.get("stat") == "Ok":
-            return {"status": "success", "positions": resp.get("items", [])} # Positions are in "items" list
-        return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve positions.") if resp else "No response from get_positions."}
+        """Retrieves current positions."""
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for positions."}
+        try:
+            resp = self.api.get_positions()
+        except Exception as e:
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
+                print(f"Session expired or invalid during get_positions. Attempting re-login for {self.client_id}...")
+                try:
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying get_positions.")
+                        resp = self.api.get_positions()
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
+                except Exception as retry_e:
+                    msg = f"Re-login failed or get_positions retry failed after re-login: {retry_e}"
+                    return {"status": "failure", "error": msg}
+            else:
+                msg = str(e) if str(e) else "Unknown error during get_positions"
+                return {"status": "failure", "error": msg}
+            
+        if resp is None:
+            return {"status": "failure", "error": "No response received from Finvasia API (get_positions)."}
+
+        if isinstance(resp, list): # Positions list
+            # Optionally, transform position structure
+            return {"status": "success", "positions": resp}
+        elif isinstance(resp, dict) and resp.get("stat") == "Not_Ok":
+            return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve positions.")}
+        
+        return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
 
     def get_holdings(self):
-        """Fetches all holdings."""
-        resp = self.api.get_holdings()
-        if resp and resp.get("stat") == "Ok":
-            return {"status": "success", "holdings": resp.get("items", [])} # Holdings are in "items" list
-        return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve holdings.") if resp else "No response from get_holdings."}
+        """Retrieves current holdings."""
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for holdings."}
+        try:
+            resp = self.api.get_holdings()
+        except Exception as e:
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
+                print(f"Session expired or invalid during get_holdings. Attempting re-login for {self.client_id}...")
+                try:
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying get_holdings.")
+                        resp = self.api.get_holdings()
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
+                except Exception as retry_e:
+                    msg = f"Re-login failed or get_holdings retry failed after re-login: {retry_e}"
+                    return {"status": "failure", "error": msg}
+            else:
+                msg = str(e) if str(e) else "Unknown error during get_holdings"
+                return {"status": "failure", "error": msg}
+            
+        if resp is None:
+            return {"status": "failure", "error": "No response received from Finvasia API (get_holdings)."}
+
+        if isinstance(resp, list): # Holdings list
+            # Optionally, transform holdings structure
+            return {"status": "success", "holdings": resp}
+        elif isinstance(resp, dict) and resp.get("stat") == "Not_Ok":
+            return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve holdings.")}
+        
+        return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
+
+    def get_limits(self):
+        """Retrieves margin limits."""
+        if not self.api.is_logged_in():
+            self.login()
+            if not self.api.is_logged_in():
+                return {"status": "failure", "error": "Finvasia API not logged in for limits."}
+        try:
+            resp = self.api.get_limits()
+        except Exception as e:
+            if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
+                print(f"Session expired or invalid during get_limits. Attempting re-login for {self.client_id}...")
+                try:
+                    login_result = self.login()
+                    if login_result.get("status") == "success":
+                        print("Re-login successful. Retrying get_limits.")
+                        resp = self.api.get_limits()
+                    else:
+                        return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
+                except Exception as retry_e:
+                    msg = f"Re-login failed or get_limits retry failed after re-login: {retry_e}"
+                    return {"status": "failure", "error": msg}
+            else:
+                msg = str(e) if str(e) else "Unknown error during get_limits"
+                return {"status": "failure", "error": msg}
+            
+        if resp is None:
+            return {"status": "failure", "error": "No response received from Finvasia API (get_limits)."}
+
+        if isinstance(resp, dict) and resp.get("stat") == "Ok":
+            # Finvasia's limits response structure needs to be checked, assuming it's a dict
+            return {"status": "success", "limits": resp}
+        elif isinstance(resp, dict) and resp.get("stat") == "Not_Ok":
+            return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve limits.")}
+            
+        return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
 
     def last_auth_error(self):
+        """Returns the last authentication error message."""
         return self._last_auth_error
+
+```
