@@ -11,6 +11,7 @@ class FinvasiaBroker(BrokerBase):
     def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
         kwargs.pop("access_token", None) # Remove access_token as Finvasia doesn't use it directly
         super().__init__(client_id, "", **kwargs) # Pass an empty string for access_token as Finvasia uses susertoken internally
+        self.client_id = client_id # Store client_id for set_session
         self.password = password
         self.totp_secret = totp_secret
         self.vendor_code = vendor_code
@@ -22,14 +23,20 @@ class FinvasiaBroker(BrokerBase):
         
         # Initialize API with session details if provided in kwargs (e.g., for persistent session)
         if kwargs.get("api_session"):
-            self.api.set_session(kwargs["api_session"])
             self.session = kwargs["api_session"]
-            if not self.check_token_valid(): # Verify if the provided session token is still valid
-                print("Provided API session token is invalid, attempting re-login.")
-                if all([password, totp_secret, vendor_code, api_key]):
-                    self.login()
-                else:
-                    raise Exception("Invalid session and insufficient credentials to re-login.")
+            # Extract susertoken from the session object returned by a previous login
+            susertoken_val = self.session.get('susertoken') or self.session.get('jData', {}).get('susertoken')
+            
+            if susertoken_val and self.password: # Ensure password is also available for set_session
+                self.api.set_session(userid=self.client_id, password=self.password, usertoken=susertoken_val)
+                if not self.check_token_valid(): # Verify if the provided session token is still valid
+                    print("Provided API session token is invalid, attempting re-login.")
+                    if all([password, totp_secret, vendor_code, api_key]):
+                        self.login()
+                    else:
+                        raise Exception("Invalid session and insufficient credentials to re-login.")
+            else:
+                raise Exception("Invalid api_session provided or password missing for Finvasia set_session.")
         elif all([password, totp_secret, vendor_code, api_key]):
             self.login()
         else:
@@ -63,7 +70,13 @@ class FinvasiaBroker(BrokerBase):
             raise Exception(self._last_auth_error)
         
         self.session = ret # Store the full session response
-        self.api.set_session(ret) # Crucial: Set the session token in the API helper
+        # **CRITICAL FIX:** Correctly pass userid, password, and usertoken to set_session
+        susertoken_val = self.session.get('susertoken') or self.session.get('jData', {}).get('susertoken')
+        if susertoken_val:
+            self.api.set_session(userid=self.client_id, password=self.password, usertoken=susertoken_val)
+        else:
+            raise Exception("Finvasia login successful but susertoken not found in response, cannot set session.")
+
         self._last_auth_error = None
         print(f"Successfully logged in to Finvasia for {self.client_id}.")
 
