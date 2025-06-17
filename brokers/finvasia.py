@@ -60,6 +60,18 @@ class FinvasiaBroker(BrokerBase):
             return "H"  # Normal/Holding (for F&O carryforward)
         return product_type # Return as is if not in common aliases
 
+    def check_token_valid(self):
+        try:
+            resp = self.api.get_limits()
+            if resp.get("stat") == "Ok":
+                self._last_auth_error = None
+                return True
+            self._last_auth_error = resp.get("emsg") or resp.get("stat")
+            return False
+        except Exception as e:
+            self._last_auth_error = str(e)
+            return False
+
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, token=None, **kwargs):
         """
         Places an order with Finvasia.
