@@ -166,11 +166,6 @@ class FinvasiaBroker(BrokerBase):
             token (str): Finvasia's unique instrument token. Accepted by this method,
                          but NOT passed directly to ShoonyaApiPy's modify_order.
         """
-        if not self.api.is_logged_in():
-            self.login()
-            if not self.api.is_logged_in():
-                return {"status": "failure", "error": "Finvasia API not logged in for modification."}
-
         modify_params = {
             "orderno": order_id,
             "exchange": exchange,
