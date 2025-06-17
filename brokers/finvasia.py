@@ -1,4 +1,3 @@
-```python
 import pyotp
 from api_helper import ShoonyaApiPy  # From ShoonyaApi-py cloned from GitHub (AnkitSG07/ShoonyaApi-py)
 from .base import BrokerBase
@@ -394,5 +393,3 @@ class FinvasiaBroker(BrokerBase):
     def last_auth_error(self):
         """Returns the last authentication error message."""
         return self._last_auth_error
-
-```
