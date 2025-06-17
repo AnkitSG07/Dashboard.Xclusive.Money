@@ -462,15 +462,15 @@ def poll_and_copy_trades():
 
                 # Get master orders using standard interface
                 try:
-                    orders_resp = api.get_order_list()
+                    orders_resp = master_api.get_order_list()
                     # Defensive check: if it's a list, just use it. If dict, extract "data" or "orders"
                     if isinstance(orders_resp, dict):
-                        orders = orders_resp.get("data", orders_resp.get("orders", []))
+                        orders_list = orders_resp.get("data", orders_resp.get("orders", []))
                     elif isinstance(orders_resp, list):
-                        orders = orders_resp
+                        orders_list = orders_resp
                     else:
-                        orders = []
-                    orders = strip_emojis_from_obj(orders)
+                        order_list = []
+                    order_list = strip_emojis_from_obj(order_list)
                 except Exception as e:
                     print(f"❌ Error fetching orders for master {master_id}: {e}")
                     continue
