@@ -54,7 +54,8 @@ def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
     if not order_type:
         return ""
-    if broker and broker.lower() == "aliceblue" and order_type.upper() == "MARKET":
+    broker = broker.lower() if broker else ""
+    if broker in ("aliceblue", "finvasia") and order_type.upper() == "MARKET":
         return "MKT"
     return str(order_type)
 
