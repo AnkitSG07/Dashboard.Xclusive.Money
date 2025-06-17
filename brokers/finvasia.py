@@ -9,6 +9,7 @@ class FinvasiaBroker(BrokerBase):
         - client_id, password, totp_secret, vendor_code, api_key, imei
     """
     def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
+        kwargs.pop("access_token", None)
         super().__init__(client_id, "", **kwargs)
         self.password = password
         self.totp_secret = totp_secret
