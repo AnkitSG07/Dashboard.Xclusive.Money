@@ -57,11 +57,28 @@ class FinvasiaBroker(BrokerBase):
         data = self.api.get_limits()
         return data.get("cash")
 
+    def _normalize_product(self, product: str) -> str:
+        """Convert common product names to Finvasia codes."""
+        if not product:
+            return ""
+        p = str(product).strip().upper()
+        mapping = {
+            "MIS": "M",
+            "INTRADAY": "M",
+            "CNC": "C",
+            "DELIVERY": "C",
+            "NRML": "H",
+            "NORMAL": "H",
+        }
+        return mapping.get(p, p)
+
+
     def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, **kwargs):
+        product_code = self._normalize_product(product)
         try:
             resp = self.api.place_order(
                 buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
-                product_type=product,
+                product_type=product_code,
                 exchange=exchange,
                 tradingsymbol=tradingsymbol,
                 quantity=int(quantity),
@@ -78,7 +95,7 @@ class FinvasiaBroker(BrokerBase):
                 self.login()
                 resp = self.api.place_order(
                     buy_or_sell="B" if transaction_type.upper() == "BUY" else "S",
-                    product_type=product,
+                    product_type=product_code,
                     exchange=exchange,
                     tradingsymbol=tradingsymbol,
                     quantity=int(quantity),
