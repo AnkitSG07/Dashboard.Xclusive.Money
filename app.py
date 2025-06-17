@@ -594,6 +594,31 @@ def poll_and_copy_trades():
                                 "NRML": "NRML",
                             }.get(str(product_type).upper(), str(product_type).upper())
 
+                        if child_broker == "finvasia":
+                            exchange = {
+                                "NSE_EQ": "NSE",
+                                "BSE_EQ": "BSE",
+                                "NFO": "NFO",
+                            }.get(str(exchange).upper(), str(exchange))
+
+                            product_type = {
+                                "INTRADAY": "M",
+                                "MARGIN": "M",
+                                "DELIVERY": "C",
+                                "CNC": "C",
+                                "NRML": "M",
+                            }.get(str(product_type).upper(), str(product_type))
+
+                            order_type = {
+                                "MARKET": "MKT",
+                                "LIMIT": "LMT",
+                                "SL": "SL-LMT",
+                                "SLM": "SL-MKT",
+                                "SL-M": "SL-MKT",
+                                "SL-LIMIT": "SL-LMT",
+                                "SL-MARKET": "SL-MKT",
+                            }.get(str(order_type).upper(), str(order_type))
+
 
                         try:
                             mapping_child = get_symbol_for_broker(symbol, child_broker)
