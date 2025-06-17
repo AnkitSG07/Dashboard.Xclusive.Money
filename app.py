@@ -657,6 +657,9 @@ def poll_and_copy_trades():
                                 }
                                 if child_broker == "aliceblue":
                                     extra_args["symbol_id"] = mapping_child.get("symbol_id")
+
+                                if child_broker == "finvasia":
+                                    extra_args["token"] = mapping_child.get("token")
                                 response = child_api.place_order(**extra_args)
 
                             if isinstance(response, dict) and response.get("status") == "failure":
