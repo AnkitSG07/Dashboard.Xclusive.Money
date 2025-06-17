@@ -461,6 +461,7 @@ def poll_and_copy_trades():
                 new_last_trade_id = None
 
                 # Get master orders using standard interface
+                order_list = []
                 try:
                     orders_resp = master_api.get_order_list()
                     # Defensive check: if it's a list, just use it. If dict, extract "data" or "orders"
