@@ -1818,6 +1818,26 @@ def place_group_order():
                     product="MIS",
                     price=None,
                 )
+
+            elif broker_name == "finvasia":
+                # Assuming your symbol_map provides 'symbol', 'token', and 'exchange' for Finvasia
+                finvasia_symbol = mapping.get("symbol", symbol) # Use 'symbol' key from your mapping
+                finvasia_token = mapping.get("token") # Extract the Finvasia token
+                finvasia_exchange = mapping.get("exchange", "NSE") # Use 'exchange' key from your mapping
+
+                if not finvasia_token:
+                    raise ValueError(f"Finvasia token not found in symbol map for {symbol}")
+
+                order_params = dict(
+                    tradingsymbol=finvasia_symbol,
+                    exchange=finvasia_exchange,
+                    transaction_type=action.upper(),
+                    quantity=int(quantity),
+                    order_type=map_order_type("MARKET", broker_name),
+                    product="MIS", # Or map to 'C' for CNC, 'H' for NRML based on your needs
+                    price=0, # Market orders typically have price=0, or adjust for Limit orders
+                    token=finvasia_token, # <<< CRITICAL: Pass the extracted token here
+                )
             else:
                 tradingsymbol = mapping.get("tradingsymbol", symbol)
                 order_params = dict(
