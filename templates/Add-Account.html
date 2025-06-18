@@ -226,9 +226,8 @@ window.pageScripts["Add-Account"] = function() {
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
   fyers: [
-    { label: "Fyers Client ID", name: "client_id", type: "text" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
-    { label: "M-PIN", name: "mpin", type: "password" },
+    { label: "Fyers App ID", name: "client_id", type: "text" },
+    { label: "Secret Key", name: "secret_key", type: "password" },
     { label: "Email Id (optional)", name: "email", type: "text" },
     { label: "Mobile no (optional)", name: "mobile", type: "text" }
   ],
@@ -401,6 +400,24 @@ window.pageScripts["Add-Account"] = function() {
       
       if (data['broker'] === 'zerodha') {
         fetch('/api/init-zerodha-login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        })
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.login_url) {
+              window.location.href = resp.login_url;
+            } else {
+              alert(resp.error || 'Failed to get login URL');
+            }
+          })
+          .catch(() => alert('Failed to get login URL'));
+        return;
+      }
+            
+      if (data['broker'] === 'fyers') {
+        fetch('/api/init-fyers-login', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(data)
