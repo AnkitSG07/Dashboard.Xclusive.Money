@@ -1,7 +1,7 @@
 flask==3.1.1
 dhanhq==2.0.2
 gunicorn==23.0.0
-requests
+requests==2.32.3
 Flask-Cors==4.0.0
 beautifulsoup4==4.13.4
 apscheduler==3.11.0
