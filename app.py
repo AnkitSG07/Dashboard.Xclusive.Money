@@ -645,8 +645,14 @@ def poll_and_copy_trades():
                                     product_type=product_type,
                                     price=price or 0
                                 )
+
+                            
                             else:
-                                tradingsymbol = mapping_child.get("tradingsymbol", symbol)
+                                tradingsymbol = (
+                                    mapping_child.get("tradingsymbol")
+                                    or mapping_child.get("trading_symbol")
+                                    or mapping_child.get("symbol", symbol)
+                                )
                                 extra_args = {
                                     "tradingsymbol": tradingsymbol,
                                     "exchange": exchange,
