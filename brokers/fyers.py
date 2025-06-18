@@ -99,6 +99,7 @@ class FyersBroker(BrokerBase):
             return None
         except Exception:
             return None
+            
     # ----- Authentication Helpers -----
     @classmethod
     def login_url(cls, client_id, redirect_uri, state="state123"):
@@ -114,7 +115,7 @@ class FyersBroker(BrokerBase):
     @classmethod
     def exchange_code_for_token(cls, client_id, secret_key, auth_code):
         """Exchange auth code for access and refresh tokens."""
-        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
+        app_hash = hashlib.sha256(f"{client_id}{secret_key}".encode()).hexdigest()
         payload = {
             "grant_type": "authorization_code",
             "appIdHash": app_hash,
@@ -130,7 +131,7 @@ class FyersBroker(BrokerBase):
     @classmethod
     def refresh_access_token(cls, client_id, secret_key, refresh_token, pin):
         """Refresh the access token using refresh token and pin."""
-        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
+        app_hash = hashlib.sha256(f"{client_id}{secret_key}".encode()).hexdigest()
         payload = {
             "grant_type": "refresh_token",
             "appIdHash": app_hash,
