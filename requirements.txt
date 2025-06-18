@@ -1,5 +1,6 @@
 flask==3.1.1
 dhanhq==2.0.2
+requests==2.32.3
 gunicorn==23.0.0
 Flask-Cors==4.0.0
 beautifulsoup4==4.13.4
@@ -12,4 +13,4 @@ alice-blue==2.0.4
 growwapi==0.0.8
 git+https://github.com/AnkitSG07/ShoonyaApi-py.git
 https://github.com/AnkitSG07/ShoonyaApi-py/raw/master/dist/NorenRestApi-0.0.30-py2.py3-none-any.whl
-fyers-apiv3==3.1.7
+
