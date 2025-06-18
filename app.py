@@ -466,9 +466,9 @@ def poll_and_copy_trades():
                     orders_resp = master_api.get_order_list()
                     # Defensive check: if it's a list, just use it. If dict, extract "data" or "orders"
                     if isinstance(orders_resp, dict):
-                        orders_list = orders_resp.get("data", orders_resp.get("orders", []))
+                        order_list = orders_resp.get("data", orders_resp.get("orders", []))
                     elif isinstance(orders_resp, list):
-                        orders_list = orders_resp
+                        order_list = orders_resp
                     else:
                         order_list = []
                     order_list = strip_emojis_from_obj(order_list)
