@@ -1,6 +1,7 @@
 from brokers.factory import get_broker_class
 import uuid
 from brokers.zerodha import ZerodhaBroker, KiteConnect
+from brokers.fyers import FyersBroker
 try:
     from brokers.symbol_map import get_symbol_for_broker
 except Exception:  # pragma: no cover - fallback if import fails
@@ -1070,6 +1071,100 @@ def init_zerodha_login():
     redirect_uri = f"https://dhan-trading.onrender.com/zerodha_redirects/{client_id}"
     login_url = f"https://kite.zerodha.com/connect/login?api_key={api_key}&v=3&redirect_uri={quote(redirect_uri, safe='')}"
     return jsonify({'login_url': login_url})
+
+# ======== FYERS Authentication ========
+@app.route('/api/init-fyers-login', methods=['POST'])
+@login_required
+def init_fyers_login():
+    """Start the Fyers OAuth login flow and return the login URL."""
+    data = request.json
+    client_id = data.get('client_id')
+    secret_key = data.get('secret_key')
+    username = data.get('username')
+    if not all([client_id, secret_key, username]):
+        return jsonify({'error': 'Missing fields'}), 400
+
+    pending_path = 'pending_fyers.json'
+    if os.path.exists(pending_path):
+        try:
+            with open(pending_path) as f:
+                pending = json.load(f)
+        except Exception:
+            pending = {}
+    else:
+        pending = {}
+
+    state = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    redirect_uri = f"https://dhan-trading.onrender.com/fyers_redirects/{client_id}"
+
+    pending[client_id] = {
+        'secret_key': secret_key,
+        'redirect_uri': redirect_uri,
+        'state': state,
+        'username': username,
+        'owner': session.get('user')
+    }
+    safe_write_json(pending_path, pending)
+
+    login_url = FyersBroker.login_url(client_id, secret_key, redirect_uri, state)
+    return jsonify({'login_url': login_url})
+
+
+@app.route('/fyers_redirects/<client_id>')
+def fyers_redirect_handler(client_id):
+    """Handle redirect from Fyers OAuth flow and store tokens."""
+    auth_code = request.args.get('auth_code')
+    state = request.args.get('state')
+    if not auth_code:
+        return "❌ No auth_code received", 400
+
+    pending_path = 'pending_fyers.json'
+    if os.path.exists(pending_path):
+        try:
+            with open(pending_path) as f:
+                pending = json.load(f)
+        except Exception:
+            pending = {}
+    else:
+        pending = {}
+
+    cred = pending.pop(client_id, None)
+    if not cred or cred.get('state') != state:
+        return "❌ No pending auth for this client", 400
+
+    secret_key = cred.get('secret_key')
+    username = cred.get('username') or client_id
+    redirect_uri = cred.get('redirect_uri')
+
+    token_resp = FyersBroker.exchange_code_for_token(client_id, secret_key, auth_code)
+    if token_resp.get('s') != 'ok':
+        msg = token_resp.get('message', 'Failed to generate token')
+        return f"❌ Error: {msg}", 500
+
+    access_token = token_resp.get('access_token')
+    refresh_token = token_resp.get('refresh_token')
+
+    account = {
+        'broker': 'fyers',
+        'client_id': client_id,
+        'username': username,
+        'credentials': {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'secret_key': secret_key,
+        },
+        'status': 'Connected',
+        'auto_login': True,
+        'last_login': datetime.now().isoformat(),
+        'role': None,
+        'linked_master_id': None,
+        'multiplier': 1,
+        'copy_status': 'Off',
+    }
+
+    save_account_to_user(cred.get('owner', username), account)
+    safe_write_json(pending_path, pending)
+    return redirect(url_for('AddAccount'))
 
 @app.route("/kite/callback")
 def kite_callback():
