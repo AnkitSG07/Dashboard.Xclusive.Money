@@ -1,4 +1,6 @@
 from .base import BrokerBase
+import hashlib
+import requests
 
 try:
     from fyers_apiv3 import fyersModel
@@ -76,4 +78,48 @@ class FyersBroker(BrokerBase):
             return None
         except Exception:
             return None
+        # ----- Authentication Helpers -----
+    @classmethod
+    def login_url(cls, client_id, secret_key, redirect_uri, state="state123"):
+        """Return the Fyers OAuth login URL."""
+        if fyersModel is None:
+            raise ImportError("fyers-apiv3 not installed")
+        session = fyersModel.SessionModel(
+            client_id=client_id,
+            secret_key=secret_key,
+            redirect_uri=redirect_uri,
+            response_type="code",
+            state=state,
+        )
+        return session.generate_authcode()
+
+    @classmethod
+    def exchange_code_for_token(cls, client_id, secret_key, auth_code):
+        """Exchange auth code for access and refresh tokens."""
+        if fyersModel is None:
+            raise ImportError("fyers-apiv3 not installed")
+        session = fyersModel.SessionModel(
+            client_id=client_id,
+            secret_key=secret_key,
+            grant_type="authorization_code",
+        )
+        session.set_token(auth_code)
+        return session.generate_token()
+
+    @classmethod
+    def refresh_access_token(cls, client_id, secret_key, refresh_token, pin):
+        """Refresh the access token using refresh token and pin."""
+        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
+        payload = {
+            "grant_type": "refresh_token",
+            "appIdHash": app_hash,
+            "refresh_token": refresh_token,
+            "pin": str(pin),
+        }
+        resp = requests.post(
+            "https://api-t1.fyers.in/api/v3/validate-refresh-token",
+            json=payload,
+            timeout=10,
+        )
+        return resp.json()
 
