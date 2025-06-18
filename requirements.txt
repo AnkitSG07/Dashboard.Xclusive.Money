@@ -13,4 +13,4 @@ alice-blue==2.0.4
 growwapi==0.0.8
 git+https://github.com/AnkitSG07/ShoonyaApi-py.git
 https://github.com/AnkitSG07/ShoonyaApi-py/raw/master/dist/NorenRestApi-0.0.30-py2.py3-none-any.whl
-
+fyers-apiv3
