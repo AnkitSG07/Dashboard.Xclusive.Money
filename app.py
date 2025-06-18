@@ -1106,7 +1106,7 @@ def init_fyers_login():
     }
     safe_write_json(pending_path, pending)
 
-    login_url = FyersBroker.login_url(client_id, secret_key, redirect_uri, state)
+    login_url = FyersBroker.login_url(client_id, redirect_uri, state)
     return jsonify({'login_url': login_url})
 
 
@@ -1165,7 +1165,7 @@ def fyers_redirect_handler(client_id):
     save_account_to_user(cred.get('owner', username), account)
     safe_write_json(pending_path, pending)
     return redirect(url_for('AddAccount'))
-
+    
 @app.route("/kite/callback")
 def kite_callback():
     from kiteconnect import KiteConnect
