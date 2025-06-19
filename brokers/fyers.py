@@ -31,17 +31,26 @@ class FyersBroker(BrokerBase):
                 "DELIVERY": "CNC",
             }
             prod = product_map.get(str(product).upper(), str(product).upper())
+            fy_type = 2 if order_type.upper() == "MARKET" else 1
+
+            if fy_type == 1:
+                if price is None:
+                    raise ValueError("price is required for LIMIT orders")
+                limit_price = float(price)
+            else:
+                limit_price = 0
+
             data = {
                 "symbol": f"NSE:{tradingsymbol.upper()}-EQ",
                 "qty": int(quantity),
-                "type": 2 if order_type.upper() == "MARKET" else 1,
+                "type": fy_type,
                 "side": 1 if transaction_type.upper() == "BUY" else -1,
                 "productType": prod,
-                "limitPrice": float(price) if price else 0,
+                "limitPrice": limit_price,
                 "disclosedQty": 0,
                 "validity": "DAY",
                 "offlineOrder": False,
-                "stopPrice": 0
+                "stopPrice": 0,
             }
             result = self.api.place_order(data=data)
             return {"status": "success" if result["s"] == "ok" else "failure", "order_id": result.get("id", None), "error": result.get("message")}
