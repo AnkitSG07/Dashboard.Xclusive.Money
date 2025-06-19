@@ -45,6 +45,7 @@
   <h5 class="mb-3">Add New Account</h5>
   <!-- Broker Icons -->
 <!-- Scrollable Broker Tab Strip -->
+  <div class="broker-carousel overflow-auto">             
   <div class="broker-scroll d-flex align-items-center gap-4 mb-4 px-2">
     <div class="text-center">
       <img src="/static/images/logo.svg" class="broker-icon" data-broker="broker1" title="Broker 1" />
@@ -103,6 +104,8 @@
       <div>Enrich Money</div>
     </div>
   </div>
+  </div>
+  
 
 
   <!-- Dynamic Broker Fields -->
@@ -121,7 +124,7 @@
       <thead>
         <tr>
           <th>Broker</th>
-          <th>Opening Balance</th>
+          <th class="hide-xs">Opening Balance</th>
           <th>Client ID</th>
           <th>Username</th>
           <th>Status</th>
@@ -461,7 +464,7 @@ window.pageScripts["Add-Account"] = function() {
         body.innerHTML = accounts.map(acc => `
         <tr>
           <td><img src="${getBrokerImageUrl(acc.broker)}" style="width:24px;">${acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)}</td>
-          <td>${acc.opening_balance ?? '-'}</td>
+          <td class="hide-xs">${acc.opening_balance ?? '-'}</td>
           <td>${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
           <td><span class="badge bg-success">${acc.status || 'Connected'}</span></td>
