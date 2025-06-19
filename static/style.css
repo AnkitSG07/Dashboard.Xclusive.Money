@@ -1064,3 +1064,50 @@ input#symbol-selector,
   border-radius: var(--border-radius-md);
   border: 1px solid var(--border-default);
   background: var(--bg-input);
+
+15
+
+.broker-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 10px 8px 0;
+}
+
+.broker-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(44,56,80,0.07);
+  border: 2px solid #f3f3f3;
+  object-fit: contain;
+  padding: 7px;
+  transition: box-shadow 0.18s, border 0.18s;
+  cursor: pointer;
+}
+
+.broker-icon:hover,
+.broker-icon.selected,
+.broker-icon.border-primary {
+  border-color: #16c784;
+  box-shadow: 0 4px 16px rgba(22,199,132,0.12);
+  background: #f6fffa;
+}
+.broker-scroll {
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none; /* Firefox */
+}
+.broker-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.broker-icon:hover {
+  transform: scale(1.1);
+}
+
+.broker-scroll > div {
+  flex: 0 0 auto;
+}
