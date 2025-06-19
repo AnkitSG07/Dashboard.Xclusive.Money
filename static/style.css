@@ -1042,30 +1042,83 @@ p {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   10. Inputs & Forms
+  10. Inputs & Forms (Redesigned - ONLY the requested blocks, direct values)
 ──────────────────────────────────────────────────────────────────────────*/
+
+/* Form Group - Container for Label + Input */
 .form-group {
-  margin-bottom: 20px;
+  /* Provides spacing between form groups. If this is inside a CSS Grid layout,
+     the grid's 'gap' property will typically manage spacing between cells. */
+  margin-bottom: 24px; /* Increased from 20px for a slightly more modern, spacious feel */
 }
 
 .form-label {
   display: block;
-  margin-bottom: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
+  margin-bottom: 10px; /* Increased from 8px for clearer separation from input */
+  color: #6a6a6a; /* Muted grey, matching the labels in the image */
+  font-size: 13.6px; /* Approximately 0.85rem, slightly smaller for refinement */
   font-weight: 500;
+  /* No text-transform or letter-spacing, as per the image's label style */
 }
 
-input#symbol-selector,
-.form-control,
+/* Base Input Styles (text, number, email, password, textarea, select) */
+input#symbol-selector, /* Targeting specific ID if it exists and needs these styles */
+.form-control, /* General class for various input types */
 .form-select {
   width: 100%;
-  padding: 10px 16px;
-  border-radius: var(--border-radius-md);
-  border: 1px solid var(--border-default);
-  background: var(--bg-input);
+  padding: 10px 14px; /* Adjusted to match the image's input padding */
+  border-radius: 6px; /* Subtle rounded corners, matching the image */
+  border: 1px solid #e0e3e7; /* Light grey border, matching the image */
+  background: #ffffff; /* White background for inputs, matching the image */
+  color: #2c2c2c; /* Dark text color for input content */
+  font-size: 15.2px; /* Approximately 0.95rem, for clear readability */
+  line-height: 1.5; /* Good line height for text within input */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; /* Smooth transitions */
+  -webkit-appearance: none; /* Removes default browser styling for select */
+  -moz-appearance: none;
+  appearance: none; /* Ensures consistent select styling across browsers */
 }
 
+/* Placeholder Text for inputs */
+input::placeholder,
+textarea::placeholder {
+  color: #6a6a6a; /* Muted grey placeholder color, matching image */
+  opacity: 1; /* Ensures placeholder is fully visible */
+}
+
+/* Focus State for inputs */
+input#symbol-selector:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: none; /* Remove default browser outline */
+  border-color: #007bff; /* Vibrant blue border on focus */
+  box-shadow: 0 0 0 1px #007bff; /* Very subtle blue shadow on focus */
+  background-color: #ffffff; /* Stays white on focus */
+}
+
+/* Select Specific Styling (Custom Arrow) */
+/* This is crucial for .form-select to look consistent, as default arrows vary. */
+.form-select {
+  /* Embedded SVG for a custom muted arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236a6a6a'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center; /* Position arrow to the right with 16px spacing */
+  background-size: 1.25rem; /* Size of the custom arrow (20px) */
+}
+
+/* Optional: Responsive adjustments for these elements */
+@media (max-width: 768px) {
+  input#symbol-selector,
+  .form-control,
+  .form-select {
+    padding: 8px 12px; /* Slightly reduced padding on mobile for better touch targets */
+    font-size: 14.4px; /* Approximately 0.9rem, slightly smaller font for inputs on mobile */
+  }
+
+  .form-label {
+    font-size: 12.8px; /* Approximately 0.8rem, even smaller labels on mobile */
+  }
+}``
 .broker-icon-wrap {
   display: flex;
   align-items: center;
@@ -1074,12 +1127,12 @@ input#symbol-selector,
 }
 
 .broker-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
+  width: 76px;
+  height: 76px;
+  border-radius: 90%;
   background: #fff;
   box-shadow: 0 2px 8px rgba(44,56,80,0.07);
-  border: 2px solid #f3f3f3;
+  border:px solid #f3f3f3;
   object-fit: contain;
   padding: 7px;
   transition: box-shadow 0.18s, border 0.18s;
@@ -1090,7 +1143,7 @@ input#symbol-selector,
 .broker-icon.selected,
 .broker-icon.border-primary {
   border-color: #16c784;
-  box-shadow: 0 4px 16px rgba(22,199,132,0.12);
+  box-shadow: 0 rgba(22,199,132,0.12);
   background: #f6fffa;
 }
 .broker-scroll {
@@ -1110,3 +1163,4 @@ input#symbol-selector,
 .broker-scroll > div {
   flex: 0 0 auto;
 }
+
