@@ -88,6 +88,9 @@ body {
 .navbar-icons i:hover {
   color: var(--primary-main);
 }
+.navbar-toggler {
+  border: none;
+}
 .profile-img {
   width: 36px; height: 36px;
   border-radius: 50%;
