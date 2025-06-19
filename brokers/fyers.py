@@ -40,8 +40,18 @@ class FyersBroker(BrokerBase):
             else:
                 limit_price = 0
 
+            symbol = tradingsymbol
+            if ":" in symbol:
+                symbol = symbol.upper()
+            else:
+                exch = str(exchange or "NSE").upper()
+                symbol = f"{exch}:{symbol.upper()}"
+                if exch in {"NSE", "BSE"} and not symbol.endswith("-EQ"):
+                    symbol = f"{symbol}-EQ"
+
+
             data = {
-                "symbol": f"NSE:{tradingsymbol.upper()}-EQ",
+                "symbol": symbol,
                 "qty": int(quantity),
                 "type": fy_type,
                 "side": 1 if transaction_type.upper() == "BUY" else -1,
