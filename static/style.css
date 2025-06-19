@@ -1064,8 +1064,7 @@ input#symbol-selector,
   border-radius: var(--border-radius-md);
   border: 1px solid var(--border-default);
   background: var(--bg-input);
-
-15
+}
 
 .broker-icon-wrap {
   display: flex;
