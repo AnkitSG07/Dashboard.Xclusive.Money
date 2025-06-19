@@ -115,7 +115,7 @@ class FyersBroker(BrokerBase):
     @classmethod
     def exchange_code_for_token(cls, client_id, secret_key, auth_code):
         """Exchange auth code for access and refresh tokens."""
-        app_hash = hashlib.sha256(f"{client_id}{secret_key}".encode()).hexdigest()
+        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
         payload = {
             "grant_type": "authorization_code",
             "appIdHash": app_hash,
