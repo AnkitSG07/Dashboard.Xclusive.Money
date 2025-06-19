@@ -17,7 +17,7 @@
         <tr>
           <th>Broker</th>
           <th>Client ID</th>
-          <th>Username</th>
+          <th class="hide-xs">Username</th>
           <th>Status</th>
           <th>Assign Role</th>
         </tr>
@@ -40,7 +40,7 @@
         <tr>
           <th>Broker</th>
           <th>Client ID</th>
-          <th>Username</th>
+          <th class="hide-xs">Username</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -63,7 +63,7 @@
           <th>Broker</th>
           <th>Master</th>
           <th>Client ID</th>
-          <th>Username</th>
+          <th class="hide-xs">Username</th>
           <th>Status</th>
           <th>Copy Status</th>
           <th>Multiplier</th>
@@ -113,6 +113,7 @@
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <div class="table-responsive">
         <table class="table table-sm table-bordered">
           <thead>
             <tr>
@@ -126,6 +127,7 @@
             <!-- Dynamic -->
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -282,7 +284,7 @@ window.pageScripts["copy-trading"] = function () {
           <tr>
             <td><i class="bi bi-bank"></i> ${master.broker}</td>
             <td>${master.client_id}</td>
-            <td>${master.username || "-"}</td>
+            <td class="hide-xs">${master.username || "-"}</td>
             <td><span class="badge bg-success">${master.status || "Connected"}</span></td>
             <td>
               <button class="btn btn-sm btn-danger" onclick="window.removeMaster('${master.client_id}')">Remove Master</button>
@@ -293,7 +295,7 @@ window.pageScripts["copy-trading"] = function () {
           </tr>
           <tr id="order-book-${master.client_id}" style="display: none;">
             <td colspan="5">
-              <div class="p-2 bg-light rounded">
+              <div class="p-2 bg-light rounded table-responsive">
                 <table class="table table-sm table-bordered mb-0">
                   <thead>
                     <tr>
@@ -316,7 +318,7 @@ window.pageScripts["copy-trading"] = function () {
           </tr>
           <tr id="positions-${master.client_id}" style="display: none;">
             <td colspan="5">
-              <div class="p-2 bg-light rounded">
+              <div class="p-2 bg-light rounded table-responsive">
                 <table class="table table-sm table-bordered mb-0">
                   <thead>
                     <tr>
@@ -338,13 +340,13 @@ window.pageScripts["copy-trading"] = function () {
           </tr>
           <tr id="child-list-${master.client_id}" style="display: none;">
             <td colspan="7">
-              <div class="p-2 bg-light rounded">
+              <div class="p-2 bg-light rounded table-responsive">
                 <h6>Linked Child Accounts</h6>
                 <table class="table table-sm table-bordered mb-0">
                   <thead>
                     <tr>
                       <th>Client ID</th>
-                      <th>Username</th>
+                      <th class="hide-xs">Username</th>
                       <th>Status</th>
                       <th>Copy Status</th>
                       <th>Multiplier</th>
@@ -370,9 +372,9 @@ window.pageScripts["copy-trading"] = function () {
         childrenBody.innerHTML += `
           <tr>
             <td><i class="bi bi-bank"></i> ${child.broker}</td>
-            <td>${master.username || "-"}</td>
+            <td class="hide-xs">${master.username || "-"}</td>
             <td>${child.client_id}</td>
-            <td>${child.username || "-"}</td>
+            <td class="hide-xs">${child.username || "-"}</td>
             <td><span class="badge bg-success">${child.status || "Connected"}</span></td>
             <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || "-"}</span></td>
             <td>
@@ -408,7 +410,7 @@ window.pageScripts["copy-trading"] = function () {
             <tr>
               <td><i class="bi bi-bank"></i> ${acc.broker}</td>
               <td>${acc.client_id}</td>
-              <td>${acc.username || "-"}</td>
+              <td class="hide-xs">${acc.username || "-"}</td>
               <td><span class="badge bg-secondary">Not Assigned</span></td>
               <td>
                 <button class="btn btn-sm btn-primary" onclick="window.setAsMaster('${acc.client_id}')">Set as Master</button>
@@ -430,7 +432,7 @@ window.pageScripts["copy-trading"] = function () {
             tbody.innerHTML = kids.map(child => `
               <tr>
                 <td>${child.client_id}</td>
-                <td>${child.username || "-"}</td>
+                <td class="hide-xs">${child.username || "-"}</td>
                 <td><span class="badge bg-success">${child.status || "Connected"}</span></td>
                 <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || '-'}</span></td>
                 <td>${child.multiplier || 1}</td>
@@ -470,7 +472,7 @@ window.pageScripts["copy-trading"] = function () {
             tbody.innerHTML = children.map(child => `
               <tr>
                 <td>${child.client_id}</td>
-                <td>${child.username || "-"}</td>
+                <td class="hide-xs">${child.username || "-"}</td>
                 <td><span class="badge bg-success">${child.status || "Connected"}</span></td>
                 <td><span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status}</span></td>
                 <td>${child.multiplier || 1}</td>
