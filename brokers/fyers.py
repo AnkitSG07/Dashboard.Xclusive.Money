@@ -24,12 +24,19 @@ class FyersBroker(BrokerBase):
         if self.api is None:
             raise RuntimeError("fyers-apiv3 not installed")
         try:
+            product_map = {
+                "MIS": "INTRADAY",
+                "INTRA": "INTRADAY",
+                "NRML": "MARGIN",
+                "DELIVERY": "CNC",
+            }
+            prod = product_map.get(str(product).upper(), str(product).upper())
             data = {
                 "symbol": f"NSE:{tradingsymbol.upper()}-EQ",
                 "qty": int(quantity),
                 "type": 2 if order_type.upper() == "MARKET" else 1,
                 "side": 1 if transaction_type.upper() == "BUY" else -1,
-                "productType": product,
+                "productType": prod,
                 "limitPrice": float(price) if price else 0,
                 "disclosedQty": 0,
                 "validity": "DAY",
