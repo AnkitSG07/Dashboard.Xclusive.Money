@@ -65,14 +65,19 @@
     <!-- Main Content -->
     <div class="main-content flex-grow-1">
       <!-- Navbar -->
-      <nav class="navbar">
+      <nav class="navbar navbar-expand-md">
         <div class="navbar-brand">
           <img src="/static/logo.svg" alt="Logo" style="height: 32px;">
         </div>
-        <div class="navbar-icons">
-          <i class="bi bi-bell"></i>
-          <i class="bi bi-gear"></i>
-          <img src="/static/user.png" alt="User" class="profile-img">
+        <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarIcons" aria-controls="navbarIcons" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarIcons">
+          <div class="navbar-icons">
+            <i class="bi bi-bell"></i>
+            <i class="bi bi-gear"></i>
+            <img src="/static/user.png" alt="User" class="profile-img">
+          </div>
         </div>
       </nav>
 
@@ -162,6 +167,7 @@
               highlightActivePage();
               enableDropdowns();
               setTimeout(reinitializePageScripts, 50);
+              document.getElementById('sidebar').classList.remove('show');
             } else {
               window.location.href = url;
             }
