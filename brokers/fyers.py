@@ -122,6 +122,16 @@ class FyersBroker(BrokerBase):
             for key in ["equityAmount", "cash", "available_balance", "availableCash"]:
                 if key in data:
                     return float(data[key])
+
+            items = funds.get("fund_limit") or funds.get("data") or []
+            if isinstance(items, dict):
+                items = [items]
+            for item in items:
+                title = str(item.get("title", "")).lower()
+                if title in {"available balance", "clear balance"}:
+                    for key in ["equityAmount", "cash"]:
+                        if key in item:
+                            return float(item[key])
             return None
         except Exception:
             return None
