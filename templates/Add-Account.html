@@ -455,8 +455,7 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   // (Optional) Load accounts dynamically for table:
-  fetch('/api/accounts')
-  .then(res => res.json())
+  fetch('/api/accounts').then(res => res.json())
   .then(data => {
     const body = document.getElementById("accounts-table-body");
     if (!body) return;
@@ -473,9 +472,9 @@ window.pageScripts["Add-Account"] = function() {
       const pictureHTML = `
         <picture>
           ${imgExtensions.map(ext =>
-            `<source srcset="/static/brokers/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`
+            `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`
           ).join('\n')}
-          <img src="/static/brokers/${acc.broker}.png" style="width:24px;" alt="${brokerName}" onerror="this.onerror=null;this.src='/static/brokers/default.png';">
+          <img src="/static/images/${acc.broker}.png" style="width:24px;" alt="${brokerName}" onerror="this.onerror=null;this.src='/static/images/logo.png';">
         </picture>
         ${brokerName}
       `;
@@ -493,8 +492,6 @@ window.pageScripts["Add-Account"] = function() {
       `;
     }).join('');
   });
-        
+};     
 </script>
-</body>
-</html>
 {% endblock %}
