@@ -120,7 +120,15 @@ class DhanBroker(BrokerBase):
         try:
             r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
             data = r.json()
-            for key in ["openingBalance", "netCashAvailable", "availableBalance", "availableAmount", "netCash"]:
+            for key in [
+                "openingBalance",
+                "netCashAvailable",
+                "availableBalance",
+                "availabelBalance",
+                "withdrawableBalance",
+                "availableAmount",
+                "netCash",
+            ]:
                 if key in data:
                     return float(data[key])
             return float(data.get("cash", 0))
