@@ -456,15 +456,33 @@ window.pageScripts["Add-Account"] = function() {
 
   // (Optional) Load accounts dynamically for table:
   fetch('/api/accounts')
-    .then(res => res.json())
-    .then(data => {
-      const body = document.getElementById("accounts-table-body");
-      if (!body) return;
-        const accounts = data.accounts || [];
-        body.innerHTML = accounts.map(acc => `
+  .then(res => res.json())
+  .then(data => {
+    const body = document.getElementById("accounts-table-body");
+    if (!body) return;
+    const accounts = data.accounts || [];
+    // List of possible image extensions, in order of preference
+    const imgExtensions = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
+
+    body.innerHTML = accounts.map(acc => {
+      // Capitalize broker name (safe for 1st char non-letter)
+      const brokerName = acc.broker
+        ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)
+        : '';
+      // Build <picture> HTML for broker icons
+      const pictureHTML = `
+        <picture>
+          ${imgExtensions.map(ext =>
+            `<source srcset="/static/brokers/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`
+          ).join('\n')}
+          <img src="/static/brokers/${acc.broker}.png" style="width:24px;" alt="${brokerName}" onerror="this.onerror=null;this.src='/static/brokers/default.png';">
+        </picture>
+        ${brokerName}
+      `;
+      return `
         <tr>
-          <td><img src="${getBrokerImageUrl(acc.broker)}" style="width:24px;">${acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)}</td>
-          <td class="hide-xs">${acc.opening_balance ?? '-'}</td>
+          <td>${pictureHTML}</td>
+          <td>${acc.opening_balance ?? '-'}</td>
           <td>${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
           <td><span class="badge bg-success">${acc.status || 'Connected'}</span></td>
@@ -472,11 +490,11 @@ window.pageScripts["Add-Account"] = function() {
             <button class="btn btn-outline-success btn-sm" onclick="alert('Reconnect coming soon')">Reconnect</button>
           </td>
         </tr>
-      `).join('');
-    });
-};
+      `;
+    }).join('');
+  });
+        
 </script>
-
 </body>
 </html>
 {% endblock %}
