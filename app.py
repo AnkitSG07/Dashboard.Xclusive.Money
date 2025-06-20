@@ -102,6 +102,8 @@ def extract_balance(data):
                 "availablebalance",
                 "available_cash",
                 "availablecash",
+                "availabelbalance",
+                "withdrawablebalance",
                 "equityamount",
                 "netcash",
             ]:
