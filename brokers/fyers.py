@@ -127,7 +127,7 @@ class FyersBroker(BrokerBase):
             if isinstance(items, dict):
                 items = [items]
             for item in items:
-                title = str(item.get("title", "")).lower()
+                title = str(item.get("title", "")).strip().lower()
                 if title in {"available balance", "clear balance"}:
                     for key in ["equityAmount", "cash"]:
                         if key in item:
