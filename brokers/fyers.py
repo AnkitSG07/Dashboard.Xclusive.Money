@@ -103,10 +103,27 @@ class FyersBroker(BrokerBase):
                     or []
                 )
 
+            if not data and hasattr(self.api, "tradebook"):
+                trades = self.api.tradebook()
+                if isinstance(trades, dict) and str(trades.get("s")).lower() != "error":
+                    data = (
+                        trades.get("tradeBook")
+                        or trades.get("data")
+                        or trades.get("trades")
+                        or []
+                    )
+                    if isinstance(data, dict):
+                        data = (
+                            data.get("tradeBook")
+                            or data.get("trades")
+                            or []
+                        )
+
             if not isinstance(data, list):
                 data = []
 
             return {"status": "success", "data": data}
+
         except Exception as e:
             return {"status": "failure", "error": str(e), "data": []}
 
