@@ -543,9 +543,6 @@ def poll_and_copy_trades():
                     print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
                     new_last_trade_id = new_last_trade_id or order_id
                     base_qty = (
-                        order.get("quantity") or
-                        order.get("orderQuantity") or
-                        order.get("qty") or 1
                         order.get("quantity")
                         or order.get("orderQuantity")
                         or order.get("qty")
