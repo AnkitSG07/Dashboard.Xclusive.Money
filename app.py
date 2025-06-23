@@ -467,17 +467,38 @@ def poll_and_copy_trades():
                 order_list = []
                 try:
                     orders_resp = master_api.get_order_list()
-                    # Defensive check: if it's a list, just use it. If dict, extract "data" or "orders"
-                    if isinstance(orders_resp, dict):
-                        order_list = orders_resp.get("data", orders_resp.get("orders", []))
-                    elif isinstance(orders_resp, list):
-                        order_list = orders_resp
-                    else:
-                        order_list = []
-                    order_list = strip_emojis_from_obj(order_list)
                 except Exception as e:
                     print(f"❌ Error fetching orders for master {master_id}: {e}")
                     continue
+
+                if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
+                    print(
+                        f"❌ Error fetching orders for master {master_id}: {orders_resp.get('error')}"
+                    )
+                    continue
+
+                if isinstance(orders_resp, dict):
+                    data_field = orders_resp.get("data") or orders_resp
+                    if isinstance(data_field, dict) and not isinstance(data_field.get("orderBook"), list):
+                        order_list = (
+                            data_field.get("orderBook")
+                            or data_field.get("orders")
+                            or []
+                        )
+                    else:
+                        order_list = (
+                            data_field.get("orderBook")
+                            or data_field.get("orders")
+                            or data_field
+                            or []
+                        )
+                elif isinstance(orders_resp, list):
+                    order_list = orders_resp
+
+                if not isinstance(order_list, list):
+                    order_list = []
+
+                order_list = strip_emojis_from_obj(order_list)
 
                 if not order_list:
                     print(f"ℹ️ No orders found for master {master_id}.")
@@ -508,8 +529,14 @@ def poll_and_copy_trades():
                         print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
                         break
 
-                    order_status = order.get("orderStatus") or order.get("status") or ""
-                    if order_status.upper() not in ["TRADED", "FILLED", "COMPLETE"]:
+                     order_status = (
+                        order.get("orderStatus")
+                        or order.get("report_type")
+                        or order.get("status")
+                        or ""
+                    )
+                    status_str = str(order_status).upper()
+                    if status_str not in ["TRADED", "FILLED", "COMPLETE", "2"]:
                         print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order_status})")
                         continue
 
@@ -529,7 +556,7 @@ def poll_and_copy_trades():
                     ).upper()
                     symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
                     master_owner = master.get("owner")
-                    record_trade(master_owner, symbol, transaction_type, base_qty, price, order_status.upper())
+                    record_trade(master_owner, symbol, transaction_type, base_qty, price, status_str)
                     if not children:
                         print(f"ℹ️ [{master_id}] No children to copy trades to.")
                         continue
@@ -744,15 +771,36 @@ def get_order_book(client_id):
 
         api = broker_api(master)
         orders_resp = api.get_order_list()
-        orders = orders_resp.get("data", orders_resp.get("orders", []))
+        if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
+            return jsonify({"error": orders_resp.get("error", "Failed to fetch orders")}), 500
+
+        orders = (
+            orders_resp.get("data")
+            or orders_resp.get("orders")
+            or orders_resp.get("orderBook")
+            or []
+        )
+
+        if isinstance(orders, dict):
+            orders = (
+                orders.get("orderBook")
+                or orders.get("orders")
+                or []
+            )
         orders = strip_emojis_from_obj(orders)
 
         formatted = []
         for order in orders:
+            status_val = (
+                order.get("orderStatus")
+                or order.get("report_type")
+                or order.get("status")
+                or "NA"
+            )
             formatted.append({
                 "order_id": order.get("orderId") or order.get("order_id") or order.get("id"),
                 "side": order.get("transactionType", order.get("side", "NA")),
-                "status": order.get("orderStatus", order.get("status", "NA")),
+                "status": status_val,
                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
                 "product_type": order.get("productType", order.get("product", "—")),
                 "placed_qty": order.get("orderQuantity", order.get("qty", 0)),
