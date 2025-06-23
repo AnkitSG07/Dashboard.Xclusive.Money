@@ -62,28 +62,24 @@
     <!-- Overlay for sidebar when open on mobile -->
     <div class="sidebar-overlay d-md-none" id="sidebar-overlay"></div>
 
-    <button class="toggle-sidebar d-md-none" id="sidebarToggleBtn">
-      ☰ Menu
-    </button>
-
     <!-- Main Content -->
     <div class="main-content flex-grow-1">
       <!-- Navbar -->
       <nav class="navbar navbar-expand-md">
-        <div class="navbar-brand">
-          <img src="/static/logo.svg" alt="Logo" style="height: 32px;">
-        </div>
-        <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarIcons" aria-controls="navbarIcons" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
+        <button class="toggle-sidebar d-md-none me-2" id="sidebarToggleBtn" aria-label="Open sidebar" type="button">
+          <span class="hamburger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
         </button>
-        <div class="collapse navbar-collapse justify-content-end" id="navbarIcons">
-          <div class="navbar-icons">
-            <i class="bi bi-bell"></i>
-            <i class="bi bi-gear"></i>
-            <img src="/static/user.png" alt="User" class="profile-img">
-          </div>
+        <div class="navbar-icons">
+          <i class="bi bi-bell"></i>
+          <i class="bi bi-gear"></i>
+          <img src="/static/user.png" alt="User" class="profile-img">
         </div>
-      </nav>
+    </div>
+  </nav>
 
       <!-- Content -->
       <div class="container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
