@@ -529,7 +529,7 @@ def poll_and_copy_trades():
                         print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
                         break
 
-                     order_status = (
+                    order_status = (
                         order.get("orderStatus")
                         or order.get("report_type")
                         or order.get("status")
