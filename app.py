@@ -533,7 +533,7 @@ def poll_and_copy_trades():
                         order.get("orderStatus")
                         or order.get("report_type")
                         or order.get("status")
-                        or ""
+                        or ("FILLED" if order.get("tradedQty") else "")
                     )
                     status_str = str(order_status).upper()
                     if status_str not in ["TRADED", "FILLED", "COMPLETE", "2"]:
@@ -546,8 +546,20 @@ def poll_and_copy_trades():
                         order.get("quantity") or
                         order.get("orderQuantity") or
                         order.get("qty") or 1
+                        order.get("quantity")
+                        or order.get("orderQuantity")
+                        or order.get("qty")
+                        or order.get("tradedQty")
+                        or 1
                     )
-                    price = float(order.get("price") or order.get("orderPrice") or order.get("avg_price") or 0)
+                    price = float(
+                        order.get("price")
+                        or order.get("orderPrice")
+                        or order.get("avg_price")
+                        or order.get("tradePrice")
+                        or 0
+                    )
+                   
                     transaction_type = (
                         order.get("transactionType") or
                         order.get("transaction_type") or
@@ -778,6 +790,7 @@ def get_order_book(client_id):
             orders_resp.get("data")
             or orders_resp.get("orders")
             or orders_resp.get("orderBook")
+            or orders_resp.get("tradeBook")
             or []
         )
 
@@ -785,6 +798,7 @@ def get_order_book(client_id):
             orders = (
                 orders.get("orderBook")
                 or orders.get("orders")
+                or orders.get("tradeBook")
                 or []
             )
         orders = strip_emojis_from_obj(orders)
@@ -795,21 +809,22 @@ def get_order_book(client_id):
                 order.get("orderStatus")
                 or order.get("report_type")
                 or order.get("status")
-                or "NA"
+                or ("FILLED" if order.get("tradedQty") else "NA")
             )
             formatted.append({
-                "order_id": order.get("orderId") or order.get("order_id") or order.get("id"),
+                "order_id": order.get("orderId") or order.get("order_id") or order.get("id") or order.get("orderNumber"),
                 "side": order.get("transactionType", order.get("side", "NA")),
                 "status": status_val,
                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
                 "product_type": order.get("productType", order.get("product", "—")),
-                "placed_qty": order.get("orderQuantity", order.get("qty", 0)),
-                "filled_qty": order.get("filledQuantity", order.get("filled_qty", 0)),
-                "avg_price": order.get("averagePrice", order.get("avg_price", 0)),
+                "placed_qty": order.get("orderQuantity", order.get("qty", order.get("tradedQty", 0))),
+                "filled_qty": order.get("filledQuantity", order.get("filled_qty", order.get("tradedQty", 0))),
+                "avg_price": order.get("averagePrice", order.get("avg_price", order.get("tradePrice", 0))),
                 "order_time": (
                     order.get("orderTimestamp")
                     or order.get("order_time")
-                    or order.get("create_time", "")
+                    or order.get("create_time")
+                    or order.get("orderDateTime", "")
                 ).replace("T", " ").split(".")[0],
                 "remarks": order.get("remarks", "—")
                 
