@@ -534,7 +534,7 @@ p {
   border: 1px solid var(--border-default);
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .section-box:hover {
