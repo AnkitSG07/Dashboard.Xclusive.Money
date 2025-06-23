@@ -72,8 +72,41 @@ class FyersBroker(BrokerBase):
             raise RuntimeError("fyers-apiv3 not installed")
 
         try:
-            orders = self.api.get_orders()
-            return {"status": "success", "data": orders["data"] if "data" in orders else []}
+            if hasattr(self.api, "get_orders"):
+                orders = self.api.get_orders()
+            elif hasattr(self.api, "orderbook"):
+                orders = self.api.orderbook()
+            else:
+                return {"status": "failure", "error": "No order book method"}
+
+            if not isinstance(orders, dict):
+                return {"status": "failure", "error": "Unexpected response"}
+
+            if str(orders.get("s")).lower() == "error":
+                return {
+                    "status": "failure",
+                    "error": orders.get("message") or "Unknown error",
+                    "data": [],
+                }
+
+            data = (
+                orders.get("orderBook")
+                or orders.get("data")
+                or orders.get("orders")
+                or []
+            )
+
+            if isinstance(data, dict):
+                data = (
+                    data.get("orderBook")
+                    or data.get("orders")
+                    or []
+                )
+
+            if not isinstance(data, list):
+                data = []
+
+            return {"status": "success", "data": data}
         except Exception as e:
             return {"status": "failure", "error": str(e), "data": []}
 
