@@ -62,25 +62,28 @@
     <!-- Overlay for sidebar when open on mobile -->
     <div class="sidebar-overlay d-md-none" id="sidebar-overlay"></div>
 
-    <!-- Main Content -->
+        <!-- Main Content -->
     <div class="main-content flex-grow-1">
       <!-- Navbar -->
-      <nav class="navbar navbar-expand-md">
-        <button class="toggle-sidebar d-md-none me-2" id="sidebarToggleBtn" aria-label="Open sidebar" type="button">
-          <span class="hamburger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-          </span>
-        </button>
+      <nav class="navbar">
+        <nav class="navbar navbar-expand-md">
+          <button class="toggle-sidebar d-md-none me-2" id="sidebarToggleBtn" aria-label="Open sidebar" type="button">
+            <span class="hamburger-icon">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        <div class="navbar-brand">
+          <img src="/static/logo.svg" alt="Logo" style="height: 32px;">
+        </div>
         <div class="navbar-icons">
           <i class="bi bi-bell"></i>
           <i class="bi bi-gear"></i>
           <img src="/static/user.png" alt="User" class="profile-img">
         </div>
-    </div>
-  </nav>
-
+      </nav>
+      
       <!-- Content -->
       <div class="container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
         {% block content %}{% endblock %}
