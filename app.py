@@ -482,13 +482,21 @@ def poll_and_copy_trades():
                 if not order_list:
                     print(f"ℹ️ No orders found for master {master_id}.")
                     continue
-                order_list = sorted(order_list, key=lambda x: x.get("orderTimestamp", x.get("order_time", "")), reverse=True)
+                order_list = sorted(
+                    order_list,
+                    key=lambda x: x.get(
+                        "orderTimestamp",
+                        x.get("order_time", x.get("create_time", "")),
+                    ),
+                    reverse=True,
+                )
                 children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
 
                 for order in order_list:
                     order_id = (
                         order.get("orderId")
                         or order.get("order_id")
+                        or order.get("id")
                         or order.get("NOrdNo")
                         or order.get("nestOrderNumber")
                         or order.get("orderNumber")
@@ -742,7 +750,7 @@ def get_order_book(client_id):
         formatted = []
         for order in orders:
             formatted.append({
-                "order_id": order.get("orderId") or order.get("order_id"),
+                "order_id": order.get("orderId") or order.get("order_id") or order.get("id"),
                 "side": order.get("transactionType", order.get("side", "NA")),
                 "status": order.get("orderStatus", order.get("status", "NA")),
                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
@@ -750,8 +758,13 @@ def get_order_book(client_id):
                 "placed_qty": order.get("orderQuantity", order.get("qty", 0)),
                 "filled_qty": order.get("filledQuantity", order.get("filled_qty", 0)),
                 "avg_price": order.get("averagePrice", order.get("avg_price", 0)),
-                "order_time": order.get("orderTimestamp", order.get("order_time", "")).replace("T", " ").split(".")[0],
+                "order_time": (
+                    order.get("orderTimestamp")
+                    or order.get("order_time")
+                    or order.get("create_time", "")
+                ).replace("T", " ").split(".")[0],
                 "remarks": order.get("remarks", "—")
+                
             })
 
         return jsonify(formatted), 200
