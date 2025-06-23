@@ -13,6 +13,8 @@
   --primary-dark:      #141830;
   --accent:            #00C7B4;
   --accent-hover:      #00E2CB;
+
+  --text-secondary: #D9E0F7;
   
   /* Market Status Colors */
   --profit:            #0ECB81;
@@ -69,6 +71,10 @@
   --transition-fast:   0.15s ease;
   --transition-normal: 0.25s ease;
   --transition-slow:   0.4s ease;
+
+  --table-row-hover: #343b5f; /* already suggested */
+  --card-header: var(--text-primary); /* new, for headings */
+  --card-body: var(--text-secondary); /* new, for main card text */
 }
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -537,6 +543,19 @@ p {
   overflow: visible;
 }
 
+.section-box h3,
+.section-box h4,
+.section-box h5,
+.section-box h6 {
+  color: var(--text-primary) !important;
+  font-weight: 700;
+}
+
+/* Section/Card Descriptions: More visible */
+.section-box p {
+  color: var(--text-secondary) !important;
+}
+
 .section-box:hover {
   box-shadow: 0 8px 32px var(--shadow-strong);
 }
@@ -902,7 +921,8 @@ p {
 }
 
 .table tbody tr:hover td {
-  background-color: var(--bg-hover);
+  background-color: var(--table-row-hover);
+  color: var(--text-primary) !important;
 }
 
 .table tbody tr:last-child td {
