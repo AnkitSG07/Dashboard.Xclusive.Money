@@ -557,12 +557,18 @@ def poll_and_copy_trades():
                         or 0
                     )
                    
-                    transaction_type = (
-                        order.get("transactionType") or
-                        order.get("transaction_type") or
-                        order.get("side") or
-                        "BUY"
-                    ).upper()
+                    transaction_type_raw = (
+                        order.get("transactionType")
+                        or order.get("transaction_type")
+                        or order.get("side")
+                        or "BUY"
+                    )
+                    # Some brokers return numeric side codes (e.g. 1/2)
+                    if isinstance(transaction_type_raw, (int, float)):
+                        transaction_type_raw = (
+                            "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                        )
+                    transaction_type = str(transaction_type_raw).upper()
                     symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
                     master_owner = master.get("owner")
                     record_trade(master_owner, symbol, transaction_type, base_qty, price, status_str)
@@ -615,12 +621,17 @@ def poll_and_copy_trades():
 
                         symbol = order.get("tradingSymbol") or order.get("symbol") or order.get("stock") or "UNKNOWN"
                         exchange = order.get("exchange") or order.get("exchangeSegment") or order.get("exchange_segment") or "NSE"
-                        transaction_type = (
-                            order.get("transactionType") or
-                            order.get("transaction_type") or
-                            order.get("side") or
-                            "BUY"
-                        ).upper()
+                        transaction_type_raw = (
+                            order.get("transactionType")
+                            or order.get("transaction_type")
+                            or order.get("side")
+                            or "BUY"
+                        )
+                        if isinstance(transaction_type_raw, (int, float)):
+                            transaction_type_raw = (
+                                "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                            )
+                        transaction_type = str(transaction_type_raw).upper()
                         order_type = (
                             order.get("orderType") or
                             order.get("order_type") or
