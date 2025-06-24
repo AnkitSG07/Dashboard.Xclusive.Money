@@ -478,20 +478,20 @@ def poll_and_copy_trades():
                     continue
 
                 if isinstance(orders_resp, dict):
-                    data_field = orders_resp.get("data") or orders_resp
-                    if isinstance(data_field, dict) and not isinstance(data_field.get("orderBook"), list):
-                        order_list = (
-                            data_field.get("orderBook")
-                            or data_field.get("orders")
-                            or []
-                        )
+                    data_field = orders_resp.get("data")
+                    if isinstance(data_field, list):
+                        order_list = data_field
                     else:
-                        order_list = (
-                            data_field.get("orderBook")
-                            or data_field.get("orders")
-                            or data_field
-                            or []
-                        )
+                        data_field = data_field or orders_resp
+                        if isinstance(data_field, dict):
+                            order_list = (
+                                data_field.get("orderBook")
+                                or data_field.get("orders")
+                                or data_field.get("tradeBook")
+                                or []
+                            )
+                        else:
+                            order_list = []
                 elif isinstance(orders_resp, list):
                     order_list = orders_resp
 
@@ -783,21 +783,25 @@ def get_order_book(client_id):
         if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
             return jsonify({"error": orders_resp.get("error", "Failed to fetch orders")}), 500
 
-        orders = (
-            orders_resp.get("data")
-            or orders_resp.get("orders")
-            or orders_resp.get("orderBook")
-            or orders_resp.get("tradeBook")
-            or []
-        )
+        orders = []
+        if isinstance(orders_resp, dict):
+            data_field = orders_resp.get("data")
+            if isinstance(data_field, list):
+                orders = data_field
+            else:
+                data_field = data_field or orders_resp
+                if isinstance(data_field, dict):
+                    orders = (
+                        data_field.get("orders")
+                        or data_field.get("orderBook")
+                        or data_field.get("tradeBook")
+                        or []
+                    )
+        elif isinstance(orders_resp, list):
+            orders = orders_resp
 
-        if isinstance(orders, dict):
-            orders = (
-                orders.get("orderBook")
-                or orders.get("orders")
-                or orders.get("tradeBook")
-                or []
-            )
+        if not isinstance(orders, list):
+            orders = []
         orders = strip_emojis_from_obj(orders)
 
         formatted = []
