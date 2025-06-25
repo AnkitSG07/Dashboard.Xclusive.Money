@@ -410,13 +410,27 @@ def admin_login_required(view):
         return view(*args, **kwargs)
     return wrapped
     
+import os
+import json
+import logging
+
+# Setup logging at the top of your main file or app entrypoint
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.StreamHandler()  # You can add FileHandler here if needed
+    ]
+)
+logger = logging.getLogger(__name__)
+
 def poll_and_copy_trades():
     """Run trade copying logic with application context for DB access."""
     with app.app_context():
-        print("🔄 poll_and_copy_trades() triggered...")
+        logger.info("🔄 poll_and_copy_trades() triggered...")
         try:
             if not os.path.exists("accounts.json"):
-                print("⚠️ No accounts.json file found.")
+                logger.warning("No accounts.json file found.")
                 return
 
             with open("accounts.json", "r") as f:
@@ -427,7 +441,7 @@ def poll_and_copy_trades():
             masters = [acc for acc in all_accounts if acc.get("role") == "master"]
 
             if not masters:
-                print("⚠️ No master accounts configured.")
+                logger.warning("No master accounts configured.")
                 return
 
             for master in masters:
@@ -456,7 +470,7 @@ def poll_and_copy_trades():
                             **rest,
                         )
                 except Exception as e:
-                    print(f"❌ Could not initialize master API ({master_broker}): {e}")
+                    logger.error(f"Could not initialize master API ({master_broker}): {e}")
                     continue
 
                 last_copied_key = f"last_copied_trade_id_{master_id}"
@@ -468,12 +482,12 @@ def poll_and_copy_trades():
                 try:
                     orders_resp = master_api.get_order_list()
                 except Exception as e:
-                    print(f"❌ Error fetching orders for master {master_id}: {e}")
+                    logger.error(f"Error fetching orders for master {master_id}: {e}")
                     continue
 
                 if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
-                    print(
-                        f"❌ Error fetching orders for master {master_id}: {orders_resp.get('error')}"
+                    logger.error(
+                        f"Error fetching orders for master {master_id}: {orders_resp.get('error')}"
                     )
                     continue
 
@@ -501,7 +515,7 @@ def poll_and_copy_trades():
                 order_list = strip_emojis_from_obj(order_list)
 
                 if not order_list:
-                    print(f"ℹ️ No orders found for master {master_id}.")
+                    logger.info(f"No orders found for master {master_id}.")
                     continue
                 order_list = sorted(
                     order_list,
@@ -515,9 +529,7 @@ def poll_and_copy_trades():
 
                 for order in order_list:
                     # --- ADD THIS LOGGING BLOCK ---
-                    print("\n🔎 [DEBUG] Full order object for master {}: \n{}".format(
-                        master_id, json.dumps(order, indent=2)
-                    ))
+                    logger.debug("[DEBUG] Full order object for master %s: %s", master_id, json.dumps(order, indent=2))
                     order_id = (
                         order.get("orderId")
                         or order.get("order_id")
@@ -526,9 +538,10 @@ def poll_and_copy_trades():
                         or order.get("nestOrderNumber")
                         or order.get("orderNumber")
                     )
-                    print(f"[DEBUG] order_id: {order_id}")
-                    print(f"[DEBUG] status: {order.get('orderStatus')}, report_type: {order.get('report_type')}, status (raw): {order.get('status')}")
-                    print(f"[DEBUG] filled_qty: {order.get('filled_qty')}, filledQuantity: {order.get('filledQuantity')}, tradedQty: {order.get('tradedQty')}, qty: {order.get('qty')}, quantity: {order.get('quantity')}")
+                    logger.debug("[DEBUG] order_id: %s", order_id)
+                    logger.debug("[DEBUG] status: %s, report_type: %s, status (raw): %s", order.get('orderStatus'), order.get('report_type'), order.get('status'))
+                    logger.debug("[DEBUG] filled_qty: %s, filledQuantity: %s, tradedQty: %s, qty: %s, quantity: %s",
+                        order.get('filled_qty'), order.get('filledQuantity'), order.get('tradedQty'), order.get('qty'), order.get('quantity'))
                     # --- END LOGGING BLOCK ---
                 
                     if not order_id:
@@ -547,7 +560,7 @@ def poll_and_copy_trades():
                         continue
 
                     if order_id == last_copied_trade_id:
-                        print(f"✅ [{master_id}] Reached last copied trade. Stopping here.")
+                        logger.info("[%s] Reached last copied trade. Stopping here.", master_id)
                         break
 
                     order_status = (
@@ -558,10 +571,10 @@ def poll_and_copy_trades():
                     )
                     status_str = str(order_status).upper()
                     if status_str not in ["TRADED", "FILLED", "COMPLETE", "2"]:
-                        print(f"⏩ [{master_id}] Skipping order {order_id} (Status: {order_status})")
+                        logger.info("[%s] Skipping order %s (Status: %s)", master_id, order_id, order_status)
                         continue
 
-                    print(f"✅ [{master_id}] New TRADED/FILLED order: {order_id}")
+                    logger.info("[%s] New TRADED/FILLED order: %s", master_id, order_id)
                     new_last_trade_id = new_last_trade_id or order_id
                     base_qty = (
                         order.get("quantity")
@@ -594,11 +607,11 @@ def poll_and_copy_trades():
                     master_owner = master.get("owner")
                     record_trade(master_owner, symbol, transaction_type, base_qty, price, status_str)
                     if not children:
-                        print(f"ℹ️ [{master_id}] No children to copy trades to.")
+                        logger.info("[%s] No children to copy trades to.", master_id)
                         continue
                     for child in children:
                         if child.get("copy_status") != "On":
-                            print(f"➡️ Skipping child {child['client_id']} (copy_status is Off)")
+                            logger.info("Skipping child %s (copy_status is Off)", child['client_id'])
                             continue
 
                         child_broker = child.get("broker", "Unknown").lower()
@@ -634,7 +647,7 @@ def poll_and_copy_trades():
                                     **rest_child,
                                 )
                         except Exception as e:
-                            print(f"❌ Could not initialize child API ({child_broker}): {e}")
+                            logger.error("Could not initialize child API (%s): %s", child_broker, e)
                             continue
 
                         multiplier = float(child.get("multiplier", 1))
@@ -751,12 +764,12 @@ def poll_and_copy_trades():
 
                             if isinstance(response, dict) and response.get("status") == "failure":
                                 error_msg = response.get("error") or response.get("remarks") or "Unknown error"
-                                print(f"❌ Trade FAILED for {child['client_id']} (Reason: {error_msg})")
+                                logger.error("Trade FAILED for %s (Reason: %s)", child['client_id'], error_msg)
                                 save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", error_msg)
                                 record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'FAILED')
                             else:
                                 order_id_child = response.get("order_id") or response.get("orderId")
-                                print(f"✅ Copied to {child['client_id']} (Order ID: {order_id_child})")
+                                logger.info("Copied to %s (Order ID: %s)", child['client_id'], order_id_child)
                                 save_log(child['client_id'], symbol, transaction_type, copied_qty, "SUCCESS", str(response))
                                 save_order_mapping(
                                     master_order_id=order_id,
@@ -769,16 +782,16 @@ def poll_and_copy_trades():
                                 )
                                 record_trade(child.get('owner'), symbol, transaction_type, copied_qty, price, 'SUCCESS')
                         except Exception as e:
-                            print(f"❌ Error copying to {child['client_id']}: {e}")
+                            logger.error("Error copying to %s: %s", child['client_id'], e)
                             save_log(child['client_id'], symbol, transaction_type, copied_qty, "FAILED", str(e))
 
                 if new_last_trade_id:
-                    print(f"✅ Updating last_copied_trade_id for {master_id} to {new_last_trade_id}")
+                    logger.info("Updating last_copied_trade_id for %s to %s", master_id, new_last_trade_id)
                     accounts_data[last_copied_key] = new_last_trade_id
 
             safe_write_json("accounts.json", accounts_data)
         except Exception as e:
-            print(f"❌ poll_and_copy_trades encountered an error: {e}")
+            logger.exception("poll_and_copy_trades encountered an error: %s", e)
 
 
 
