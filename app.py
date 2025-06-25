@@ -514,6 +514,27 @@ def poll_and_copy_trades():
                 children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id]
 
                 for order in order_list:
+                    # --- ADD THIS LOGGING BLOCK ---
+                    print("\n🔎 [DEBUG] Full order object for master {}: \n{}".format(
+                        master_id, json.dumps(order, indent=2)
+                    ))
+                    order_id = (
+                        order.get("orderId")
+                        or order.get("order_id")
+                        or order.get("id")
+                        or order.get("NOrdNo")
+                        or order.get("nestOrderNumber")
+                        or order.get("orderNumber")
+                    )
+                    print(f"[DEBUG] order_id: {order_id}")
+                    print(f"[DEBUG] status: {order.get('orderStatus')}, report_type: {order.get('report_type')}, status (raw): {order.get('status')}")
+                    print(f"[DEBUG] filled_qty: {order.get('filled_qty')}, filledQuantity: {order.get('filledQuantity')}, tradedQty: {order.get('tradedQty')}, qty: {order.get('qty')}, quantity: {order.get('quantity')}")
+                    # --- END LOGGING BLOCK ---
+                
+                    if not order_id:
+                        continue
+
+                for order in order_list:
                     order_id = (
                         order.get("orderId")
                         or order.get("order_id")
