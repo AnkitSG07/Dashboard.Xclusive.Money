@@ -879,7 +879,6 @@ def get_order_book(client_id):
                 "product_type": order.get("productType", order.get("product", "—")),
                 "placed_qty": placed_qty,
                 "filled_qty": filled_qty,
-                ),
                 "avg_price": order.get("averagePrice", order.get("avg_price", order.get("tradePrice", 0))),
                 "order_time": (
                     order.get("orderTimestamp")
