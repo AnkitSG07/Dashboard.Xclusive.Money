@@ -858,18 +858,27 @@ def get_order_book(client_id):
                 or order.get("status")
                 or ("FILLED" if order.get("tradedQty") else "NA")
             )
+                        
+            placed_qty = order.get(
+                "orderQuantity",
+                order.get("qty", order.get("tradedQty", 0)),
+            )
+
+            filled_qty = (
+                order.get("filledQuantity")
+                or order.get("filled_qty")
+                or order.get("tradedQty")
+                or (placed_qty if str(order.get("status")) == "2" else 0)
+            )
+
             formatted.append({
                 "order_id": order.get("orderId") or order.get("order_id") or order.get("id") or order.get("orderNumber"),
                 "side": order.get("transactionType", order.get("side", "NA")),
                 "status": status_val,
                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
                 "product_type": order.get("productType", order.get("product", "—")),
-                "placed_qty": order.get("orderQuantity", order.get("qty", order.get("tradedQty", 0))),
-                "filled_qty": (
-                    order.get("filledQuantity")
-                    or order.get("filled_qty")
-                    or order.get("tradedQty")
-                    or (order.get("placed_qty") if str(order.get("status")) == "2" else 0)
+                "placed_qty": placed_qty,
+                "filled_qty": filled_qty,
                 ),
                 "avg_price": order.get("averagePrice", order.get("avg_price", order.get("tradePrice", 0))),
                 "order_time": (
@@ -879,7 +888,6 @@ def get_order_book(client_id):
                     or order.get("orderDateTime", "")
                 ).replace("T", " ").split(".")[0],
                 "remarks": order.get("remarks", "—")
-                
             })
 
         return jsonify(formatted), 200
