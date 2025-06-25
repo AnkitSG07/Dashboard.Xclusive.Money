@@ -654,4 +654,17 @@ SYMBOL_MAP = {
 def get_symbol_for_broker(symbol, broker):
     symbol = symbol.upper()
     broker = broker.lower()
-    return SYMBOL_MAP.get(symbol, {}).get(broker, {})
+    
+    # Handle Fyers style symbols like "NSE:IDEA-EQ" by normalizing
+    base = symbol.split(":")[-1]
+    if base.endswith("-EQ"):
+        base = base[:-3]
+
+    # Fallback to the original symbol if no mapping for the normalized key
+    mapping = SYMBOL_MAP.get(symbol) or SYMBOL_MAP.get(base)
+    if not mapping:
+        # Try again by stripping any remaining suffix after a dash
+        base2 = base.split("-")[0]
+        mapping = SYMBOL_MAP.get(base2, {})
+
+    return mapping.get(broker, {}) if mapping else {}
