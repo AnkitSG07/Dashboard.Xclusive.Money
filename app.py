@@ -695,6 +695,7 @@ def poll_and_copy_trades():
                                     or mapping_child.get("security_id")
                                 )
                                 response = child_api.place_order(
+                                    tradingsymbol=symbol,
                                     security_id=security_id,
                                     exchange_segment=exchange,
                                     transaction_type=transaction_type,
@@ -961,6 +962,7 @@ def webhook(user_id):
         if not security_id:
             return jsonify({"error": f"Symbol '{symbol}' not found in symbol map."}), 400
         order_params = dict(
+            tradingsymbol=symbol,
             security_id=security_id,
             exchange_segment=broker_api.NSE,
             transaction_type=broker_api.BUY if action.upper() == "BUY" else broker_api.SELL,
@@ -1049,6 +1051,7 @@ def master_squareoff():
 
                 direction = "SELL" if match.get("netQty", match.get("net_quantity", 0)) > 0 else "BUY"
                 response = api.place_order(
+                    tradingsymbol=symbol,
                     security_id=match.get("securityId", match.get("security_id")),
                     exchange_segment=match.get("exchangeSegment", match.get("exchange_segment")),
                     transaction_type=direction,
@@ -1335,6 +1338,7 @@ def square_off():
             direction = "SELL" if match["netQty"] > 0 else "BUY"
 
             resp = api.place_order(
+                tradingsymbol=symbol,
                 security_id=match["securityId"],
                 exchange_segment=match["exchangeSegment"],
                 transaction_type=direction,
@@ -1371,6 +1375,7 @@ def square_off():
                 direction = "SELL" if match['netQty'] > 0 else "BUY"
 
                 response = api.place_order(
+                    tradingsymbol=symbol,
                     security_id=security_id,
                     exchange_segment=exchange_segment,
                     transaction_type=direction,
@@ -1989,6 +1994,7 @@ def place_group_order():
             if broker_name == "dhan":
                 security_id = mapping.get("security_id")
                 order_params = dict(
+                    tradingsymbol=symbol,
                     security_id=security_id,
                     exchange_segment=api.NSE,
                     transaction_type=api.BUY if action.upper() == "BUY" else api.SELL,
