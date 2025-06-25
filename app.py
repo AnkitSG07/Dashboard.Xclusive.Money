@@ -581,6 +581,7 @@ def poll_and_copy_trades():
                         or order.get("orderQuantity")
                         or order.get("qty")
                         or order.get("tradedQty")
+                        or order.get("filledQty")   # ADD THIS
                         or 1
                     )
                     price = float(
@@ -588,6 +589,7 @@ def poll_and_copy_trades():
                         or order.get("orderPrice")
                         or order.get("avg_price")
                         or order.get("tradePrice")
+                        or order.get("tradedPrice")  # ADD THIS
                         or 0
                     )
                    
@@ -867,6 +869,8 @@ def get_order_book(client_id):
             filled_qty = (
                 order.get("filledQuantity")
                 or order.get("filled_qty")
+                or order.get("filledQty")
+                or order.get("qty")
                 or order.get("tradedQty")
                 or (placed_qty if str(order.get("status")) == "2" else 0)
             )
@@ -879,7 +883,13 @@ def get_order_book(client_id):
                 "product_type": order.get("productType", order.get("product", "—")),
                 "placed_qty": placed_qty,
                 "filled_qty": filled_qty,
-                "avg_price": order.get("averagePrice", order.get("avg_price", order.get("tradePrice", 0))),
+                "avg_price": (
+                    order.get("averagePrice")
+                    or order.get("avg_price")
+                    or order.get("tradePrice")
+                    or order.get("tradedPrice")   # ADD THIS
+                    or 0
+                ),
                 "order_time": (
                     order.get("orderTimestamp")
                     or order.get("order_time")
