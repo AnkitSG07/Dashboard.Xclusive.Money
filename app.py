@@ -865,7 +865,12 @@ def get_order_book(client_id):
                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
                 "product_type": order.get("productType", order.get("product", "—")),
                 "placed_qty": order.get("orderQuantity", order.get("qty", order.get("tradedQty", 0))),
-                "filled_qty": order.get("filledQuantity", order.get("filled_qty", order.get("tradedQty", 0))),
+                "filled_qty": (
+                    order.get("filledQuantity")
+                    or order.get("filled_qty")
+                    or order.get("tradedQty")
+                    or (order.get("placed_qty") if str(order.get("status")) == "2" else 0)
+                ),
                 "avg_price": order.get("averagePrice", order.get("avg_price", order.get("tradePrice", 0))),
                 "order_time": (
                     order.get("orderTimestamp")
