@@ -450,8 +450,7 @@ def poll_and_copy_trades():
             return
             
         logger.info(f"Found {len(masters)} master accounts to process")
-            
-            for master in masters:
+        for master in masters:
                 logger.debug(f"Processing master account: {master.get('client_id')}")
                 master_id = master.get("client_id")
                 if not master_id:
@@ -1055,22 +1054,16 @@ def poll_and_copy_trades():
                                         f"Response processing error: {str(e)}"
                                     )
                                     
-            except Exception as e:
-                logger.error(f"Error copying to child {child_id}: {str(e)}")
-                save_log(
-                    child_id, 
-                    symbol, 
-                    transaction_type, 
-                    copied_qty, 
-                    "FAILED", 
-                    f"Order placement error: {str(e)}"
-                )
-
-        except Exception as e:
-            logger.exception(
-                f"poll_and_copy_trades encountered an error: {str(e)}\n"
-                f"Stack trace follows:"
-            )
+                            except Exception as e:
+                                logger.error(f"Error copying to child {child_id}: {str(e)}")
+                                save_log(
+                                    child_id, 
+                                    symbol, 
+                                    transaction_type, 
+                                    copied_qty, 
+                                    "FAILED", 
+                                    f"Order placement error: {str(e)}"
+                                )
 
 
 
