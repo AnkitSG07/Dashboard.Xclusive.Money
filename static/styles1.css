@@ -337,8 +337,8 @@ a:hover {
 }
 
 .navbar .navbar-brand {
-	padding-top: 0.25rem;
-	padding-bottom: 0.25rem;
+	padding-top: 0.15rem;
+	padding-bottom: 0.05rem;
 }
 
 .navbar .logo-image img {
@@ -1530,3 +1530,48 @@ a:hover {
 	/* end of extra pages */
 }
 /* end of min-width 1200px */
+@media (max-width: 768px) {
+    .navbar .logo-image {
+        display: flex;
+        justify-content: center; /* Center the logo horizontally */
+        align-items: center; /* Center the logo vertically */
+        width: 100%; /* Ensure it takes full width */
+    }
+    .navbar .logo-image img {
+        width: 50%; /* Adjust the width of the logo image */
+        max-width: 60px; /* Set a maximum width for the logo */
+        height: auto; /* Maintain aspect ratio */
+        margin: 0 auto; /* Center the image */
+    }
+    .navbar .navbar-toggler {
+        position: absolute; /* Position it absolutely */
+        left: 1rem; /* Align it to the right */
+        top: 1.8rem; /* Adjust the top position as needed */
+        z-index: 1; /* Ensure it is above other elements */
+			  
+    }
+	  
+		.gradient-title {
+			font-weight: 900;
+			line-height: 1.2;
+			background: linear-gradient(90deg, #FF3B30, #FFA726, #FFEB3B);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			text-align: center;
+			margin: 0;
+			padding-top: 0.5rem; /* new */
+			font-family: 'Poppins', sans-serif;
+		}
+
+
+		.sub-gradient-title {
+			font-size: 2rem;
+			font-weight: 700;
+			background: linear-gradient(90deg, #FF3B30, #FFA726, #FFEB3B);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			text-align: center;
+			margin-bottom: 2rem;
+			font-family: 'Poppins', sans-serif;
+		}
+}
