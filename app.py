@@ -441,25 +441,20 @@ def poll_and_copy_trades():
             logger.error(f"Failed to load accounts.json: {e}")
             return
 
-        # Find and validate master accounts
         all_accounts = accounts_data.get("accounts", [])
         masters = [acc for acc in all_accounts if acc.get("role") == "master"]
-
         if not masters:
             logger.warning("No master accounts configured")
             return
 
         logger.info(f"Found {len(masters)} master accounts to process")
         for master in masters:
-            logger.debug(f"Processing master account: {master.get('client_id')}")
             master_id = master.get("client_id")
             if not master_id:
                 logger.error("Master account missing client_id, skipping...")
                 continue
 
             master_broker = master.get("broker", "Unknown").lower()
-            logger.debug(f"Initializing {master_broker} broker for master {master_id}")
-
             credentials = master.get("credentials", {})
             if not credentials:
                 logger.error(f"No credentials found for master {master_id}, skipping...")
@@ -467,7 +462,6 @@ def poll_and_copy_trades():
 
             try:
                 BrokerClass = get_broker_class(master_broker)
-                # Initialize broker based on type
                 if master_broker == "aliceblue":
                     api_key = credentials.get("api_key")
                     if not api_key:
@@ -481,7 +475,7 @@ def poll_and_copy_trades():
                         device_number=credentials.get("device_number"),
                         **rest
                     )
-                else:  # Default flow for other brokers
+                else:
                     access_token = credentials.get("access_token")
                     if not access_token:
                         logger.error(f"Missing access token for {master_broker} master {master_id}")
@@ -492,21 +486,13 @@ def poll_and_copy_trades():
                         access_token=access_token,
                         **rest
                     )
-                logger.info(f"Successfully initialized {master_broker} API for master {master_id}")
-
             except Exception as e:
                 logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
                 continue
 
-            # Fetch and process master orders
             try:
-                logger.info(f"Fetching orders for master {master_id}")
                 orders_resp = master_api.get_order_list()
                 if isinstance(orders_resp, dict):
-                    if orders_resp.get("status") == "failure":
-                        error_msg = orders_resp.get("error") or orders_resp.get("message", "Unknown error")
-                        logger.error(f"API error for master {master_id}: {error_msg}")
-                        continue
                     data_field = orders_resp.get("data")
                     if isinstance(data_field, list):
                         order_list = data_field
@@ -526,22 +512,19 @@ def poll_and_copy_trades():
                 else:
                     logger.error(f"Unexpected response format from {master_broker}: {type(orders_resp)}")
                     continue
-
             except Exception as e:
                 logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
                 continue
 
-            # Sanitize and validate order list
             order_list = strip_emojis_from_obj(order_list or [])
             if not isinstance(order_list, list):
                 logger.error(f"Invalid order list type for master {master_id}: {type(order_list)}")
                 continue
-
             if not order_list:
                 logger.info(f"No orders found for master {master_id}")
                 continue
 
-            logger.info(f"Processing {len(order_list)} orders for master {master_id}")
+            # Sort newest first
             try:
                 order_list = sorted(
                     order_list,
@@ -555,24 +538,10 @@ def poll_and_copy_trades():
                 logger.error(f"Failed to sort orders for master {master_id}: {str(e)}")
                 continue
 
-            # Find child accounts linked to this master
-            children = [acc for acc in all_accounts
-                        if acc.get("role") == "child"
-                        and acc.get("linked_master_id") == master_id
-                        and acc.get("copy_status") == "On"]
-
-            if not children:
-                logger.info(f"No active child accounts found for master {master_id}")
-                continue
-
-            logger.info(f"Found {len(children)} active child accounts for master {master_id}")
-
-            # PATCH: Per-child last_copied_trade_id logic
+            # Per-child marker logic
+            children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("copy_status") == "On"]
             for child in children:
                 child_id = child.get("client_id")
-                child_broker = child.get("broker", "Unknown").lower()
-                child_credentials = child.get("credentials", {})
-
                 last_copied_key = f"last_copied_trade_id_{master_id}_{child_id}"
                 last_copied_trade_id = accounts_data.get(last_copied_key)
                 new_last_trade_id = None
@@ -588,12 +557,11 @@ def poll_and_copy_trades():
                     )
                     if not order_id:
                         continue
-
                     if order_id == last_copied_trade_id:
                         logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
                         break
 
-                    # Validate order (filled qty, status)
+                    # --- Main copy logic/validations ---
                     try:
                         filled_qty = int(
                             order.get("filledQuantity")
@@ -641,7 +609,6 @@ def poll_and_copy_trades():
                     if new_last_trade_id is None:
                         new_last_trade_id = order_id
 
-                    # --- Copy logic: (identical to your original, just inside per-child loop) ---
                     try:
                         price = float(
                             order.get("price")
@@ -694,6 +661,8 @@ def poll_and_copy_trades():
 
                     # Initialize child broker API
                     try:
+                        child_broker = child.get("broker", "Unknown").lower()
+                        child_credentials = child.get("credentials", {})
                         ChildBrokerClass = get_broker_class(child_broker)
                         if child_broker == "aliceblue":
                             api_key = child_credentials.get("api_key")
@@ -870,10 +839,10 @@ def poll_and_copy_trades():
                     except Exception:
                         continue
 
-                # After copying, update this child's last_copied_trade_id if needed
                 if new_last_trade_id:
                     accounts_data[last_copied_key] = new_last_trade_id
                     safe_write_json("accounts.json", accounts_data)
+
 
 def start_scheduler():
     """Initialize and start the background scheduler for trade copying.
@@ -2871,7 +2840,6 @@ def start_copy():
         return jsonify({"error": "No accounts file found"}), 500
 
     user = session.get("user")
-
     found = False
     for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id and acc.get("owner") == user:
@@ -2879,12 +2847,60 @@ def start_copy():
             acc["linked_master_id"] = master_id
             acc["copy_status"] = "On"
             found = True
+
+    # Set marker to latest master order at the time of enabling copy
+    master_acc = next((a for a in accounts_data["accounts"] if a.get("client_id") == master_id and a.get("role") == "master"), None)
+    if master_acc:
+        try:
+            master_api = broker_api(master_acc)
+            orders_resp = master_api.get_order_list()
+            if isinstance(orders_resp, dict):
+                data_field = orders_resp.get("data")
+                if isinstance(data_field, list):
+                    order_list = data_field
+                else:
+                    data_field = data_field or orders_resp
+                    if isinstance(data_field, dict):
+                        order_list = (
+                            data_field.get("orderBook")
+                            or data_field.get("orders")
+                            or data_field.get("tradeBook")
+                            or []
+                        )
+                    else:
+                        order_list = []
+            elif isinstance(orders_resp, list):
+                order_list = orders_resp
+            else:
+                order_list = []
+            order_list = strip_emojis_from_obj(order_list or [])
+            if order_list:
+                order_list = sorted(
+                    order_list,
+                    key=lambda x: x.get(
+                        "orderTimestamp",
+                        x.get("order_time", x.get("create_time", "")),
+                    ),
+                    reverse=True,
+                )
+                latest_order_id = (
+                    order_list[0].get("orderId")
+                    or order_list[0].get("order_id")
+                    or order_list[0].get("id")
+                    or order_list[0].get("NOrdNo")
+                    or order_list[0].get("nestOrderNumber")
+                    or order_list[0].get("orderNumber")
+                )
+                if latest_order_id:
+                    accounts_data[f"last_copied_trade_id_{master_id}_{client_id}"] = latest_order_id
+        except Exception as e:
+            logger.error(f"Could not set initial last_copied_trade_id for child {client_id}: {e}")
+
     if not found:
         return jsonify({"error": "Child account not found."}), 404
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."})
-
 
 @app.route('/api/stop-copy', methods=['POST'])
 @login_required
