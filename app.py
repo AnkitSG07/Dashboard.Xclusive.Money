@@ -1068,6 +1068,13 @@ def poll_and_copy_trades():
                             f"Order placement error: {str(e)}"
                         )
 
+            if new_last_trade_id:
+                accounts_data[last_copied_key] = new_last_trade_id
+                safe_write_json("accounts.json", accounts_data)
+                logger.debug(
+                    f"Updated {last_copied_key} to {new_last_trade_id}"
+                )
+
 
 def start_scheduler():
     """Initialize and start the background scheduler for trade copying.
