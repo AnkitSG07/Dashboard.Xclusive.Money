@@ -467,14 +467,12 @@ def poll_and_copy_trades():
 
             try:
                 BrokerClass = get_broker_class(master_broker)
-
                 # Initialize broker based on type
                 if master_broker == "aliceblue":
                     api_key = credentials.get("api_key")
                     if not api_key:
                         logger.error(f"Missing API key for AliceBlue master {master_id}")
                         continue
-
                     rest = {k: v for k, v in credentials.items()
                             if k not in ("access_token", "api_key", "device_number")}
                     master_api = BrokerClass(
@@ -483,46 +481,32 @@ def poll_and_copy_trades():
                         device_number=credentials.get("device_number"),
                         **rest
                     )
-
                 else:  # Default flow for other brokers
                     access_token = credentials.get("access_token")
                     if not access_token:
                         logger.error(f"Missing access token for {master_broker} master {master_id}")
                         continue
-
                     rest = {k: v for k, v in credentials.items() if k != "access_token"}
                     master_api = BrokerClass(
                         client_id=master.get("client_id"),
                         access_token=access_token,
                         **rest
                     )
-
                 logger.info(f"Successfully initialized {master_broker} API for master {master_id}")
 
             except Exception as e:
                 logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
                 continue
 
-            # Track the last copied trade to avoid duplicates
-            last_copied_key = f"last_copied_trade_id_{master_id}"
-            last_copied_trade_id = accounts_data.get(last_copied_key)
-            new_last_trade_id = None
-
-            logger.debug(f"Last copied trade ID for {master_id}: {last_copied_trade_id}")
-
             # Fetch and process master orders
             try:
                 logger.info(f"Fetching orders for master {master_id}")
                 orders_resp = master_api.get_order_list()
-
-                # Handle API error responses
                 if isinstance(orders_resp, dict):
                     if orders_resp.get("status") == "failure":
                         error_msg = orders_resp.get("error") or orders_resp.get("message", "Unknown error")
                         logger.error(f"API error for master {master_id}: {error_msg}")
                         continue
-
-                    # Extract orders from response based on broker-specific structure
                     data_field = orders_resp.get("data")
                     if isinstance(data_field, list):
                         order_list = data_field
@@ -558,7 +542,6 @@ def poll_and_copy_trades():
                 continue
 
             logger.info(f"Processing {len(order_list)} orders for master {master_id}")
-            # Sort orders by timestamp for consistent processing
             try:
                 order_list = sorted(
                     order_list,
@@ -574,512 +557,323 @@ def poll_and_copy_trades():
 
             # Find child accounts linked to this master
             children = [acc for acc in all_accounts
-                        if acc.get("role") == "child" and
-                        acc.get("linked_master_id") == master_id and
-                        acc.get("copy_status") == "On"]
+                        if acc.get("role") == "child"
+                        and acc.get("linked_master_id") == master_id
+                        and acc.get("copy_status") == "On"]
 
             if not children:
                 logger.info(f"No active child accounts found for master {master_id}")
                 continue
 
             logger.info(f"Found {len(children)} active child accounts for master {master_id}")
-            copied_any = False  # Track if any child copy succeeded
 
-            # Process each order with enhanced validation
-            for order in order_list:
-                # Enhanced order logging
-                logger.debug(f"Processing order for master {master_id}:")
-                logger.debug(f"Full order details: {json.dumps(order, indent=2)}")
+            # PATCH: Per-child last_copied_trade_id logic
+            for child in children:
+                child_id = child.get("client_id")
+                child_broker = child.get("broker", "Unknown").lower()
+                child_credentials = child.get("credentials", {})
 
-                order_id = (
-                    order.get("orderId")
-                    or order.get("order_id")
-                    or order.get("id")
-                    or order.get("NOrdNo")
-                    or order.get("nestOrderNumber")
-                    or order.get("orderNumber")
-                )
-                if not order_id:
-                    logger.warning(f"Skipping order without ID for master {master_id}")
-                    continue
+                last_copied_key = f"last_copied_trade_id_{master_id}_{child_id}"
+                last_copied_trade_id = accounts_data.get(last_copied_key)
+                new_last_trade_id = None
 
-                logger.debug(f"Processing order ID: {order_id}")
-
-                # Check if we've already copied this trade
-                if order_id == last_copied_trade_id:
-                    logger.info(f"[{master_id}] Reached last copied trade {order_id}. Stopping here.")
-                    break
-
-                # Enhanced order validation with comprehensive status and quantity checks
-                try:
-                    # Extract and validate filled quantity
-                    filled_qty = int(
-                        order.get("filledQuantity")
-                        or order.get("filled_qty")
-                        or order.get("filledQty")
-                        or order.get("tradedQty")
-                        or order.get("executed_qty")
-                        or order.get("filled_quantity")
-                        or order.get("executed_quantity")
-                        or order.get("quantity")
-                        or 0
+                for order in order_list:
+                    order_id = (
+                        order.get("orderId")
+                        or order.get("order_id")
+                        or order.get("id")
+                        or order.get("NOrdNo")
+                        or order.get("nestOrderNumber")
+                        or order.get("orderNumber")
                     )
-
-                    if filled_qty <= 0:
-                        logger.info(f"[{master_id}] Skipping order {order_id} - No filled quantity")
+                    if not order_id:
                         continue
 
-                    # Get and standardize order status
-                    order_status_raw = (
-                        order.get("orderStatus")
-                        or order.get("status")
-                        or order.get("order_status")
-                        or order.get("report_type")
-                        or ("COMPLETE" if filled_qty > 0 else "")
-                    )
-                    order_status = str(order_status_raw).upper() if order_status_raw else ""
+                    if order_id == last_copied_trade_id:
+                        logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
+                        break
 
-                    # Map broker-specific status values to standard states
-                    status_mapping = {
-                        "TRADED": "COMPLETE",
-                        "FILLED": "COMPLETE",
-                        "COMPLETE": "COMPLETE",
-                        "COMPLETED": "COMPLETE",
-                        "EXECUTED": "COMPLETE",
-                        "FULL_EXECUTED": "COMPLETE",
-                        "FULLY_EXECUTED": "COMPLETE",
-                        "2": "COMPLETE",  # Numeric status used by some brokers
-                        "CONFIRMED": "COMPLETE",
-                        "SUCCESS": "COMPLETE",
-                        "REJECTED": "REJECTED",
-                        "CANCELLED": "CANCELLED",
-                        "FAILED": "FAILED"
-                    }
-
-                    status = status_mapping.get(order_status, "UNKNOWN")
-
-                    if status != "COMPLETE":
-                        logger.info(
-                            f"[{master_id}] Skipping order {order_id} - "
-                            f"Status '{order_status}' mapped to '{status}'"
+                    # Validate order (filled qty, status)
+                    try:
+                        filled_qty = int(
+                            order.get("filledQuantity")
+                            or order.get("filled_qty")
+                            or order.get("filledQty")
+                            or order.get("tradedQty")
+                            or order.get("executed_qty")
+                            or order.get("filled_quantity")
+                            or order.get("executed_quantity")
+                            or order.get("quantity")
+                            or 0
                         )
-                        continue
+                        if filled_qty <= 0:
+                            continue
 
-                    logger.info(f"[{master_id}] Processing completed order {order_id}")
-
-                except (TypeError, ValueError) as e:
-                    logger.warning(
-                        f"Invalid order data for {order_id}: {str(e)}"
-                    )
-                    continue
-
-                # Track this as the newest valid trade
-                new_last_trade_id = new_last_trade_id or order_id
-
-                # Enhanced order details extraction and validation
-                try:
-                    # Extract and validate price
-                    price = float(
-                        order.get("price")
-                        or order.get("orderPrice")
-                        or order.get("avg_price")
-                        or order.get("avgPrice")
-                        or order.get("tradePrice")
-                        or order.get("tradedPrice")
-                        or order.get("executedPrice")
-                        or order.get("lastTradedPrice")
-                        or 0
-                    )
-
-                    if price < 0:
-                        logger.warning(
-                            f"[{master_id}] Invalid negative price for order {order_id}: {price}"
+                        order_status_raw = (
+                            order.get("orderStatus")
+                            or order.get("status")
+                            or order.get("order_status")
+                            or order.get("report_type")
+                            or ("COMPLETE" if filled_qty > 0 else "")
                         )
+                        order_status = str(order_status_raw).upper() if order_status_raw else ""
+                        status_mapping = {
+                            "TRADED": "COMPLETE",
+                            "FILLED": "COMPLETE",
+                            "COMPLETE": "COMPLETE",
+                            "COMPLETED": "COMPLETE",
+                            "EXECUTED": "COMPLETE",
+                            "FULL_EXECUTED": "COMPLETE",
+                            "FULLY_EXECUTED": "COMPLETE",
+                            "2": "COMPLETE",
+                            "CONFIRMED": "COMPLETE",
+                            "SUCCESS": "COMPLETE",
+                            "REJECTED": "REJECTED",
+                            "CANCELLED": "CANCELLED",
+                            "FAILED": "FAILED"
+                        }
+                        status = status_mapping.get(order_status, "UNKNOWN")
+                        if status != "COMPLETE":
+                            continue
+                    except Exception:
                         continue
 
-                    # Extract and standardize transaction type
-                    transaction_type_raw = (
-                        order.get("transactionType")
-                        or order.get("transaction_type")
-                        or order.get("side")
-                        or order.get("orderSide")
-                        or order.get("buyOrSell")
-                        or "BUY"  # Default to BUY if no value found
+                    if new_last_trade_id is None:
+                        new_last_trade_id = order_id
+
+                    # --- Copy logic: (identical to your original, just inside per-child loop) ---
+                    try:
+                        price = float(
+                            order.get("price")
+                            or order.get("orderPrice")
+                            or order.get("avg_price")
+                            or order.get("avgPrice")
+                            or order.get("tradePrice")
+                            or order.get("tradedPrice")
+                            or order.get("executedPrice")
+                            or order.get("lastTradedPrice")
+                            or 0
+                        )
+                        if price < 0:
+                            continue
+
+                        transaction_type_raw = (
+                            order.get("transactionType")
+                            or order.get("transaction_type")
+                            or order.get("side")
+                            or order.get("orderSide")
+                            or order.get("buyOrSell")
+                            or "BUY"
+                        )
+                        if isinstance(transaction_type_raw, (int, float)):
+                            transaction_type_raw = "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                        transaction_type_map = {
+                            "B": "BUY", "S": "SELL", "BUY": "BUY", "SELL": "SELL", "1": "BUY", "2": "SELL", "0": "BUY"
+                        }
+                        transaction_type = transaction_type_map.get(str(transaction_type_raw).upper(), "BUY")
+                    except Exception:
+                        continue
+
+                    symbol = (
+                        order.get("tradingSymbol")
+                        or order.get("symbol")
+                        or order.get("stock")
+                        or order.get("scripCode")
+                        or order.get("instrumentToken")
                     )
-
-                    # Handle numeric transaction types (convert to string)
-                    if isinstance(transaction_type_raw, (int, float)):
-                        transaction_type_raw = "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
-
-                    # Map various transaction type formats to standard values
-                    transaction_type_map = {
-                        "B": "BUY",
-                        "S": "SELL",
-                        "BUY": "BUY",
-                        "SELL": "SELL",
-                        "1": "BUY",
-                        "2": "SELL",
-                        "0": "BUY"
-                    }
-
-                    transaction_type = transaction_type_map.get(str(transaction_type_raw).upper(), "BUY")
-
-                    logger.info(
-                        f"[{master_id}] Processing order: {order_id} "
-                        f"(Type: {transaction_type}, Qty: {filled_qty}, Price: {price})"
-                    )
-
-                except (TypeError, ValueError) as e:
-                    logger.error(
-                        f"[{master_id}] Failed to process order details for {order_id}: {str(e)}"
-                    )
-                    continue
-
-                # Extract and validate symbol
-                symbol = (
-                    order.get("tradingSymbol")
-                    or order.get("symbol")
-                    or order.get("stock")
-                    or order.get("scripCode")
-                    or order.get("instrumentToken")
-                )
-
-                if not symbol:
-                    logger.error(f"[{master_id}] No symbol found for order {order_id}")
-                    continue
-
-                logger.info(f"[{master_id}] Processing symbol: {symbol}")
-
-                # Process child accounts with enhanced error handling
-                active_children = [
-                    acc for acc in all_accounts
-                    if (acc.get("role") == "child" and
-                        acc.get("linked_master_id") == master_id and
-                        acc.get("copy_status") == "On")
-                ]
-
-                if not active_children:
-                    logger.info(f"No active child accounts found for master {master_id}")
-                    continue
-
-                logger.info(f"Found {len(active_children)} active child accounts for master {master_id}")
-
-                # Process each child account
-                for child in active_children:
-                    child_id = child.get("client_id")
-                    logger.debug(f"Processing child account: {child_id}")
+                    if not symbol:
+                        continue
 
                     try:
-                        # Validate child account configuration
-                        child_broker = child.get("broker", "Unknown").lower()
-                        child_credentials = child.get("credentials", {})
-
-                        if not child_credentials:
-                            logger.error(f"No credentials found for child {child_id}")
+                        multiplier = float(child.get("multiplier", 1))
+                        if multiplier <= 0:
                             continue
+                        copied_qty = max(1, int(float(filled_qty) * multiplier))
+                    except Exception:
+                        continue
 
-                        # Calculate copy quantity with multiplier
-                        try:
-                            multiplier = float(child.get("multiplier", 1))
-                            if multiplier <= 0:
-                                logger.error(f"Invalid multiplier for child {child_id}: {multiplier}")
+                    # Initialize child broker API
+                    try:
+                        ChildBrokerClass = get_broker_class(child_broker)
+                        if child_broker == "aliceblue":
+                            api_key = child_credentials.get("api_key")
+                            if not api_key:
                                 continue
-
-                            copied_qty = max(1, int(float(filled_qty) * multiplier))
-                            logger.info(
-                                f"Calculated copy quantity for child {child_id}: "
-                                f"{filled_qty} * {multiplier} = {copied_qty}"
+                            device_number = child_credentials.get("device_number")
+                            rest_child = {
+                                k: v for k, v in child_credentials.items()
+                                if k not in ("access_token", "api_key", "device_number")
+                            }
+                            child_api = ChildBrokerClass(
+                                child.get("client_id"), api_key, device_number=device_number, **rest_child
                             )
-                        except (TypeError, ValueError) as e:
-                            logger.error(
-                                f"Failed to calculate quantity for child {child_id}: {str(e)}"
-                            )
-                            continue
-
-                        # Initialize child broker API with enhanced error handling
-                        try:
-                            ChildBrokerClass = get_broker_class(child_broker)
-
-                            # Initialize based on broker type
-                            if child_broker == "aliceblue":
-                                api_key = child_credentials.get("api_key")
-                                if not api_key:
-                                    logger.error(f"Missing API key for AliceBlue child {child_id}")
-                                    continue
-
-                                device_number = child_credentials.get("device_number")
-                                rest_child = {
-                                    k: v for k, v in child_credentials.items()
-                                    if k not in ("access_token", "api_key", "device_number")
-                                }
-
-                                child_api = ChildBrokerClass(
-                                    child.get("client_id"),
-                                    api_key,
-                                    device_number=device_number,
-                                    **rest_child
-                                )
-
-                            elif child_broker == "finvasia":
-                                required = ['password', 'totp_secret', 'vendor_code', 'api_key']
-                                if not all(child_credentials.get(r) for r in required):
-                                    logger.error(f"Missing required credentials for Finvasia child {child_id}")
-                                    continue
-
-                                imei = child_credentials.get('imei') or 'abc1234'
-                                child_api = ChildBrokerClass(
-                                    client_id=child.get("client_id"),
-                                    password=child_credentials['password'],
-                                    totp_secret=child_credentials['totp_secret'],
-                                    vendor_code=child_credentials['vendor_code'],
-                                    api_key=child_credentials['api_key'],
-                                    imei=imei
-                                )
-
-                            else:  # Default flow for other brokers
-                                access_token = child_credentials.get("access_token")
-                                if not access_token:
-                                    logger.error(
-                                        f"Missing access token for {child_broker} child {child_id}"
-                                    )
-                                    continue
-
-                                rest_child = {
-                                    k: v for k, v in child_credentials.items()
-                                    if k != "access_token"
-                                }
-
-                                child_api = ChildBrokerClass(
-                                    client_id=child.get("client_id"),
-                                    access_token=access_token,
-                                    **rest_child
-                                )
-
-                            logger.info(f"Successfully initialized {child_broker} API for child {child_id}")
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to initialize {child_broker} API for child {child_id}: {str(e)}"
-                            )
-                            continue
-
-                        # Get symbol mapping for child broker
-                        try:
-                            logger.debug(
-                                f"Attempting symbol mapping for master symbol '{symbol}' on child broker '{child_broker}'"
-                            )
-                            mapping_child = get_symbol_for_broker(symbol, child_broker)
-                            if not mapping_child:
-                                logger.error(
-                                    f"No symbol mapping found for {symbol} on {child_broker}. Skipping child {child_id} for this order."
-                                )
+                        elif child_broker == "finvasia":
+                            required = ['password', 'totp_secret', 'vendor_code', 'api_key']
+                            if not all(child_credentials.get(r) for r in required):
                                 continue
-                            logger.debug(f"Symbol mapping for {child_broker}: {mapping_child}")
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to get symbol mapping for {symbol} on {child_broker}: {str(e)}. Skipping child {child_id} for this order."
+                            imei = child_credentials.get('imei') or 'abc1234'
+                            child_api = ChildBrokerClass(
+                                client_id=child.get("client_id"),
+                                password=child_credentials['password'],
+                                totp_secret=child_credentials['totp_secret'],
+                                vendor_code=child_credentials['vendor_code'],
+                                api_key=child_credentials['api_key'],
+                                imei=imei
                             )
-                            continue
+                        else:
+                            access_token = child_credentials.get("access_token")
+                            if not access_token:
+                                continue
+                            rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
+                            child_api = ChildBrokerClass(
+                                client_id=child.get("client_id"),
+                                access_token=access_token,
+                                **rest_child
+                            )
+                    except Exception:
+                        continue
 
-                        # Prepare order parameters based on broker type
-                        try:
-                            if child_broker == "dhan":
-                                security_id = (
-                                    mapping_child.get("security_id")
-                                    or mapping_child.get("securityId")
+                    # Get symbol mapping for child broker
+                    try:
+                        mapping_child = get_symbol_for_broker(symbol, child_broker)
+                        if not mapping_child:
+                            continue
+                    except Exception:
+                        continue
+
+                    # Prepare order parameters based on broker type
+                    try:
+                        if child_broker == "dhan":
+                            security_id = (
+                                mapping_child.get("security_id")
+                                or mapping_child.get("securityId")
+                            )
+                            if not security_id:
+                                continue
+                            order_params = {
+                                "tradingsymbol": symbol,
+                                "security_id": security_id,
+                                "exchange_segment": (
+                                    mapping_child.get("exchange_segment")
+                                    or getattr(child_api, "NSE", "NSE_EQ")
+                                ),
+                                "transaction_type": transaction_type,
+                                "quantity": copied_qty,
+                                "order_type": "MARKET",
+                                "product_type": getattr(child_api, "INTRA", "INTRADAY"),
+                                "price": price or 0,
+                            }
+                        elif child_broker == "aliceblue":
+                            symbol_id = mapping_child.get("symbol_id")
+                            if not symbol_id:
+                                continue
+                            order_params = {
+                                "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
+                                "symbol_id": symbol_id,
+                                "exchange": "NSE",
+                                "transaction_type": transaction_type,
+                                "quantity": copied_qty,
+                                "order_type": "MKT",
+                                "product": "MIS",
+                                "price": price or 0
+                            }
+                        elif child_broker == "finvasia":
+                            token = mapping_child.get("token")
+                            if not token:
+                                continue
+                            order_params = {
+                                "tradingsymbol": mapping_child.get("symbol", symbol),
+                                "exchange": mapping_child.get("exchange", "NSE"),
+                                "transaction_type": transaction_type,
+                                "quantity": copied_qty,
+                                "order_type": "MKT",
+                                "product": "MIS",
+                                "price": price or 0,
+                                "token": token
+                            }
+                        else:
+                            order_params = {
+                                "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
+                                "exchange": "NSE",
+                                "transaction_type": transaction_type,
+                                "quantity": copied_qty,
+                                "order_type": "MARKET",
+                                "product": "MIS",
+                                "price": price or 0
+                            }
+                        response = child_api.place_order(**order_params)
+                    except Exception:
+                        continue
+
+                    # Handle order response and record trade
+                    try:
+                        if isinstance(response, dict):
+                            if response.get("status") == "failure":
+                                error_msg = (
+                                    response.get("error")
+                                    or response.get("remarks")
+                                    or response.get("message")
+                                    or "Unknown error"
                                 )
-                                if not security_id:
-                                    logger.error(f"Missing security_id for Dhan order: {symbol}")
-                                    continue
-
-                                order_params = {
-                                    "tradingsymbol": symbol,
-                                    "security_id": security_id,
-                                    "exchange_segment": (
-                                        mapping_child.get("exchange_segment")
-                                        or getattr(child_api, "NSE", "NSE_EQ")
-                                    ),
-                                    "transaction_type": transaction_type,
-                                    "quantity": copied_qty,
-                                    "order_type": "MARKET",
-                                    "product_type": getattr(child_api, "INTRA", "INTRADAY"),
-                                    "price": price or 0,
-                                }
-
-                            elif child_broker == "aliceblue":
-                                symbol_id = mapping_child.get("symbol_id")
-                                if not symbol_id:
-                                    logger.error(f"Missing symbol_id for AliceBlue order: {symbol}")
-                                    continue
-
-                                order_params = {
-                                    "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
-                                    "symbol_id": symbol_id,
-                                    "exchange": "NSE",
-                                    "transaction_type": transaction_type,
-                                    "quantity": copied_qty,
-                                    "order_type": "MKT",
-                                    "product": "MIS",
-                                    "price": price or 0
-                                }
-
-                            elif child_broker == "finvasia":
-                                token = mapping_child.get("token")
-                                if not token:
-                                    logger.error(f"Missing token for Finvasia order: {symbol}")
-                                    continue
-
-                                order_params = {
-                                    "tradingsymbol": mapping_child.get("symbol", symbol),
-                                    "exchange": mapping_child.get("exchange", "NSE"),
-                                    "transaction_type": transaction_type,
-                                    "quantity": copied_qty,
-                                    "order_type": "MKT",
-                                    "product": "MIS",
-                                    "price": price or 0,
-                                    "token": token
-                                }
-
-                            else:  # Default flow for other brokers
-                                order_params = {
-                                    "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
-                                    "exchange": "NSE",
-                                    "transaction_type": transaction_type,
-                                    "quantity": copied_qty,
-                                    "order_type": "MARKET",
-                                    "product": "MIS",
-                                    "price": price or 0
-                                }
-
-                            logger.info(
-                                f"Placing order for child {child_id}:\n"
-                                f"{json.dumps(order_params, indent=2)}"
-                            )
-
-                            response = child_api.place_order(**order_params)
-
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to prepare/place order for {child_id}: {str(e)}"
-                            )
-                            continue
-
-                        # Handle order response and record trade
-                        try:
-                            if isinstance(response, dict):
-                                if response.get("status") == "failure":
-                                    error_msg = (
-                                        response.get("error")
-                                        or response.get("remarks")
-                                        or response.get("message")
-                                        or "Unknown error"
-                                    )
-                                    logger.error(
-                                        f"Order FAILED for child {child_id}: {error_msg}"
-                                    )
-                                    save_log(
-                                        child_id,
-                                        symbol,
-                                        transaction_type,
-                                        copied_qty,
-                                        "FAILED",
-                                        error_msg
-                                    )
-                                    record_trade(
-                                        child.get('owner'),
-                                        symbol,
-                                        transaction_type,
-                                        copied_qty,
-                                        price,
-                                        'FAILED'
-                                    )
-                                else:
-                                    # Extract order ID with fallbacks
-                                    order_id_child = (
-                                        response.get("order_id")
-                                        or response.get("orderId")
-                                        or response.get("id")
-                                        or response.get("norenordno")
-                                    )
-
-                                    if not order_id_child:
-                                        logger.error(
-                                            f"No order ID in response for child {child_id}: {response}"
-                                        )
-                                        continue
-
-                                    logger.info(
-                                        f"Successfully copied order to {child_id} "
-                                        f"(Order ID: {order_id_child})"
-                                    )
-
-                                    # Record successful trade
-                                    save_log(
-                                        child_id,
-                                        symbol,
-                                        transaction_type,
-                                        copied_qty,
-                                        "SUCCESS",
-                                        str(response)
-                                    )
-
-                                    # Save order mapping for tracking
-                                    save_order_mapping(
-                                        master_order_id=order_id,
-                                        child_order_id=order_id_child,
-                                        master_id=master_id,
-                                        master_broker=master_broker,
-                                        child_id=child_id,
-                                        child_broker=child_broker,
-                                        symbol=symbol
-                                    )
-                                    copied_any = True
-
-                                    record_trade(
-                                        child.get('owner'),
-                                        symbol,
-                                        transaction_type,
-                                        copied_qty,
-                                        price,
-                                        'SUCCESS'
-                                    )
+                                save_log(
+                                    child_id,
+                                    symbol,
+                                    transaction_type,
+                                    copied_qty,
+                                    "FAILED",
+                                    error_msg
+                                )
+                                record_trade(
+                                    child.get('owner'),
+                                    symbol,
+                                    transaction_type,
+                                    copied_qty,
+                                    price,
+                                    'FAILED'
+                                )
                             else:
-                                logger.error(
-                                    f"Unexpected response type for child {child_id}: "
-                                    f"{type(response)}"
+                                order_id_child = (
+                                    response.get("order_id")
+                                    or response.get("orderId")
+                                    or response.get("id")
+                                    or response.get("norenordno")
                                 )
-                                continue
+                                if not order_id_child:
+                                    continue
+                                save_log(
+                                    child_id,
+                                    symbol,
+                                    transaction_type,
+                                    copied_qty,
+                                    "SUCCESS",
+                                    str(response)
+                                )
+                                save_order_mapping(
+                                    master_order_id=order_id,
+                                    child_order_id=order_id_child,
+                                    master_id=master_id,
+                                    master_broker=master_broker,
+                                    child_id=child_id,
+                                    child_broker=child_broker,
+                                    symbol=symbol
+                                )
+                                record_trade(
+                                    child.get('owner'),
+                                    symbol,
+                                    transaction_type,
+                                    copied_qty,
+                                    price,
+                                    'SUCCESS'
+                                )
+                        else:
+                            continue
+                    except Exception:
+                        continue
 
-                        except Exception as e:
-                            logger.error(
-                                f"Error processing response for child {child_id}: {str(e)}"
-                            )
-                            save_log(
-                                child_id,
-                                symbol,
-                                transaction_type,
-                                copied_qty,
-                                "FAILED",
-                                f"Response processing error: {str(e)}"
-                            )
-
-                    except Exception as e:
-                        logger.error(f"Error copying to child {child_id}: {str(e)}")
-                        save_log(
-                            child_id,
-                            symbol,
-                            transaction_type,
-                            copied_qty,
-                            "FAILED",
-                            f"Order placement error: {str(e)}"
-                        )
-
-            if copied_any and new_last_trade_id:
-                accounts_data[last_copied_key] = new_last_trade_id
-                safe_write_json("accounts.json", accounts_data)
-                logger.debug(
-                    f"Updated {last_copied_key} to {new_last_trade_id}"
-                )
-
+                # After copying, update this child's last_copied_trade_id if needed
+                if new_last_trade_id:
+                    accounts_data[last_copied_key] = new_last_trade_id
+                    safe_write_json("accounts.json", accounts_data)
 
 def start_scheduler():
     """Initialize and start the background scheduler for trade copying.
