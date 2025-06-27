@@ -893,12 +893,15 @@ def poll_and_copy_trades():
                                 order_params = {
                                     "tradingsymbol": symbol,
                                     "security_id": security_id,
-                                    "exchange_segment": "NSE",
+                                    "exchange_segment": (
+                                        mapping_child.get("exchange_segment")
+                                        or getattr(child_api, "NSE", "NSE_EQ")
+                                    ),
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": "MARKET",
-                                    "product_type": "INTRADAY",
-                                    "price": price or 0
+                                    "product_type": getattr(child_api, "INTRA", "INTRADAY"),
+                                    "price": price or 0,
                                 }
 
                             elif child_broker == "aliceblue":
