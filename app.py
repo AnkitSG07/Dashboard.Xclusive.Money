@@ -629,13 +629,14 @@ def poll_and_copy_trades():
                             continue
                             
                         # Get and standardize order status
-                        order_status = (
+                        order_status_raw = (
                             order.get("orderStatus")
                             or order.get("status")
                             or order.get("order_status")
                             or order.get("report_type")
                             or ("COMPLETE" if filled_qty > 0 else "")
-                        ).upper()
+                        )
+                        order_status = str(order_status_raw).upper() if order_status_raw else ""
                         
                         # Map broker-specific status values to standard states
                         status_mapping = {
