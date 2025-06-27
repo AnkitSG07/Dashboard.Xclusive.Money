@@ -583,6 +583,7 @@ def poll_and_copy_trades():
                 continue
 
             logger.info(f"Found {len(children)} active child accounts for master {master_id}")
+            copied_any = False  # Track if any child copy succeeded
 
             # Process each order with enhanced validation
             for order in order_list:
@@ -1031,6 +1032,7 @@ def poll_and_copy_trades():
                                         child_broker=child_broker,
                                         symbol=symbol
                                     )
+                                    copied_any = True
 
                                     record_trade(
                                         child.get('owner'),
@@ -1071,7 +1073,7 @@ def poll_and_copy_trades():
                             f"Order placement error: {str(e)}"
                         )
 
-            if new_last_trade_id:
+            if copied_any and new_last_trade_id:
                 accounts_data[last_copied_key] = new_last_trade_id
                 safe_write_json("accounts.json", accounts_data)
                 logger.debug(
