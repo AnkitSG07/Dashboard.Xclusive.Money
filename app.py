@@ -856,27 +856,29 @@ def poll_and_copy_trades():
                                         
                                     logger.info(f"Successfully initialized {child_broker} API for child {child_id}")
                                     
-                                except Exception as e:
-                                    logger.error(
-                                        f"Failed to initialize {child_broker} API for child {child_id}: {str(e)}"
-                                    )
-                                    continue
+                               except Exception as e:
+                                   logger.error(
+                                       f"Failed to initialize {child_broker} API for child {child_id}: {str(e)}"
+                                   )
+                                   continue
                                 
                                 # Get symbol mapping for child broker
-                                try:
-                                    mapping_child = get_symbol_for_broker(symbol, child_broker)
-                                    if not mapping_child:
-                                        logger.error(
-                                            f"No symbol mapping found for {symbol} on {child_broker}"
-                                        )
-                                        continue
+                               try:
+                                   logger.debug(
+                                       f"Attempting symbol mapping for master symbol '{symbol}' on child broker '{child_broker}'"
+                                   )
+                                   mapping_child = get_symbol_for_broker(symbol, child_broker)
+                                   if not mapping_child:
+                                       logger.error(
+                                           f"No symbol mapping found for {symbol} on {child_broker}. Skipping child {child_id} for this order."
+                                       )
+                                       continue
                                     logger.debug(f"Symbol mapping for {child_broker}: {mapping_child}")
-                                except Exception as e:
-                                    logger.error(
-                                        f"Failed to get symbol mapping for {symbol} on {child_broker}: {str(e)}"
-                                    )
-                                    continue
-
+                               except Exception as e:
+                                   logger.error(
+                                       f"Failed to get symbol mapping for {symbol} on {child_broker}: {str(e)}. Skipping child {child_id} for this order."
+                                   )
+                                   continue
                                 # Prepare order parameters based on broker type
                                 try:
                                     if child_broker == "dhan":
@@ -948,7 +950,21 @@ def poll_and_copy_trades():
                                         f"Placing order for child {child_id}:\n"
                                         f"{json.dumps(order_params, indent=2)}"
                                     )
-                                    
+                                    logger.debug(f"Attempting symbol mapping for master symbol '{symbol}' on child broker '{child_broker}'")
+                                    try:
+                                        mapping_child = get_symbol_for_broker(symbol, child_broker)
+                                        if not mapping_child:
+                                            logger.error(
+                                                f"No symbol mapping found for {symbol} on {child_broker}. Skipping child {child_id} for this order."
+                                            )
+                                            continue # This continue is already there, but the log helps
+                                        logger.debug(f"Symbol mapping for {child_broker} for '{symbol}': {mapping_child}")
+                                    except Exception as e:
+                                        logger.error(
+                                            f"Failed to get symbol mapping for {symbol} on {child_broker}: {str(e)}. Skipping child {child_id} for this order."
+                                        )
+                                        continue
+
                                     response = child_api.place_order(**order_params)
                                     
                                 except Exception as e:
