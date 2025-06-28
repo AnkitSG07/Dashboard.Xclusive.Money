@@ -1895,3 +1895,40 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
     padding-top: clamp(3.5rem, 12vw, 5rem); /* matches fixed navbar height */
   }
 }
+.hero-section {
+  /* Existing styles... */
+  display: flex;
+  flex-direction: row;    /* Place children side by side */
+  align-items: center;    /* Vertically center content */
+  justify-content: space-between; /* Push image to right */
+  gap: 2rem;              /* Space between text and image */
+}
+
+.hero-text {
+  flex: 1 1 0;
+}
+
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 320px;       /* Adjust as needed for your design */
+}
+
+.hero-image img {
+  max-width: 80%;
+  height: auto;
+  display: block;
+}
+
+/* Make it stack on mobile */
+@media (max-width: 800px) {
+  .hero-section {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .hero-image {
+    max-width: 60%;
+    margin-top: 0rem;
+    align-self: center;
+  }
+}
