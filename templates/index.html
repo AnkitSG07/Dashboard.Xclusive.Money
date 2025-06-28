@@ -542,9 +542,15 @@
         <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 
         <script>
-        document.getElementById('navbarSideCollapse').addEventListener('click', function(e) {
-          e.preventDefault();
-          document.getElementById('navbarsExampleDefault').classList.toggle('open');
+        document.addEventListener('DOMContentLoaded', function() {
+          var toggleBtn = document.getElementById('navbarSideCollapse');
+          var offcanvas = document.getElementById('navbarsExampleDefault');
+          if (toggleBtn && offcanvas) {
+            toggleBtn.addEventListener('click', function(e) {
+              e.preventDefault();
+              offcanvas.classList.toggle('open');
+            });
+          }
         });
         </script>
 
