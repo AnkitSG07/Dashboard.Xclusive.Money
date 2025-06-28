@@ -436,7 +436,7 @@ p {
 
 .sidebar-logo img {
   height: clamp(2.5rem, 8vw, 3rem); /* Responsive height */
-  width: auto;
+  width: 60%;
   display: block;
   margin: 0 auto;
 }
