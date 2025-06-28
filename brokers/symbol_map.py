@@ -2157,6 +2157,7 @@ SYMBOL_MAP = {
         "zebu": {"symbol": "DELTACORP-EQ", "token": "100032", "exchange": "NSE"},
         "enrichmoney": {"symbol": "DELTACORP-EQ", "token": "100032", "exchange": "NSE"},
     },
+}
 
    def get_symbol_for_broker(symbol, broker):
     symbol = symbol.upper()
