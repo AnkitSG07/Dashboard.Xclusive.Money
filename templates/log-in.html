@@ -37,7 +37,9 @@
             <div class="container">
 
                 <!-- Image Logo -->
-                <a class="navbar-brand logo-image" href="templates/index.html"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Xclusive Money logo">
+                <a class="navbar-brand logo-image" href="{{ url_for('home') }}">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Xclusive Money logo">
+                </a>
                 <!-- Text Logo - Use this if you don't have a graphic logo -->
                 <!-- <a class="navbar-brand logo-text" href="index.html">XM</a> -->
 
