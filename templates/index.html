@@ -539,6 +539,14 @@
         <script src="{{ url_for('static', filename='js/purecounter.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/replaceme.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+
+        <script>
+        document.getElementById('navbarSideCollapse').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('navbarsExampleDefault').classList.toggle('open');
+        });
+        </script>
 
     </body>
 </html>
