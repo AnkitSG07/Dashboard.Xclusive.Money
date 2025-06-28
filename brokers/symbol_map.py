@@ -2143,7 +2143,7 @@ SYMBOL_MAP = {
         "zebu": {"symbol": "DEEPAKNTR-EQ", "token": "100031", "exchange": "NSE"},
         "enrichmoney": {"symbol": "DEEPAKNTR-EQ", "token": "100031", "exchange": "NSE"},
     },
-    "DELTACORP": { # Duplicate, removed from new additions
+    "DELTACORP": {  # Duplicate, removed from new additions
         "zerodha": {"trading_symbol": "DELTACORP", "exchange": "NSE", "token": "100032"},
         "aliceblue": {"trading_symbol": "DELTACORP-EQ", "symbol_id": "100032", "exch": "NSE"},
         "fyers": {"symbol": "NSE:DELTACORP-EQ", "token": "100032"},
@@ -2159,7 +2159,7 @@ SYMBOL_MAP = {
     },
 }
 
-   def get_symbol_for_broker(symbol, broker):
+def get_symbol_for_broker(symbol, broker):
     symbol = symbol.upper()
     broker = broker.lower()
     
@@ -2176,3 +2176,5 @@ SYMBOL_MAP = {
         mapping = SYMBOL_MAP.get(base2, {})
 
     return mapping.get(broker, {}) if mapping else {}
+
+
