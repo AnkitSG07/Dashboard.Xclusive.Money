@@ -528,9 +528,12 @@ def poll_and_copy_trades():
             try:
                 order_list = sorted(
                     order_list,
-                    key=lambda x: x.get(
-                        "orderTimestamp",
-                        x.get("order_time", x.get("create_time", "")),
+                    key=lambda x: (
+                        x.get("orderTimestamp")
+                        or x.get("order_time")
+                        or x.get("create_time")
+                        or x.get("orderDateTime")
+                        or ""
                     ),
                     reverse=True,
                 )
@@ -2877,9 +2880,12 @@ def start_copy():
             if order_list:
                 order_list = sorted(
                     order_list,
-                    key=lambda x: x.get(
-                        "orderTimestamp",
-                        x.get("order_time", x.get("create_time", "")),
+                    key=lambda x: (
+                        x.get("orderTimestamp")
+                        or x.get("order_time")
+                        or x.get("create_time")
+                        or x.get("orderDateTime")
+                        or ""
                     ),
                     reverse=True,
                 )
