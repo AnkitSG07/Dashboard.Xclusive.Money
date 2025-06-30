@@ -6,7 +6,7 @@ SYMBOL_MAP = {
         "aliceblue":    {"trading_symbol": "IDEA-EQ",    "symbol_id":  "926241", "exch": "NSE"},
         "fyers":        {"symbol": "NSE:IDEA-EQ",        "token": "926241"},
         "finvasia":     {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
-        "dhan":         {"security_id": "926241",        "exchange_segment": "NSE_EQ"},
+        "dhan":         {"security_id": "14366",        "exchange_segment": "NSE_EQ"},
         "flattrade":    {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
         "acagarwal":    {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
         "motilaloswal": {"symbol": "IDEA",               "token": "926241", "exchange": "NSE"},
