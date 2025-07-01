@@ -1084,7 +1084,14 @@ def get_order_book(client_id):
                         or order.get("create_time")
                         or order.get("orderDateTime", "")
                     ).replace("T", " ").split(".")[0],
-                    "remarks": order.get("remarks", "—"),
+                    "remarks": (
+                        order.get("remarks")
+                        or order.get("Remark")
+                        or order.get("orderTag")
+                        or order.get("usercomment")
+                        or order.get("Usercomments")
+                        or "—"
+                    ),
                 })
             except Exception as e:
                 logger.error(f"Error formatting order: {str(e)}")
