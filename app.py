@@ -3002,6 +3002,7 @@ def get_logs():
     return jsonify(logs)
 
 # === API to get live portfolio snapshot (holdings) ===
+@app.route("/api/portfolio/<user_id>")
 def get_portfolio(user_id):
     """Return live positions for any stored account."""
     # Check users.json (external registered users)
@@ -3022,7 +3023,10 @@ def get_portfolio(user_id):
         dhan = dhanhq(client_id, access_token)
         try:
             positions_resp = dhan.get_positions()
-            return jsonify(positions_resp)
+            data = positions_resp.get("data") \
+                   or positions_resp.get("positions") \
+                   or (positions_resp if isinstance(positions_resp, list) else [])
+            return jsonify(data)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -3035,7 +3039,10 @@ def get_portfolio(user_id):
     try:
         api = broker_api(found)
         positions_resp = api.get_positions()
-        return jsonify(positions_resp)
+        data = positions_resp.get("data") \
+               or positions_resp.get("positions") \
+               or (positions_resp if isinstance(positions_resp, list) else [])
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
