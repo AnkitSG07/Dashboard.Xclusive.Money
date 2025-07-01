@@ -41,23 +41,23 @@ class AliceBlueBroker(BrokerBase):
         client_id = str(self.client_id).strip()
         api_key = str(self.api_key).strip()
         enc_key = str(enc_key).strip()  # from previous step
-        
+
         print("client_id:", repr(client_id))
         print("api_key:", repr(api_key))
         print("enc_key:", repr(enc_key))
-        
+
         to_hash = f"{client_id}{api_key}{enc_key}"
         print("concat string:", repr(to_hash))
-        
+
         user_data = hashlib.sha256(to_hash.encode()).hexdigest()
         print("sha256:", user_data)
-        
+
         payload = {
             "userId": client_id,
             "userData": user_data,
         }
         print("payload:", json.dumps(payload))
-        
+
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getUserSID"
         headers = {"Content-Type": "application/json"}
         resp = requests.post(url, headers=headers, data=json.dumps(payload))
@@ -125,12 +125,12 @@ class AliceBlueBroker(BrokerBase):
             "SL-M": "SL-M"
         }
         prctyp = ORDER_TYPE_MAP.get(order_type.upper(), "MKT")
-    
+
         if not deviceNumber and hasattr(self, "device_number"):
             deviceNumber = self.device_number
         elif not deviceNumber:
             deviceNumber = "device123"
-    
+
         url = self.BASE_URL + "placeOrder/executePlaceOrder"
         payload = [{
             "complexty": complexty.upper(),
@@ -169,13 +169,12 @@ class AliceBlueBroker(BrokerBase):
                     or resp.get("remarks")
                     or resp.get("stat")
                     or resp.get("message")
-                    or str(resp) if resp else "Unknown error: Empty response"
+                    or (str(resp) if resp else "Unknown error: Empty response")
                 )
                 return {"status": "failure", "error": error_msg, "raw": resp}
         except Exception as e:
             return {"status": "failure", "error": str(e)}
 
-    
     def get_order_list(self):
         self.ensure_session()
         url = self.BASE_URL + "placeOrder/fetchOrderBook"
@@ -184,7 +183,7 @@ class AliceBlueBroker(BrokerBase):
             resp = r.json()
         except Exception:
             return {"status": "failure", "error": r.text}
-                if isinstance(resp, list):
+        if isinstance(resp, list):
             orders = resp
         elif isinstance(resp, dict):
             if resp.get("stat") == "Not_Ok":
@@ -258,14 +257,14 @@ class AliceBlueBroker(BrokerBase):
                 snippet = r.text[:100]
                 self._last_auth_error = f"HTTP {r.status_code}: {snippet}"
                 return False
-    
+
             # Success: stat == "Ok" and accountStatus == "Activated"
             if (
                 r.status_code == 200
                 and data.get("accountStatus", "").lower() == "activated"
             ):
                 return True
-    
+
             # Error: stat == "Not_Ok" or emsg present
             self._last_auth_error = (
                 data.get("emsg")
@@ -274,10 +273,10 @@ class AliceBlueBroker(BrokerBase):
                 or str(data)
             )
             return False
-            
+
         except Exception as e:
             self._last_auth_error = str(e)
             return False
-            
+
     def last_auth_error(self):
         return self._last_auth_error
