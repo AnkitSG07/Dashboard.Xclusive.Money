@@ -287,12 +287,19 @@ window.pageScripts["copy-trading"] = function () {
             <td class="hide-xs">${master.username || "-"}</td>
             <td><span class="badge bg-success">${master.status || "Connected"}</span></td>
             <td>
-              <button class="btn btn-sm btn-danger" onclick="window.removeMaster('${master.client_id}')">Remove Master</button>
-              <button class="btn btn-sm btn-info" onclick="window.toggleOrderBook('${master.client_id}')">Order Book</button>
-              <button class="btn btn-sm btn-warning" onclick="window.togglePositions('${master.client_id}')">Positions</button>
-              <button class="btn btn-sm btn-secondary" onclick="window.toggleChildList('${master.client_id}')">View Children</button>
-              <button class="btn btn-sm btn-success" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child</button>
-              <button class="btn btn-sm btn-danger" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child</button>
+              <div class="dropdown">
+                <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                  Actions
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="window.removeMaster('${master.client_id}')">Remove Master</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.toggleOrderBook('${master.client_id}')">Order Book</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.togglePositions('${master.client_id}')">Positions</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.toggleChildList('${master.client_id}')">View Children</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child</a></li>
+                </ul>
+              </div>
             </td>
           </tr>
           <tr id="order-book-${master.client_id}" style="display: none;">
