@@ -1,0 +1,809 @@
+Order Book
+Get
+/placeOrder/fetchOrderBook
+Success Response
+PARAMETERS	RESPONSE
+stat
+String
+Ok
+Exseg
+String
+Exchange Segment Name
+Trsym
+String
+A trading symbol is an arrangement of characters usually letters representing publicly-traded securities on an exchange. When a company issues securities to the public marketplace, it selects an available symbol for its shares, often related to the company name. Investors and traders use the symbol to place trade orders..
+Nstordno
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+Prc
+Int
+Average Price of the Instrument will be displayed.
+Qty
+Int
+Quantity ordered. The total quantity of shares or contracts traded for a specified instrument.
+Dscqty
+Int
+A Disclosed Quantity condition allows you to disclose only a part of the order quantity to the market. This quantity, however cannot be more than the total quantity of the stocks you are purchasing. The Stock Exchange may set minimum disclosed quantity criteria from time to time.
+Trgprc
+Int
+Price at which order will be triggered applicable for Order Type as Stop Loss Limit or Stop Loss Market.
+Validity
+String
+Order validity is the period for which a placed order is valid.
+Scripname
+String
+Placed Order scrip name will be displayed
+Sym
+String
+Scrip token
+Status
+String
+Current status of the order. Most common values or COMPLETE, REJECTED, CANCELLED, and OPEN. There may be other values as well.
+Fillshares
+String
+The Number of shares got filled
+ExpDate
+Int
+Stock's Expiry date will be displayed.An expiry date in trading is the point at which a position automatically closes. In other words, a trader will have to decide what they want to do with their open position before the expiry date.
+Ordvaldate
+Int
+Order validity is the period for which a placed order is valid
+Pcode
+String
+Product code (MIS or CO or CNC or BO or NRML)
+Avgprc
+Int
+Average price at which the net position quantity was acquired
+Unfilledsize
+Int
+The Number of shares got unfilled
+ExchOrdID
+Int
+The Unique order ID which generate from the exchange
+RejReason
+String
+Rejection Reason for the order will be displayed
+ExchConfrmtime
+Float
+Exchange Confirmation Time
+Mktpro
+String
+A market-with-protection order cancels an order to buy or sell stock or other assets and re-submits it as a limit order. A broker might submit a market-with-protection order if the price of the stock has moved unexpectedly and dramatically since the market order was placed.
+Cancelqty
+Int
+A cancelled order is a previously submitted order to buy or sell a security that gets cancelled before it executes on an exchange. Investors may cancel standing orders, such as a limit or stop order, for any reason so long as the order has not been filled yet.
+Trantype
+String
+Transaction type(BUY or SELL)
+Prctype
+String
+Price type(L or MKT or SL or SL-M)
+Exchange
+String
+Exchange Name
+ticksize
+Float
+Ticker Size Of The Scrip (in paisa).Tick size is the minimum price change between different bid and offer prices of an asset traded on an exchange platform
+decprec
+Float
+Decimal Precision
+multiplier
+Int
+Multiplier Of Scrip
+bqty
+Int
+A board lot quantity is a standardized number of shares defined by a stock exchange as a trading unit.A board lot quantity is what the exchange determines to be a round lot.
+mpro
+String
+Market Protection Flag
+token
+String
+Token Of The Scrip
+noMktPro
+String
+No Market Protection Flag
+defmktproval
+Int
+Default Market Protection Value
+RequestID
+String
+Nest Request ID
+SyomOrderId
+String
+Syom Order ID
+RefLmtPrice
+Int
+Reference Limit Price For CO Order
+COPercentage
+Int
+Cover Order Percentage will be displayed
+InstName
+String
+Placed Ordered Instrument name will be displayed
+ExpSsbDate
+Int
+Expiry Date Of Scrip In ssboe Format
+discQtyPerc
+Int
+Disclose Quantity Percentage For Exchanges
+Minqty
+Int
+Minimum Order Quantity (MOQ) simply means the minimum amount your retailer has to spend per order to be able to stock your products at their store
+BrokerClient
+String
+Specifies The Broker-Client Relationship
+user
+String
+Logged in User Id will be displayed
+accountId
+String
+Logged in Account Id will be displayed
+PriceNumerator
+Int
+The price numerator in the ratio is the share price, which is the price a single share of a company's stock sells for at a specific time. A company's share price is easily determined simply by looking at a price chart for the company's stock
+GeneralNumerator
+Int
+General Numerator
+PriceDenomenator
+Int
+A company's share price is easily determined simply by looking at a price chart for the company's stock. The denominator is the per-share metric used for the specific price multiple calculation. The metric measures some aspect of a company's performance.
+GeneralDenomenator
+Int
+General Denominator
+series
+String
+Scrip Group Or Series
+orderentrytime
+time
+Order Entry Time
+ordergenerationtype
+String
+Order Generation Type
+sipindicator
+String
+Sip Indicatior
+ordersource
+String
+Order Source display the order placed by whom
+remarks
+String
+Remarks for the order
+marketprotectionpercentage
+Int
+Market Protection Percentage
+reporttype
+String
+Report Type (Success or Failure)
+iSinceBOE
+time
+Seconds Since boe
+usecs
+time
+u Seconds
+modifiedBy
+String
+If user modified the order Modified By user will be displayed.
+optionType
+String
+There are four basic option types: buying a call option(BC), selling a call option(SC), buying a put option(BP), and selling a put option(SP).A call gives the buyer the right, to buy the underlying asset at the specified strike price. A put gives the buyer the right, to sell an asset at a specified strike price as in the contract.
+strikePrice
+Int
+A strike price is a set price at which a derivative contract can be bought or sold when it is exercised. For call options, the strike price is where the security can be bought by the option holder; for put options, the strike price is the price at which the security can be sold.
+Usercomments
+String
+Remarks Sent In Place Order API
+AlgoID
+String
+Exchange Algo ID
+AlgoCategory
+String
+Exchange Algo Category
+panNo
+Int
+User registered Pan Number
+OrderedTime
+time
+Ordered Date And Time ( DD/MM/YYYY HH:MM:SS)
+exchangeuserinfo
+String
+Exchange User Info
+Remark
+String
+Order description/Tag
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Not able to Retrieve Order Book
+No Data
+Trade Book
+Get
+/placeOrder/fetchTradeBook
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+Exchange
+String
+Exchange Name
+Tsym
+String
+Trading Symbol of the Instrument.Trading Symbol is a unique code given to all companies listed on the exchange. Selected Instrument Trading Symbol will be displayed
+Filledqty
+Int
+The Number of shares got filled
+Average price
+Int
+Average Price Of The Order Placed.Average price is the mean price of an asset or security observed over some period of time. It is calculated by finding the simple arithmetic average of closing prices over a specified time period. When adjusted by trading volume, the volume-weighted average price (VWAP) can be derived on an intraday basis.
+Pcode
+String
+Product code (MIS or CO or CNC or BO or NRML)
+Nstordno
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+Trantype
+String
+Transaction type(BUY or SELL)
+FillId
+String
+Fill Id
+Symbol
+String
+A stock symbol is an arrangement of characters—usually letters—representing publicly-traded securities on an exchange
+Unfillqty
+String
+The Number of shares got unfilled
+Exchseg
+String
+Exchange Segment Name
+Custofrm
+String
+A firm order in trading is one that is in effect until it has been explicitly canceled, or has met some preconditions that invalidate it. A firm order may also refer to a buy or sell order placed on behalf of a financial institution for their own accounts.
+Prctype
+String
+Price type(L or MKT or SL or SL-M)
+Ordduration
+Int
+A day order is a stipulation placed on an order to a broker to execute a trade at a specific price that expires at the end of the trading day if it is not completed. A day order can be a limit order to buy or sell a security, but its duration is limited to the remainder of that trading day.
+NOReqID
+Int
+The unique Nest Order Request Id
+FillLeg
+String
+A leg refers to one part of a multi-step or multi-part trade, such as in a spread strategy. A trader will leg-into a strategy to hedge a position, benefit from arbitrage, or profit from a spread.
+Filldate
+Int
+Fill Date
+Filltime
+Time
+Fill Time
+Qty
+Int
+Volume of trade is the total quantity of shares or contracts traded for a specified security. It can be measured on any type of security traded during a trading day. Volume of trade or trade volume is measured on stocks, bonds, options contracts, futures contracts, and all types of commodities.
+ExchordID
+String
+Exchange ID means an ID that is provided to the Exchange in order to identify a Seller that will trade under the Exchange.
+Time
+Time
+Time
+Exchtime
+Time
+Exchange time, this will be set based on the exchange feeds.Exchange time defines market opening and closing times
+posflag
+String
+Position Flag (true/false)
+Minqty
+Int
+Minimum order quantity is the fewest number of units a business is willing to sell to a single customer at once.
+BrokerClient
+String
+A Unique Relationship. In most states the stockbroker-client relationship is unique and is designed to benefit and protect the investor. Many states impose a fiduciary duty upon financial advisors who make recommendations and investments on behalf of clients.
+accountId
+String
+Account Id
+ReportType
+String
+Report Type (Success or Failure)
+PriceNumerator
+The numerator in the ratio is the share price, which is the price a single share of a company's stock sells for at a specific time. A company's share price is easily determined simply by looking at a price chart for the company's stock
+GeneralNumerator
+Int
+General Numerator
+user
+String
+Users Logged in ID will be displayed
+PriceDenomenator
+Int
+A company's share price is easily determined simply by looking at a price chart for the company's stock. The denominator is the per-share metric used for the specific price multiple calculation. The metric measures some aspect of a company's performance.
+GeneralDenomenator
+Int
+General Denomenator
+bqty
+Int
+Board Lot Quantity is a standardized number of shares defined by a stock exchange as a trading unit. In most cases, this means 100 shares. A board lot is what the exchange determines to be a round lot. The purpose of a board lot is to minimize trading odd lots and to facilitate easier trading.
+companyname
+String
+Required Company name will be displayed
+series
+String
+Series Or Group
+ordergenerationtype
+String
+Order Generation Type
+remarks
+String
+Remarks for the instrument
+symbolname
+String
+Symbol name for the scrip or instrument will be displayed
+iSinceBOE
+Time
+Seconds Since boe
+usecs
+Time
+u Seconds
+Expiry
+Int
+Stock's Expiry date will be displayed.An expiry date in trading is the point at which a position automatically closes. In other words, a trader will have to decide what they want to do with their open position before the expiry date.
+expdate
+Int
+Expiry Date ssboe Format
+strikeprice
+Int
+A strike price is a set price at which a derivative contract can be bought or sold when it is exercised. For call options, the strike price is where the security can be bought by the option holder; for put options, the strike price is the price at which the security can be sol
+optiontype
+String
+There are four basic option types: buying a call option(BC), selling a call option(SC), buying a put option(BP), and selling a put option(SP).A call gives the buyer the right, to buy the underlying asset at the specified strike price. A put gives the buyer the right, to sell an asset at a specified strike price as in the contract.
+AlgoID
+String
+Exchange Algo ID
+AlgoCategory
+String
+Exchange Algo Category
+panNo
+Int
+User's Registered Pan Number
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Not able to Retrieve TradeBook
+No Data
+Exit Bracket Order
+Post
+/placeOrder/exitBracketOrder
+Input Parameters
+KEY	DESCRIPTION
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+symbolOrderId
+String
+Symbol Order Id ( Leg order Indicator )
+status
+String
+Status of the order from Order Book
+Example
+         {   
+           "nestOrderNumber":"190817000000001",
+           "symbolOrderId":"456789",
+           "status":"OPEN"
+         } 
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Error Occurred
+Error in Handler
+Modify Order
+Post
+/placeOrder/modifyOrder
+Input Parameters
+KEY	DESCRIPTION
+transtype
+String
+Transcation Type(BUY or SELL)
+discqty
+Int
+Number of quantity to be disclosed to the market.A Disclosed Quantity condition allows you to disclose only a part of the order quantity to the market. This quantity, however cannot be more than the total quantity of the stocks you are purchasing. The Stock Exchange may set minimum disclosed quantity criteria from time to time.
+exch
+String
+Exchange Name
+trading_symbol
+String
+Trading Symbol of the Instrument.A Trading symbol is an arrangement of characters—usually letters—representing publicly-traded securities on an exchange. When a company issues securities to the public marketplace, it selects an available symbol for its shares, often related to the company name. Investors and traders use the symbol to place trade orders.
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+prctyp
+String
+Price type(L or MKT or SL or SL-M)
+price
+Int
+Price at which order will be placed
+qty
+Int
+If the user modified quantity, no.of modified quantity will be displayed
+trigPrice
+Int
+Price at which order will be triggered applicable for Order Type as Stop Loss Limit or Stop Loss Market.
+filledQuantity
+Int
+Quantity that's been filled
+pCode
+Int
+Product code (MIS or CO or CNC or BO or NRML)
+deviceNumber
+String
+Unique Device ID
+Example
+         {
+             "transtype": "BUY",
+              "discqty": "0",
+              "exch":"MCX",
+              "trading_symbol":"CRUDEOIL19APR3600CE",
+              "nestOrderNumber":"190401000000031",
+              "prctyp":"L",
+              "price":"750.00",
+              "qty":"2",
+              "trading_symbol": "COPPER19JULFUT",
+              "trigPrice":"00.00",
+              "filledQuantity":"0",
+              "deviceNumber": "sdagds345324dsfgfvasdqwr4"
+         } 
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+Result
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Not able to Retrieve ModifyOrder
+Error Occurred : < reason>
+You have to enter Date dd-MM-yyyy for GTD Orders.
+Invalid Good Till Date: Cannot be in the Past.
+Invalid Order Status
+MARKET PROTECTION is not allowed for Limit Order Type
+No Data
+Market Order
+Post
+/placeOrder/executePlaceOrder
+Input Parameters
+KEY	DESCRIPTION
+discqty
+Int
+Number of quantity to be disclosed to the market.A Disclosed Quantity condition allows you to disclose only a part of the order quantity to the market. This quantity, however cannot be more than the total quantity of the stocks you are purchasing. The Stock Exchange may set minimum disclosed quantity criteria from time to time.
+trading_symbol
+String
+Trading symbol is a unique code given to all companies listed on the exchange. Selected Instrument symbol will be displayed
+exch
+String
+Exchange(NSE or BSE or NFO or MCX)
+transtype
+String
+Transaction Type (BUY or SELL)
+ret
+String
+These orders state the system to keep the orders pending until the market price reaches the specified limit order price. The various retention orders are: Day or End of Session Order: This is the most commonly used retention type
+prctyp
+String
+Price type(L or MKT or SL or SL-M)
+qty
+Int
+Number of quantity to transact.The amount of a PRODUCT (or FACTOR OF PRODUCTION) that is bought or sold. In most markets the quantity traded will depend upon the interaction of DEMAND and SUPPLY in determining the product's EQUILIBRIUM MARKET PRICE.
+symbol_id
+String
+Trading symbol Token
+price
+Int
+Average Price of the Instrument will be displayed.
+trigPrice
+Int
+Price at which order will be triggered applicable for Order Type as Stop Loss Limit or Stop Loss Market.
+pCode
+String
+Product code (MIS or CO or CNC or BO or NRML)
+complexty
+String
+Order complexity is a term for special trade orders that involve one or more legs and intend to minimize losses and ensure profits. Such orders include bracket orders or OCO (One Cancels the Other), cover orders and After Market Orders.
+orderTag
+String
+Add your remarks or description of the order. It will display in the order book response in the 'Remark' key.
+deviceNumber
+String
+Unique Device ID
+Example
+          [{
+                "complexty": "REGULAR",
+                "discqty":"0",
+                "trading_symbol":"CRUDEOIL19APR3600CE",
+                "exch":"MCX",
+                "transtype":"B", 
+                "ret":"DAY",  
+                "prctyp":"L",
+                "qty":"2",
+                "price":"3550.00",
+                "pCode":"MIS",
+                "symbol_id":"34567",
+                "trigPrice":"00.00",
+                "orderTag":"order1",
+                "deviceNumber": "sdagds345324dsfgfvasdqwr4"
+           }] 
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number will be created while placing the order
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Error Occurred : < reason>
+Trailing Tick should be multiple of tick size : [tickValue in rupees]
+Cancel Order
+Post
+/placeOrder/cancelOrder
+Input Parameters
+KEY	DESCRIPTION
+Exchange
+String
+Exchange
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+trading_symbol
+String
+Trading Symbol of the Instrument.A Trading symbol is an arrangement of characters—usually letters—representing publicly-traded securities on an exchange. When a company issues securities to the public marketplace, it selects an available symbol for its shares, often related to the company name. Investors and traders use the symbol to place trade orders.
+deviceNumber
+String
+Unique Device ID
+Example
+          {   
+               "exch": "MCX",
+               "nestOrderNumber": "190000000000001",
+               "trading_symbol": "CRUDEOILM19JULFUT",
+               "deviceNumber": "sdagds345324dsfgfvasdqwr4"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+          } 
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number will be created while placing the order
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Error Occurred : < reason>
+Trailing Tick should be multiple of tick size : [tickValue in rupees]
+Order History
+Post
+/placeOrder/orderHistory
+Input Parameters
+KEY	DESCRIPTION
+nestOrderNumber
+Int
+Nest Order Number is defined as Unique number it can be generated while placing the order
+Example
+          {
+               "nestOrderNumber":"190401000000031"
+          } 
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+Trsym
+String
+Trading Symbol of the Instrument.A Trading symbol is an arrangement of characters—usually letters—representing publicly-traded securities on an exchange. When a company issues securities to the public marketplace, it selects an available symbol for its shares, often related to the company name. Investors and traders use the symbol to place trade orders.
+Prc
+Int
+Average Price of the Instrument will be displayed
+Qty
+Int
+Number of quantity to transact.The amount of a PRODUCT (or FACTOR OF PRODUCTION) that is bought or sold. In most markets the quantity traded will depend upon the interaction of DEMAND and SUPPLY in determining the product's EQUILIBRIUM MARKET PRICE.
+Status
+String
+Current status of the order. Most common values or COMPLETE, REJECTED, CANCELLED, and OPEN. There may be other values as well.
+Action
+String
+Transaction Type
+Ordtype
+String
+An order type in the stock market is a method you choose to execute the buy/sell order by your broker. The common order types include a market order and a limit order.
+PriceNumerator
+String
+The numerator in the ratio is the share price, which is the price a single share of a company's stock sells for at a specific time. A company's share price is easily determined simply by looking at a price chart for the company's stock
+GeneralNumerator
+String
+General Numerator
+PriceDenomenator
+String
+A company's share price is easily determined simply by looking at a price chart for the company's stock. The denominator is the per-share metric used for the specific price multiple calculation. The metric measures some aspect of a company's performance.
+GeneralDenomenator
+String
+General Denominator
+bqty
+String
+A board lot is a standardized number of shares defined by a stock exchange as a trading unit. In most cases, this means 100 shares. A board lot is what the exchange determines to be a round lot. The purpose of a board lot is to minimize trading odd lots and to facilitate easier trading.
+exchange
+String
+Name of the Exchange
+nestordernumber
+String
+NNest Order Number is defined as Unique number it can be generated while placing the order
+nestreqid
+String
+Nest Request Id
+symbolname
+String
+Symbol Name
+averageprice
+Int
+Average price at which the net position quantity was acquired
+triggerprice
+Int
+The price at which your buy or sell order becomes active for execution on the exchange is known as the trigger price
+disclosedqty
+String
+A Disclosed Quantity condition allows you to disclose only a part of the order quantity to the market. This quantity, however cannot be more than the total quantity of the stocks you are purchasing. The Stock Exchange may set minimum disclosed quantity criteria from time to time.
+exchangeorderid
+String
+Exchange Order Id
+rejectionreason
+String
+Rejected Reason of an order
+duration
+String
+Order Duration of the order
+productcode
+String
+Product Code
+reporttype
+String
+Report Type (Success or Failure)
+customerfirm
+String
+Customer Firm
+exchangetimestamp
+Int
+Exchange Time Stamp.Part of the order-routing process in which the time of day is stamped on an order.
+ordersource
+String
+Order Source display the order placed by whom
+filldateandtime
+String
+The Date and time of shares fill
+ordergenerationtype
+String
+Order Generation Type
+scripname
+String
+Selected Scrip Name will be displayed
+legorderindicator
+String
+A leg is a single position taken in trading
+filledShares
+String
+A fill is the result of an order execution to buy or sell securities in the market.
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Not able to Retrieve OrderHistory
+No Data
+Basket Margin
+Post
+basket/getMargin
+Input Parameters
+KEY	DESCRIPTION
+Exchange
+String
+Exchange(NSE or BSE or NFO or MCX)
+tradingSymbol
+Int
+Trading symbol of the instrument
+price
+Int
+Price at which order to be placed
+qty
+Int
+Number of quantity to transact.The amount of a PRODUCT (or FACTOR OF PRODUCTION) that is bought or sold. In most markets the quantity traded will depend upon the interaction of DEMAND and SUPPLY in determining the product's EQUILIBRIUM MARKET PRICE.
+product
+String
+Product code (MIS or CO or CNC or BO or NRML)
+priceType
+String
+(L or MKT or SL or SL-M)
+Token
+Int
+The price at which your buy or sell order becomes active for execution on the exchange is known as the trigger price
+transType
+String
+Transaction Type (BUY or SELL)
+Example
+         [
+   {
+       "exchange": "NSE",
+       "tradingSymbol": "INFY-EQ",
+       "price": "1475.20",
+       "qty": "122",
+       "product": "MIS",
+       "priceType": "L",
+       "token": "1594",
+       "transType": "B"
+   }]
+Success Response
+PARAMETERS	DESCRIPTION
+stat
+String
+Ok
+marginUsed
+Int
+The money needed to complete all orders in the basket.
+marginUsedTrade
+Int
+The funds reserved in your trading account once the order is executed.
+Error Response
+PARAMETERS	RESPONSE
+stat
+String
+Not_Ok
+emsg
+String
+Session Expired
+Not able to Retrieve Basketorder
+No Data
+Copy
+import requests
+    url = (<BASE URL>+<URL>)
+    payload = ""
+    headers = {
+    'Authorization': 'Bearer USER_ID SESSION_TOKEN'
+    }
+    response = requests.request("GET", url, headers=headers, data=payload)
+    print(response.text)
