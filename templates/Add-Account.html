@@ -487,11 +487,26 @@ window.pageScripts["Add-Account"] = function() {
           <td><span class="badge bg-success">${acc.status || 'Connected'}</span></td>
           <td>
             <button class="btn btn-outline-success btn-sm" onclick="alert('Reconnect coming soon')">Reconnect</button>
+            <button class="btn btn-outline-danger btn-sm ms-1" onclick="window.deleteAccount('${acc.client_id}')">Delete</button>
           </td>
         </tr>
       `;
     }).join('');
   });
+
+  window.deleteAccount = function(cid) {
+    if (!confirm('Delete account ' + cid + '?')) return;
+    fetch('/api/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: cid })
+    })
+    .then(r => r.json())
+    .then(resp => {
+      alert(resp.message || resp.error || 'Unknown error');
+      location.reload();
+    });
+  };
 };     
 </script>
 {% endblock %}
