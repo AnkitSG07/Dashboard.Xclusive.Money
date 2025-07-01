@@ -568,7 +568,7 @@ window.pageScripts["copy-trading"] = function () {
       fetch(`/api/portfolio/${clientId}`)
         .then(res => res.json())
         .then(data => {
-          const positions = data.data || data || [];
+          const positions = data || [];
           tbody.innerHTML = "";
           if (Array.isArray(positions) && positions.length > 0) {
             positions.forEach(pos => {
@@ -733,7 +733,7 @@ window.pageScripts["copy-trading"] = function () {
     fetch("/api/portfolio/" + childId)
       .then(res => res.json())
       .then(data => {
-        const positions = data.data || [];
+        const positions = data || [];
         const activePositions = positions.filter(pos => pos.netQty !== 0);
         const symbols = activePositions.map(pos => pos.tradingSymbol);
 
