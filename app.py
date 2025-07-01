@@ -1022,6 +1022,9 @@ def get_order_book(client_id):
         # Format orders
         formatted = []
         for order in orders:
+            if not isinstance(order, dict):
+                logger.warning(f"Skipping order because it is not a dict: {order}")
+                continue
             try:
                 # Extract status with fallbacks
                 status_val = (
@@ -1030,16 +1033,18 @@ def get_order_book(client_id):
                     or order.get("status")
                     or ("FILLED" if order.get("tradedQty") else "NA")
                 )
-                
+
                 # Extract quantities with validation
                 try:
-                    placed_qty = int(order.get(
-                        "orderQuantity",
-                        order.get("qty", order.get("tradedQty", 0))
-                    ))
+                    placed_qty = int(
+                        order.get("orderQuantity")
+                        or order.get("qty")
+                        or order.get("tradedQty")
+                        or 0
+                    )
                 except (TypeError, ValueError):
                     placed_qty = 0
-                    
+
                 try:
                     filled_qty = int(
                         order.get("filledQuantity")
@@ -1055,9 +1060,9 @@ def get_order_book(client_id):
                 # Format order entry
                 formatted.append({
                     "order_id": (
-                        order.get("orderId") 
-                        or order.get("order_id") 
-                        or order.get("id") 
+                        order.get("orderId")
+                        or order.get("order_id")
+                        or order.get("id")
                         or order.get("orderNumber")
                     ),
                     "side": order.get("transactionType", order.get("side", "NA")),
@@ -1079,12 +1084,12 @@ def get_order_book(client_id):
                         or order.get("create_time")
                         or order.get("orderDateTime", "")
                     ).replace("T", " ").split(".")[0],
-                    "remarks": order.get("remarks", "—")
+                    "remarks": order.get("remarks", "—"),
                 })
-                
             except Exception as e:
                 logger.error(f"Error formatting order: {str(e)}")
                 continue
+
 
         logger.info(f"Successfully fetched {len(formatted)} orders for client {client_id}")
         return jsonify(formatted), 200
