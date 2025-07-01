@@ -90,6 +90,36 @@ def strip_emojis_from_obj(obj):
         return EMOJI_RE.sub('', obj)
     return obj
 
+def parse_order_list(resp):
+    """Return a normalized list of order dictionaries from diverse API responses."""
+    if resp is None:
+        return []
+
+    # Convert dictionaries that wrap the actual list
+    if isinstance(resp, dict):
+        data_field = resp.get("data", resp)
+        if isinstance(data_field, dict):
+            resp = (
+                data_field.get("orderBook")
+                or data_field.get("orders")
+                or data_field.get("tradeBook")
+                or []
+            )
+        else:
+            resp = data_field
+
+    # Ensure we have a list to work with
+    if not isinstance(resp, list):
+        resp = [resp]
+
+    orders = []
+    for item in resp:
+        if isinstance(item, dict):
+            orders.append(item)
+        elif isinstance(item, list):
+            orders.extend(parse_order_list(item))
+    return orders
+
 def extract_balance(data):
     """Recursively search for a numeric balance value in API data."""
     if isinstance(data, dict):
@@ -461,35 +491,38 @@ def poll_and_copy_trades():
                 continue
 
             try:
-                # Use broker_api function to instantiate master_api for consistency
-                master_api = broker_api(master)
+                BrokerClass = get_broker_class(master_broker)
+                if master_broker == "aliceblue":
+                    api_key = credentials.get("api_key")
+                    if not api_key:
+                        logger.error(f"Missing API key for AliceBlue master {master_id}")
+                        continue
+                    rest = {k: v for k, v in credentials.items()
+                            if k not in ("access_token", "api_key", "device_number")}
+                    master_api = BrokerClass(
+                        master.get("client_id"),
+                        api_key,
+                        device_number=credentials.get("device_number"),
+                        **rest
+                    )
+                else:
+                    access_token = credentials.get("access_token")
+                    if not access_token:
+                        logger.error(f"Missing access token for {master_broker} master {master_id}")
+                        continue
+                    rest = {k: v for k, v in credentials.items() if k != "access_token"}
+                    master_api = BrokerClass(
+                        client_id=master.get("client_id"),
+                        access_token=access_token,
+                        **rest
+                    )
             except Exception as e:
                 logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
                 continue
 
             try:
                 orders_resp = master_api.get_order_list()
-                logger.debug(f"Orders response for master {master_id} ({master_broker}): {orders_resp}")
-                if isinstance(orders_resp, dict):
-                    data_field = orders_resp.get("data")
-                    if isinstance(data_field, list):
-                        order_list = data_field
-                    else:
-                        data_field = data_field or orders_resp
-                        if isinstance(data_field, dict):
-                            order_list = (
-                                data_field.get("orderBook")
-                                or data_field.get("orders")
-                                or data_field.get("tradeBook")
-                                or []
-                            )
-                        else:
-                            order_list = []
-                elif isinstance(orders_resp, list):
-                    order_list = orders_resp
-                else:
-                    logger.error(f"Unexpected response format from {master_broker}: {type(orders_resp)}")
-                    continue
+                order_list = parse_order_list(orders_resp)
             except Exception as e:
                 logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
                 continue
@@ -528,9 +561,6 @@ def poll_and_copy_trades():
                 new_last_trade_id = None
 
                 for order in order_list:
-                    if not isinstance(order, dict):
-                        logger.warning(f"Skipping order because it is not a dict: {order}")
-                        continue
                     order_id = (
                         order.get("orderId")
                         or order.get("order_id")
@@ -974,114 +1004,87 @@ def get_order_book(client_id):
         # Fetch orders
         try:
             orders_resp = api.get_order_list()
+            if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
+                error_msg = orders_resp.get("error", "Failed to fetch orders")
+                logger.error(f"API error: {error_msg}")
+                return jsonify({"error": error_msg}), 500
+            orders = parse_order_list(orders_resp)
         except Exception as e:
             logger.error(f"Failed to fetch orders: {str(e)}")
             return jsonify({
                 "error": "Failed to fetch orders",
                 "details": str(e)
             }), 500
-
-        # Handle API error response
-        if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
-            error_msg = orders_resp.get("error", "Failed to fetch orders")
-            logger.error(f"API error: {error_msg}")
-            return jsonify({
-                "error": error_msg
-            }), 500
-
-        # Extract and normalize orders from response
-        orders = []
-        if isinstance(orders_resp, dict):
-            data_field = orders_resp.get("data")
-            if isinstance(data_field, list):
-                orders = data_field
-            else:
-                data_field = data_field or orders_resp
-                if isinstance(data_field, dict):
-                    orders = (
-                        data_field.get("orders")
-                        or data_field.get("orderBook")
-                        or data_field.get("tradeBook")
-                        or []
-                    )
-        elif isinstance(orders_resp, list):
-            orders = orders_resp
-
-        if not isinstance(orders, list):
-            orders = []
             
         # Clean data
         orders = strip_emojis_from_obj(orders)
         
         # Format orders
         formatted = []
-         for order in orders:
-             if not isinstance(order, dict):
-                 logger.warning(f"Skipping order because it is not a dict: {order}")
-                 continue
-             try:
-                 # Extract status with fallbacks
-                 status_val = (
-                     order.get("orderStatus")
-                     or order.get("report_type")
-                     or order.get("status")
-                     or ("FILLED" if order.get("tradedQty") else "NA")
-                 )
-                 
-                 # Extract quantities with validation
-                 try:
-                     placed_qty = int(order.get(
-                         "orderQuantity",
-                         order.get("qty", order.get("tradedQty", 0))
-                     ))
-                 except (TypeError, ValueError):
-                     placed_qty = 0
-                     
-                 try:
-                     filled_qty = int(
-                         order.get("filledQuantity")
-                         or order.get("filled_qty")
-                         or order.get("filledQty")
-                         or order.get("qty")
-                         or order.get("tradedQty")
-                         or (placed_qty if str(order.get("status")) == "2" else 0)
-                     )
-                 except (TypeError, ValueError):
-                     filled_qty = 0
+        for order in orders:
+            try:
+                # Extract status with fallbacks
+                status_val = (
+                    order.get("orderStatus")
+                    or order.get("report_type")
+                    or order.get("status")
+                    or ("FILLED" if order.get("tradedQty") else "NA")
+                )
+                
+                # Extract quantities with validation
+                try:
+                    placed_qty = int(order.get(
+                        "orderQuantity",
+                        order.get("qty", order.get("tradedQty", 0))
+                    ))
+                except (TypeError, ValueError):
+                    placed_qty = 0
+                    
+                try:
+                    filled_qty = int(
+                        order.get("filledQuantity")
+                        or order.get("filled_qty")
+                        or order.get("filledQty")
+                        or order.get("qty")
+                        or order.get("tradedQty")
+                        or (placed_qty if str(order.get("status")) == "2" else 0)
+                    )
+                except (TypeError, ValueError):
+                    filled_qty = 0
 
-             # Format order entry
-             formatted.append({
-                 "order_id": (
-                     order.get("orderId") 
-                     or order.get("order_id") 
-                     or order.get("id") 
-                     or order.get("orderNumber")
-                 ),
-                 "side": order.get("transactionType", order.get("side", "NA")),
-                 "status": status_val,
-                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
-                 "product_type": order.get("productType", order.get("product", "—")),
-                 "placed_qty": placed_qty,
-                 "filled_qty": filled_qty,
-                 "avg_price": float(
-                     order.get("averagePrice")
-                     or order.get("avg_price")
-                     or order.get("tradePrice")
-                     or order.get("tradedPrice")
-                     or 0
-                 ),
-                 "order_time": (
-                     order.get("orderTimestamp")
-                     or order.get("order_time")
-                     or order.get("create_time")
-                     or order.get("orderDateTime", "")
-                 ).replace("T", " ").split(".")[0],
-                 "remarks": order.get("remarks", "—")
-             })
-             
-         except Exception as e:
-             logger.error(f"Error formatting order: {str(e)}")
-             continue
+                # Format order entry
+                formatted.append({
+                    "order_id": (
+                        order.get("orderId") 
+                        or order.get("order_id") 
+                        or order.get("id") 
+                        or order.get("orderNumber")
+                    ),
+                    "side": order.get("transactionType", order.get("side", "NA")),
+                    "status": status_val,
+                    "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
+                    "product_type": order.get("productType", order.get("product", "—")),
+                    "placed_qty": placed_qty,
+                    "filled_qty": filled_qty,
+                    "avg_price": float(
+                        order.get("averagePrice")
+                        or order.get("avg_price")
+                        or order.get("tradePrice")
+                        or order.get("tradedPrice")
+                        or 0
+                    ),
+                    "order_time": (
+                        order.get("orderTimestamp")
+                        or order.get("order_time")
+                        or order.get("create_time")
+                        or order.get("orderDateTime", "")
+                    ).replace("T", " ").split(".")[0],
+                    "remarks": order.get("remarks", "—")
+                })
+                
+            except Exception as e:
+                logger.error(f"Error formatting order: {str(e)}")
+                continue
 
         logger.info(f"Successfully fetched {len(formatted)} orders for client {client_id}")
         return jsonify(formatted), 200
@@ -2841,25 +2844,7 @@ def start_copy():
         try:
             master_api = broker_api(master_acc)
             orders_resp = master_api.get_order_list()
-            if isinstance(orders_resp, dict):
-                data_field = orders_resp.get("data")
-                if isinstance(data_field, list):
-                    order_list = data_field
-                else:
-                    data_field = data_field or orders_resp
-                    if isinstance(data_field, dict):
-                        order_list = (
-                            data_field.get("orderBook")
-                            or data_field.get("orders")
-                            or data_field.get("tradeBook")
-                            or []
-                        )
-                    else:
-                        order_list = []
-            elif isinstance(orders_resp, list):
-                order_list = orders_resp
-            else:
-                order_list = []
+            order_list = parse_order_list(orders_resp)
             order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
                 order_list = sorted(
