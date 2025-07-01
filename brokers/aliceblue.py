@@ -184,7 +184,14 @@ class AliceBlueBroker(BrokerBase):
             resp = r.json()
         except Exception:
             return {"status": "failure", "error": r.text}
-        orders = resp.get("data") or resp.get("OrderBookDetail", []) or []
+                if isinstance(resp, list):
+            orders = resp
+        elif isinstance(resp, dict):
+            if resp.get("stat") == "Not_Ok":
+                return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order book."), "raw": resp}
+            orders = resp.get("data") or resp.get("OrderBookDetail") or resp.get("orders") or []
+        else:
+            orders = []
         return {"status": "success", "orders": orders}
 
     def cancel_order(self, order_id):
@@ -208,7 +215,14 @@ class AliceBlueBroker(BrokerBase):
             resp = r.json()
         except Exception:
             return {"status": "failure", "error": r.text}
-        positions = resp.get("data") or resp.get("positions", []) or []
+        if isinstance(resp, list):
+            positions = resp
+        elif isinstance(resp, dict):
+            if resp.get("stat") == "Not_Ok":
+                return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve positions."), "raw": resp}
+            positions = resp.get("data") or resp.get("positions") or []
+        else:
+            positions = []
         return {"status": "success", "positions": positions}
 
     def get_opening_balance(self):
