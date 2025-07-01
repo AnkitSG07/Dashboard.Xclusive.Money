@@ -2304,6 +2304,34 @@ def update_multiplier():
 
     return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
 
+# Delete an account entirely
+@app.route('/api/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    data = request.json
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    accounts_data = safe_read_json("accounts.json")
+    user = session.get("user")
+    before = len(accounts_data.get("accounts", []))
+    accounts_data["accounts"] = [
+        acc for acc in accounts_data.get("accounts", [])
+        if not (str(acc.get("client_id")) == str(client_id) and acc.get("owner") == user)
+    ]
+    if len(accounts_data.get("accounts", [])) == before:
+        return jsonify({"error": "Account not found"}), 404
+    safe_write_json("accounts.json", accounts_data)
+
+    db_user = User.query.filter_by(email=user).first()
+    if db_user:
+        acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+        if acc_db:
+            db.session.delete(acc_db)
+            db.session.commit()
+
+    return jsonify({"message": f"Account {client_id} deleted."})
 
 @app.route("/marketwatch")
 def market_watch():
@@ -2934,6 +2962,42 @@ def stop_copy():
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"🛑 Stopped copying for {client_id} under master {master_id}."})
+
+# Bulk start copying for all children of a master
+@app.route('/api/start-copy-all', methods=['POST'])
+@login_required
+def start_copy_all():
+    data = request.json
+    master_id = data.get("master_id")
+    if not master_id:
+        return jsonify({"error": "Missing master_id"}), 400
+    accounts_data = safe_read_json("accounts.json")
+    user = session.get("user")
+    count = 0
+    for acc in accounts_data.get("accounts", []):
+        if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
+            acc["copy_status"] = "On"
+            count += 1
+    safe_write_json("accounts.json", accounts_data)
+    return jsonify({"message": f"Started copying for {count} child accounts."})
+
+# Bulk stop copying for all children of a master
+@app.route('/api/stop-copy-all', methods=['POST'])
+@login_required
+def stop_copy_all():
+    data = request.json
+    master_id = data.get("master_id")
+    if not master_id:
+        return jsonify({"error": "Missing master_id"}), 400
+    accounts_data = safe_read_json("accounts.json")
+    user = session.get("user")
+    count = 0
+    for acc in accounts_data.get("accounts", []):
+        if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
+            acc["copy_status"] = "Off"
+            count += 1
+    safe_write_json("accounts.json", accounts_data)
+    return jsonify({"message": f"Stopped copying for {count} child accounts."})
 
 # === Endpoint to fetch passive alert logs ===
 @app.route("/api/alerts")
