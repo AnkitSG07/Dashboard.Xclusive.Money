@@ -461,37 +461,15 @@ def poll_and_copy_trades():
                 continue
 
             try:
-                BrokerClass = get_broker_class(master_broker)
-                if master_broker == "aliceblue":
-                    api_key = credentials.get("api_key")
-                    if not api_key:
-                        logger.error(f"Missing API key for AliceBlue master {master_id}")
-                        continue
-                    rest = {k: v for k, v in credentials.items()
-                            if k not in ("access_token", "api_key", "device_number")}
-                    master_api = BrokerClass(
-                        master.get("client_id"),
-                        api_key,
-                        device_number=credentials.get("device_number"),
-                        **rest
-                    )
-                else:
-                    access_token = credentials.get("access_token")
-                    if not access_token:
-                        logger.error(f"Missing access token for {master_broker} master {master_id}")
-                        continue
-                    rest = {k: v for k, v in credentials.items() if k != "access_token"}
-                    master_api = BrokerClass(
-                        client_id=master.get("client_id"),
-                        access_token=access_token,
-                        **rest
-                    )
+                # Use broker_api function to instantiate master_api for consistency
+                master_api = broker_api(master)
             except Exception as e:
                 logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
                 continue
 
             try:
                 orders_resp = master_api.get_order_list()
+                logger.debug(f"Orders response for master {master_id} ({master_broker}): {orders_resp}")
                 if isinstance(orders_resp, dict):
                     data_field = orders_resp.get("data")
                     if isinstance(data_field, list):
@@ -550,6 +528,9 @@ def poll_and_copy_trades():
                 new_last_trade_id = None
 
                 for order in order_list:
+                    if not isinstance(order, dict):
+                        logger.warning(f"Skipping order because it is not a dict: {order}")
+                        continue
                     order_id = (
                         order.get("orderId")
                         or order.get("order_id")
@@ -1034,70 +1015,73 @@ def get_order_book(client_id):
         
         # Format orders
         formatted = []
-        for order in orders:
-            try:
-                # Extract status with fallbacks
-                status_val = (
-                    order.get("orderStatus")
-                    or order.get("report_type")
-                    or order.get("status")
-                    or ("FILLED" if order.get("tradedQty") else "NA")
-                )
-                
-                # Extract quantities with validation
-                try:
-                    placed_qty = int(order.get(
-                        "orderQuantity",
-                        order.get("qty", order.get("tradedQty", 0))
-                    ))
-                except (TypeError, ValueError):
-                    placed_qty = 0
-                    
-                try:
-                    filled_qty = int(
-                        order.get("filledQuantity")
-                        or order.get("filled_qty")
-                        or order.get("filledQty")
-                        or order.get("qty")
-                        or order.get("tradedQty")
-                        or (placed_qty if str(order.get("status")) == "2" else 0)
-                    )
-                except (TypeError, ValueError):
-                    filled_qty = 0
+         for order in orders:
+             if not isinstance(order, dict):
+                 logger.warning(f"Skipping order because it is not a dict: {order}")
+                 continue
+             try:
+                 # Extract status with fallbacks
+                 status_val = (
+                     order.get("orderStatus")
+                     or order.get("report_type")
+                     or order.get("status")
+                     or ("FILLED" if order.get("tradedQty") else "NA")
+                 )
+                 
+                 # Extract quantities with validation
+                 try:
+                     placed_qty = int(order.get(
+                         "orderQuantity",
+                         order.get("qty", order.get("tradedQty", 0))
+                     ))
+                 except (TypeError, ValueError):
+                     placed_qty = 0
+                     
+                 try:
+                     filled_qty = int(
+                         order.get("filledQuantity")
+                         or order.get("filled_qty")
+                         or order.get("filledQty")
+                         or order.get("qty")
+                         or order.get("tradedQty")
+                         or (placed_qty if str(order.get("status")) == "2" else 0)
+                     )
+                 except (TypeError, ValueError):
+                     filled_qty = 0
 
-                # Format order entry
-                formatted.append({
-                    "order_id": (
-                        order.get("orderId") 
-                        or order.get("order_id") 
-                        or order.get("id") 
-                        or order.get("orderNumber")
-                    ),
-                    "side": order.get("transactionType", order.get("side", "NA")),
-                    "status": status_val,
-                    "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
-                    "product_type": order.get("productType", order.get("product", "—")),
-                    "placed_qty": placed_qty,
-                    "filled_qty": filled_qty,
-                    "avg_price": float(
-                        order.get("averagePrice")
-                        or order.get("avg_price")
-                        or order.get("tradePrice")
-                        or order.get("tradedPrice")
-                        or 0
-                    ),
-                    "order_time": (
-                        order.get("orderTimestamp")
-                        or order.get("order_time")
-                        or order.get("create_time")
-                        or order.get("orderDateTime", "")
-                    ).replace("T", " ").split(".")[0],
-                    "remarks": order.get("remarks", "—")
-                })
-                
-            except Exception as e:
-                logger.error(f"Error formatting order: {str(e)}")
-                continue
+             # Format order entry
+             formatted.append({
+                 "order_id": (
+                     order.get("orderId") 
+                     or order.get("order_id") 
+                     or order.get("id") 
+                     or order.get("orderNumber")
+                 ),
+                 "side": order.get("transactionType", order.get("side", "NA")),
+                 "status": status_val,
+                 "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
+                 "product_type": order.get("productType", order.get("product", "—")),
+                 "placed_qty": placed_qty,
+                 "filled_qty": filled_qty,
+                 "avg_price": float(
+                     order.get("averagePrice")
+                     or order.get("avg_price")
+                     or order.get("tradePrice")
+                     or order.get("tradedPrice")
+                     or 0
+                 ),
+                 "order_time": (
+                     order.get("orderTimestamp")
+                     or order.get("order_time")
+                     or order.get("create_time")
+                     or order.get("orderDateTime", "")
+                 ).replace("T", " ").split(".")[0],
+                 "remarks": order.get("remarks", "—")
+             })
+             
+         except Exception as e:
+             logger.error(f"Error formatting order: {str(e)}")
+             continue
 
         logger.info(f"Successfully fetched {len(formatted)} orders for client {client_id}")
         return jsonify(formatted), 200
