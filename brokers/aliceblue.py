@@ -186,9 +186,16 @@ class AliceBlueBroker(BrokerBase):
         if isinstance(resp, list):
             orders = resp
         elif isinstance(resp, dict):
-            if resp.get("stat") == "Not_Ok":
+            if resp.get("stat") and resp.get("stat") != "Ok":
                 return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order book."), "raw": resp}
-            orders = resp.get("data") or resp.get("OrderBookDetail") or resp.get("orders") or []
+            orders = (
+                resp.get("data")
+                or resp.get("OrderBookDetail")
+                or resp.get("orderBook")
+                or resp.get("OrderBook")
+                or resp.get("orders")
+                or []
+            )
         else:
             orders = []
         return {"status": "success", "orders": orders}
@@ -217,9 +224,19 @@ class AliceBlueBroker(BrokerBase):
         if isinstance(resp, list):
             positions = resp
         elif isinstance(resp, dict):
-            if resp.get("stat") == "Not_Ok":
-                return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve positions."), "raw": resp}
-            positions = resp.get("data") or resp.get("positions") or []
+            if resp.get("stat") and resp.get("stat") != "Ok":
+                return {
+                    "status": "failure",
+                    "error": resp.get("emsg", "Failed to retrieve positions."),
+                    "raw": resp,
+                }
+            positions = (
+                resp.get("data")
+                or resp.get("positions")
+                or resp.get("positionBook")
+                or resp.get("PositionBook")
+                or []
+            )
         else:
             positions = []
         return {"status": "success", "positions": positions}
