@@ -436,7 +436,7 @@ p {
 
 .sidebar-logo img {
   height: clamp(2.5rem, 8vw, 3rem); /* Responsive height */
-  width: 60%;
+  width: 50%;
   display: block;
   margin: 0 auto;
 }
@@ -450,6 +450,7 @@ p {
   margin: clamp(1.5rem, 6vw, 2rem) 0 0.5rem; /* Responsive margin */
   letter-spacing: 0.04em;
   flex-shrink: 0; /* Prevent title from shrinking */
+  display: block; /* This is essential! */
 }
 
 .sidebar .nav-link {
@@ -1930,5 +1931,36 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
     max-width: 60%;
     margin-top: 0rem;
     align-self: center;
+  }
+}
+/* --- Dropdown inside table should overlay above all --- */
+.table-responsive, .section-box, .main-content, .container {
+  overflow: visible !important;
+}
+/* --- Sidebar nav-title always as block and full width --- */
+.sidebar .nav {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar .nav-title {
+  display: block;
+  width: 100%;
+  margin: clamp(1.5rem, 6vw, 2rem) 0 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .section-box,
+  .table-responsive,
+  .main-content,
+  .container {
+    overflow: visible !important;
+    position: static !important;
+  }
+  .dropdown-menu {
+    position: fixed !important;
+    z-index: 3000 !important;
+  }
+  .dropdown {
+    position: static !important;
   }
 }
