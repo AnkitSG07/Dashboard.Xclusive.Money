@@ -1031,6 +1031,7 @@ def get_order_book(client_id):
                     order.get("orderStatus")
                     or order.get("report_type")
                     or order.get("status")
+                    or order.get("Status")
                     or ("FILLED" if order.get("tradedQty") else "NA")
                 )
 
@@ -1039,6 +1040,7 @@ def get_order_book(client_id):
                     placed_qty = int(
                         order.get("orderQuantity")
                         or order.get("qty")
+                        or order.get("Qty")
                         or order.get("tradedQty")
                         or 0
                     )
@@ -1050,6 +1052,7 @@ def get_order_book(client_id):
                         order.get("filledQuantity")
                         or order.get("filled_qty")
                         or order.get("filledQty")
+                        or order.get("Filledqty")
                         or order.get("qty")
                         or order.get("tradedQty")
                         or (placed_qty if str(order.get("status")) == "2" else 0)
@@ -1064,16 +1067,30 @@ def get_order_book(client_id):
                         or order.get("order_id")
                         or order.get("id")
                         or order.get("orderNumber")
+                        or order.get("NOrdNo")
+                        or order.get("Nstordno")
+                        or order.get("nestOrderNumber")
+                        or order.get("ExchOrdID")
                     ),
-                    "side": order.get("transactionType", order.get("side", "NA")),
+                    "side": order.get(
+                        "transactionType",
+                        order.get("side", order.get("Trantype", "NA"))
+                    ),
                     "status": status_val,
-                    "symbol": order.get("tradingSymbol", order.get("symbol", "—")),
-                    "product_type": order.get("productType", order.get("product", "—")),
+                    "symbol": order.get(
+                        "tradingSymbol",
+                        order.get("symbol", order.get("Tsym", order.get("Trsym", "—")))
+                    ),
+                    "product_type": order.get(
+                        "productType", order.get("product", order.get("Pcode", "—"))
+                    ),
                     "placed_qty": placed_qty,
                     "filled_qty": filled_qty,
                     "avg_price": float(
                         order.get("averagePrice")
                         or order.get("avg_price")
+                        or order.get("Avgprc")
+                        or order.get("Prc")
                         or order.get("tradePrice")
                         or order.get("tradedPrice")
                         or 0
@@ -1082,7 +1099,9 @@ def get_order_book(client_id):
                         order.get("orderTimestamp")
                         or order.get("order_time")
                         or order.get("create_time")
-                        or order.get("orderDateTime", "")
+                        or order.get("orderDateTime")
+                        or order.get("ExchConfrmtime")
+                        or ""
                     ).replace("T", " ").split(".")[0],
                     "remarks": (
                         order.get("remarks")
@@ -1090,6 +1109,7 @@ def get_order_book(client_id):
                         or order.get("orderTag")
                         or order.get("usercomment")
                         or order.get("Usercomments")
+                        or order.get("remarks1")
                         or "—"
                     ),
                 })
