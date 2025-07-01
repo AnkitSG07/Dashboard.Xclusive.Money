@@ -406,6 +406,29 @@ class FinvasiaBroker(BrokerBase):
             
         return {"status": "failure", "error": str(resp) if resp is not None else "Unknown response type from API."}
 
+    def get_opening_balance(self):
+        """Return available cash balance using the limits API."""
+        result = self.get_limits()
+        if isinstance(result, dict):
+            limits = result.get("limits") if result.get("status") == "success" else result
+            if isinstance(limits, dict):
+                for key in [
+                    "cash",
+                    "availablecash",
+                    "available_balance",
+                    "availableBalance",
+                    "opening_balance",
+                    "net",
+                    "netCash",
+                ]:
+                    if key in limits:
+                        try:
+                            return float(limits[key])
+                        except (TypeError, ValueError):
+                            pass
+        return None
+ 
+
     def last_auth_error(self):
         """Returns the last authentication error message."""
         return self._last_auth_error
