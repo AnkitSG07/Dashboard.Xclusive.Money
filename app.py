@@ -621,7 +621,7 @@ def poll_and_copy_trades():
                         }
                         status = status_mapping.get(order_status, "UNKNOWN")
                         if filled_qty <= 0:
-                            if master_broker == "aliceblue" and status == "COMPLETE":
+                            if master_broker == "aliceblue" and status == "complete":
                                 filled_qty = int(
                                     order.get("placed_qty")
                                     or order.get("quantity")
