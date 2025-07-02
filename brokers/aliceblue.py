@@ -200,6 +200,31 @@ class AliceBlueBroker(BrokerBase):
             orders = []
         return {"status": "success", "orders": orders}
 
+    def get_trade_book(self):
+        """Fetch the trade book which includes filled quantity information."""
+        self.ensure_session()
+        url = self.BASE_URL + "placeOrder/fetchTradeBook"
+        r = requests.get(url, headers=self.headers, timeout=10)
+        try:
+            resp = r.json()
+        except Exception:
+            return {"status": "failure", "error": r.text}
+        if isinstance(resp, list):
+            trades = resp
+        elif isinstance(resp, dict):
+            if resp.get("stat") and resp.get("stat") != "Ok":
+                return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve trade book."), "raw": resp}
+            trades = (
+                resp.get("data")
+                or resp.get("tradeBook")
+                or resp.get("TradeBook")
+                or resp.get("trades")
+                or []
+            )
+        else:
+            trades = []
+        return {"status": "success", "trades": trades}
+
     def cancel_order(self, order_id):
         self.ensure_session()
         url = self.BASE_URL + "cancelOrder"
