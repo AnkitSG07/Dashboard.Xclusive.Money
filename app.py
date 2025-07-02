@@ -715,12 +715,22 @@ def poll_and_copy_trades():
                             or "BUY"
                         )
                         if isinstance(transaction_type_raw, (int, float)):
-                            transaction_type_raw = "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                            transaction_type_raw = (
+                                "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                            )
                         transaction_type_map = {
-                            "B": "BUY", "S": "SELL", "BUY": "BUY", "SELL": "SELL",
-                            "1": "BUY", "2": "SELL", "0": "BUY", "-1": "SELL"
+                            "B": "BUY",
+                            "S": "SELL",
+                            "BUY": "BUY",
+                            "SELL": "SELL",
+                            "1": "BUY",
+                            "2": "SELL",
+                            "0": "BUY",
+                            "-1": "SELL",
                         }
-                        transaction_type = transaction_type_map.get(str(transaction_type_raw).upper(), "BUY")
+                        transaction_type = transaction_type_map.get(
+                            str(transaction_type_raw).upper(), "BUY"
+                        )
                     except Exception:
                         continue
 
