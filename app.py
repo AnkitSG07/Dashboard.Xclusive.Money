@@ -634,7 +634,7 @@ def poll_and_copy_trades():
                         }
                         status = status_mapping.get(order_status, "UNKNOWN")
                         if filled_qty <= 0:
-                            if master_broker == "aliceblue" and status == "complete":
+                            if master_broker == "aliceblue" and status == "COMPLETE":
                                 filled_qty = int(
                                     order.get("placed_qty")
                                     or order.get("quantity")
@@ -650,8 +650,6 @@ def poll_and_copy_trades():
                     except Exception:
                         continue
 
-                    if new_last_trade_id is None:
-                        new_last_trade_id = order_id
 
                     try:
                         price = float(
@@ -878,6 +876,8 @@ def poll_and_copy_trades():
                                     price,
                                     'SUCCESS'
                                 )
+                                if new_last_trade_id is None:
+                                    new_last_trade_id = order_id
                         else:
                             continue
                     except Exception:
