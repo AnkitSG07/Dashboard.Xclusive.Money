@@ -568,6 +568,7 @@ def poll_and_copy_trades():
                         or order.get("NOrdNo")
                         or order.get("nestOrderNumber")
                         or order.get("orderNumber")
+                        or order.get("Nstordno")  # Alice Blue
                     )
                     if not order_id:
                         continue
@@ -586,6 +587,8 @@ def poll_and_copy_trades():
                             or order.get("filled_quantity")
                             or order.get("executed_quantity")
                             or order.get("quantity")
+                            or order.get("Fillshares")    # Alice Blue Order Book
+                            or order.get("Filledqty")     # Alice Blue Trade Book
                             or 0
                         )
                         if filled_qty <= 0:
@@ -594,6 +597,7 @@ def poll_and_copy_trades():
                         order_status_raw = (
                             order.get("orderStatus")
                             or order.get("status")
+                            or order.get("Status")    # Alice Blue
                             or order.get("order_status")
                             or order.get("report_type")
                             or ("COMPLETE" if filled_qty > 0 else "")
