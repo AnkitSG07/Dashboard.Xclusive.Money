@@ -102,7 +102,13 @@ def parse_order_list(resp):
             resp = (
                 data_field.get("orderBook")
                 or data_field.get("orders")
+                or data_field.get("OrderBookDetail")
                 or data_field.get("tradeBook")
+                or data_field.get("TradeBook")
+                or data_field.get("tradebook")
+                or data_field.get("Tradebook")
+                or data_field.get("trade_book")
+                or data_field.get("trades")
                 or []
             )
         else:
@@ -526,6 +532,13 @@ def poll_and_copy_trades():
                 else:
                     orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
+                if (
+                    master_broker == "aliceblue"
+                    and not order_list
+                    and hasattr(master_api, "get_order_list")
+                ):
+                    orders_resp = master_api.get_order_list()
+                    order_list = parse_order_list(orders_resp)
             except Exception as e:
                 logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
                 continue
@@ -2925,6 +2938,13 @@ def start_copy():
             else:
                 orders_resp = master_api.get_order_list()
             order_list = parse_order_list(orders_resp)
+            if (
+                master_acc.get("broker", "").lower() == "aliceblue"
+                and not order_list
+                and hasattr(master_api, "get_order_list")
+            ):
+                orders_resp = master_api.get_order_list()
+                order_list = parse_order_list(orders_resp)
             order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
                 order_list = sorted(
