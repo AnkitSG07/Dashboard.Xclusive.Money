@@ -521,7 +521,10 @@ def poll_and_copy_trades():
                 continue
 
             try:
-                orders_resp = master_api.get_order_list()
+                if master_broker == "aliceblue" and hasattr(master_api, "get_trade_book"):
+                    orders_resp = master_api.get_trade_book()
+                else:
+                    orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
             except Exception as e:
                 logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
@@ -2907,7 +2910,10 @@ def start_copy():
     if master_acc:
         try:
             master_api = broker_api(master_acc)
-            orders_resp = master_api.get_order_list()
+            if master_acc.get("broker", "").lower() == "aliceblue" and hasattr(master_api, "get_trade_book"):
+                orders_resp = master_api.get_trade_book()
+            else:
+                orders_resp = master_api.get_order_list()
             order_list = parse_order_list(orders_resp)
             order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
