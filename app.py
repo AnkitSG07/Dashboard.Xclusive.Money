@@ -594,8 +594,6 @@ def poll_and_copy_trades():
                             or order.get("Filledqty")     # Alice Blue Trade Book
                             or 0
                         )
-                        if filled_qty <= 0:
-                            continue
 
                         order_status_raw = (
                             order.get("orderStatus")
@@ -622,6 +620,18 @@ def poll_and_copy_trades():
                             "FAILED": "FAILED"
                         }
                         status = status_mapping.get(order_status, "UNKNOWN")
+                        if filled_qty <= 0:
+                            if master_broker == "aliceblue" and status == "COMPLETE":
+                                filled_qty = int(
+                                    order.get("placed_qty")
+                                    or order.get("quantity")
+                                    or 0
+                                )
+                                if filled_qty <= 0:
+                                    continue
+                            else:
+                                continue
+
                         if status != "COMPLETE":
                             continue
                     except Exception:
