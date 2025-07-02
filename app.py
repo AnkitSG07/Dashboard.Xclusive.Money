@@ -126,6 +126,56 @@ def parse_order_list(resp):
             orders.extend(parse_order_list(item))
     return orders
 
+TIME_FORMATS = [
+    "%d-%b-%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S",
+    "%d-%b-%Y %H:%M",
+    "%d-%m-%Y %H:%M",
+]
+
+
+def parse_timestamp(value):
+    """Parse diverse timestamp formats to a ``datetime`` object."""
+    if not value:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value))
+        except Exception:
+            return None
+    for fmt in TIME_FORMATS:
+        try:
+            return datetime.strptime(str(value), fmt)
+        except Exception:
+            continue
+    return None
+
+
+def get_order_sort_key(order):
+    """Return a sort key for an order based on timestamp or order ID."""
+    ts = parse_timestamp(
+        order.get("orderTimestamp")
+        or order.get("order_time")
+        or order.get("create_time")
+        or order.get("orderDateTime")
+    )
+    if ts:
+        return ts
+    try:
+        return int(
+            order.get("orderId")
+            or order.get("order_id")
+            or order.get("id")
+            or order.get("NOrdNo")
+            or order.get("nestOrderNumber")
+            or order.get("orderNumber")
+            or order.get("Nstordno")
+            or 0
+        )
+    except Exception:
+        return 0
+
 def extract_balance(data):
     """Recursively search for a numeric balance value in API data."""
     if isinstance(data, dict):
@@ -553,17 +603,7 @@ def poll_and_copy_trades():
 
             # Sort newest first
             try:
-                order_list = sorted(
-                    order_list,
-                    key=lambda x: (
-                        x.get("orderTimestamp")
-                        or x.get("order_time")
-                        or x.get("create_time")
-                        or x.get("orderDateTime")
-                        or ""
-                    ),
-                    reverse=True,
-                )
+                order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
             except Exception as e:
                 logger.error(f"Failed to sort orders for master {master_id}: {str(e)}")
                 continue
@@ -2947,17 +2987,7 @@ def start_copy():
                 order_list = parse_order_list(orders_resp)
             order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
-                order_list = sorted(
-                    order_list,
-                    key=lambda x: (
-                        x.get("orderTimestamp")
-                        or x.get("order_time")
-                        or x.get("create_time")
-                        or x.get("orderDateTime")
-                        or ""
-                    ),
-                    reverse=True,
-                )
+                order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
                 latest_order_id = (
                     order_list[0].get("orderId")
                     or order_list[0].get("order_id")
