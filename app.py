@@ -634,6 +634,9 @@ def poll_and_copy_trades():
                         logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
                         break
 
+                    if new_last_trade_id is None:
+                        new_last_trade_id = str(order_id)
+
                     # --- Main copy logic/validations ---
                     try:
                         filled_qty = int(
@@ -2987,6 +2990,7 @@ def start_copy():
             found = True
 
     # Set marker to latest master order at the time of enabling copy
+    latest_order_id = "NONE"
     master_acc = next((a for a in accounts_data["accounts"] if a.get("client_id") == master_id and a.get("role") == "master"), None)
     if master_acc:
         try:
@@ -3014,17 +3018,20 @@ def start_copy():
                     or order_list[0].get("nestOrderNumber")
                     or order_list[0].get("orderNumber")
                 )
-                if latest_order_id:
-                    accounts_data[f"last_copied_trade_id_{master_id}_{client_id}"] = str(latest_order_id)
+                latest_order_id = str(latest_order_id) if latest_order_id else "NONE"
         except Exception as e:
             logger.error(f"Could not set initial last_copied_trade_id for child {client_id}: {e}")
+            latest_order_id = "NONE"
+
+    # Always set marker, even if "NONE"
+    accounts_data[f"last_copied_trade_id_{master_id}_{client_id}"] = latest_order_id
 
     if not found:
         return jsonify({"error": "Child account not found."}), 404
 
     safe_write_json("accounts.json", accounts_data)
     return jsonify({'message': f"✅ Started copying for {client_id} under master {master_id}."})
-
+    
 @app.route('/api/stop-copy', methods=['POST'])
 @login_required
 def stop_copy():
@@ -3061,7 +3068,6 @@ def start_copy_all():
         return jsonify({"error": "Missing master_id"}), 400
     accounts_data = safe_read_json("accounts.json")
     user = session.get("user")
-    # Fetch the master's latest order to initialize markers for each child
     master_acc = next(
         (
             a
@@ -3077,7 +3083,6 @@ def start_copy_all():
         try:
             master_api = broker_api(master_acc)
             order_list = []
-            # Alice Blue: first try trade book, then order book if empty
             if master_acc.get("broker", "").lower() == "aliceblue":
                 if hasattr(master_api, "get_trade_book"):
                     orders_resp = master_api.get_trade_book()
@@ -3109,12 +3114,13 @@ def start_copy_all():
         if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "On"
             # Always set the marker, even if it was previously present
-            accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = str(latest_order_id)
+            accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = latest_order_id
             count += 1
 
     safe_write_json("accounts.json", accounts_data)
     logger.info(f"Bulk copy started for {count} children under master {master_id}, marker set to {latest_order_id}")
     return jsonify({"message": f"Started copying for {count} child accounts."})
+
 # Bulk stop copying for all children of a master
 @app.route('/api/stop-copy-all', methods=['POST'])
 @login_required
