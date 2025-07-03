@@ -618,6 +618,25 @@ def poll_and_copy_trades():
                     last_copied_trade_id = str(last_copied_trade_id)
                 new_last_trade_id = None
 
+                # If no marker exists yet for this child, initialize it with
+                # the most recent trade ID so historical orders are not copied
+                if last_copied_trade_id is None:
+                    if order_list:
+                        first = order_list[0]
+                        init_id = (
+                            first.get("orderId")
+                            or first.get("order_id")
+                            or first.get("id")
+                            or first.get("NOrdNo")
+                            or first.get("nestOrderNumber")
+                            or first.get("orderNumber")
+                            or first.get("Nstordno")
+                        )
+                        if init_id:
+                            accounts_data[last_copied_key] = str(init_id)
+                            safe_write_json("accounts.json", accounts_data)
+                    continue
+
                 for order in order_list:
                     order_id = (
                         order.get("orderId")
