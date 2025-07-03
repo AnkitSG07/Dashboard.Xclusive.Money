@@ -614,6 +614,8 @@ def poll_and_copy_trades():
                 child_id = child.get("client_id")
                 last_copied_key = f"last_copied_trade_id_{master_id}_{child_id}"
                 last_copied_trade_id = accounts_data.get(last_copied_key)
+                if last_copied_trade_id is not None:
+                    last_copied_trade_id = str(last_copied_trade_id)
                 new_last_trade_id = None
 
                 for order in order_list:
@@ -628,7 +630,7 @@ def poll_and_copy_trades():
                     )
                     if not order_id:
                         continue
-                    if order_id == last_copied_trade_id:
+                   if str(order_id) == last_copied_trade_id:
                         logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
                         break
 
@@ -933,7 +935,7 @@ def poll_and_copy_trades():
                                     'SUCCESS'
                                 )
                                 if new_last_trade_id is None:
-                                    new_last_trade_id = order_id
+                                    new_last_trade_id = str(order_id)
                         else:
                             continue
                     except Exception:
@@ -3013,7 +3015,7 @@ def start_copy():
                     or order_list[0].get("orderNumber")
                 )
                 if latest_order_id:
-                    accounts_data[f"last_copied_trade_id_{master_id}_{client_id}"] = latest_order_id
+                    accounts_data[f"last_copied_trade_id_{master_id}_{client_id}"] = str(latest_order_id)
         except Exception as e:
             logger.error(f"Could not set initial last_copied_trade_id for child {client_id}: {e}")
 
@@ -3100,7 +3102,7 @@ def start_copy_all():
         if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "On"
             if latest_order_id:
-                accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = latest_order_id
+                accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = str(latest_order_id)
             count += 1
             
     safe_write_json("accounts.json", accounts_data)
