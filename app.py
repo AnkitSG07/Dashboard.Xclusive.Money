@@ -630,7 +630,7 @@ def poll_and_copy_trades():
                     )
                     if not order_id:
                         continue
-                   if str(order_id) == last_copied_trade_id:
+                    if str(order_id) == last_copied_trade_id:
                         logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
                         break
 
