@@ -3095,16 +3095,19 @@ def start_copy_all():
                     or order_list[0].get("nestOrderNumber")
                     or order_list[0].get("orderNumber")
                 )
+            else:
+                latest_order_id = "NONE"  # Defensive: mark as "NONE" if no orders exist
         except Exception as e:
             logger.error(f"Could not set initial last_copied_trade_id for master {master_id}: {e}")
+            latest_order_id = "NONE"
     count = 0
     for acc in accounts_data.get("accounts", []):
         if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "On"
-            if latest_order_id:
-                accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = str(latest_order_id)
+            # Always set the marker, even if it was previously present, so no old trades are copied
+            accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = str(latest_order_id)
             count += 1
-            
+
     safe_write_json("accounts.json", accounts_data)
     return jsonify({"message": f"Started copying for {count} child accounts."})
 
