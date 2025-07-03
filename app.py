@@ -3059,11 +3059,50 @@ def start_copy_all():
         return jsonify({"error": "Missing master_id"}), 400
     accounts_data = safe_read_json("accounts.json")
     user = session.get("user")
+    # Fetch the master's latest order to initialize markers for each child
+    master_acc = next(
+        (
+            a
+            for a in accounts_data.get("accounts", [])
+            if a.get("client_id") == master_id
+            and a.get("role") == "master"
+            and a.get("owner") == user
+        ),
+        None,
+    )
+    latest_order_id = None
+    if master_acc:
+        try:
+            master_api = broker_api(master_acc)
+            if master_acc.get("broker", "").lower() == "aliceblue" and hasattr(master_api, "get_trade_book"):
+                orders_resp = master_api.get_trade_book()
+            else:
+                orders_resp = master_api.get_order_list()
+            order_list = parse_order_list(orders_resp)
+            if master_acc.get("broker", "").lower() == "aliceblue" and not order_list and hasattr(master_api, "get_order_list"):
+                orders_resp = master_api.get_order_list()
+                order_list = parse_order_list(orders_resp)
+            order_list = strip_emojis_from_obj(order_list or [])
+            if order_list:
+                order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
+                latest_order_id = (
+                    order_list[0].get("orderId")
+                    or order_list[0].get("order_id")
+                    or order_list[0].get("id")
+                    or order_list[0].get("NOrdNo")
+                    or order_list[0].get("nestOrderNumber")
+                    or order_list[0].get("orderNumber")
+                )
+        except Exception as e:
+            logger.error(f"Could not set initial last_copied_trade_id for master {master_id}: {e}")
     count = 0
     for acc in accounts_data.get("accounts", []):
         if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "On"
+            if latest_order_id:
+                accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = latest_order_id
             count += 1
+            
     safe_write_json("accounts.json", accounts_data)
     return jsonify({"message": f"Started copying for {count} child accounts."})
 
