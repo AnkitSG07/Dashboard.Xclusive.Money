@@ -3072,31 +3072,35 @@ def start_copy_all():
         ),
         None,
     )
-    latest_order_id = None
+    latest_order_id = "NONE"
     if master_acc:
         try:
             master_api = broker_api(master_acc)
-            if master_acc.get("broker", "").lower() == "aliceblue" and hasattr(master_api, "get_trade_book"):
-                orders_resp = master_api.get_trade_book()
+            order_list = []
+            # Alice Blue: first try trade book, then order book if empty
+            if master_acc.get("broker", "").lower() == "aliceblue":
+                if hasattr(master_api, "get_trade_book"):
+                    orders_resp = master_api.get_trade_book()
+                    order_list = parse_order_list(orders_resp)
+                if not order_list and hasattr(master_api, "get_order_list"):
+                    orders_resp = master_api.get_order_list()
+                    order_list = parse_order_list(orders_resp)
             else:
-                orders_resp = master_api.get_order_list()
-            order_list = parse_order_list(orders_resp)
-            if master_acc.get("broker", "").lower() == "aliceblue" and not order_list and hasattr(master_api, "get_order_list"):
                 orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
             order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
                 order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
+                first = order_list[0]
                 latest_order_id = (
-                    order_list[0].get("orderId")
-                    or order_list[0].get("order_id")
-                    or order_list[0].get("id")
-                    or order_list[0].get("NOrdNo")
-                    or order_list[0].get("nestOrderNumber")
-                    or order_list[0].get("orderNumber")
+                    first.get("orderId")
+                    or first.get("order_id")
+                    or first.get("id")
+                    or first.get("NOrdNo")
+                    or first.get("nestOrderNumber")
+                    or first.get("orderNumber")
                 )
-            else:
-                latest_order_id = "NONE"  # Defensive: mark as "NONE" if no orders exist
+                latest_order_id = str(latest_order_id) if latest_order_id else "NONE"
         except Exception as e:
             logger.error(f"Could not set initial last_copied_trade_id for master {master_id}: {e}")
             latest_order_id = "NONE"
@@ -3104,13 +3108,13 @@ def start_copy_all():
     for acc in accounts_data.get("accounts", []):
         if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
             acc["copy_status"] = "On"
-            # Always set the marker, even if it was previously present, so no old trades are copied
+            # Always set the marker, even if it was previously present
             accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = str(latest_order_id)
             count += 1
 
     safe_write_json("accounts.json", accounts_data)
+    logger.info(f"Bulk copy started for {count} children under master {master_id}, marker set to {latest_order_id}")
     return jsonify({"message": f"Started copying for {count} child accounts."})
-
 # Bulk stop copying for all children of a master
 @app.route('/api/stop-copy-all', methods=['POST'])
 @login_required
