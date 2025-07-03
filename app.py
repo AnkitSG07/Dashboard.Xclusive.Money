@@ -712,6 +712,7 @@ def poll_and_copy_trades():
                             or order.get("side")
                             or order.get("orderSide")
                             or order.get("buyOrSell")
+                            or order.get("Trantype")
                             or "BUY"
                         )
                         if isinstance(transaction_type_raw, (int, float)):
@@ -740,6 +741,8 @@ def poll_and_copy_trades():
                         or order.get("stock")
                         or order.get("scripCode")
                         or order.get("instrumentToken")
+                        or order.get("Tsym")  # AliceBlue trade book
+                        or order.get("tsym")
                     )
                     if not symbol:
                         continue
@@ -898,6 +901,8 @@ def poll_and_copy_trades():
                                     response.get("order_id")
                                     or response.get("orderId")
                                     or response.get("id")
+                                    or response.get("nestOrderNumber")
+                                    or response.get("orderNumber")
                                     or response.get("norenordno")
                                 )
                                 if not order_id_child:
