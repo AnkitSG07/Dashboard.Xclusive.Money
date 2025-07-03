@@ -3007,7 +3007,7 @@ def start_copy():
             ):
                 orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
-            order_list = strip_emojis_from_obj(order_list or [])
+                order_list = strip_emojis_from_obj(order_list or [])
             if order_list:
                 order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
                 latest_order_id = (
@@ -3015,6 +3015,7 @@ def start_copy():
                     or order_list[0].get("order_id")
                     or order_list[0].get("id")
                     or order_list[0].get("NOrdNo")
+                    or order_list[0].get("Nstordno")
                     or order_list[0].get("nestOrderNumber")
                     or order_list[0].get("orderNumber")
                 )
@@ -3102,6 +3103,7 @@ def start_copy_all():
                     or first.get("order_id")
                     or first.get("id")
                     or first.get("NOrdNo")
+                    or first.get("Nstordno")
                     or first.get("nestOrderNumber")
                     or first.get("orderNumber")
                 )
