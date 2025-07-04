@@ -476,6 +476,24 @@ def set_pending_zerodha(data: dict):
         setting.value = json.dumps(data)
     db.session.commit()
 
+def get_pending_fyers() -> dict:
+    setting = Setting.query.filter_by(key="pending_fyers").first()
+    if setting:
+        try:
+            return json.loads(setting.value)
+        except Exception:
+            return {}
+    return {}
+
+def set_pending_fyers(data: dict):
+    setting = Setting.query.filter_by(key="pending_fyers").first()
+    if not setting:
+        setting = Setting(key="pending_fyers", value=json.dumps(data))
+        db.session.add(setting)
+    else:
+        setting.value = json.dumps(data)
+    db.session.commit()
+
 def get_user_credentials(identifier: str):
     """Return basic broker credentials for a user id or client id."""
     user = User.query.filter_by(email=identifier).first()
@@ -1759,29 +1777,13 @@ def master_squareoff():
         if not master_order_id:
             logger.error("Missing master_order_id in request")
             return jsonify({"error": "Missing master_order_id"}), 400
-
-        # Load order mappings
-        try:
-            with open("order_mappings.json", "r") as f:
-                mappings = json.load(f)
-        except FileNotFoundError:
-            logger.error("order_mappings.json not found")
-            return jsonify({
-                "error": "Order mappings not found"
-            }), 404
-        except Exception as e:
-            logger.error(f"Failed to load order mappings: {str(e)}")
-            return jsonify({
-                "error": "Failed to load order mappings",
-                "details": str(e)
-            }), 500
-
-        # Find active orders to square off
-        targets = [
-            m for m in mappings 
-            if m["master_order_id"] == master_order_id 
-            and m["status"] == "ACTIVE"
-        ]
+            
+        # Load active order mappings from the database
+        targets = (
+            OrderMapping.query.filter_by(
+                master_order_id=master_order_id, status="ACTIVE"
+            ).all()
+        )
         
         if not targets:
             logger.info(f"No active child orders found for master order {master_order_id}")
@@ -1802,8 +1804,8 @@ def master_squareoff():
         # Process each child order
         results = []
         for mapping in targets:
-            child_id = mapping["child_client_id"]
-            symbol = mapping["symbol"]
+            child_id = mapping.child_client_id
+            symbol = mapping.symbol
             logger.info(f"Processing square-off for child {child_id}, symbol {symbol}")
             
             # Find child account
@@ -1889,7 +1891,7 @@ def master_squareoff():
                             "message": f"Square-off failed: {error_msg}"
                         })
                     else:
-                        mapping["status"] = "SQUARED_OFF"
+                        mapping.status = "SQUARED_OFF"
                         logger.info(f"Successfully squared off position for {child_id}")
                         results.append({
                             "client_id": child_id,
@@ -1914,12 +1916,8 @@ def master_squareoff():
                     "message": str(e)
                 })
 
-        # Save updated mappings
-        try:
-            safe_write_json("order_mappings.json", mappings)
-        except Exception as e:
-            logger.error(f"Failed to save order mappings: {str(e)}")
-            # Continue since the square-offs were already processed
+        # Persist mapping status updates
+        db.session.commit()
 
         logger.info(f"Square-off complete for master order {master_order_id}")
         return jsonify({
@@ -1950,136 +1948,93 @@ def get_master_orders():
     logger.info("Fetching master orders")
     
     try:
-        # Load order mappings
-        path = "order_mappings.json"
-        if not os.path.exists(path):
-            logger.info("No order mappings found - returning empty list")
-            return jsonify({
-                "orders": [],
-                "summary": {
-                    "total_orders": 0,
-                    "active_orders": 0,
-                    "completed_orders": 0,
-                    "failed_orders": 0,
-                    "cancelled_orders": 0
-                }
-            }), 200
-
-        try:
-            with open(path, "r") as f:
-                mappings = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load order mappings: {str(e)}")
-            return jsonify({
-                "error": "Failed to load order mappings",
-                "details": str(e)
-            }), 500
-
-        # Get filter parameters
+        # Fetch order mappings from the database
         master_id_filter = request.args.get("master_id")
         status_filter = request.args.get("status", "").upper()
         
-        # Process mappings
+        query = OrderMapping.query
+        if master_id_filter:
+            query = query.filter_by(master_client_id=master_id_filter)
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        mappings = query.all()
+
         master_summary = {}
         for entry in mappings:
-            try:
-                master_id = entry["master_client_id"]
-                
-                # Apply master ID filter if provided
-                if master_id_filter and master_id != master_id_filter:
-                    continue
-                
-                mid = entry["master_order_id"]
-                
-                # Initialize master order entry if not exists
-                if mid not in master_summary:
-                    master_summary[mid] = {
-                        "master_order_id": mid,
-                        "symbol": entry["symbol"],
-                        "master_client_id": master_id,
-                        "master_broker": entry.get("master_broker", "Unknown"),
-                        "action": entry.get("action", "UNKNOWN"),
-                        "quantity": entry.get("quantity", 0),
-                        "status": "ACTIVE",  # Will be updated based on children
-                        "total_children": 0,
-                        "child_statuses": [],
-                        "children": [],
-                        "timestamp": entry.get("timestamp", ""),
-                        "summary": {
-                            "total": 0,
-                            "active": 0,
-                            "completed": 0,
-                            "failed": 0,
-                            "cancelled": 0
-                        }
+            master_id = entry.master_client_id
+            mid = entry.master_order_id
+            if mid not in master_summary:
+                master_summary[mid] = {
+                    "master_order_id": mid,
+                    "symbol": entry.symbol,
+                    "master_client_id": master_id,
+                    "master_broker": entry.master_broker or "Unknown",
+                    "action": entry.action if hasattr(entry, 'action') else 'UNKNOWN',
+                    "quantity": entry.quantity if hasattr(entry, 'quantity') else 0,
+                    "status": 'ACTIVE',
+                    "total_children": 0,
+                    "child_statuses": [],
+                    "children": [],
+                    "timestamp": entry.timestamp or '',
+                    "summary": {
+                        'total': 0,
+                        'active': 0,
+                        'completed': 0,
+                        'failed': 0,
+                        'cancelled': 0
                     }
-                
-                # Add child order details
-                child = {
-                    "child_client_id": entry["child_client_id"],
-                    "child_broker": entry.get("child_broker", "Unknown"),
-                    "status": entry["status"],
-                    "order_id": entry.get("child_order_id", ""),
-                    "timestamp": entry.get("child_timestamp", ""),
-                    "remarks": entry.get("remarks", "—"),
-                    "multiplier": entry.get("multiplier", 1)
                 }
-                master_summary[mid]["children"].append(child)
-                
-                # Update summary counts
-                status = entry["status"].upper()
-                master_summary[mid]["summary"]["total"] += 1
-                if status == "ACTIVE":
-                    master_summary[mid]["summary"]["active"] += 1
-                elif status == "COMPLETED":
-                    master_summary[mid]["summary"]["completed"] += 1
-                elif status == "FAILED":
-                    master_summary[mid]["summary"]["failed"] += 1
-                elif status == "CANCELLED":
-                    master_summary[mid]["summary"]["cancelled"] += 1
-                
-                master_summary[mid]["child_statuses"].append(status)
-                master_summary[mid]["total_children"] += 1
-                
-                # Update master order status based on children
-                summary = master_summary[mid]["summary"]
-                if summary["active"] > 0:
-                    master_summary[mid]["status"] = "ACTIVE"
-                elif summary["failed"] == summary["total"]:
-                    master_summary[mid]["status"] = "FAILED"
-                elif summary["cancelled"] == summary["total"]:
-                    master_summary[mid]["status"] = "CANCELLED"
-                elif summary["completed"] == summary["total"]:
-                    master_summary[mid]["status"] = "COMPLETED"
-                else:
-                    master_summary[mid]["status"] = "PARTIAL"
-                    
-            except Exception as e:
-                logger.error(f"Error processing mapping: {str(e)}")
-                continue
+            child = {
+                'child_client_id': entry.child_client_id,
+                'child_broker': entry.child_broker or 'Unknown',
+                'status': entry.status,
+                'order_id': entry.child_order_id or '',
+                'timestamp': entry.child_timestamp or '',
+                'remarks': entry.remarks or '—',
+                'multiplier': entry.multiplier
+            }
+            master_summary[mid]['children'].append(child)
 
-        # Convert to list and apply status filter
+            status = entry.status.upper() if entry.status else ''
+            ms = master_summary[mid]['summary']
+            ms['total'] += 1
+            if status == 'ACTIVE':
+                ms['active'] += 1
+            elif status == 'COMPLETED':
+                ms['completed'] += 1
+            elif status == 'FAILED':
+                ms['failed'] += 1
+            elif status == 'CANCELLED':
+                ms['cancelled'] += 1
+
+            master_summary[mid]['child_statuses'].append(status)
+            master_summary[mid]['total_children'] += 1
+
+            if ms['active'] > 0:
+                master_summary[mid]['status'] = 'ACTIVE'
+            elif ms['failed'] == ms['total']:
+                master_summary[mid]['status'] = 'FAILED'
+            elif ms['cancelled'] == ms['total']:
+                master_summary[mid]['status'] = 'CANCELLED'
+            elif ms['completed'] == ms['total']:
+                master_summary[mid]['status'] = 'COMPLETED'
+            else:
+                master_summary[mid]['status'] = 'PARTIAL'
         orders = list(master_summary.values())
-        if status_filter:
-            orders = [o for o in orders if o["status"] == status_filter]
-            
-        # Sort by timestamp (newest first)
-        orders.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-        
-        # Calculate overall summary
+        orders.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         overall_summary = {
-            "total_orders": len(orders),
-            "active_orders": sum(1 for o in orders if o["status"] == "ACTIVE"),
-            "completed_orders": sum(1 for o in orders if o["status"] == "COMPLETED"),
-            "failed_orders": sum(1 for o in orders if o["status"] == "FAILED"),
-            "cancelled_orders": sum(1 for o in orders if o["status"] == "CANCELLED"),
-            "partial_orders": sum(1 for o in orders if o["status"] == "PARTIAL")
+            'total_orders': len(orders),
+            'active_orders': sum(1 for o in orders if o['status'] == 'ACTIVE'),
+            'completed_orders': sum(1 for o in orders if o['status'] == 'COMPLETED'),
+            'failed_orders': sum(1 for o in orders if o['status'] == 'FAILED'),
+            'cancelled_orders': sum(1 for o in orders if o['status'] == 'CANCELLED'),
+            'partial_orders': sum(1 for o in orders if o['status'] == 'PARTIAL')
         }
         
         logger.info(f"Successfully fetched {len(orders)} master orders")
         return jsonify({
-            "orders": orders,
-            "summary": overall_summary
+            'orders': orders,
+            'summary': overall_summary
         }), 200
 
     except Exception as e:
@@ -2144,15 +2099,7 @@ def init_fyers_login():
     if not all([client_id, secret_key, username]):
         return jsonify({'error': 'Missing fields'}), 400
 
-    pending_path = 'pending_fyers.json'
-    if os.path.exists(pending_path):
-        try:
-            with open(pending_path) as f:
-                pending = json.load(f)
-        except Exception:
-            pending = {}
-    else:
-        pending = {}
+    pending = get_pending_fyers()
 
     state = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     redirect_uri = f"https://dhan-trading.onrender.com/fyers_redirects/{client_id}"
@@ -2164,7 +2111,7 @@ def init_fyers_login():
         'username': username,
         'owner': session.get('user')
     }
-    safe_write_json(pending_path, pending)
+    set_pending_fyers(pending)
 
     login_url = FyersBroker.login_url(client_id, redirect_uri, state)
     return jsonify({'login_url': login_url})
@@ -2178,15 +2125,7 @@ def fyers_redirect_handler(client_id):
     if not auth_code:
         return "❌ No auth_code received", 400
 
-    pending_path = 'pending_fyers.json'
-    if os.path.exists(pending_path):
-        try:
-            with open(pending_path) as f:
-                pending = json.load(f)
-        except Exception:
-            pending = {}
-    else:
-        pending = {}
+    pending = get_pending_fyers()
 
     cred = pending.pop(client_id, None)
     if not cred or cred.get('state') != state:
@@ -2223,7 +2162,7 @@ def fyers_redirect_handler(client_id):
     }
 
     save_account_to_user(cred.get('owner', username), account)
-    safe_write_json(pending_path, pending)
+    set_pending_fyers(pending)
     return redirect(url_for('AddAccount'))
     
 @app.route("/kite/callback")
@@ -2471,10 +2410,7 @@ def change_master():
     new_master_id = data.get("new_master_id")
     if not child_id or not new_master_id:
         return jsonify({"error": "Missing child_id or new_master_id"}), 400
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        return jsonify({"error": "No accounts file found"}), 500
+    accounts_data = safe_read_json("accounts.json")
     found = None
     for acc in accounts_data["accounts"]:
         if acc["client_id"] == child_id:
@@ -2516,10 +2452,7 @@ def remove_master():
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        return jsonify({"error": "No accounts file found"}), 500
+    accounts_data = safe_read_json("accounts.json")
     found = None
     for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id and acc.get("role") == "master":
@@ -2547,10 +2480,7 @@ def update_multiplier():
             return jsonify({"error": "Multiplier must be at least 0.1"}), 400
     except ValueError:
         return jsonify({"error": "Invalid multiplier format"}), 400
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        return jsonify({"error": "No accounts found"}), 400
+    accounts_data = safe_read_json("accounts.json")
     found = None
     for acc in accounts_data["accounts"]:
         if acc["client_id"] == client_id:
@@ -2558,7 +2488,7 @@ def update_multiplier():
             found = acc
     if not found:
         return jsonify({"error": "Child account not found"}), 404
-    safe_write_json("accounts.json", accounts_data)
+    accounts_data = safe_read_json("accounts.json")
 
     return jsonify({"message": f"Multiplier updated to {new_multiplier} for {client_id}"}), 200
 
@@ -2570,11 +2500,7 @@ def delete_account():
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
-
-
     user = session.get("user")
-    
-
     db_user = User.query.filter_by(email=user).first()
     if not db_user:
         return jsonify({"error": "Account not found"}), 404
@@ -2677,10 +2603,7 @@ def add_account():
         return jsonify({'error': 'Missing broker, client_id or username'}), 400
 
     # Load DB
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        accounts_data = {"accounts": []}
+    accounts_data = safe_read_json("accounts.json")
 
     # Check for duplicates
     for acc in accounts_data["accounts"]:
@@ -2809,13 +2732,7 @@ def add_account():
 @login_required
 def get_accounts():
     try:
-        if os.path.exists("accounts.json"):
         accounts_data = safe_read_json("accounts.json")
-            if "accounts" not in accounts_data or not isinstance(accounts_data["accounts"], list):
-                raise ValueError("Corrupt accounts.json: missing 'accounts' list")
-        else:
-            accounts_data = {'accounts': []}
-
         user = session.get("user")
         accounts = [a for a in accounts_data["accounts"] if a.get("owner") == user]
 
@@ -2844,14 +2761,12 @@ def get_accounts():
 @login_required
 def get_groups():
     """Return all account groups for the logged-in user."""
-    user = session.get("user")
-    groups_path = "groups.json"
-    if os.path.exists(groups_path):
-        groups_data = safe_read_json(groups_path)
-    else:
-        groups_data = {"groups": []}
-    groups = [g for g in groups_data.get("groups", []) if g.get("owner") == user]
-    return jsonify(groups)
+    user_email = session.get("user")
+    user_obj = User.query.filter_by(email=user_email).first()
+    if not user_obj:
+        return jsonify([])
+    groups = Group.query.filter_by(user_id=user_obj.id).all()
+    return jsonify([_group_to_dict(g) for g in groups])
 
 
 @app.route('/api/create-group', methods=['POST'])
@@ -2864,23 +2779,20 @@ def create_group():
     if not name:
         return jsonify({"error": "Missing group name"}), 400
 
-    groups_path = "groups.json"
-    if os.path.exists(groups_path):
-        groups_data = safe_read_json(groups_path)
-    else:
-        groups_data = {"groups": []}
+    user_email = session.get("user")
+    user_obj = User.query.filter_by(email=user_email).first()
+    if not user_obj:
+        return jsonify({"error": "User not found"}), 400
+    if Group.query.filter_by(user_id=user_obj.id, name=name).first():
+        return jsonify({"error": "Group already exists"}), 400
 
-    user = session.get("user")
-    for g in groups_data.get("groups", []):
-        if g.get("name") == name and g.get("owner") == user:
-            return jsonify({"error": "Group already exists"}), 400
-
-    groups_data.setdefault("groups", []).append({
-        "name": name,
-        "owner": user,
-        "members": members
-    })
-    safe_write_json(groups_path, groups_data)
+    group = Group(name=name, user_id=user_obj.id)
+    for cid in members:
+        acc = Account.query.filter_by(user_id=user_obj.id, client_id=cid).first()
+        if acc:
+            group.accounts.append(acc)
+    db.session.add(group)
+    db.session.commit()
     return jsonify({"message": f"Group '{name}' created"})
 
 
@@ -2892,23 +2804,21 @@ def add_account_to_group(group_name):
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
 
-    groups_path = "groups.json"
-    if os.path.exists(groups_path):
-        groups_data = safe_read_json(groups_path)
-    else:
-        return jsonify({"error": "Group database not found"}), 500
-
-    user = session.get("user")
-    for g in groups_data.get("groups", []):
-        if g.get("name") == group_name and g.get("owner") == user:
-            if client_id not in g.get("members", []):
-                g.setdefault("members", []).append(client_id)
-                safe_write_json(groups_path, groups_data)
-                return jsonify({"message": f"Added {client_id} to {group_name}"})
-            return jsonify({"message": "Account already in group"})
-
-    return jsonify({"error": "Group not found"}), 404
-
+    user_email = session.get("user")
+    user_obj = User.query.filter_by(email=user_email).first()
+    if not user_obj:
+        return jsonify({"error": "User not found"}), 400
+    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not group:
+        return jsonify({"error": "Group not found"}), 404
+    acc = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
+    if not acc:
+        return jsonify({"error": "Account not found"}), 404
+    if acc in group.accounts:
+        return jsonify({"message": "Account already in group"})
+    group.accounts.append(acc)
+    db.session.commit()
+    return jsonify({"message": f"Added {client_id} to {group_name}"})
 
 @app.route('/api/groups/<group_name>/remove', methods=['POST'])
 @login_required
@@ -2918,22 +2828,19 @@ def remove_account_from_group(group_name):
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
 
-    groups_path = "groups.json"
-    if os.path.exists(groups_path):
-        groups_data = safe_read_json(groups_path)
-    else:
-        return jsonify({"error": "Group database not found"}), 500
-
-    user = session.get("user")
-    for g in groups_data.get("groups", []):
-        if g.get("name") == group_name and g.get("owner") == user:
-            if client_id in g.get("members", []):
-                g["members"].remove(client_id)
-                safe_write_json(groups_path, groups_data)
-                return jsonify({"message": f"Removed {client_id} from {group_name}"})
-            return jsonify({"error": "Account not in group"}), 400
-
-    return jsonify({"error": "Group not found"}), 404
+    user_email = session.get("user")
+    user_obj = User.query.filter_by(email=user_email).first()
+    if not user_obj:
+        return jsonify({"error": "User not found"}), 400
+    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not group:
+        return jsonify({"error": "Group not found"}), 404
+    acc = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
+    if not acc or acc not in group.accounts:
+        return jsonify({"error": "Account not in group"}), 400
+    group.accounts.remove(acc)
+    db.session.commit()
+    return jsonify({"message": f"Removed {client_id} from {group_name}"})
 
 
 @app.route('/api/group-order', methods=['POST'])
@@ -2949,28 +2856,18 @@ def place_group_order():
     if not all([group_name, symbol, action, quantity]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    groups_path = "groups.json"
-    if os.path.exists(groups_path):
-        groups_data = safe_read_json(groups_path)
-    else:
-        return jsonify({"error": "No groups configured"}), 400
-
-    group = None
-    user = session.get("user")
-    for g in groups_data.get("groups", []):
-        if g.get("name") == group_name and g.get("owner") == user:
-            group = g
-            break
+    user_email = session.get("user")
+    user_obj = User.query.filter_by(email=user_email).first()
+    if not user_obj:
+        return jsonify({"error": "User not found"}), 400
+    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
     if not group:
         return jsonify({"error": "Group not found"}), 404
 
-    if os.path.exists("accounts.json"):
-        groups_data = safe_read_json(groups_path)
-    else:
-        return jsonify({"error": "No accounts configured"}), 500
-
-    accounts = [a for a in accounts_data.get("accounts", []) if a.get("client_id") in group.get("members", [])]
-
+    accounts = [
+        _account_to_dict(acc)
+        for acc in group.accounts.all()
+    ]
     results = []
     for acc in accounts:
         try:
@@ -3060,10 +2957,7 @@ def set_master():
         if not client_id:
             return jsonify({"error": "Missing client_id"}), 400
 
-        if os.path.exists("accounts.json"):
-            accounts_data = safe_read_json("accounts.json")
-        else:
-            accounts_data = {"accounts": []}
+        accounts_data = safe_read_json("accounts.json")
             
         user = session.get("user")
         found = False
@@ -3093,11 +2987,7 @@ def set_child():
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
 
-        if os.path.exists("accounts.json"):
-            accounts_data = safe_read_json("accounts.json")
-        else:
-            accounts_data = {"accounts": []}
-
+        accounts_data = safe_read_json("accounts.json")
         user = session.get("user")
         found = False
         for acc in accounts_data["accounts"]:
@@ -3126,10 +3016,7 @@ def start_copy():
     master_id = data.get("master_id")
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        return jsonify({"error": "No accounts file found"}), 500
+    accounts_data = safe_read_json("accounts.json")
 
     user = session.get("user")
     found = False
@@ -3193,10 +3080,7 @@ def stop_copy():
     master_id = data.get("master_id")
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
-    if os.path.exists("accounts.json"):
-        accounts_data = safe_read_json("accounts.json")
-    else:
-        return jsonify({"error": "No accounts file found"}), 500
+    accounts_data = safe_read_json("accounts.json")
 
     user = session.get("user")
     found = False
