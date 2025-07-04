@@ -99,3 +99,15 @@ class OrderMapping(db.Model):
     child_timestamp = db.Column(db.String(32))
     remarks = db.Column(db.String(255))
     multiplier = db.Column(db.Float, default=1.0)
+
+class TradeLog(db.Model):
+    """Log entry for trade actions and responses."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.String(32))
+    user_id = db.Column(db.String(50))
+    symbol = db.Column(db.String(50))
+    action = db.Column(db.String(10))
+    quantity = db.Column(db.Integer)
+    status = db.Column(db.String(20))
+    response = db.Column(db.Text)
