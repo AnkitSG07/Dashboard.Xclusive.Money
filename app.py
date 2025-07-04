@@ -3337,6 +3337,7 @@ def get_alerts():
 
 
 # === API to save new user from login form ===
+# === API to save new user from login form ===
 @app.route("/register", methods=["POST"])
 def register_user():
     data = request.json or {}
@@ -3362,7 +3363,9 @@ def register_user():
     else:
         account.credentials = creds
     db.session.commit()
+
     return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{token}"})
+
 
 # === API to fetch logs for a user ===
 @app.route("/logs")
