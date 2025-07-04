@@ -561,6 +561,20 @@ def poll_and_copy_trades():
                         device_number=credentials.get("device_number"),
                         **rest
                     )
+                elif master_broker == "finvasia":
+                    required = ["password", "totp_secret", "vendor_code", "api_key"]
+                    if not all(credentials.get(r) for r in required):
+                        logger.error(f"Missing credentials for finvasia master {master_id}")
+                        continue
+                    imei = credentials.get("imei") or "abc1234"
+                    master_api = BrokerClass(
+                        client_id=master.get("client_id"),
+                        password=credentials["password"],
+                        totp_secret=credentials["totp_secret"],
+                        vendor_code=credentials["vendor_code"],
+                        api_key=credentials["api_key"],
+                        imei=imei
+                    )
                 else:
                     access_token = credentials.get("access_token")
                     if not access_token:
@@ -631,6 +645,7 @@ def poll_and_copy_trades():
                             or first.get("nestOrderNumber")
                             or first.get("orderNumber")
                             or first.get("Nstordno")
+                            or first.get("norenordno")  # Finvasia
                         )
                         if init_id:
                             accounts_data[last_copied_key] = str(init_id)
@@ -646,6 +661,7 @@ def poll_and_copy_trades():
                         or order.get("nestOrderNumber")
                         or order.get("orderNumber")
                         or order.get("Nstordno")  # Alice Blue
+                        or order.get("norenordno")  # Finvasia
                     )
                     if not order_id:
                         continue
@@ -669,6 +685,7 @@ def poll_and_copy_trades():
                             or order.get("quantity")
                             or order.get("Fillshares")    # Alice Blue Order Book
                             or order.get("Filledqty")     # Alice Blue Trade Book
+                            or order.get("fillshares")    # Finvasia
                             or 0
                         )
 
@@ -721,6 +738,7 @@ def poll_and_copy_trades():
                             or order.get("orderPrice")
                             or order.get("avg_price")
                             or order.get("avgPrice")
+                            or order.get("avgprc")
                             or order.get("tradePrice")
                             or order.get("tradedPrice")
                             or order.get("executedPrice")
@@ -1163,6 +1181,7 @@ def get_order_book(client_id):
                         or order.get("filled_qty")
                         or order.get("filledQty")
                         or order.get("Filledqty")
+                        or order.get("fillshares")  # Finvasia
                         or order.get("qty")
                         or order.get("tradedQty")
                         or (placed_qty if str(order.get("status")) == "2" else 0)
@@ -1181,6 +1200,7 @@ def get_order_book(client_id):
                         or order.get("Nstordno")
                         or order.get("nestOrderNumber")
                         or order.get("ExchOrdID")
+                        or order.get("norenordno")
                     ),
                     "side": order.get(
                         "transactionType",
@@ -1189,10 +1209,14 @@ def get_order_book(client_id):
                     "status": status_val,
                     "symbol": order.get(
                         "tradingSymbol",
-                        order.get("symbol", order.get("Tsym", order.get("Trsym", "—")))
+                        order.get(
+                            "symbol",
+                            order.get("Tsym", order.get("tsym", order.get("Trsym", "—")))
+                        )
                     ),
                     "product_type": order.get(
-                        "productType", order.get("product", order.get("Pcode", "—"))
+                        "productType",
+                        order.get("product", order.get("Pcode", order.get("prd", "—")))
                     ),
                     "placed_qty": placed_qty,
                     "filled_qty": filled_qty,
@@ -1200,6 +1224,7 @@ def get_order_book(client_id):
                         order.get("averagePrice")
                         or order.get("avg_price")
                         or order.get("Avgprc")
+                        or order.get("avgprc")  # Finvasia
                         or order.get("Prc")
                         or order.get("tradePrice")
                         or order.get("tradedPrice")
@@ -1211,6 +1236,8 @@ def get_order_book(client_id):
                         or order.get("create_time")
                         or order.get("orderDateTime")
                         or order.get("ExchConfrmtime")
+                        or order.get("norentm")  # Finvasia
+                        or order.get("exchtime")  # Finvasia
                         or ""
                     ).replace("T", " ").split(".")[0],
                     "remarks": (
