@@ -3220,29 +3220,30 @@ def get_alerts():
 # === API to save new user from login form ===
 @app.route("/register", methods=["POST"])
 def register_user():
-    data = request.json
-    user_id = data.get("user_id")
+    data = request.json or {}
+    token = data.get("user_id") or uuid.uuid4().hex
     client_id = data.get("client_id")
     access_token = data.get("access_token")
+    broker = data.get("broker", "dhan")
 
-    if not all([user_id, client_id, access_token]):
+    if not all([client_id, access_token]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-    except FileNotFoundError:
-        users = {}
+    user = get_user_by_token(token)
+    if not user:
+        user = User(webhook_token=token)
+        db.session.add(user)
+        db.session.commit()
 
-    users[user_id] = {
-        "client_id": client_id,
-        "access_token": access_token
-    }
-
-    with open("users.json", "w") as f:
-        json.dump(users, f, indent=2)
-
-    return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{user_id}"})
+    account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    creds = {"access_token": access_token}
+    if not account:
+        account = Account(user_id=user.id, broker=broker, client_id=client_id, credentials=creds)
+        db.session.add(account)
+    else:
+        account.credentials = creds
+    db.session.commit()
+    return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{token}"})
 
 # === API to fetch logs for a user ===
 @app.route("/logs")
@@ -3274,43 +3275,24 @@ def get_logs():
 @app.route("/api/portfolio/<user_id>")
 def get_portfolio(user_id):
     """Return live positions for any stored account."""
-    # Check users.json (external registered users)
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-    except Exception:
-        users = {}
-
-    user_obj = users.get(user_id)
-    if not user_obj:
-        # Maybe user_id is actually the broker client_id
-        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
-
-    if user_obj:
-        client_id = user_obj["client_id"]
-        access_token = user_obj["access_token"]
-        dhan = dhanhq(client_id, access_token)
-        try:
-            positions_resp = dhan.get_positions()
-            data = positions_resp.get("data") \
-                   or positions_resp.get("positions") \
-                   or (positions_resp if isinstance(positions_resp, list) else [])
-            return jsonify(data)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    accounts = safe_read_json("accounts.json")
-    found, _ = find_account_by_client_id(user_id)
-    if not found:
+    user_rec = get_user_by_token(user_id)
+    if not user_rec:
+        user_rec = User.query.filter_by(email=user_id).first()
+    if not user_rec:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    # Check in accounts.json using utility (for dashboard accounts)
+    account = get_primary_account(user_rec)
+    if not account or not account.credentials:
+        return jsonify({"error": "Account not configured"}), 400
+
+    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
     try:
-        api = broker_api(found)
-        positions_resp = api.get_positions()
-        data = positions_resp.get("data") \
-               or positions_resp.get("positions") \
-               or (positions_resp if isinstance(positions_resp, list) else [])
+        positions_resp = dhan.get_positions()
+        data = (
+            positions_resp.get("data")
+            or positions_resp.get("positions")
+            or (positions_resp if isinstance(positions_resp, list) else [])
+        )
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3319,21 +3301,17 @@ def get_portfolio(user_id):
 @app.route("/api/orders/<user_id>")
 def get_orders(user_id):
     """Return recent orders for a stored account."""
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-    except Exception as e:
-        print(f"❌ Failed to load users.json: {str(e)}")
-        return jsonify({"error": "User DB not found"}), 500
-
-    user_obj = users.get(user_id)
-    if not user_obj:
-        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
-    if not user_obj:
+    user_rec = get_user_by_token(user_id)
+    if not user_rec:
+        user_rec = User.query.filter_by(email=user_id).first()
+    if not user_rec:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    user = user_obj
-    dhan = dhanhq(user["client_id"], user["access_token"])
+    account = get_primary_account(user_rec)
+    if not account or not account.credentials:
+        return jsonify({"error": "Account not configured"}), 400
+
+    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
 
     try:
         resp = dhan.get_order_list()
@@ -3364,20 +3342,17 @@ def get_orders(user_id):
 @app.route("/api/account/<user_id>")
 def get_account_stats(user_id):
     """Return account margin/fund stats."""
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-    except Exception:
-        return jsonify({"error": "User DB not found"}), 500
-
-    user_obj = users.get(user_id)
-    if not user_obj:
-        user_obj = next((u for u in users.values() if u.get("client_id") == user_id), None)
-    if not user_obj:
+    user_rec = get_user_by_token(user_id)
+    if not user_rec:
+        user_rec = User.query.filter_by(email=user_id).first()
+    if not user_rec:
         return jsonify({"error": "Invalid user ID"}), 403
 
-    user = user_obj
-    dhan = dhanhq(user["client_id"], user["access_token"])
+    account = get_primary_account(user_rec)
+    if not account or not account.credentials:
+        return jsonify({"error": "Account not configured"}), 400
+
+    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
 
     try:
         stats_resp = dhan.get_fund_limits()
@@ -3402,15 +3377,7 @@ def get_account_stats(user_id):
 @login_required
 def user_profile():
     username = session.get("user")
-    users = {}
-    if os.path.exists("users.json"):
-        with open("users.json", "r") as f:
-            try:
-                users = json.load(f)
-            except Exception:
-                users = {}
-
-    user = users.get(username, {})
+    user = User.query.filter_by(email=username).first_or_404()
     message = ""
 
     if request.method == "POST":
@@ -3420,8 +3387,7 @@ def user_profile():
             first_name = request.form.get("first_name", "")
             last_name = request.form.get("last_name", "")
 
-            user["first_name"] = first_name
-            user["last_name"] = last_name
+            user.name = f"{first_name} {last_name}".strip()
 
             file = request.files.get("profile_image")
             if file and file.filename:
@@ -3429,42 +3395,16 @@ def user_profile():
                 os.makedirs(image_dir, exist_ok=True)
                 filename = secure_filename(username + "_" + file.filename)
                 file.save(os.path.join(image_dir, filename))
-                user["profile_image"] = os.path.join("profile_images", filename)
+                user.profile_image = os.path.join("profile_images", filename)
             message = "Profile updated"
 
-        elif action == "send_otp" and not user.get("mobile"):
-            mobile = request.form.get("mobile")
-            if mobile:
-                otp = "".join(random.choices(string.digits, k=6))
-                user["pending_mobile"] = mobile
-                user["otp"] = otp
-                print(f"OTP for {mobile}: {otp}")
-                message = f"OTP sent to {mobile}"
-
-        elif action == "verify_otp" and user.get("pending_mobile"):
-            otp_input = request.form.get("otp")
-            if otp_input == user.get("otp"):
-                user["mobile"] = user.get("pending_mobile")
-                user.pop("pending_mobile", None)
-                user.pop("otp", None)
-                user["mobile_verified"] = True
-                message = "Mobile number verified"
-            else:
-                message = "Invalid OTP"
-
-        users[username] = user
-        with open("users.json", "w") as f:
-            json.dump(users, f, indent=2)
+            db.session.commit()
 
     profile_data = {
         "email": username,
-        "first_name": user.get("first_name", ""),
-        "last_name": user.get("last_name", ""),
-        "plan": user.get("plan", "Free"),
-        "profile_image": user.get("profile_image", "user.png"),
-        "mobile": user.get("mobile"),
-        "pending_mobile": user.get("pending_mobile"),
-        "mobile_verified": user.get("mobile_verified", False),
+        "first_name": (user.name or "").split(" ")[0] if user.name else "",
+        "last_name": (user.name or "").split(" ")[1] if user.name and len(user.name.split(" ")) > 1 else "",
+        "plan": user.plan,
     }
 
     return render_template("user.html", user=profile_data, message=message)
