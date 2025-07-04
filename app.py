@@ -1239,8 +1239,7 @@ def get_order_book(client_id):
     try:
         # Load and validate account data
         try:
-            with open("accounts.json", "r") as f:
-                accounts_data = json.load(f)
+            accounts_data = safe_read_json("accounts.json")
         except Exception as e:
             logger.error(f"Failed to load accounts.json: {str(e)}")
             return jsonify({
@@ -1586,33 +1585,16 @@ def webhook(user_id):
                 }
             }), 400
 
-        # Load and validate user data
-        try:
-            with open("users.json", "r") as f:
-                users = json.load(f)
-        except FileNotFoundError:
-            logger.error("users.json not found")
-            return jsonify({
-                "error": "User database not found"
-            }), 500
-        except Exception as e:
-            logger.error(f"Error loading users.json: {str(e)}")
-            return jsonify({
-                "error": "Failed to load user data",
-                "details": str(e)
-            }), 500
-
-        if user_id not in users:
+        # Load credentials from the database
+        user = get_user_credentials(user_id)
+        if not user:
             logger.error(f"Invalid webhook ID: {user_id}")
-            return jsonify({
-                "error": "Invalid webhook ID"
-            }), 403
+            return jsonify({"error": "Invalid webhook ID"}), 403
 
-        # Get user credentials
-        user = users[user_id]
         broker_name = user.get("broker", "dhan").lower()
-        client_id = user["client_id"]
-        access_token = user["access_token"]
+        client_id = user.get("client_id")
+        access_token = user.get("access_token")
+
 
         # Initialize broker API
         try:
@@ -1809,8 +1791,7 @@ def master_squareoff():
 
         # Load account data
         try:
-            with open("accounts.json", "r") as f:
-                accounts = json.load(f)
+            accounts = safe_read_json("accounts.json")
         except Exception as e:
             logger.error(f"Failed to load accounts.json: {str(e)}")
             return jsonify({
@@ -2435,9 +2416,12 @@ def child_orders():
 # --- Cancel Order Endpoint ---
 @app.route('/api/cancel-order', methods=['POST'])
 def cancel_order():
-    data = request.json
-    master_order_id = data.get("master_order_id")
-        mappings = OrderMapping.query.filter_by(master_order_id=master_order_id, status="ACTIVE").all()
+    try:
+        data = request.json
+        master_order_id = data.get("master_order_id")
+        mappings = OrderMapping.query.filter_by(
+            master_order_id=master_order_id, status="ACTIVE"
+        ).all()
         if not mappings:
             return jsonify({"message": "No active child orders found for this master order."}), 200
 
@@ -2454,11 +2438,17 @@ def cancel_order():
                 continue
 
             try:
-                api = broker_api({"broker": found.broker, "client_id": found.client_id, "credentials": found.credentials})
+                api = broker_api({
+                    "broker": found.broker,
+                    "client_id": found.client_id,
+                    "credentials": found.credentials,
+                })
                 cancel_resp = api.cancel_order(child_order_id)
 
                 if isinstance(cancel_resp, dict) and cancel_resp.get("status") == "failure":
-                    results.append(f"{child_id} → ❌ Cancel failed: {cancel_resp.get('remarks', cancel_resp.get('error', 'Unknown error'))}")
+                    results.append(
+                        f"{child_id} → ❌ Cancel failed: {cancel_resp.get('remarks', cancel_resp.get('error', 'Unknown error'))}"
+                    )
                 else:
                     results.append(f"{child_id} → ✅ Cancelled")
                     mapping.status = "CANCELLED"
@@ -2482,8 +2472,7 @@ def change_master():
     if not child_id or not new_master_id:
         return jsonify({"error": "Missing child_id or new_master_id"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts file found"}), 500
     found = None
@@ -2504,8 +2493,7 @@ def remove_child():
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts file found"}), 500
     found = None
@@ -2529,8 +2517,7 @@ def remove_master():
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts file found"}), 500
     found = None
@@ -2561,8 +2548,7 @@ def update_multiplier():
     except ValueError:
         return jsonify({"error": "Invalid multiplier format"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts found"}), 400
     found = None
@@ -2692,8 +2678,7 @@ def add_account():
 
     # Load DB
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         accounts_data = {"accounts": []}
 
@@ -2825,8 +2810,7 @@ def add_account():
 def get_accounts():
     try:
         if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
             if "accounts" not in accounts_data or not isinstance(accounts_data["accounts"], list):
                 raise ValueError("Corrupt accounts.json: missing 'accounts' list")
         else:
@@ -2863,8 +2847,7 @@ def get_groups():
     user = session.get("user")
     groups_path = "groups.json"
     if os.path.exists(groups_path):
-        with open(groups_path, "r") as f:
-            groups_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         groups_data = {"groups": []}
     groups = [g for g in groups_data.get("groups", []) if g.get("owner") == user]
@@ -2883,8 +2866,7 @@ def create_group():
 
     groups_path = "groups.json"
     if os.path.exists(groups_path):
-        with open(groups_path, "r") as f:
-            groups_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         groups_data = {"groups": []}
 
@@ -2912,8 +2894,7 @@ def add_account_to_group(group_name):
 
     groups_path = "groups.json"
     if os.path.exists(groups_path):
-        with open(groups_path, "r") as f:
-            groups_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         return jsonify({"error": "Group database not found"}), 500
 
@@ -2939,8 +2920,7 @@ def remove_account_from_group(group_name):
 
     groups_path = "groups.json"
     if os.path.exists(groups_path):
-        with open(groups_path, "r") as f:
-            groups_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         return jsonify({"error": "Group database not found"}), 500
 
@@ -2971,8 +2951,7 @@ def place_group_order():
 
     groups_path = "groups.json"
     if os.path.exists(groups_path):
-        with open(groups_path, "r") as f:
-            groups_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         return jsonify({"error": "No groups configured"}), 400
 
@@ -2986,8 +2965,7 @@ def place_group_order():
         return jsonify({"error": "Group not found"}), 404
 
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        groups_data = safe_read_json(groups_path)
     else:
         return jsonify({"error": "No accounts configured"}), 500
 
@@ -3083,8 +3061,7 @@ def set_master():
             return jsonify({"error": "Missing client_id"}), 400
 
         if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts_data = json.load(f)
+            accounts_data = safe_read_json("accounts.json")
         else:
             accounts_data = {"accounts": []}
             
@@ -3117,8 +3094,7 @@ def set_child():
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
 
         if os.path.exists("accounts.json"):
-            with open("accounts.json", "r") as f:
-                accounts_data = json.load(f)
+            accounts_data = safe_read_json("accounts.json")
         else:
             accounts_data = {"accounts": []}
 
@@ -3151,8 +3127,7 @@ def start_copy():
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
@@ -3219,8 +3194,7 @@ def stop_copy():
     if not client_id or not master_id:
         return jsonify({"error": "Missing client_id or master_id"}), 400
     if os.path.exists("accounts.json"):
-        with open("accounts.json", "r") as f:
-            accounts_data = json.load(f)
+        accounts_data = safe_read_json("accounts.json")
     else:
         return jsonify({"error": "No accounts file found"}), 500
 
