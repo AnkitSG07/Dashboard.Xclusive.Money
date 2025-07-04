@@ -10,7 +10,6 @@ except Exception:  # pragma: no cover - fallback if import fails
         return {}
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dhanhq import dhanhq
-import sqlite3
 import os
 import json
 import pandas as pd
@@ -27,17 +26,23 @@ from werkzeug.utils import secure_filename
 import random
 import string
 from urllib.parse import quote
-from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting
+from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting, TradeLog
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 CORS(app)
-DB_PATH = os.path.join("/tmp", "quantbot.db")
+# Persist data in a configurable directory. By default this is ``./data`` so
+# that files survive across redeploys on platforms like Render.
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DATA_DIR, "quantbot.db")
 db_url = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db.init_app(app)
 start_time = datetime.utcnow()
 device_number = None
@@ -61,15 +66,14 @@ def map_order_type(order_type: str, broker: str) -> str:
         return "MKT"
     return str(order_type)
 
-def safe_write_json(path, data):
-    dirpath = os.path.dirname(path) or '.'
-    with tempfile.NamedTemporaryFile('w', delete=False, dir=dirpath) as tmp:
-        json.dump(data, tmp, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-    shutil.move(tmp.name, path)
+def _resolve_data_path(path: str) -> str:
+    """Return an absolute path inside ``DATA_DIR`` for relative paths."""
+    if os.path.isabs(path) or os.path.dirname(path):
+        return path
+    return os.path.join(DATA_DIR, path)
 
 def safe_read_json(path):
+    path = _resolve_data_path(path)
     if not os.path.exists(path):
         return {}
     try:
@@ -309,6 +313,7 @@ def save_settings(settings):
             s.value = str(value)
     db.session.commit()
 
+
 def save_account_to_user(owner: str, account: dict):
     """Persist account credentials to the database."""
     user = User.query.filter_by(email=owner).first()
@@ -334,6 +339,43 @@ def save_account_to_user(owner: str, account: dict):
     db.session.add(acc)
     db.session.commit()
 
+def get_pending_zerodha() -> dict:
+    setting = Setting.query.filter_by(key="pending_zerodha").first()
+    if setting:
+        try:
+            return json.loads(setting.value)
+        except Exception:
+            return {}
+    return {}
+
+def set_pending_zerodha(data: dict):
+    setting = Setting.query.filter_by(key="pending_zerodha").first()
+    if not setting:
+        setting = Setting(key="pending_zerodha", value=json.dumps(data))
+        db.session.add(setting)
+    else:
+        setting.value = json.dumps(data)
+    db.session.commit()
+
+def get_user_credentials(identifier: str):
+    """Return basic broker credentials for a user id or client id."""
+    user = User.query.filter_by(email=identifier).first()
+    account = None
+    if user and user.accounts:
+        account = user.accounts[0]
+    if account is None:
+        account = Account.query.filter_by(client_id=identifier).first()
+    if not account:
+        return None
+    creds = account.credentials or {}
+    return {
+        "broker": account.broker,
+        "client_id": account.client_id,
+        "access_token": creds.get("access_token"),
+        "credentials": creds,
+    }
+
+
 def format_uptime():
     delta = datetime.utcnow() - start_time
     hours, remainder = divmod(int(delta.total_seconds()), 3600)
@@ -349,33 +391,16 @@ def check_api(url: str) -> bool:
         return False
 
 
-def find_account_by_client_id(accounts, client_id):
-    """Return ``(account, parent_master)`` for the provided ``client_id``.
-
-    ``accounts.json`` stores all records in a flat ``accounts`` list.  Values
-    might be saved as strings or numbers depending on how they were imported.
-    To make lookups robust we always compare the string version of the IDs.  If
-    the located account has ``role == 'child'`` the corresponding master is
-    returned as the second tuple element.
-    """
-
-    cid = str(client_id)
-    account = next(
-        (acc for acc in accounts.get("accounts", []) if str(acc.get("client_id")) == cid),
-        None,
-    )
-    if not account:
+def find_account_by_client_id(client_id):
+    """Return ``(account, parent_master)`` for the provided ``client_id`` using the database."""
+    acc = Account.query.filter_by(client_id=str(client_id)).first()
+    if not acc:
         return None, None
 
-    if account.get("role") == "child":
-        master_id = account.get("linked_master_id")
-        master = next(
-            (acc for acc in accounts.get("accounts", []) if str(acc.get("client_id")) == str(master_id)),
-            None,
-        )
-        return account, master
-
-    return account, None
+    if acc.role == "child":
+        master = Account.query.filter_by(client_id=acc.linked_master_id).first()
+        return acc, master
+    return acc, None
 
 
 def clean_response_message(response):
@@ -416,57 +441,43 @@ def clean_response_message(response):
 
 # === Initialize SQLite DB ===
 def init_db():
-    conn = sqlite3.connect("tradelogs.db")
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            user_id TEXT,
-            symbol TEXT,
-            action TEXT,
-            quantity INTEGER,
-            status TEXT,
-            response TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    """Create all database tables."""
+    with app.app_context():
+        db.create_all()
 
 init_db()
 
 # === Save logs ===
 def save_log(user_id, symbol, action, quantity, status, response):
-    conn = sqlite3.connect("tradelogs.db")
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO logs (timestamp, user_id, symbol, action, quantity, status, response)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (datetime.now().isoformat(), user_id, symbol, action, quantity, status, response))
-    conn.commit()
-    conn.close()
+    """Persist a trade log entry using SQLAlchemy."""
+    log = TradeLog(
+        timestamp=datetime.now().isoformat(),
+        user_id=str(user_id),
+        symbol=symbol,
+        action=action,
+        quantity=int(quantity),
+        status=status,
+        response=str(response)
+    )
+    db.session.add(log)
+    db.session.commit()
 
 def save_order_mapping(master_order_id, child_order_id, master_id, master_broker, child_id, child_broker, symbol):
-    path = "order_mappings.json"
-    mappings = []
+    """Persist order mapping to the database instead of JSON."""
+    mapping = OrderMapping(
+        master_order_id=master_order_id,
+        child_order_id=child_order_id,
+        master_client_id=master_id,
+        master_broker=master_broker,
+        child_client_id=child_id,
+        child_broker=child_broker,
+        symbol=symbol,
+        status="ACTIVE",
+        timestamp=datetime.utcnow().isoformat()
+    )
+    db.session.add(mapping)
+    db.session.commit()
 
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            mappings = json.load(f)
-
-    mappings.append({
-        "master_order_id": master_order_id,
-        "child_order_id": child_order_id,
-        "master_client_id": master_id,
-        "master_broker": master_broker,
-        "child_client_id": child_id,
-        "child_broker": child_broker,
-        "symbol": symbol,
-        "status": "ACTIVE"
-    })
-
-    with open(path, "w") as f:
-        json.dump(mappings, f, indent=2)
 
 
 def record_trade(user_email, symbol, action, qty, price, status):
@@ -1298,14 +1309,9 @@ def zerodha_redirect_handler(client_id):
                 message="The authentication process was incomplete."
             ), 400
 
-        # Load pending authentication data
-        pending_path = "pending_zerodha.json"
+        # Load pending authentication data from the database
         try:
-            if os.path.exists(pending_path):
-                with open(pending_path) as f:
-                    pending = json.load(f)
-            else:
-                pending = {}
+            pending = get_pending_zerodha()
         except Exception as e:
             logger.error(f"Failed to load pending auth data: {str(e)}")
             return render_template(
@@ -1371,7 +1377,7 @@ def zerodha_redirect_handler(client_id):
             # Save account data
             try:
                 save_account_to_user(cred.get("owner", username), account)
-                safe_write_json(pending_path, pending)
+                set_pending_zerodha(pending)
                 
                 logger.info(f"Successfully connected Zerodha account for {client_id}")
                 flash("Zerodha account connected successfully!", "success")
@@ -2020,7 +2026,7 @@ def init_zerodha_login():
         'username': username,
         'owner': session.get('user')
     }
-    safe_write_json(pending_path, pending)
+    set_pending_zerodha(pending)
 
     redirect_uri = f"https://dhan-trading.onrender.com/zerodha_redirects/{client_id}"
     login_url = f"https://kite.zerodha.com/connect/login?api_key={api_key}&v=3&redirect_uri={quote(redirect_uri, safe='')}"
@@ -2171,13 +2177,8 @@ def square_off():
     if not client_id or not symbol:
         return jsonify({"error": "Missing client_id or symbol"}), 400
 
-    try:
-        with open("accounts.json", "r") as f:
-            accounts = json.load(f)
-    except Exception:
-        return jsonify({"error": "Failed to load accounts file"}), 500
+    found, parent = find_account_by_client_id(client_id)
 
-    found, parent = find_account_by_client_id(accounts, client_id)
     if not found:
         return jsonify({"error": "Client not found"}), 404
     if parent is None:
@@ -2264,13 +2265,23 @@ def square_off():
 @app.route('/api/order-mappings', methods=['GET'])
 def get_order_mappings():
     try:
-        path = "order_mappings.json"
-        if not os.path.exists(path):
-            return jsonify([]), 200
-
-        with open(path, "r") as f:
-            mappings = json.load(f)
-
+        mappings = [
+            {
+                "master_order_id": m.master_order_id,
+                "child_order_id": m.child_order_id,
+                "master_client_id": m.master_client_id,
+                "master_broker": m.master_broker,
+                "child_client_id": m.child_client_id,
+                "child_broker": m.child_broker,
+                "symbol": m.symbol,
+                "status": m.status,
+                "timestamp": m.timestamp,
+                "child_timestamp": m.child_timestamp,
+                "remarks": m.remarks,
+                "multiplier": m.multiplier,
+            }
+            for m in OrderMapping.query.all()
+        ]
         return jsonify(mappings), 200
 
     except Exception as e:
@@ -2280,68 +2291,63 @@ def get_order_mappings():
 @app.route('/api/child-orders')
 def child_orders():
     master_order_id = request.args.get('master_order_id')
-    path = 'order_mappings.json'
-    if not os.path.exists(path):
-        return jsonify([])
-    with open(path, 'r') as f:
-        mappings = json.load(f)
+    mappings = OrderMapping.query
     if master_order_id:
-        mappings = [m for m in mappings if m.get('master_order_id') == master_order_id]
-    return jsonify(mappings)
+        mappings = mappings.filter_by(master_order_id=master_order_id)
+    data = [
+        {
+            "master_order_id": m.master_order_id,
+            "child_order_id": m.child_order_id,
+            "master_client_id": m.master_client_id,
+            "master_broker": m.master_broker,
+            "child_client_id": m.child_client_id,
+            "child_broker": m.child_broker,
+            "symbol": m.symbol,
+            "status": m.status,
+            "timestamp": m.timestamp,
+            "child_timestamp": m.child_timestamp,
+            "remarks": m.remarks,
+            "multiplier": m.multiplier,
+        }
+        for m in mappings.all()
+    ]
+    return jsonify(data)
 
 # --- Cancel Order Endpoint ---
 @app.route('/api/cancel-order', methods=['POST'])
 def cancel_order():
     data = request.json
     master_order_id = data.get("master_order_id")
-    if not master_order_id:
-        return jsonify({"error": "Missing master_order_id"}), 400
-
-    try:
-        if not os.path.exists("order_mappings.json"):
-            return jsonify({"error": "No order mappings found"}), 404
-
-        with open("order_mappings.json", "r") as f:
-            mappings = json.load(f)
-
-        relevant = [m for m in mappings if m["master_order_id"] == master_order_id and m["status"] == "ACTIVE"]
-        if not relevant:
+        mappings = OrderMapping.query.filter_by(master_order_id=master_order_id, status="ACTIVE").all()
+        if not mappings:
             return jsonify({"message": "No active child orders found for this master order."}), 200
 
         results = []
-        with open("accounts.json", "r") as f:
-            accounts = json.load(f)
+        accounts = {a.client_id: a for a in Account.query.all()}
 
-        for mapping in relevant:
+        for mapping in mappings:
             child_id = mapping["child_client_id"]
             child_order_id = mapping["child_order_id"]
-            found = None
-            for m in accounts.get("masters", []):
-                for c in m.get("children", []):
-                    if c["client_id"] == child_id:
-                        found = c
-                        break
-                if found: break
+            found = accounts.get(child_id)
 
             if not found:
                 results.append(f"{child_id} → ❌ Client not found")
                 continue
 
             try:
-                api = broker_api(found)
+                api = broker_api({"broker": found.broker, "client_id": found.client_id, "credentials": found.credentials})
                 cancel_resp = api.cancel_order(child_order_id)
 
                 if isinstance(cancel_resp, dict) and cancel_resp.get("status") == "failure":
                     results.append(f"{child_id} → ❌ Cancel failed: {cancel_resp.get('remarks', cancel_resp.get('error', 'Unknown error'))}")
                 else:
                     results.append(f"{child_id} → ✅ Cancelled")
-                    mapping["status"] = "CANCELLED"
+                    mapping.status = "CANCELLED"
 
             except Exception as e:
                 results.append(f"{child_id} → ❌ ERROR: {str(e)}")
 
-        with open("order_mappings.json", "w") as f:
-            json.dump(mappings, f, indent=2)
+        db.session.commit()
 
         return jsonify({"message": "Cancel process completed", "details": results}), 200
 
@@ -2460,23 +2466,18 @@ def delete_account():
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
 
-    accounts_data = safe_read_json("accounts.json")
+
     user = session.get("user")
-    before = len(accounts_data.get("accounts", []))
-    accounts_data["accounts"] = [
-        acc for acc in accounts_data.get("accounts", [])
-        if not (str(acc.get("client_id")) == str(client_id) and acc.get("owner") == user)
-    ]
-    if len(accounts_data.get("accounts", [])) == before:
-        return jsonify({"error": "Account not found"}), 404
-    safe_write_json("accounts.json", accounts_data)
+    
 
     db_user = User.query.filter_by(email=user).first()
-    if db_user:
-        acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
-        if acc_db:
-            db.session.delete(acc_db)
-            db.session.commit()
+    if not db_user:
+        return jsonify({"error": "Account not found"}), 404
+    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+    if not acc_db:
+        return jsonify({"error": "Account not found"}), 404
+    db.session.delete(acc_db)
+    db.session.commit()
 
     return jsonify({"message": f"Account {client_id} deleted."})
 
@@ -3124,18 +3125,13 @@ def start_copy_all():
     master_id = data.get("master_id")
     if not master_id:
         return jsonify({"error": "Missing master_id"}), 400
-    accounts_data = safe_read_json("accounts.json")
+
     user = session.get("user")
-    master_acc = next(
-        (
-            a
-            for a in accounts_data.get("accounts", [])
-            if a.get("client_id") == master_id
-            and a.get("role") == "master"
-            and a.get("owner") == user
-        ),
-        None,
-    )
+    master_acc = Account.query.join(User).filter(
+        User.email == user,
+        Account.client_id == master_id,
+        Account.role == "master",
+    ).first()
     latest_order_id = "NONE"
     if master_acc:
         try:
@@ -3170,14 +3166,16 @@ def start_copy_all():
             logger.error(f"Could not set initial last_copied_trade_id for master {master_id}: {e}")
             latest_order_id = "NONE"
     count = 0
-    for acc in accounts_data.get("accounts", []):
-        if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("owner") == user:
-            acc["copy_status"] = "On"
-            # Always set the marker, even if it was previously present
-            accounts_data[f"last_copied_trade_id_{master_id}_{acc['client_id']}"] = latest_order_id
-            count += 1
-
-    safe_write_json("accounts.json", accounts_data)
+    children = Account.query.join(User).filter(
+        User.email == user,
+        Account.role == "child",
+        Account.linked_master_id == master_id,
+    ).all()
+    for acc in children:
+        acc.copy_status = "On"
+        acc.last_copied_trade_id = latest_order_id
+        count += 1
+    db.session.commit()
     logger.info(f"Bulk copy started for {count} children under master {master_id}, marker set to {latest_order_id}")
     return jsonify({"message": f"Started copying for {count} child accounts."})
 
@@ -3203,13 +3201,18 @@ def stop_copy_all():
 @app.route("/api/alerts")
 def get_alerts():
     user_id = request.args.get("user_id")
-    conn = sqlite3.connect("tradelogs.db")
-    c = conn.cursor()
-    c.execute("SELECT timestamp, response FROM logs WHERE user_id = ? AND status = 'ALERT' ORDER BY id DESC LIMIT 20", (user_id,))
-    rows = c.fetchall()
-    conn.close()
+    logs = (
+        TradeLog.query.filter_by(user_id=user_id, status="ALERT")
+        .order_by(TradeLog.id.desc())
+        .limit(20)
+        .all()
+    )
 
-    alerts = [{"time": row[0], "message": row[1]} for row in rows]
+
+    alerts = [
+        {"time": log.timestamp, "message": log.response}
+        for log in logs
+    ]
     return jsonify(alerts)
 
 
@@ -3245,22 +3248,24 @@ def register_user():
 @app.route("/logs")
 def get_logs():
     user_id = request.args.get("user_id")
-    conn = sqlite3.connect("tradelogs.db")
-    c = conn.cursor()
-    c.execute("SELECT * FROM logs WHERE user_id = ? ORDER BY id DESC LIMIT 100", (user_id,))
-    rows = c.fetchall()
-    conn.close()
-
+    rows = (
+        TradeLog.query.filter_by(user_id=user_id)
+        .order_by(TradeLog.id.desc())
+        .limit(100)
+        .all()
+    )
+    
     logs = []
     for row in rows:
         logs.append({
-            "timestamp": row[1],
-            "user_id": row[2],
-            "symbol": row[3],
-            "action": row[4],
-            "quantity": row[5],
-            "status": row[6],
-            "response": row[7]
+            "timestamp": row.timestamp,
+            "user_id": row.user_id,
+            "symbol": row.symbol,
+            "action": row.action,
+            "quantity": row.quantity,
+            "status": row.status,
+            "response": row.response,
+
         })
 
     return jsonify(logs)
@@ -3295,7 +3300,7 @@ def get_portfolio(user_id):
             return jsonify({"error": str(e)}), 500
 
     accounts = safe_read_json("accounts.json")
-    found, _ = find_account_by_client_id(accounts, user_id)
+    found, _ = find_account_by_client_id(user_id)
     if not found:
         return jsonify({"error": "Invalid user ID"}), 403
 
