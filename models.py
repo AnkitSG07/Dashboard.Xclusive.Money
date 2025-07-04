@@ -10,6 +10,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     name = db.Column(db.String(120))
     phone = db.Column(db.String(20))
+    webhook_token = db.Column(db.String(64), unique=True)
+    profile_image = db.Column(db.String(120))
     plan = db.Column(db.String(20), default='Free')
     last_login = db.Column(db.String(32))
     subscription_start = db.Column(db.String(32))
