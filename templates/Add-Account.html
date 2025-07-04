@@ -119,6 +119,31 @@
 
 <!-- Accounts Table (sample, you should load with AJAX for real data) -->
 <div class="card-box">
+  <!-- Status Tabs -->
+  <ul class="nav nav-tabs mb-3" id="status-tabs">
+    <li class="nav-item">
+      <a class="nav-link active" href="#" data-status="all">All
+        <span class="badge bg-secondary ms-1" id="tab-count-all">0</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#" data-status="success">Success
+        <span class="badge bg-secondary ms-1" id="tab-count-success">0</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#" data-status="failed">Failed
+        <span class="badge bg-secondary ms-1" id="tab-count-failed">0</span>
+      </a>
+    </li>
+  </ul>
+
+  <!-- Filters -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <select class="form-select" id="broker-filter" style="max-width:200px"></select>
+    <input type="search" class="form-control" id="account-search" placeholder="Search" style="max-width:250px">
+  </div>
+        
   <div class="table-responsive">
     <table class="table align-middle">
       <thead>
@@ -285,7 +310,14 @@ window.pageScripts["Add-Account"] = function() {
     fields.forEach(f => {
       const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
       const val = f.value ? ` value="${f.value}"` : '';
-      let html = `<div class="mb-3"><label class="form-label">${f.label}</label><input class="form-control" name="${f.name}" type="${f.type}"${ph}${val} required>`;
+      let inputEl = '';
+      if (f.type === 'password') {
+        inputEl = `<div class="input-group"><input class="form-control" name="${f.name}" type="password"${ph}${val} required>` +
+          `<button type="button" class="btn btn-outline-secondary toggle-pass"><i class="bi bi-eye"></i></button></div>`;
+      } else {
+        inputEl = `<input class="form-control" name="${f.name}" type="${f.type}"${ph}${val} required>`;
+      }
+      let html = `<div class="mb-3"><label class="form-label">${f.label}</label>${inputEl}`;
       if (f.tip) html += `<div class="form-text">${f.tip}</div>`;
       html += `</div>`;
       container.innerHTML += html;
@@ -295,6 +327,7 @@ window.pageScripts["Add-Account"] = function() {
     }
     submitBtn.style.display = "inline-block";
     submitBtn.disabled = false;
+    attachPasswordToggles();
     attachValidation();
     if (broker === 'zerodha') {
       const btn = document.getElementById('zerodha-login-btn');
@@ -315,6 +348,22 @@ window.pageScripts["Add-Account"] = function() {
   function attachValidation() {
     document.querySelectorAll('#broker-credentials-form input').forEach(inp => {
       inp.onblur = validateCredentials;
+    });
+  }
+
+  function attachPasswordToggles() {
+    document.querySelectorAll('#broker-fields .toggle-pass').forEach(btn => {
+      btn.onclick = function() {
+        const inp = btn.parentElement.querySelector('input');
+        if (!inp) return;
+        const isPass = inp.type === 'password';
+        inp.type = isPass ? 'text' : 'password';
+        const icon = btn.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('bi-eye');
+          icon.classList.toggle('bi-eye-slash');
+        }
+      };
     });
   }
 
@@ -455,43 +504,114 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   // (Optional) Load accounts dynamically for table:
-  fetch('/api/accounts').then(res => res.json())
-  .then(data => {
-    const body = document.getElementById("accounts-table-body");
+  // === Accounts Table & Filters ===
+  let allAccounts = [];
+  let statusFilter = 'all';
+  let brokerFilter = '';
+  let searchFilter = '';
+
+  function isSuccess(acc) {
+    const st = (acc.status || '').toLowerCase();
+    return !acc.error && (!st || st === 'connected');
+  }
+
+  function isFailed(acc) {
+    const st = (acc.status || '').toLowerCase();
+    return acc.error || (st && st !== 'connected');
+  }
+
+  function renderTable(rows) {
+    const body = document.getElementById('accounts-table-body');
     if (!body) return;
-    const accounts = data.accounts || [];
-    // List of possible image extensions, in order of preference
     const imgExtensions = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
 
-    body.innerHTML = accounts.map(acc => {
-      // Capitalize broker name (safe for 1st char non-letter)
-      const brokerName = acc.broker
-        ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1)
-        : '';
-      // Build <picture> HTML for broker icons
+    body.innerHTML = rows.map(acc => {
+      const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
       const pictureHTML = `
         <picture>
-          ${imgExtensions.map(ext =>
-            `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`
-          ).join('\n')}
+          ${imgExtensions.map(ext => `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('\n')}
           <img src="/static/images/${acc.broker}.png" style="width:24px;" alt="${brokerName}" onerror="this.onerror=null;this.src='/static/images/logo.png';">
         </picture>
-        ${brokerName}
-      `;
+        ${brokerName}`;
+      const statusText = acc.error || acc.status || 'Connected';
+      const statusClass = isFailed(acc) ? 'bg-danger' : 'bg-success';
       return `
         <tr>
           <td>${pictureHTML}</td>
           <td>${acc.opening_balance ?? '-'}</td>
           <td>${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
-          <td><span class="badge bg-success">${acc.status || 'Connected'}</span></td>
+          <td><span class="badge ${statusClass}">${statusText}</span></td>
           <td>
             <button class="btn btn-outline-success btn-sm" onclick="alert('Reconnect coming soon')">Reconnect</button>
             <button class="btn btn-outline-danger btn-sm ms-1" onclick="window.deleteAccount('${acc.client_id}')">Delete</button>
           </td>
-        </tr>
-      `;
+        </tr>`;
     }).join('');
+  }
+
+  function applyFilters() {
+    let rows = allAccounts.slice();
+    if (statusFilter === 'success') rows = rows.filter(isSuccess);
+    else if (statusFilter === 'failed') rows = rows.filter(isFailed);
+    if (brokerFilter) rows = rows.filter(a => a.broker === brokerFilter);
+    if (searchFilter) {
+      const term = searchFilter.toLowerCase();
+      rows = rows.filter(a =>
+        String(a.client_id).toLowerCase().includes(term) ||
+        (a.username || '').toLowerCase().includes(term) ||
+        (a.error || a.status || '').toLowerCase().includes(term)
+      );
+    }
+    renderTable(rows);
+  }
+
+  function updateCounts() {
+    const total = allAccounts.length;
+    const success = allAccounts.filter(isSuccess).length;
+    const failed = allAccounts.filter(isFailed).length;
+    document.getElementById('tab-count-all').textContent = total;
+    document.getElementById('tab-count-success').textContent = success;
+    document.getElementById('tab-count-failed').textContent = failed;
+  }
+
+  function populateBrokerFilter() {
+    const select = document.getElementById('broker-filter');
+    if (!select) return;
+    const brokers = [...new Set(allAccounts.map(a => a.broker))].sort();
+    select.innerHTML = '<option value="">All Brokers</option>' +
+      brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
+  }
+
+  // Load accounts data
+  fetch('/api/accounts')
+    .then(res => res.json())
+    .then(data => {
+      allAccounts = data.accounts || [];
+      populateBrokerFilter();
+      updateCounts();
+      applyFilters();
+    });
+
+  // Bind filter controls
+  document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('#status-tabs .nav-link').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+      statusFilter = link.dataset.status || 'all';
+      applyFilters();
+    });
+  });
+
+  document.getElementById('broker-filter').addEventListener('change', e => {
+    brokerFilter = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('account-search').addEventListener('input', e => {
+    searchFilter = e.target.value;
+    applyFilters();
   });
 
   window.deleteAccount = function(cid) {
