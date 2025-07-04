@@ -26,7 +26,16 @@ from werkzeug.utils import secure_filename
 import random
 import string
 from urllib.parse import quote
-from models import db, User, Account, Trade, WebhookLog, SystemLog, Setting, TradeLog
+from models import (
+    db,
+    User,
+    Account,
+    Trade,
+    WebhookLog,
+    SystemLog,
+    Setting,
+    Group,
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
@@ -72,7 +81,117 @@ def _resolve_data_path(path: str) -> str:
         return path
     return os.path.join(DATA_DIR, path)
 
+
+def _account_to_dict(acc: Account) -> dict:
+    return {
+        "owner": acc.user.email if acc.user else None,
+        "broker": acc.broker,
+        "client_id": acc.client_id,
+        "token_expiry": acc.token_expiry,
+        "status": acc.status,
+        "role": acc.role,
+        "linked_master_id": acc.linked_master_id,
+        "copy_status": acc.copy_status,
+        "multiplier": acc.multiplier,
+        "credentials": acc.credentials,
+        "last_copied_trade_id": acc.last_copied_trade_id,
+    }
+
+
+def _group_to_dict(g: Group) -> dict:
+    return {
+        "name": g.name,
+        "owner": g.user.email if g.user else None,
+        "members": [a.client_id for a in g.accounts],
+    }
+
+
+def _update_accounts_from_dict(data: dict):
+    for entry in data.get("accounts", []):
+        cid = entry.get("client_id")
+        if not cid:
+            continue
+        account = Account.query.filter_by(client_id=cid).first()
+        if not account:
+            owner = entry.get("owner")
+            user = User.query.filter_by(email=owner).first()
+            if not user:
+                user = User(email=owner)
+                db.session.add(user)
+                db.session.commit()
+            account = Account(client_id=cid, user_id=user.id)
+            db.session.add(account)
+        account.broker = entry.get("broker")
+        account.token_expiry = entry.get("token_expiry")
+        account.status = entry.get("status")
+        account.role = entry.get("role")
+        account.linked_master_id = entry.get("linked_master_id")
+        account.copy_status = entry.get("copy_status", "Off")
+        account.multiplier = entry.get("multiplier", 1.0)
+        account.credentials = entry.get("credentials")
+        account.last_copied_trade_id = entry.get("last_copied_trade_id")
+    # Handle marker keys
+    for k, v in data.items():
+        if k.startswith("last_copied_trade_id_"):
+            parts = k.split("_")
+            if len(parts) >= 5:
+                child_id = parts[-1]
+                acc = Account.query.filter_by(client_id=child_id).first()
+                if acc:
+                    acc.last_copied_trade_id = str(v)
+    db.session.commit()
+
+
+def _update_groups_from_dict(data: dict):
+    for g in data.get("groups", []):
+        owner = g.get("owner")
+        user = User.query.filter_by(email=owner).first()
+        if not user:
+            user = User(email=owner)
+            db.session.add(user)
+            db.session.commit()
+        group = Group.query.filter_by(name=g.get("name"), user_id=user.id).first()
+        if not group:
+            group = Group(name=g.get("name"), user_id=user.id)
+            db.session.add(group)
+            db.session.commit()
+        group.accounts = []
+        for cid in g.get("members", []):
+            acc = Account.query.filter_by(client_id=cid, user_id=user.id).first()
+            if acc and acc not in group.accounts:
+                group.accounts.append(acc)
+    db.session.commit()
+
+def safe_write_json(path, data):
+    if os.path.basename(path) == "accounts.json":
+        _update_accounts_from_dict(data)
+        return
+    if os.path.basename(path) == "groups.json":
+        _update_groups_from_dict(data)
+        return
+
+    path = _resolve_data_path(path)
+    dirpath = os.path.dirname(path) or "."
+    os.makedirs(dirpath, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath) as tmp:
+        json.dump(data, tmp, indent=2)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+    shutil.move(tmp.name, path)
+    
+
 def safe_read_json(path):
+    if os.path.basename(path) == "accounts.json":
+        data = {"accounts": [_account_to_dict(a) for a in Account.query.all()]}
+        for acc in Account.query.filter(Account.role == "child").all():
+            if acc.linked_master_id:
+                key = f"last_copied_trade_id_{acc.linked_master_id}_{acc.client_id}"
+                data[key] = acc.last_copied_trade_id
+        return data
+
+    if os.path.basename(path) == "groups.json":
+        return {"groups": [_group_to_dict(g) for g in Group.query.all()]}
+
     path = _resolve_data_path(path)
     if not os.path.exists(path):
         return {}
