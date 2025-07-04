@@ -171,6 +171,7 @@ def get_order_sort_key(order):
             or order.get("nestOrderNumber")
             or order.get("orderNumber")
             or order.get("Nstordno")
+            or order.get("norenordno")
             or 0
         )
     except Exception:
@@ -3064,6 +3065,7 @@ def start_copy():
                     or order_list[0].get("Nstordno")
                     or order_list[0].get("nestOrderNumber")
                     or order_list[0].get("orderNumber")
+                    or order_list[0].get("norenordno")
                 )
                 latest_order_id = str(latest_order_id) if latest_order_id else "NONE"
         except Exception as e:
@@ -3152,6 +3154,7 @@ def start_copy_all():
                     or first.get("Nstordno")
                     or first.get("nestOrderNumber")
                     or first.get("orderNumber")
+                    or first.get("norenordno")
                 )
                 latest_order_id = str(latest_order_id) if latest_order_id else "NONE"
         except Exception as e:
