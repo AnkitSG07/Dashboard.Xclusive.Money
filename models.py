@@ -30,6 +30,12 @@ class Account(db.Model):
     client_id = db.Column(db.String(50))
     token_expiry = db.Column(db.String(32))
     status = db.Column(db.String(20))
+    role = db.Column(db.String(20))
+    linked_master_id = db.Column(db.String(50))
+    copy_status = db.Column(db.String(10), default="Off")
+    multiplier = db.Column(db.Float, default=1.0)
+    credentials = db.Column(db.JSON)
+    last_copied_trade_id = db.Column(db.String(50))
     user = db.relationship('User', backref='accounts')
 
 class Trade(db.Model):
@@ -59,3 +65,37 @@ class Setting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True)
     value = db.Column(db.String(255))
+
+group_members = db.Table(
+    "group_members",
+    db.Column("group_id", db.Integer, db.ForeignKey("group.id")),
+    db.Column("account_id", db.Integer, db.ForeignKey("account.id")),
+)
+
+
+class Group(db.Model):
+    """Collection of accounts owned by a user."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    name = db.Column(db.String(120))
+    user = db.relationship("User", backref="groups")
+    accounts = db.relationship(
+        "Account", secondary=group_members, backref="groups", lazy="dynamic"
+    )
+
+
+class OrderMapping(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    master_order_id = db.Column(db.String(50))
+    child_order_id = db.Column(db.String(50))
+    master_client_id = db.Column(db.String(50))
+    master_broker = db.Column(db.String(50))
+    child_client_id = db.Column(db.String(50))
+    child_broker = db.Column(db.String(50))
+    symbol = db.Column(db.String(50))
+    status = db.Column(db.String(20))
+    timestamp = db.Column(db.String(32))
+    child_timestamp = db.Column(db.String(32))
+    remarks = db.Column(db.String(255))
+    multiplier = db.Column(db.Float, default=1.0)
