@@ -32,11 +32,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
 app = Flask(__name__)
-app.secret_key = "change-me"
+app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 CORS(app)
 DB_PATH = os.path.join("/tmp", "quantbot.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db_url = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 start_time = datetime.utcnow()
 device_number = None
@@ -308,22 +309,30 @@ def save_settings(settings):
             s.value = str(value)
     db.session.commit()
 
-def save_account_to_user(owner, account):
-    """Persist account credentials in accounts.json."""
-    path = "accounts.json"
-    if os.path.exists(path):
-        try:
-            with open(path, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {"accounts": []}
-    else:
-        data = {"accounts": []}
+def save_account_to_user(owner: str, account: dict):
+    """Persist account credentials to the database."""
+    user = User.query.filter_by(email=owner).first()
+    if not user:
+        # Create shell user if not present
+        user = User(email=owner)
+        db.session.add(user)
+        db.session.commit()
 
-    entry = dict(account)
-    entry.setdefault("owner", owner)
-    data.setdefault("accounts", []).append(entry)
-    safe_write_json(path, data)
+    acc = Account(
+        user_id=user.id,
+        broker=account.get("broker"),
+        client_id=account.get("client_id"),
+        token_expiry=account.get("token_expiry"),
+        status=account.get("status", "active"),
+        role=account.get("role"),
+        linked_master_id=account.get("linked_master_id"),
+        copy_status=account.get("copy_status", "Off"),
+        multiplier=account.get("multiplier", 1.0),
+        credentials=account.get("credentials"),
+        last_copied_trade_id=account.get("last_copied_trade_id"),
+    )
+    db.session.add(acc)
+    db.session.commit()
 
 def format_uptime():
     delta = datetime.utcnow() - start_time
@@ -517,18 +526,18 @@ def poll_and_copy_trades():
         logger.info("🔄 Starting poll_and_copy_trades() cycle...")
 
         # Load accounts configuration
-        if not os.path.exists("accounts.json"):
-            logger.warning("No accounts.json file found")
-            return
-
-        try:
-            with open("accounts.json", "r") as f:
-                accounts_data = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load accounts.json: {e}")
-            return
-
-        all_accounts = accounts_data.get("accounts", [])
+        # Load accounts configuration from the database
+        all_accounts = [
+            {
+                "client_id": a.client_id,
+                "broker": a.broker,
+                "role": a.role,
+                "linked_master_id": a.linked_master_id,
+                "copy_status": a.copy_status,
+                "multiplier": a.multiplier,
+            }
+            for a in Account.query.all()
+        ]
         masters = [acc for acc in all_accounts if acc.get("role") == "master"]
         if not masters:
             logger.warning("No master accounts configured")
