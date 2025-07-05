@@ -14,8 +14,8 @@ import os
 import json
 import pandas as pd
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+# from flask_limiter import Limiter
+# from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 import io
 from datetime import datetime, timedelta, date
@@ -231,12 +231,12 @@ if ENVIRONMENT == "production":
     Talisman(app, force_https=True)
 
 # Rate Limiting
-limiter = Limiter(
-    app,
-    key_func=get_remote_address,
-    default_limits=["1000 per day", "100 per hour"],
-    storage_uri=os.environ.get("REDIS_URL", "memory://")
-)
+# limiter = Limiter(
+ #   app,
+  #  key_func=get_remote_address,
+   # default_limits=["1000 per day", "100 per hour"],
+    #storage_uri=os.environ.get("REDIS_URL", "memory://")
+# )
 
 # Performance Monitoring
 performance_metrics = defaultdict(list)
@@ -1433,7 +1433,7 @@ def health_check():
         }, 503)
 
 @app.route("/connect-zerodha", methods=["POST"])
-@limiter.limit("5 per minute")
+# @limiter.limit("5 per minute")
 def connect_zerodha():
     """Connect a Zerodha account using provided credentials."""
     try:
@@ -1486,7 +1486,7 @@ def connect_zerodha():
         }, 500)
 
 @app.route('/api/order-book/<client_id>', methods=['GET'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 @require_user
 def get_order_book(client_id):
     """Get order book for a master account."""
@@ -1761,7 +1761,7 @@ def zerodha_redirect_handler(client_id):
         ), 500
 
 @app.route("/webhook/<user_id>", methods=["POST"])
-@limiter.limit("60 per minute")
+# @limiter.limit("60 per minute")
 def webhook(user_id):
     """Handle incoming webhook requests for order placement."""
     logger.info(f"Received webhook request for user {user_id}")
@@ -1922,7 +1922,7 @@ def webhook(user_id):
         }, 500)
 
 @app.route('/api/master-squareoff', methods=['POST'])
-@limiter.limit("10 per minute")
+# @limiter.limit("10 per minute")
 @require_user
 def master_squareoff():
     """Square off child orders for a master order."""
@@ -2176,7 +2176,7 @@ def master_squareoff():
         }, 500)
 
 @app.route('/api/master-orders', methods=['GET'])
-@limiter.limit("60 per minute")
+# @limiter.limit("60 per minute")
 @require_user
 def get_master_orders():
     """Get all master orders with their child order details."""
@@ -2241,7 +2241,7 @@ def zerodha_login_url_route():
         return jsonify({"error": "kiteconnect not available"}), 500
 
 @app.route('/api/init-zerodha-login', methods=['POST'])
-@limiter.limit("10 per minute")
+# @limiter.limit("10 per minute")
 @require_user
 def init_zerodha_login():
     data = request.json
@@ -2271,7 +2271,7 @@ def init_zerodha_login():
     return jsonify({'login_url': login_url})
 
 @app.route('/api/init-fyers-login', methods=['POST'])
-@limiter.limit("10 per minute")
+# @limiter.limit("10 per minute")
 @require_user
 def init_fyers_login():
     """Start the Fyers OAuth login flow and return the login URL."""
@@ -2514,7 +2514,7 @@ def admin_settings():
     return render_template("admin/settings.html", settings=settings)
 
 @app.route('/api/accounts', methods=['GET'])
-@limiter.limit("60 per minute")
+# @limiter.limit("60 per minute")
 @require_user
 def get_user_accounts():
     """Get all accounts for the authenticated user with their balance information."""
@@ -2546,7 +2546,7 @@ def get_user_accounts():
         }, 500)
 
 @app.route('/api/accounts', methods=['POST'])
-@limiter.limit("10 per minute")
+# @limiter.limit("10 per minute")
 @require_user
 def create_account():
     """Create a new account for the authenticated user."""
@@ -2611,7 +2611,7 @@ def create_account():
         }, 500)
 
 @app.route('/api/accounts/<client_id>', methods=['PUT'])
-@limiter.limit("20 per minute")
+# @limiter.limit("20 per minute")
 @require_user
 def update_account(client_id):
     """Update an existing account for the authenticated user."""
@@ -2667,7 +2667,7 @@ def update_account(client_id):
         }, 500)
 
 @app.route('/api/accounts/<client_id>', methods=['DELETE'])
-@limiter.limit("10 per minute")
+# @limiter.limit("10 per minute")
 @require_user
 def delete_account(client_id):
     """Delete an account for the authenticated user."""
@@ -2719,7 +2719,7 @@ def delete_account(client_id):
         }, 500)
 
 @app.route('/api/trades', methods=['GET'])
-@limiter.limit("60 per minute")
+# @limiter.limit("60 per minute")
 @require_user
 def get_user_trades():
     """Get trading history for the authenticated user."""
@@ -2780,7 +2780,7 @@ def get_user_trades():
         }, 500)
 
 @app.route('/api/broker-status', methods=['GET'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 def get_broker_status():
     """Check status of all broker APIs."""
     try:
@@ -2821,7 +2821,7 @@ def get_broker_status():
         }, 500)
 
 @app.route('/api/system-info', methods=['GET'])
-@limiter.limit("20 per minute")
+# @limiter.limit("20 per minute")
 def get_system_info():
     """Get system information and status."""
     try:
@@ -5082,7 +5082,7 @@ def admin_logout_form():
 
 # Additional API Routes for Complete Functionality
 @app.route('/api/positions/<client_id>', methods=['GET'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 @require_user
 def get_account_positions(client_id):
     """Get positions for a specific account."""
@@ -5152,7 +5152,7 @@ def get_account_positions(client_id):
         }, 500)
 
 @app.route('/api/funds/<client_id>', methods=['GET'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 @require_user
 def get_account_funds(client_id):
     """Get fund information for a specific account."""
@@ -5216,7 +5216,7 @@ def get_account_funds(client_id):
         }, 500)
 
 @app.route('/api/place-order', methods=['POST'])
-@limiter.limit("60 per minute")
+# @limiter.limit("60 per minute")
 @require_user
 def place_manual_order():
     """Place a manual order for a specific account."""
@@ -5386,7 +5386,7 @@ def place_manual_order():
         }, 500)
 
 @app.route('/api/cancel-order-single', methods=['POST'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 @require_user
 def cancel_single_order():
     """Cancel a single order for a specific account."""
@@ -5455,7 +5455,7 @@ def cancel_single_order():
         }, 500)
 
 @app.route('/api/square-off-position', methods=['POST'])
-@limiter.limit("30 per minute")
+# @limiter.limit("30 per minute")
 @require_user
 def square_off_single_position():
     """Square off a single position for a specific account."""
