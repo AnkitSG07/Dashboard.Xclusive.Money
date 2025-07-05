@@ -3777,54 +3777,99 @@ def admin_change_subscription(user_id):
 with app.app_context():
     from sqlalchemy import text, inspect
     
-    print("🔧 Starting database migration...")
+    print("🔧 Starting comprehensive database migration...")
     
     try:
         inspector = inspect(db.engine)
         
         with db.engine.connect() as connection:
-            # Check and add missing columns to account table
+            # ===== USER TABLE MIGRATIONS =====
+            try:
+                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+                print("✅ Updated user.password_hash to TEXT")
+            except Exception as e:
+                print(f"ℹ️ User table: {e}")
+            
+            # ===== ACCOUNT TABLE MIGRATIONS =====
             if 'account' in inspector.get_table_names():
                 existing_columns = [col['name'] for col in inspector.get_columns('account')]
+                print(f"📋 Existing account columns: {existing_columns}")
                 
-                missing_columns = [
-                    ('username', 'VARCHAR(120)'),
-                    ('auto_login', 'BOOLEAN DEFAULT TRUE'),
-                    ('last_login_time', 'VARCHAR(32)'),
-                    ('device_number', 'VARCHAR(64)')
-                ]
+                # Define all required columns for Account table
+                required_columns = {
+                    'username': 'VARCHAR(120)',
+                    'auto_login': 'BOOLEAN DEFAULT TRUE',
+                    'last_login_time': 'VARCHAR(32)',
+                    'device_number': 'VARCHAR(64)',
+                    'last_copied_trade_id': 'VARCHAR(50)',
+                    'copy_status': 'VARCHAR(10) DEFAULT \'Off\'',
+                    'multiplier': 'FLOAT DEFAULT 1.0',
+                    'credentials': 'JSON',
+                    'role': 'VARCHAR(20)',
+                    'linked_master_id': 'VARCHAR(50)',
+                    'status': 'VARCHAR(20) DEFAULT \'Connected\'',
+                    'token_expiry': 'VARCHAR(32)',
+                    'broker': 'VARCHAR(50)',
+                    'client_id': 'VARCHAR(50)',
+                    'user_id': 'INTEGER REFERENCES "user"(id)'
+                }
                 
-                for col_name, col_def in missing_columns:
+                # Add missing columns one by one
+                for col_name, col_def in required_columns.items():
                     if col_name not in existing_columns:
                         try:
                             connection.execute(text(f'ALTER TABLE account ADD COLUMN {col_name} {col_def};'))
-                            print(f"✅ Added {col_name} column")
+                            print(f"✅ Added account.{col_name}")
                         except Exception as e:
-                            print(f"ℹ️ {col_name}: {e}")
+                            print(f"⚠️ Could not add account.{col_name}: {e}")
             
-            # Update password_hash column
-            try:
-                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-                print("✅ Updated password_hash column")
-            except Exception as e:
-                print(f"ℹ️ Password hash: {e}")
+            # ===== ORDER_MAPPING TABLE MIGRATIONS =====
+            if 'order_mapping' in inspector.get_table_names():
+                order_mapping_columns = [col['name'] for col in inspector.get_columns('order_mapping')]
+                
+                order_mapping_required = {
+                    'action': 'VARCHAR(10)',
+                    'quantity': 'INTEGER',
+                    'child_timestamp': 'VARCHAR(32)',
+                    'remarks': 'VARCHAR(255)',
+                    'multiplier': 'FLOAT DEFAULT 1.0'
+                }
+                
+                for col_name, col_def in order_mapping_required.items():
+                    if col_name not in order_mapping_columns:
+                        try:
+                            connection.execute(text(f'ALTER TABLE order_mapping ADD COLUMN {col_name} {col_def};'))
+                            print(f"✅ Added order_mapping.{col_name}")
+                        except Exception as e:
+                            print(f"⚠️ Could not add order_mapping.{col_name}: {e}")
             
+            # Commit all changes
             connection.commit()
+            print("✅ All table alterations committed")
             
     except Exception as e:
         print(f"❌ Migration error: {e}")
+        db.session.rollback()
     
-    # Create any missing tables
-    db.create_all()
-    print("🏁 Database migration complete!")
-
-# Then call your scheduler
-scheduler = start_scheduler()
+    # ===== CREATE ANY MISSING TABLES =====
+    try:
+        db.create_all()
+        print("✅ All database tables created/verified")
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+    
+    # ===== DATA MIGRATION =====
+    try:
+        migrate_json_to_database()
+        print("✅ JSON data migration completed")
+    except Exception as e:
+        print(f"ℹ️ JSON migration: {e}")
+    
+    print("🏁 Comprehensive database migration complete!")
 
 def migrate_json_to_database():
     """Migrate existing JSON data to database (run once)."""
     try:
-        # Check if accounts.json exists and migrate
         accounts_file = os.path.join(DATA_DIR, "accounts.json")
         if os.path.exists(accounts_file):
             print("📦 Migrating accounts.json to database...")
@@ -3874,14 +3919,16 @@ def migrate_json_to_database():
             db.session.commit()
             print("✅ Accounts migrated successfully!")
             
-            # Backup and remove old file
+            # Backup old file
             backup_path = accounts_file + ".backup"
             os.rename(accounts_file, backup_path)
-            print(f"📁 Old accounts.json backed up to {backup_path}")
+            print(f"📁 Backed up to {backup_path}")
             
     except Exception as e:
         print(f"❌ Migration error: {e}")
         db.session.rollback()
+
+scheduler = start_scheduler()     
 
 if __name__ == '__main__':
     app.run(debug=True)
