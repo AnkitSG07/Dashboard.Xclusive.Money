@@ -35,6 +35,8 @@ from models import (
     SystemLog,
     Setting,
     Group,
+    OrderMapping,
+    TradeLog,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
@@ -86,9 +88,11 @@ def _resolve_data_path(path: str) -> str:
 
 def _account_to_dict(acc: Account) -> dict:
     return {
+        "id": acc.id,
         "owner": acc.user.email if acc.user else None,
         "broker": acc.broker,
         "client_id": acc.client_id,
+        "username": acc.username,
         "token_expiry": acc.token_expiry,
         "status": acc.status,
         "role": acc.role,
@@ -97,7 +101,46 @@ def _account_to_dict(acc: Account) -> dict:
         "multiplier": acc.multiplier,
         "credentials": acc.credentials,
         "last_copied_trade_id": acc.last_copied_trade_id,
+        "auto_login": acc.auto_login,
+        "last_login": acc.last_login_time,
+        "device_number": acc.device_number,
     }
+
+def get_user_by_token(token: str):
+    """Get user by webhook token."""
+    return User.query.filter_by(webhook_token=token).first()
+
+def get_primary_account(user):
+    """Get the primary account for a user."""
+    if user.accounts:
+        return user.accounts[0]
+    return None
+
+def get_accounts_for_user(user_email: str):
+    """Get all accounts for a user."""
+    user = User.query.filter_by(email=user_email).first()
+    if not user:
+        return []
+    return user.accounts
+
+def get_master_accounts():
+    """Get all master accounts with their children."""
+    masters = Account.query.filter_by(role='master').all()
+    result = []
+    for master in masters:
+        children = Account.query.filter_by(
+            role='child', 
+            linked_master_id=master.client_id
+        ).all()
+        master_dict = _account_to_dict(master)
+        master_dict['children'] = [_account_to_dict(child) for child in children]
+        result.append(master_dict)
+    return result
+
+def get_account_by_client_id(client_id: str):
+    """Get account by client ID."""
+    return Account.query.filter_by(client_id=client_id).first()
+
 
 
 def _group_to_dict(g: Group) -> dict:
@@ -165,46 +208,58 @@ def _update_groups_from_dict(data: dict):
     db.session.commit()
 
 def safe_write_json(path, data):
-    if os.path.basename(path) == "accounts.json":
-        _update_accounts_from_dict(data)
-        return
-    if os.path.basename(path) == "groups.json":
-        _update_groups_from_dict(data)
-        return
+    """Legacy compatibility - redirect to database."""
+    if "accounts.json" in path:
+        # Update accounts in database
+        for acc_data in data.get("accounts", []):
+            client_id = acc_data.get("client_id")
+            if not client_id:
+                continue
+            acc = Account.query.filter_by(client_id=client_id).first()
+            if acc:
+                # Update existing account
+                acc.broker = acc_data.get("broker")
+                acc.username = acc_data.get("username")
+                acc.token_expiry = acc_data.get("token_expiry")
+                acc.status = acc_data.get("status", "Connected")
+                acc.role = acc_data.get("role")
+                acc.linked_master_id = acc_data.get("linked_master_id")
+                acc.copy_status = acc_data.get("copy_status", "Off")
+                acc.multiplier = acc_data.get("multiplier", 1.0)
+                acc.credentials = acc_data.get("credentials")
+                acc.last_copied_trade_id = acc_data.get("last_copied_trade_id")
+                acc.auto_login = acc_data.get("auto_login", True)
+                acc.last_login_time = acc_data.get("last_login")
+                acc.device_number = acc_data.get("device_number")
+        
+        # Handle marker keys
+        for k, v in data.items():
+            if k.startswith("last_copied_trade_id_"):
+                parts = k.split("_")
+                if len(parts) >= 5:
+                    child_id = parts[-1]
+                    acc = Account.query.filter_by(client_id=child_id).first()
+                    if acc:
+                        acc.last_copied_trade_id = str(v)
+        
+        db.session.commit()
 
-    path = _resolve_data_path(path)
-    dirpath = os.path.dirname(path) or "."
-    os.makedirs(dirpath, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath) as tmp:
-        json.dump(data, tmp, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-    shutil.move(tmp.name, path)
     
 
 def safe_read_json(path):
-    if os.path.basename(path) == "accounts.json":
-        data = {"accounts": [_account_to_dict(a) for a in Account.query.all()]}
+    """Legacy compatibility - redirect to database."""
+    if "accounts.json" in path:
+        accounts = Account.query.all()
+        data = {"accounts": [_account_to_dict(a) for a in accounts]}
+        # Add legacy markers for compatibility
         for acc in Account.query.filter(Account.role == "child").all():
-            if acc.linked_master_id:
+            if acc.linked_master_id and acc.last_copied_trade_id:
                 key = f"last_copied_trade_id_{acc.linked_master_id}_{acc.client_id}"
                 data[key] = acc.last_copied_trade_id
         return data
-
-    if os.path.basename(path) == "groups.json":
+    elif "groups.json" in path:
         return {"groups": [_group_to_dict(g) for g in Group.query.all()]}
-
-    path = _resolve_data_path(path)
-    if not os.path.exists(path):
-        return {}
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"Error reading {path}: {e}")
-        return {}
-
-EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
+    return {}
 
 def strip_emojis_from_obj(obj):
     """Recursively remove emoji characters from strings in lists/dicts."""
@@ -671,41 +726,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def poll_and_copy_trades():
-    """Run trade copying logic with application context for DB access."""
+    """Run trade copying logic with full database storage - no JSON files."""
     with app.app_context():
         logger.info("🔄 Starting poll_and_copy_trades() cycle...")
 
-        # Load accounts configuration
-        # Load accounts configuration from the database
-        all_accounts = [
-            {
-                "client_id": a.client_id,
-                "broker": a.broker,
-                "role": a.role,
-                "linked_master_id": a.linked_master_id,
-                "copy_status": a.copy_status,
-                "multiplier": a.multiplier,
-            }
-            for a in Account.query.all()
-        ]
-        masters = [acc for acc in all_accounts if acc.get("role") == "master"]
+        # Load master accounts from database
+        masters = Account.query.filter_by(role='master').all()
         if not masters:
             logger.warning("No master accounts configured")
             return
 
         logger.info(f"Found {len(masters)} master accounts to process")
+        
         for master in masters:
-            master_id = master.get("client_id")
+            master_id = master.client_id
             if not master_id:
                 logger.error("Master account missing client_id, skipping...")
                 continue
 
-            master_broker = master.get("broker", "Unknown").lower()
-            credentials = master.get("credentials", {})
+            master_broker = (master.broker or "Unknown").lower()
+            credentials = master.credentials or {}
+            
             if not credentials:
                 logger.error(f"No credentials found for master {master_id}, skipping...")
                 continue
 
+            # Initialize master broker API
             try:
                 BrokerClass = get_broker_class(master_broker)
                 if master_broker == "aliceblue":
@@ -716,9 +762,9 @@ def poll_and_copy_trades():
                     rest = {k: v for k, v in credentials.items()
                             if k not in ("access_token", "api_key", "device_number")}
                     master_api = BrokerClass(
-                        master.get("client_id"),
+                        master.client_id,
                         api_key,
-                        device_number=credentials.get("device_number"),
+                        device_number=credentials.get("device_number") or master.device_number,
                         **rest
                     )
                 elif master_broker == "finvasia":
@@ -728,7 +774,7 @@ def poll_and_copy_trades():
                         continue
                     imei = credentials.get("imei") or "abc1234"
                     master_api = BrokerClass(
-                        client_id=master.get("client_id"),
+                        client_id=master.client_id,
                         password=credentials["password"],
                         totp_secret=credentials["totp_secret"],
                         vendor_code=credentials["vendor_code"],
@@ -742,7 +788,7 @@ def poll_and_copy_trades():
                         continue
                     rest = {k: v for k, v in credentials.items() if k != "access_token"}
                     master_api = BrokerClass(
-                        client_id=master.get("client_id"),
+                        client_id=master.client_id,
                         access_token=access_token,
                         **rest
                     )
@@ -750,12 +796,15 @@ def poll_and_copy_trades():
                 logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
                 continue
 
+            # Fetch orders from master account
             try:
                 if master_broker == "aliceblue" and hasattr(master_api, "get_trade_book"):
                     orders_resp = master_api.get_trade_book()
                 else:
                     orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
+                
+                # Fallback for AliceBlue if trade book is empty
                 if (
                     master_broker == "aliceblue"
                     and not order_list
@@ -775,26 +824,34 @@ def poll_and_copy_trades():
                 logger.info(f"No orders found for master {master_id}")
                 continue
 
-            # Sort newest first
+            # Sort orders newest first
             try:
                 order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
             except Exception as e:
                 logger.error(f"Failed to sort orders for master {master_id}: {str(e)}")
                 continue
 
-            # Per-child marker logic
-            children = [acc for acc in all_accounts if acc.get("role") == "child" and acc.get("linked_master_id") == master_id and acc.get("copy_status") == "On"]
+            # Get active child accounts for this master from database
+            children = Account.query.filter_by(
+                role='child',
+                linked_master_id=master_id,
+                copy_status='On'
+            ).all()
+
+            if not children:
+                logger.info(f"No active children found for master {master_id}")
+                continue
+
+            logger.info(f"Processing {len(children)} active children for master {master_id}")
+
+            # Process each child account
             for child in children:
-                child_id = child.get("client_id")
-                last_copied_key = f"last_copied_trade_id_{master_id}_{child_id}"
-                last_copied_trade_id = accounts_data.get(last_copied_key)
-                if last_copied_trade_id is not None:
-                    last_copied_trade_id = str(last_copied_trade_id)
+                child_id = child.client_id
+                last_copied_trade_id = child.last_copied_trade_id
                 new_last_trade_id = None
 
-                # If no marker exists yet for this child, initialize it with
-                # the most recent trade ID so historical orders are not copied
-                if last_copied_trade_id is None:
+                # Initialize marker if not set - use most recent order to prevent historical copying
+                if not last_copied_trade_id:
                     if order_list:
                         first = order_list[0]
                         init_id = (
@@ -808,10 +865,14 @@ def poll_and_copy_trades():
                             or first.get("norenordno")  # Finvasia
                         )
                         if init_id:
-                            accounts_data[last_copied_key] = str(init_id)
-                            safe_write_json("accounts.json", accounts_data)
+                            child.last_copied_trade_id = str(init_id)
+                            db.session.commit()
+                            logger.info(f"Initialized marker for child {child_id} to {init_id}")
                     continue
 
+                logger.debug(f"Processing child {child_id}, last copied: {last_copied_trade_id}")
+
+                # Process each order from newest to oldest
                 for order in order_list:
                     order_id = (
                         order.get("orderId")
@@ -823,17 +884,22 @@ def poll_and_copy_trades():
                         or order.get("Nstordno")  # Alice Blue
                         or order.get("norenordno")  # Finvasia
                     )
+                    
                     if not order_id:
                         continue
+                        
+                    # Stop when we reach the last copied trade
                     if str(order_id) == last_copied_trade_id:
                         logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
                         break
 
+                    # Track the newest trade ID for updating marker
                     if new_last_trade_id is None:
                         new_last_trade_id = str(order_id)
 
-                    # --- Main copy logic/validations ---
+                    # Validate and extract order data
                     try:
+                        # Extract filled quantity
                         filled_qty = int(
                             order.get("filledQuantity")
                             or order.get("filled_qty")
@@ -849,6 +915,7 @@ def poll_and_copy_trades():
                             or 0
                         )
 
+                        # Extract and validate order status
                         order_status_raw = (
                             order.get("orderStatus")
                             or order.get("status")
@@ -857,6 +924,7 @@ def poll_and_copy_trades():
                             or order.get("report_type")
                             or ("COMPLETE" if filled_qty > 0 else "")
                         )
+                        
                         order_status = str(order_status_raw).upper() if order_status_raw else ""
                         status_mapping = {
                             "TRADED": "COMPLETE",
@@ -874,6 +942,8 @@ def poll_and_copy_trades():
                             "FAILED": "FAILED"
                         }
                         status = status_mapping.get(order_status, "UNKNOWN")
+
+                        # Handle AliceBlue special case for filled quantity
                         if filled_qty <= 0:
                             if master_broker == "aliceblue" and status == "COMPLETE":
                                 filled_qty = int(
@@ -886,12 +956,15 @@ def poll_and_copy_trades():
                             else:
                                 continue
 
+                        # Only process completed orders
                         if status != "COMPLETE":
                             continue
-                    except Exception:
+
+                    except Exception as e:
+                        logger.debug(f"Failed to extract order data: {e}")
                         continue
 
-
+                    # Extract price and transaction details
                     try:
                         price = float(
                             order.get("price")
@@ -908,6 +981,7 @@ def poll_and_copy_trades():
                         if price < 0:
                             continue
 
+                        # Extract transaction type
                         transaction_type_raw = (
                             order.get("transactionType")
                             or order.get("transaction_type")
@@ -917,10 +991,12 @@ def poll_and_copy_trades():
                             or order.get("Trantype")
                             or "BUY"
                         )
+                        
                         if isinstance(transaction_type_raw, (int, float)):
                             transaction_type_raw = (
                                 "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
                             )
+                            
                         transaction_type_map = {
                             "B": "BUY",
                             "S": "SELL",
@@ -934,9 +1010,12 @@ def poll_and_copy_trades():
                         transaction_type = transaction_type_map.get(
                             str(transaction_type_raw).upper(), "BUY"
                         )
-                    except Exception:
+
+                    except Exception as e:
+                        logger.debug(f"Failed to extract price/transaction data: {e}")
                         continue
 
+                    # Extract trading symbol
                     symbol = (
                         order.get("tradingSymbol")
                         or order.get("symbol")
@@ -949,38 +1028,46 @@ def poll_and_copy_trades():
                     if not symbol:
                         continue
 
+                    # Calculate quantity with multiplier
                     try:
-                        multiplier = float(child.get("multiplier", 1))
+                        multiplier = float(child.multiplier or 1)
                         if multiplier <= 0:
                             continue
                         copied_qty = max(1, int(float(filled_qty) * multiplier))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Failed to calculate quantity: {e}")
                         continue
 
                     # Initialize child broker API
                     try:
-                        child_broker = child.get("broker", "Unknown").lower()
-                        child_credentials = child.get("credentials", {})
+                        child_broker = (child.broker or "Unknown").lower()
+                        child_credentials = child.credentials or {}
                         ChildBrokerClass = get_broker_class(child_broker)
+                        
                         if child_broker == "aliceblue":
                             api_key = child_credentials.get("api_key")
                             if not api_key:
+                                logger.warning(f"Missing API key for AliceBlue child {child_id}")
                                 continue
-                            device_number = child_credentials.get("device_number")
+                            device_number = child_credentials.get("device_number") or child.device_number
                             rest_child = {
                                 k: v for k, v in child_credentials.items()
                                 if k not in ("access_token", "api_key", "device_number")
                             }
                             child_api = ChildBrokerClass(
-                                child.get("client_id"), api_key, device_number=device_number, **rest_child
+                                child.client_id, 
+                                api_key, 
+                                device_number=device_number, 
+                                **rest_child
                             )
                         elif child_broker == "finvasia":
                             required = ['password', 'totp_secret', 'vendor_code', 'api_key']
                             if not all(child_credentials.get(r) for r in required):
+                                logger.warning(f"Missing credentials for Finvasia child {child_id}")
                                 continue
                             imei = child_credentials.get('imei') or 'abc1234'
                             child_api = ChildBrokerClass(
-                                client_id=child.get("client_id"),
+                                client_id=child.client_id,
                                 password=child_credentials['password'],
                                 totp_secret=child_credentials['totp_secret'],
                                 vendor_code=child_credentials['vendor_code'],
@@ -990,25 +1077,29 @@ def poll_and_copy_trades():
                         else:
                             access_token = child_credentials.get("access_token")
                             if not access_token:
+                                logger.warning(f"Missing access token for {child_broker} child {child_id}")
                                 continue
                             rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
                             child_api = ChildBrokerClass(
-                                client_id=child.get("client_id"),
+                                client_id=child.client_id,
                                 access_token=access_token,
                                 **rest_child
                             )
-                    except Exception:
+                    except Exception as e:
+                        logger.error(f"Failed to initialize child API for {child_id}: {e}")
                         continue
 
                     # Get symbol mapping for child broker
                     try:
                         mapping_child = get_symbol_for_broker(symbol, child_broker)
                         if not mapping_child:
+                            logger.warning(f"Symbol mapping not found for {symbol} on {child_broker}")
                             continue
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"Symbol mapping error for {symbol}: {e}")
                         continue
 
-                    # Prepare order parameters based on broker type
+                    # Build order parameters based on broker type
                     try:
                         if child_broker == "dhan":
                             security_id = (
@@ -1068,12 +1159,19 @@ def poll_and_copy_trades():
                                 "product": "MIS",
                                 "price": price or 0
                             }
+
+                        # Place the order
+                        logger.info(f"Placing {transaction_type} order for {copied_qty} {symbol} on {child_broker} for child {child_id}")
                         response = child_api.place_order(**order_params)
-                    except Exception:
+
+                    except Exception as e:
+                        logger.error(f"Failed to place order for child {child_id}: {e}")
                         continue
 
                     # Handle order response and record trade
                     try:
+                        user_email = child.user.email if child.user else "unknown"
+                        
                         if isinstance(response, dict):
                             if response.get("status") == "failure":
                                 error_msg = (
@@ -1082,6 +1180,9 @@ def poll_and_copy_trades():
                                     or response.get("message")
                                     or "Unknown error"
                                 )
+                                logger.warning(f"Order failed for child {child_id}: {error_msg}")
+                                
+                                # Log the failure
                                 save_log(
                                     child_id,
                                     symbol,
@@ -1091,7 +1192,7 @@ def poll_and_copy_trades():
                                     error_msg
                                 )
                                 record_trade(
-                                    child.get('owner'),
+                                    user_email,
                                     symbol,
                                     transaction_type,
                                     copied_qty,
@@ -1099,6 +1200,7 @@ def poll_and_copy_trades():
                                     'FAILED'
                                 )
                             else:
+                                # Extract child order ID
                                 order_id_child = (
                                     response.get("order_id")
                                     or response.get("orderId")
@@ -1107,8 +1209,10 @@ def poll_and_copy_trades():
                                     or response.get("orderNumber")
                                     or response.get("norenordno")
                                 )
-                                if not order_id_child:
-                                    continue
+                                
+                                logger.info(f"Order successful for child {child_id}: {order_id_child}")
+                                
+                                # Log the success
                                 save_log(
                                     child_id,
                                     symbol,
@@ -1117,34 +1221,47 @@ def poll_and_copy_trades():
                                     "SUCCESS",
                                     str(response)
                                 )
-                                save_order_mapping(
-                                    master_order_id=order_id,
-                                    child_order_id=order_id_child,
-                                    master_id=master_id,
-                                    master_broker=master_broker,
-                                    child_id=child_id,
-                                    child_broker=child_broker,
-                                    symbol=symbol
-                                )
+                                
+                                # Save order mapping
+                                if order_id_child:
+                                    save_order_mapping(
+                                        master_order_id=str(order_id),
+                                        child_order_id=str(order_id_child),
+                                        master_id=master_id,
+                                        master_broker=master_broker,
+                                        child_id=child_id,
+                                        child_broker=child_broker,
+                                        symbol=symbol
+                                    )
+                                
+                                # Record successful trade
                                 record_trade(
-                                    child.get('owner'),
+                                    user_email,
                                     symbol,
                                     transaction_type,
                                     copied_qty,
                                     price,
                                     'SUCCESS'
                                 )
-                                if new_last_trade_id is None:
-                                    new_last_trade_id = str(order_id)
                         else:
+                            logger.warning(f"Unexpected response format for child {child_id}: {type(response)}")
                             continue
-                    except Exception:
+                            
+                    except Exception as e:
+                        logger.error(f"Failed to handle response for child {child_id}: {e}")
                         continue
 
+                # Update the last copied trade marker in database
                 if new_last_trade_id:
-                    accounts_data[last_copied_key] = new_last_trade_id
-                    safe_write_json("accounts.json", accounts_data)
+                    child.last_copied_trade_id = new_last_trade_id
+                    try:
+                        db.session.commit()
+                        logger.debug(f"Updated marker for child {child_id} to {new_last_trade_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to update marker for child {child_id}: {e}")
+                        db.session.rollback()
 
+        logger.info("🏁 Poll and copy trades cycle completed")
 
 def start_scheduler():
     """Initialize and start the background scheduler for trade copying.
@@ -2734,29 +2851,37 @@ def add_account():
 @login_required
 def get_accounts():
     try:
-        accounts_data = safe_read_json("accounts.json")
-        user = session.get("user")
-        accounts = [a for a in accounts_data["accounts"] if a.get("owner") == user]
+        user_email = session.get("user")
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
+        accounts = [_account_to_dict(acc) for acc in user.accounts]
+
+        # Add opening balances
         for acc in accounts:
             bal = get_opening_balance_for_account(acc)
             if bal is not None:
                 acc["opening_balance"] = bal
 
+        # Group masters with their children
         masters = []
         for acc in accounts:
             if acc.get("role") == "master":
-                # Attach children to each master
-                children = [child for child in accounts if child.get("role") == "child" and child.get("linked_master_id") == acc.get("client_id")]
+                children = Account.query.filter_by(
+                    role="child", 
+                    linked_master_id=acc.get("client_id")
+                ).all()
                 acc_copy = dict(acc)
-                acc_copy["children"] = children
+                acc_copy["children"] = [_account_to_dict(child) for child in children]
                 masters.append(acc_copy)
+
         return jsonify({
             "masters": masters,
             "accounts": accounts
         })
     except Exception as e:
-        print(f"❌ Error in /api/accounts: {str(e)}")
+        logger.error(f"Error in /api/accounts: {str(e)}")
         return jsonify({"error": str(e)}), 500
         
 @app.route('/api/groups', methods=['GET'])
@@ -2953,28 +3078,31 @@ def place_group_order():
     
 # Set master account
 @app.route('/api/set-master', methods=['POST'])
+@login_required
 def set_master():
     try:
         client_id = request.json.get('client_id')
         if not client_id:
             return jsonify({"error": "Missing client_id"}), 400
 
-        accounts_data = safe_read_json("accounts.json")
-            
-        user = session.get("user")
-        found = False
-        for acc in accounts_data["accounts"]:
-            if acc.get("client_id") == client_id and acc.get("owner") == user:
-                acc["role"] = "master"
-                acc.pop("linked_master_id", None)
-                acc["copy_status"] = "Off"
-                acc["multiplier"] = 1
-                found = True    # <-- This line was missing!
+        user_email = session.get("user")
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
-        if not found:
+        account = Account.query.filter_by(
+            user_id=user.id, 
+            client_id=client_id
+        ).first()
+        
+        if not account:
             return jsonify({"error": "Account not found"}), 404
 
-        safe_write_json("accounts.json", accounts_data)
+        account.role = "master"
+        account.linked_master_id = None
+        account.copy_status = "Off"
+        account.multiplier = 1.0
+        db.session.commit()
 
         return jsonify({"message": "Set as master successfully"})
     except Exception as e:
@@ -2986,24 +3114,28 @@ def set_child():
     try:
         client_id = request.json.get('client_id')
         linked_master_id = request.json.get('linked_master_id')
+        
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
 
-        accounts_data = safe_read_json("accounts.json")
-        user = session.get("user")
-        found = False
-        for acc in accounts_data["accounts"]:
-            if acc.get("client_id") == client_id and acc.get("owner") == user:
-                acc["role"] = "child"
-                acc["linked_master_id"] = linked_master_id
-                acc["copy_status"] = "Off"
-                acc["multiplier"] = 1
-                found = True   # <-- This line was missing!
+        user_email = session.get("user")
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
-        if not found:
+        account = Account.query.filter_by(
+            user_id=user.id, 
+            client_id=client_id
+        ).first()
+        
+        if not account:
             return jsonify({"error": "Account not found"}), 404
 
-        safe_write_json("accounts.json", accounts_data)
+        account.role = "child"
+        account.linked_master_id = linked_master_id
+        account.copy_status = "Off"
+        account.multiplier = 1.0
+        db.session.commit()
 
         return jsonify({"message": "Set as child successfully"})
     except Exception as e:
@@ -3645,27 +3777,92 @@ def admin_change_subscription(user_id):
 with app.app_context():
     from sqlalchemy import text
     
-    try:
-        # First attempt: Increase password_hash column size from 128 to 256
-        with db.engine.connect() as connection:
-            connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(256);'))
-            connection.commit()
-        print("✅ Successfully upgraded password_hash column to VARCHAR(256).")
-    except Exception as e:
-        print(f"Migration attempt 1 info: {e}")
-        
-        try:
-            # Second attempt: Change to TEXT type (unlimited length)
-            with db.engine.connect() as connection:
-                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-                connection.commit()
-            print("✅ Successfully upgraded password_hash column to TEXT.")
-        except Exception as e2:
-            print(f"Migration attempt 2 info: {e2}")
+    print("🔧 Starting database migration...")
     
-    # Ensure all tables are created
-    db.create_all()
-    print("✅ Database initialization complete.")
+    try:
+        # Migrate password_hash column
+        with db.engine.connect() as connection:
+            connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+            connection.commit()
+        print("✅ Successfully upgraded password_hash column to TEXT.")
+    except Exception as e:
+        print(f"❌ Password hash migration: {e}")
+    
+    try:
+        # Create all tables with new schema
+        db.create_all()
+        print("✅ Database tables created/updated successfully.")
+        
+        # Migrate any existing JSON data to database
+        migrate_json_to_database()
+        print("✅ JSON data migration completed.")
+        
+    except Exception as e:
+        print(f"❌ Error during database setup: {e}")
+    
+    print("🏁 Database migration complete - fully database-driven!")
+
+def migrate_json_to_database():
+    """Migrate existing JSON data to database (run once)."""
+    try:
+        # Check if accounts.json exists and migrate
+        accounts_file = os.path.join(DATA_DIR, "accounts.json")
+        if os.path.exists(accounts_file):
+            print("📦 Migrating accounts.json to database...")
+            with open(accounts_file, 'r') as f:
+                data = json.load(f)
+            
+            for acc_data in data.get("accounts", []):
+                client_id = acc_data.get("client_id")
+                owner_email = acc_data.get("owner")
+                
+                if not client_id or not owner_email:
+                    continue
+                
+                # Get or create user
+                user = User.query.filter_by(email=owner_email).first()
+                if not user:
+                    user = User(email=owner_email)
+                    db.session.add(user)
+                    db.session.flush()
+                
+                # Check if account already exists
+                existing = Account.query.filter_by(
+                    user_id=user.id, 
+                    client_id=client_id
+                ).first()
+                
+                if not existing:
+                    account = Account(
+                        user_id=user.id,
+                        broker=acc_data.get("broker"),
+                        client_id=client_id,
+                        username=acc_data.get("username"),
+                        token_expiry=acc_data.get("token_expiry"),
+                        status=acc_data.get("status", "Connected"),
+                        role=acc_data.get("role"),
+                        linked_master_id=acc_data.get("linked_master_id"),
+                        copy_status=acc_data.get("copy_status", "Off"),
+                        multiplier=acc_data.get("multiplier", 1.0),
+                        credentials=acc_data.get("credentials"),
+                        last_copied_trade_id=acc_data.get("last_copied_trade_id"),
+                        auto_login=acc_data.get("auto_login", True),
+                        last_login_time=acc_data.get("last_login"),
+                        device_number=acc_data.get("device_number")
+                    )
+                    db.session.add(account)
+            
+            db.session.commit()
+            print("✅ Accounts migrated successfully!")
+            
+            # Backup and remove old file
+            backup_path = accounts_file + ".backup"
+            os.rename(accounts_file, backup_path)
+            print(f"📁 Old accounts.json backed up to {backup_path}")
+            
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        db.session.rollback()
 
 scheduler = start_scheduler()
 
