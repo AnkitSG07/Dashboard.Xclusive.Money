@@ -14,6 +14,9 @@ import os
 import json
 import pandas as pd
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 import io
 from datetime import datetime, timedelta, date
 import requests
@@ -40,15 +43,36 @@ from models import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
+import logging
+from logging.handlers import RotatingFileHandler
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
 
+# Configuration Constants
+POLLING_INTERVAL = int(os.environ.get("POLLING_INTERVAL", "10"))
+API_TIMEOUT = int(os.environ.get("API_TIMEOUT", "3"))
+MAX_MASTERS_PER_CYCLE = int(os.environ.get("MAX_MASTERS_PER_CYCLE", "100"))
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me")
-CORS(app)
-# Persist data in a configurable directory. By default this is ``./data`` so
-# that files survive across redeploys on platforms like Render.
+app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+
+# Security Configuration
+CORS(app, origins=os.environ.get("ALLOWED_ORIGINS", "*").split(","))
+if ENVIRONMENT == "production":
+    Talisman(app, force_https=True)
+
+# Rate Limiting
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["1000 per day", "100 per hour"],
+    storage_uri=os.environ.get("REDIS_URL", "memory://")
+)
+
+# Database Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -57,11 +81,53 @@ DB_PATH = os.path.join(DATA_DIR, "quantbot.db")
 db_url = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "pool_size": int(os.environ.get("DB_POOL_SIZE", "10")),
+    "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "20")),
+    "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "3600"))
+}
 
 db.init_app(app)
 start_time = datetime.utcnow()
-device_number = None
+
+# Logging Configuration
+def setup_logging():
+    """Configure comprehensive logging for production"""
+    log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+    
+    # Create logs directory
+    log_dir = os.path.join(DATA_DIR, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Main application logger
+    app_logger = logging.getLogger(__name__)
+    app_logger.setLevel(log_level)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    )
+    console_handler.setFormatter(console_formatter)
+    app_logger.addHandler(console_handler)
+    
+    # File handler with rotation
+    if ENVIRONMENT == "production":
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, "app.log"),
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=10
+        )
+        file_formatter = logging.Formatter(
+            '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        )
+        file_handler.setFormatter(file_formatter)
+        app_logger.addHandler(file_handler)
+    
+    return app_logger
+
+logger = setup_logging()
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
@@ -72,6 +138,44 @@ BROKER_STATUS_URLS = {
     "groww": "https://groww.in",
 }
 
+# Validation patterns
+CLIENT_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{3,50}$')
+BROKER_PATTERN = re.compile(r'^[a-z]{3,20}$')
+
+def validate_client_id(client_id: str) -> bool:
+    """Validate client ID format"""
+    return bool(CLIENT_ID_PATTERN.match(client_id)) if client_id else False
+
+def validate_broker(broker: str) -> bool:
+    """Validate broker name format"""
+    return bool(BROKER_PATTERN.match(broker)) if broker else False
+
+def require_user(f):
+    """Decorator to get current user and handle authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_email = session.get("user")
+        if not user_email:
+            return jsonify({"error": "Authentication required"}), 401
+            
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            logger.error(f"User not found in database: {user_email}")
+            session.clear()  # Clear invalid session
+            return jsonify({"error": "User not found"}), 404
+            
+        # Add user to request context
+        request.current_user = user
+        return f(*args, **kwargs)
+    return decorated_function
+
+def safe_json_response(data, status_code=200):
+    """Return safe JSON response without exposing internal details in production"""
+    if ENVIRONMENT == "production" and status_code >= 500:
+        if isinstance(data, dict) and "details" in data:
+            # Remove detailed error information in production
+            data = {"error": data.get("error", "Internal server error")}
+    return jsonify(data), status_code
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
@@ -87,7 +191,6 @@ def _resolve_data_path(path: str) -> str:
     if os.path.isabs(path) or os.path.dirname(path):
         return path
     return os.path.join(DATA_DIR, path)
-
 
 def _account_to_dict(acc: Account) -> dict:
     return {
@@ -128,7 +231,7 @@ def get_accounts_for_user(user_email: str):
 
 def get_master_accounts():
     """Get all master accounts with their children."""
-    masters = Account.query.filter_by(role='master').all()
+    masters = Account.query.filter_by(role='master').limit(MAX_MASTERS_PER_CYCLE).all()
     result = []
     for master in masters:
         children = Account.query.filter_by(
@@ -144,125 +247,12 @@ def get_account_by_client_id(client_id: str):
     """Get account by client ID."""
     return Account.query.filter_by(client_id=client_id).first()
 
-
-
 def _group_to_dict(g: Group) -> dict:
     return {
         "name": g.name,
         "owner": g.user.email if g.user else None,
         "members": [a.client_id for a in g.accounts],
     }
-
-
-def _update_accounts_from_dict(data: dict):
-    for entry in data.get("accounts", []):
-        cid = entry.get("client_id")
-        if not cid:
-            continue
-        account = Account.query.filter_by(client_id=cid).first()
-        if not account:
-            owner = entry.get("owner")
-            user = User.query.filter_by(email=owner).first()
-            if not user:
-                user = User(email=owner)
-                db.session.add(user)
-                db.session.commit()
-            account = Account(client_id=cid, user_id=user.id)
-            db.session.add(account)
-        account.broker = entry.get("broker")
-        account.token_expiry = entry.get("token_expiry")
-        account.status = entry.get("status")
-        account.role = entry.get("role")
-        account.linked_master_id = entry.get("linked_master_id")
-        account.copy_status = entry.get("copy_status", "Off")
-        account.multiplier = entry.get("multiplier", 1.0)
-        account.credentials = entry.get("credentials")
-        account.last_copied_trade_id = entry.get("last_copied_trade_id")
-    # Handle marker keys
-    for k, v in data.items():
-        if k.startswith("last_copied_trade_id_"):
-            parts = k.split("_")
-            if len(parts) >= 5:
-                child_id = parts[-1]
-                acc = Account.query.filter_by(client_id=child_id).first()
-                if acc:
-                    acc.last_copied_trade_id = str(v)
-    db.session.commit()
-
-
-def _update_groups_from_dict(data: dict):
-    for g in data.get("groups", []):
-        owner = g.get("owner")
-        user = User.query.filter_by(email=owner).first()
-        if not user:
-            user = User(email=owner)
-            db.session.add(user)
-            db.session.commit()
-        group = Group.query.filter_by(name=g.get("name"), user_id=user.id).first()
-        if not group:
-            group = Group(name=g.get("name"), user_id=user.id)
-            db.session.add(group)
-            db.session.commit()
-        group.accounts = []
-        for cid in g.get("members", []):
-            acc = Account.query.filter_by(client_id=cid, user_id=user.id).first()
-            if acc and acc not in group.accounts:
-                group.accounts.append(acc)
-    db.session.commit()
-
-def safe_write_json(path, data):
-    """Legacy compatibility - redirect to database."""
-    if "accounts.json" in path:
-        # Update accounts in database
-        for acc_data in data.get("accounts", []):
-            client_id = acc_data.get("client_id")
-            if not client_id:
-                continue
-            acc = Account.query.filter_by(client_id=client_id).first()
-            if acc:
-                # Update existing account
-                acc.broker = acc_data.get("broker")
-                acc.username = acc_data.get("username")
-                acc.token_expiry = acc_data.get("token_expiry")
-                acc.status = acc_data.get("status", "Connected")
-                acc.role = acc_data.get("role")
-                acc.linked_master_id = acc_data.get("linked_master_id")
-                acc.copy_status = acc_data.get("copy_status", "Off")
-                acc.multiplier = acc_data.get("multiplier", 1.0)
-                acc.credentials = acc_data.get("credentials")
-                acc.last_copied_trade_id = acc_data.get("last_copied_trade_id")
-                acc.auto_login = acc_data.get("auto_login", True)
-                acc.last_login_time = acc_data.get("last_login")
-                acc.device_number = acc_data.get("device_number")
-        
-        # Handle marker keys
-        for k, v in data.items():
-            if k.startswith("last_copied_trade_id_"):
-                parts = k.split("_")
-                if len(parts) >= 5:
-                    child_id = parts[-1]
-                    acc = Account.query.filter_by(client_id=child_id).first()
-                    if acc:
-                        acc.last_copied_trade_id = str(v)
-        
-        db.session.commit()
-
-    
-
-def safe_read_json(path):
-    """Legacy compatibility - redirect to database."""
-    if "accounts.json" in path:
-        accounts = Account.query.all()
-        data = {"accounts": [_account_to_dict(a) for a in accounts]}
-        # Add legacy markers for compatibility
-        for acc in Account.query.filter(Account.role == "child").all():
-            if acc.linked_master_id and acc.last_copied_trade_id:
-                key = f"last_copied_trade_id_{acc.linked_master_id}_{acc.client_id}"
-                data[key] = acc.last_copied_trade_id
-        return data
-    elif "groups.json" in path:
-        return {"groups": [_group_to_dict(g) for g in Group.query.all()]}
-    return {}
 
 def strip_emojis_from_obj(obj):
     """Recursively remove emoji characters from strings in lists/dicts."""
@@ -318,7 +308,6 @@ TIME_FORMATS = [
     "%d-%m-%Y %H:%M",
 ]
 
-
 def parse_timestamp(value):
     """Parse diverse timestamp formats to a ``datetime`` object."""
     if not value:
@@ -334,7 +323,6 @@ def parse_timestamp(value):
         except Exception:
             continue
     return None
-
 
 def get_order_sort_key(order):
     """Return a sort key for an order based on timestamp or order ID."""
@@ -426,7 +414,6 @@ def broker_api(obj):
         vendor_code = rest.pop("vendor_code", None)
         api_key = rest.pop("api_key", None)
         imei = rest.pop("imei", "abc1234") or "abc1234"
-        # Pass args as named, not positional, for clarity and to match the new class
         return BrokerClass(
             client_id=client_id,
             password=password,
@@ -440,8 +427,6 @@ def broker_api(obj):
     elif broker == "groww":
         return BrokerClass(client_id, access_token, **rest)
     return BrokerClass(client_id, access_token, **rest)
-    
-    
 
 def get_opening_balance_for_account(acc):
     """Instantiate broker and try to fetch opening balance."""
@@ -456,7 +441,7 @@ def get_opening_balance_for_account(acc):
             data = resp.get("data", resp) if isinstance(resp, dict) else resp
             return extract_balance(data)
     except Exception as e:
-        print(f"Failed to fetch balance for {acc.get('client_id')}: {e}")
+        logger.error(f"Failed to fetch balance for {acc.get('client_id')}: {e}")
     return None
 
 # Utility loaders for admin dashboard
@@ -473,7 +458,6 @@ def load_logs():
     return WebhookLog.query.all(), SystemLog.query.all()
 
 def load_settings():
-    # Return all key/value settings stored in the DB
     result = {'trading_enabled': True}
     for s in Setting.query.all():
         if s.key == 'trading_enabled':
@@ -492,12 +476,10 @@ def save_settings(settings):
             s.value = str(value)
     db.session.commit()
 
-
 def save_account_to_user(owner: str, account: dict):
     """Persist account credentials to the database."""
     user = User.query.filter_by(email=owner).first()
     if not user:
-        # Create shell user if not present
         user = User(email=owner)
         db.session.add(user)
         db.session.commit()
@@ -506,14 +488,18 @@ def save_account_to_user(owner: str, account: dict):
         user_id=user.id,
         broker=account.get("broker"),
         client_id=account.get("client_id"),
+        username=account.get("username"),
         token_expiry=account.get("token_expiry"),
-        status=account.get("status", "active"),
+        status=account.get("status", "Connected"),
         role=account.get("role"),
         linked_master_id=account.get("linked_master_id"),
         copy_status=account.get("copy_status", "Off"),
         multiplier=account.get("multiplier", 1.0),
         credentials=account.get("credentials"),
         last_copied_trade_id=account.get("last_copied_trade_id"),
+        auto_login=account.get("auto_login", True),
+        last_login_time=account.get("last_login"),
+        device_number=account.get("device_number")
     )
     db.session.add(acc)
     db.session.commit()
@@ -572,21 +558,18 @@ def get_user_credentials(identifier: str):
         "credentials": creds,
     }
 
-
 def format_uptime():
     delta = datetime.utcnow() - start_time
     hours, remainder = divmod(int(delta.total_seconds()), 3600)
     minutes, _ = divmod(remainder, 60)
     return f"{hours}h {minutes}m"
 
-
 def check_api(url: str) -> bool:
     try:
-        resp = requests.get(url, timeout=3)
+        resp = requests.get(url, timeout=API_TIMEOUT)
         return resp.ok
     except Exception:
         return False
-
 
 def find_account_by_client_id(client_id):
     """Return ``(account, parent_master)`` for the provided ``client_id`` using the database."""
@@ -599,7 +582,6 @@ def find_account_by_client_id(client_id):
         return acc, master
     return acc, None
 
-
 def clean_response_message(response):
     if isinstance(response, dict):
         remarks = response.get("remarks")
@@ -610,7 +592,6 @@ def clean_response_message(response):
                 or str(remarks)
             )
 
-        # Common error fields returned by different broker APIs
         error_fields = [
             remarks,
             response.get("error"),
@@ -630,21 +611,21 @@ def clean_response_message(response):
         if any(field is not None for field in error_fields):
             return "Unknown error"
 
-        # Fallback to raw JSON dump for debugging
         return json.dumps(response)
 
     return str(response)
 
-
-# === Initialize SQLite DB ===
+# Initialize SQLite DB
 def init_db():
     """Create all database tables."""
     with app.app_context():
         db.create_all()
+        logger.info("Database tables initialized")
 
+# Only run init_db, not migrations on startup
 init_db()
 
-# === Save logs ===
+# Save logs
 def save_log(user_id, symbol, action, quantity, status, response):
     """Persist a trade log entry using SQLAlchemy."""
     log = TradeLog(
@@ -675,8 +656,6 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
     db.session.add(mapping)
     db.session.commit()
 
-
-
 def record_trade(user_email, symbol, action, qty, price, status):
     """Persist a trade record to the database."""
     user = User.query.filter_by(email=user_email).first()
@@ -691,7 +670,6 @@ def record_trade(user_email, symbol, action, qty, price, status):
     )
     db.session.add(trade)
     db.session.commit()
-
 
 # Authentication decorator
 def login_required(view):
@@ -713,610 +691,591 @@ def admin_login_required(view):
             return redirect(url_for("admin_login"))
         return view(*args, **kwargs)
     return wrapped
-    
-import os
-import json
-import logging
-
-# Setup logging at the top of your main file or app entrypoint
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler()  # You can add FileHandler here if needed
-    ]
-)
-logger = logging.getLogger(__name__)
 
 def poll_and_copy_trades():
     """Run trade copying logic with full database storage - no JSON files."""
     with app.app_context():
-        logger.info("🔄 Starting poll_and_copy_trades() cycle...")
+        try:
+            logger.info("🔄 Starting poll_and_copy_trades() cycle...")
 
-        # Load master accounts from database
-        masters = Account.query.filter_by(role='master').all()
-        if not masters:
-            logger.warning("No master accounts configured")
-            return
+            masters = Account.query.filter_by(role='master').limit(MAX_MASTERS_PER_CYCLE).all()
+            if not masters:
+                logger.debug("No master accounts configured")
+                return
 
-        logger.info(f"Found {len(masters)} master accounts to process")
-        
-        for master in masters:
-            master_id = master.client_id
-            if not master_id:
-                logger.error("Master account missing client_id, skipping...")
-                continue
-
-            master_broker = (master.broker or "Unknown").lower()
-            credentials = master.credentials or {}
+            logger.info(f"Found {len(masters)} master accounts to process")
             
-            if not credentials:
-                logger.error(f"No credentials found for master {master_id}, skipping...")
-                continue
-
-            # Initialize master broker API
-            try:
-                BrokerClass = get_broker_class(master_broker)
-                if master_broker == "aliceblue":
-                    api_key = credentials.get("api_key")
-                    if not api_key:
-                        logger.error(f"Missing API key for AliceBlue master {master_id}")
-                        continue
-                    rest = {k: v for k, v in credentials.items()
-                            if k not in ("access_token", "api_key", "device_number")}
-                    master_api = BrokerClass(
-                        master.client_id,
-                        api_key,
-                        device_number=credentials.get("device_number") or master.device_number,
-                        **rest
-                    )
-                elif master_broker == "finvasia":
-                    required = ["password", "totp_secret", "vendor_code", "api_key"]
-                    if not all(credentials.get(r) for r in required):
-                        logger.error(f"Missing credentials for finvasia master {master_id}")
-                        continue
-                    imei = credentials.get("imei") or "abc1234"
-                    master_api = BrokerClass(
-                        client_id=master.client_id,
-                        password=credentials["password"],
-                        totp_secret=credentials["totp_secret"],
-                        vendor_code=credentials["vendor_code"],
-                        api_key=credentials["api_key"],
-                        imei=imei
-                    )
-                else:
-                    access_token = credentials.get("access_token")
-                    if not access_token:
-                        logger.error(f"Missing access token for {master_broker} master {master_id}")
-                        continue
-                    rest = {k: v for k, v in credentials.items() if k != "access_token"}
-                    master_api = BrokerClass(
-                        client_id=master.client_id,
-                        access_token=access_token,
-                        **rest
-                    )
-            except Exception as e:
-                logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
-                continue
-
-            # Fetch orders from master account
-            try:
-                if master_broker == "aliceblue" and hasattr(master_api, "get_trade_book"):
-                    orders_resp = master_api.get_trade_book()
-                else:
-                    orders_resp = master_api.get_order_list()
-                order_list = parse_order_list(orders_resp)
-                
-                # Fallback for AliceBlue if trade book is empty
-                if (
-                    master_broker == "aliceblue"
-                    and not order_list
-                    and hasattr(master_api, "get_order_list")
-                ):
-                    orders_resp = master_api.get_order_list()
-                    order_list = parse_order_list(orders_resp)
-            except Exception as e:
-                logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
-                continue
-
-            order_list = strip_emojis_from_obj(order_list or [])
-            if not isinstance(order_list, list):
-                logger.error(f"Invalid order list type for master {master_id}: {type(order_list)}")
-                continue
-            if not order_list:
-                logger.info(f"No orders found for master {master_id}")
-                continue
-
-            # Sort orders newest first
-            try:
-                order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
-            except Exception as e:
-                logger.error(f"Failed to sort orders for master {master_id}: {str(e)}")
-                continue
-
-            # Get active child accounts for this master from database
-            children = Account.query.filter_by(
-                role='child',
-                linked_master_id=master_id,
-                copy_status='On'
-            ).all()
-
-            if not children:
-                logger.info(f"No active children found for master {master_id}")
-                continue
-
-            logger.info(f"Processing {len(children)} active children for master {master_id}")
-
-            # Process each child account
-            for child in children:
-                child_id = child.client_id
-                last_copied_trade_id = child.last_copied_trade_id
-                new_last_trade_id = None
-
-                # Initialize marker if not set - use most recent order to prevent historical copying
-                if not last_copied_trade_id:
-                    if order_list:
-                        first = order_list[0]
-                        init_id = (
-                            first.get("orderId")
-                            or first.get("order_id")
-                            or first.get("id")
-                            or first.get("NOrdNo")
-                            or first.get("nestOrderNumber")
-                            or first.get("orderNumber")
-                            or first.get("Nstordno")
-                            or first.get("norenordno")  # Finvasia
-                        )
-                        if init_id:
-                            child.last_copied_trade_id = str(init_id)
-                            db.session.commit()
-                            logger.info(f"Initialized marker for child {child_id} to {init_id}")
+            for master in masters:
+                master_id = master.client_id
+                if not master_id:
+                    logger.error("Master account missing client_id, skipping...")
                     continue
 
-                logger.debug(f"Processing child {child_id}, last copied: {last_copied_trade_id}")
+                master_broker = (master.broker or "Unknown").lower()
+                credentials = master.credentials or {}
+                
+                if not credentials:
+                    logger.error(f"No credentials found for master {master_id}, skipping...")
+                    continue
 
-                # Process each order from newest to oldest
-                for order in order_list:
-                    order_id = (
-                        order.get("orderId")
-                        or order.get("order_id")
-                        or order.get("id")
-                        or order.get("NOrdNo")
-                        or order.get("nestOrderNumber")
-                        or order.get("orderNumber")
-                        or order.get("Nstordno")  # Alice Blue
-                        or order.get("norenordno")  # Finvasia
-                    )
+                # Initialize master broker API
+                try:
+                    BrokerClass = get_broker_class(master_broker)
+                    if master_broker == "aliceblue":
+                        api_key = credentials.get("api_key")
+                        if not api_key:
+                            logger.error(f"Missing API key for AliceBlue master {master_id}")
+                            continue
+                        rest = {k: v for k, v in credentials.items()
+                                if k not in ("access_token", "api_key", "device_number")}
+                        master_api = BrokerClass(
+                            master.client_id,
+                            api_key,
+                            device_number=credentials.get("device_number") or master.device_number,
+                            **rest
+                        )
+                    elif master_broker == "finvasia":
+                        required = ["password", "totp_secret", "vendor_code", "api_key"]
+                        if not all(credentials.get(r) for r in required):
+                            logger.error(f"Missing credentials for finvasia master {master_id}")
+                            continue
+                        imei = credentials.get("imei") or "abc1234"
+                        master_api = BrokerClass(
+                            client_id=master.client_id,
+                            password=credentials["password"],
+                            totp_secret=credentials["totp_secret"],
+                            vendor_code=credentials["vendor_code"],
+                            api_key=credentials["api_key"],
+                            imei=imei
+                        )
+                    else:
+                        access_token = credentials.get("access_token")
+                        if not access_token:
+                            logger.error(f"Missing access token for {master_broker} master {master_id}")
+                            continue
+                        rest = {k: v for k, v in credentials.items() if k != "access_token"}
+                        master_api = BrokerClass(
+                            client_id=master.client_id,
+                            access_token=access_token,
+                            **rest
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}")
+                    continue
+
+                # Fetch orders from master account
+                try:
+                    if master_broker == "aliceblue" and hasattr(master_api, "get_trade_book"):
+                        orders_resp = master_api.get_trade_book()
+                    else:
+                        orders_resp = master_api.get_order_list()
+                    order_list = parse_order_list(orders_resp)
                     
-                    if not order_id:
-                        continue
-                        
-                    # Stop when we reach the last copied trade
-                    if str(order_id) == last_copied_trade_id:
-                        logger.info(f"[{master_id}->{child_id}] Reached last copied trade {order_id}. Stopping here.")
-                        break
+                    if (
+                        master_broker == "aliceblue"
+                        and not order_list
+                        and hasattr(master_api, "get_order_list")
+                    ):
+                        orders_resp = master_api.get_order_list()
+                        order_list = parse_order_list(orders_resp)
+                except Exception as e:
+                    logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
+                    continue
 
-                    # Track the newest trade ID for updating marker
-                    if new_last_trade_id is None:
-                        new_last_trade_id = str(order_id)
+                order_list = strip_emojis_from_obj(order_list or [])
+                if not isinstance(order_list, list):
+                    logger.error(f"Invalid order list type for master {master_id}: {type(order_list)}")
+                    continue
+                if not order_list:
+                    logger.debug(f"No orders found for master {master_id}")
+                    continue
 
-                    # Validate and extract order data
-                    try:
-                        # Extract filled quantity
-                        filled_qty = int(
-                            order.get("filledQuantity")
-                            or order.get("filled_qty")
-                            or order.get("filledQty")
-                            or order.get("tradedQty")
-                            or order.get("executed_qty")
-                            or order.get("filled_quantity")
-                            or order.get("executed_quantity")
-                            or order.get("quantity")
-                            or order.get("Fillshares")    # Alice Blue Order Book
-                            or order.get("Filledqty")     # Alice Blue Trade Book
-                            or order.get("fillshares")    # Finvasia
-                            or 0
-                        )
+                try:
+                    order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
+                except Exception as e:
+                    logger.error(f"Failed to sort orders for master {master_id}: {str(e)}")
+                    continue
 
-                        # Extract and validate order status
-                        order_status_raw = (
-                            order.get("orderStatus")
-                            or order.get("status")
-                            or order.get("Status")    # Alice Blue
-                            or order.get("order_status")
-                            or order.get("report_type")
-                            or ("COMPLETE" if filled_qty > 0 else "")
-                        )
-                        
-                        order_status = str(order_status_raw).upper() if order_status_raw else ""
-                        status_mapping = {
-                            "TRADED": "COMPLETE",
-                            "FILLED": "COMPLETE",
-                            "COMPLETE": "COMPLETE",
-                            "COMPLETED": "COMPLETE",
-                            "EXECUTED": "COMPLETE",
-                            "FULL_EXECUTED": "COMPLETE",
-                            "FULLY_EXECUTED": "COMPLETE",
-                            "2": "COMPLETE",
-                            "CONFIRMED": "COMPLETE",
-                            "SUCCESS": "COMPLETE",
-                            "REJECTED": "REJECTED",
-                            "CANCELLED": "CANCELLED",
-                            "FAILED": "FAILED"
-                        }
-                        status = status_mapping.get(order_status, "UNKNOWN")
+                children = Account.query.filter_by(
+                    role='child',
+                    linked_master_id=master_id,
+                    copy_status='On'
+                ).all()
 
-                        # Handle AliceBlue special case for filled quantity
-                        if filled_qty <= 0:
-                            if master_broker == "aliceblue" and status == "COMPLETE":
-                                filled_qty = int(
-                                    order.get("placed_qty")
-                                    or order.get("quantity")
-                                    or 0
-                                )
-                                if filled_qty <= 0:
-                                    continue
-                            else:
-                                continue
+                if not children:
+                    logger.debug(f"No active children found for master {master_id}")
+                    continue
 
-                        # Only process completed orders
-                        if status != "COMPLETE":
-                            continue
+                logger.info(f"Processing {len(children)} active children for master {master_id}")
 
-                    except Exception as e:
-                        logger.debug(f"Failed to extract order data: {e}")
+                for child in children:
+                    child_id = child.client_id
+                    last_copied_trade_id = child.last_copied_trade_id
+                    new_last_trade_id = None
+
+                    if not last_copied_trade_id:
+                        if order_list:
+                            first = order_list[0]
+                            init_id = (
+                                first.get("orderId")
+                                or first.get("order_id")
+                                or first.get("id")
+                                or first.get("NOrdNo")
+                                or first.get("nestOrderNumber")
+                                or first.get("orderNumber")
+                                or first.get("Nstordno")
+                                or first.get("norenordno")
+                            )
+                            if init_id:
+                                child.last_copied_trade_id = str(init_id)
+                                db.session.commit()
+                                logger.info(f"Initialized marker for child {child_id} to {init_id}")
                         continue
 
-                    # Extract price and transaction details
-                    try:
-                        price = float(
-                            order.get("price")
-                            or order.get("orderPrice")
-                            or order.get("avg_price")
-                            or order.get("avgPrice")
-                            or order.get("avgprc")
-                            or order.get("tradePrice")
-                            or order.get("tradedPrice")
-                            or order.get("executedPrice")
-                            or order.get("lastTradedPrice")
-                            or 0
-                        )
-                        if price < 0:
-                            continue
+                    logger.debug(f"Processing child {child_id}, last copied: {last_copied_trade_id}")
 
-                        # Extract transaction type
-                        transaction_type_raw = (
-                            order.get("transactionType")
-                            or order.get("transaction_type")
-                            or order.get("side")
-                            or order.get("orderSide")
-                            or order.get("buyOrSell")
-                            or order.get("Trantype")
-                            or "BUY"
+                    for order in order_list:
+                        order_id = (
+                            order.get("orderId")
+                            or order.get("order_id")
+                            or order.get("id")
+                            or order.get("NOrdNo")
+                            or order.get("nestOrderNumber")
+                            or order.get("orderNumber")
+                            or order.get("Nstordno")
+                            or order.get("norenordno")
                         )
                         
-                        if isinstance(transaction_type_raw, (int, float)):
-                            transaction_type_raw = (
-                                "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                        if not order_id:
+                            continue
+                            
+                        if str(order_id) == last_copied_trade_id:
+                            logger.debug(f"[{master_id}->{child_id}] Reached last copied trade {order_id}")
+                            break
+
+                        if new_last_trade_id is None:
+                            new_last_trade_id = str(order_id)
+
+                        try:
+                            filled_qty = int(
+                                order.get("filledQuantity")
+                                or order.get("filled_qty")
+                                or order.get("filledQty")
+                                or order.get("tradedQty")
+                                or order.get("executed_qty")
+                                or order.get("filled_quantity")
+                                or order.get("executed_quantity")
+                                or order.get("quantity")
+                                or order.get("Fillshares")
+                                or order.get("Filledqty")
+                                or order.get("fillshares")
+                                or 0
+                            )
+
+                            order_status_raw = (
+                                order.get("orderStatus")
+                                or order.get("status")
+                                or order.get("Status")
+                                or order.get("order_status")
+                                or order.get("report_type")
+                                or ("COMPLETE" if filled_qty > 0 else "")
                             )
                             
-                        transaction_type_map = {
-                            "B": "BUY",
-                            "S": "SELL",
-                            "BUY": "BUY",
-                            "SELL": "SELL",
-                            "1": "BUY",
-                            "2": "SELL",
-                            "0": "BUY",
-                            "-1": "SELL",
-                        }
-                        transaction_type = transaction_type_map.get(
-                            str(transaction_type_raw).upper(), "BUY"
-                        )
-
-                    except Exception as e:
-                        logger.debug(f"Failed to extract price/transaction data: {e}")
-                        continue
-
-                    # Extract trading symbol
-                    symbol = (
-                        order.get("tradingSymbol")
-                        or order.get("symbol")
-                        or order.get("stock")
-                        or order.get("scripCode")
-                        or order.get("instrumentToken")
-                        or order.get("Tsym")  # AliceBlue trade book
-                        or order.get("tsym")
-                    )
-                    if not symbol:
-                        continue
-
-                    # Calculate quantity with multiplier
-                    try:
-                        multiplier = float(child.multiplier or 1)
-                        if multiplier <= 0:
-                            continue
-                        copied_qty = max(1, int(float(filled_qty) * multiplier))
-                    except Exception as e:
-                        logger.debug(f"Failed to calculate quantity: {e}")
-                        continue
-
-                    # Initialize child broker API
-                    try:
-                        child_broker = (child.broker or "Unknown").lower()
-                        child_credentials = child.credentials or {}
-                        ChildBrokerClass = get_broker_class(child_broker)
-                        
-                        if child_broker == "aliceblue":
-                            api_key = child_credentials.get("api_key")
-                            if not api_key:
-                                logger.warning(f"Missing API key for AliceBlue child {child_id}")
-                                continue
-                            device_number = child_credentials.get("device_number") or child.device_number
-                            rest_child = {
-                                k: v for k, v in child_credentials.items()
-                                if k not in ("access_token", "api_key", "device_number")
+                            order_status = str(order_status_raw).upper() if order_status_raw else ""
+                            status_mapping = {
+                                "TRADED": "COMPLETE",
+                                "FILLED": "COMPLETE",
+                                "COMPLETE": "COMPLETE",
+                                "COMPLETED": "COMPLETE",
+                                "EXECUTED": "COMPLETE",
+                                "FULL_EXECUTED": "COMPLETE",
+                                "FULLY_EXECUTED": "COMPLETE",
+                                "2": "COMPLETE",
+                                "CONFIRMED": "COMPLETE",
+                                "SUCCESS": "COMPLETE",
+                                "REJECTED": "REJECTED",
+                                "CANCELLED": "CANCELLED",
+                                "FAILED": "FAILED"
                             }
-                            child_api = ChildBrokerClass(
-                                child.client_id, 
-                                api_key, 
-                                device_number=device_number, 
-                                **rest_child
-                            )
-                        elif child_broker == "finvasia":
-                            required = ['password', 'totp_secret', 'vendor_code', 'api_key']
-                            if not all(child_credentials.get(r) for r in required):
-                                logger.warning(f"Missing credentials for Finvasia child {child_id}")
-                                continue
-                            imei = child_credentials.get('imei') or 'abc1234'
-                            child_api = ChildBrokerClass(
-                                client_id=child.client_id,
-                                password=child_credentials['password'],
-                                totp_secret=child_credentials['totp_secret'],
-                                vendor_code=child_credentials['vendor_code'],
-                                api_key=child_credentials['api_key'],
-                                imei=imei
-                            )
-                        else:
-                            access_token = child_credentials.get("access_token")
-                            if not access_token:
-                                logger.warning(f"Missing access token for {child_broker} child {child_id}")
-                                continue
-                            rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
-                            child_api = ChildBrokerClass(
-                                client_id=child.client_id,
-                                access_token=access_token,
-                                **rest_child
-                            )
-                    except Exception as e:
-                        logger.error(f"Failed to initialize child API for {child_id}: {e}")
-                        continue
+                            status = status_mapping.get(order_status, "UNKNOWN")
 
-                    # Get symbol mapping for child broker
-                    try:
-                        mapping_child = get_symbol_for_broker(symbol, child_broker)
-                        if not mapping_child:
-                            logger.warning(f"Symbol mapping not found for {symbol} on {child_broker}")
-                            continue
-                    except Exception as e:
-                        logger.warning(f"Symbol mapping error for {symbol}: {e}")
-                        continue
-
-                    # Build order parameters based on broker type
-                    try:
-                        if child_broker == "dhan":
-                            security_id = (
-                                mapping_child.get("security_id")
-                                or mapping_child.get("securityId")
-                            )
-                            if not security_id:
-                                continue
-                            order_params = {
-                                "tradingsymbol": symbol,
-                                "security_id": security_id,
-                                "exchange_segment": (
-                                    mapping_child.get("exchange_segment")
-                                    or getattr(child_api, "NSE", "NSE_EQ")
-                                ),
-                                "transaction_type": transaction_type,
-                                "quantity": copied_qty,
-                                "order_type": "MARKET",
-                                "product_type": getattr(child_api, "INTRA", "INTRADAY"),
-                                "price": price or 0,
-                            }
-                        elif child_broker == "aliceblue":
-                            symbol_id = mapping_child.get("symbol_id")
-                            if not symbol_id:
-                                continue
-                            order_params = {
-                                "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
-                                "symbol_id": symbol_id,
-                                "exchange": "NSE",
-                                "transaction_type": transaction_type,
-                                "quantity": copied_qty,
-                                "order_type": "MKT",
-                                "product": "MIS",
-                                "price": price or 0
-                            }
-                        elif child_broker == "finvasia":
-                            token = mapping_child.get("token")
-                            if not token:
-                                continue
-                            order_params = {
-                                "tradingsymbol": mapping_child.get("symbol", symbol),
-                                "exchange": mapping_child.get("exchange", "NSE"),
-                                "transaction_type": transaction_type,
-                                "quantity": copied_qty,
-                                "order_type": "MKT",
-                                "product": "MIS",
-                                "price": price or 0,
-                                "token": token
-                            }
-                        else:
-                            order_params = {
-                                "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
-                                "exchange": "NSE",
-                                "transaction_type": transaction_type,
-                                "quantity": copied_qty,
-                                "order_type": "MARKET",
-                                "product": "MIS",
-                                "price": price or 0
-                            }
-
-                        # Place the order
-                        logger.info(f"Placing {transaction_type} order for {copied_qty} {symbol} on {child_broker} for child {child_id}")
-                        response = child_api.place_order(**order_params)
-
-                    except Exception as e:
-                        logger.error(f"Failed to place order for child {child_id}: {e}")
-                        continue
-
-                    # Handle order response and record trade
-                    try:
-                        user_email = child.user.email if child.user else "unknown"
-                        
-                        if isinstance(response, dict):
-                            if response.get("status") == "failure":
-                                error_msg = (
-                                    response.get("error")
-                                    or response.get("remarks")
-                                    or response.get("message")
-                                    or "Unknown error"
-                                )
-                                logger.warning(f"Order failed for child {child_id}: {error_msg}")
-                                
-                                # Log the failure
-                                save_log(
-                                    child_id,
-                                    symbol,
-                                    transaction_type,
-                                    copied_qty,
-                                    "FAILED",
-                                    error_msg
-                                )
-                                record_trade(
-                                    user_email,
-                                    symbol,
-                                    transaction_type,
-                                    copied_qty,
-                                    price,
-                                    'FAILED'
-                                )
-                            else:
-                                # Extract child order ID
-                                order_id_child = (
-                                    response.get("order_id")
-                                    or response.get("orderId")
-                                    or response.get("id")
-                                    or response.get("nestOrderNumber")
-                                    or response.get("orderNumber")
-                                    or response.get("norenordno")
-                                )
-                                
-                                logger.info(f"Order successful for child {child_id}: {order_id_child}")
-                                
-                                # Log the success
-                                save_log(
-                                    child_id,
-                                    symbol,
-                                    transaction_type,
-                                    copied_qty,
-                                    "SUCCESS",
-                                    str(response)
-                                )
-                                
-                                # Save order mapping
-                                if order_id_child:
-                                    save_order_mapping(
-                                        master_order_id=str(order_id),
-                                        child_order_id=str(order_id_child),
-                                        master_id=master_id,
-                                        master_broker=master_broker,
-                                        child_id=child_id,
-                                        child_broker=child_broker,
-                                        symbol=symbol
+                            if filled_qty <= 0:
+                                if master_broker == "aliceblue" and status == "COMPLETE":
+                                    filled_qty = int(
+                                        order.get("placed_qty")
+                                        or order.get("quantity")
+                                        or 0
                                     )
-                                
-                                # Record successful trade
-                                record_trade(
-                                    user_email,
-                                    symbol,
-                                    transaction_type,
-                                    copied_qty,
-                                    price,
-                                    'SUCCESS'
-                                )
-                        else:
-                            logger.warning(f"Unexpected response format for child {child_id}: {type(response)}")
+                                    if filled_qty <= 0:
+                                        continue
+                                else:
+                                    continue
+
+                            if status != "COMPLETE":
+                                continue
+
+                        except Exception as e:
+                            logger.debug(f"Failed to extract order data: {e}")
                             continue
+
+                        try:
+                            price = float(
+                                order.get("price")
+                                or order.get("orderPrice")
+                                or order.get("avg_price")
+                                or order.get("avgPrice")
+                                or order.get("avgprc")
+                                or order.get("tradePrice")
+                                or order.get("tradedPrice")
+                                or order.get("executedPrice")
+                                or order.get("lastTradedPrice")
+                                or 0
+                            )
+                            if price < 0:
+                                continue
+
+                            transaction_type_raw = (
+                                order.get("transactionType")
+                                or order.get("transaction_type")
+                                or order.get("side")
+                                or order.get("orderSide")
+                                or order.get("buyOrSell")
+                                or order.get("Trantype")
+                                or "BUY"
+                            )
                             
-                    except Exception as e:
-                        logger.error(f"Failed to handle response for child {child_id}: {e}")
-                        continue
+                            if isinstance(transaction_type_raw, (int, float)):
+                                transaction_type_raw = (
+                                    "BUY" if int(transaction_type_raw) in (1, 0) else "SELL"
+                                )
+                                
+                            transaction_type_map = {
+                                "B": "BUY",
+                                "S": "SELL",
+                                "BUY": "BUY",
+                                "SELL": "SELL",
+                                "1": "BUY",
+                                "2": "SELL",
+                                "0": "BUY",
+                                "-1": "SELL",
+                            }
+                            transaction_type = transaction_type_map.get(
+                                str(transaction_type_raw).upper(), "BUY"
+                            )
 
-                # Update the last copied trade marker in database
-                if new_last_trade_id:
-                    child.last_copied_trade_id = new_last_trade_id
-                    try:
-                        db.session.commit()
-                        logger.debug(f"Updated marker for child {child_id} to {new_last_trade_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to update marker for child {child_id}: {e}")
-                        db.session.rollback()
+                        except Exception as e:
+                            logger.debug(f"Failed to extract price/transaction data: {e}")
+                            continue
 
-        logger.info("🏁 Poll and copy trades cycle completed")
+                        symbol = (
+                            order.get("tradingSymbol")
+                            or order.get("symbol")
+                            or order.get("stock")
+                            or order.get("scripCode")
+                            or order.get("instrumentToken")
+                            or order.get("Tsym")
+                            or order.get("tsym")
+                        )
+                        if not symbol:
+                            continue
+
+                        try:
+                            multiplier = float(child.multiplier or 1)
+                            if multiplier <= 0:
+                                continue
+                            copied_qty = max(1, int(float(filled_qty) * multiplier))
+                        except Exception as e:
+                            logger.debug(f"Failed to calculate quantity: {e}")
+                            continue
+
+                        try:
+                            child_broker = (child.broker or "Unknown").lower()
+                            child_credentials = child.credentials or {}
+                            ChildBrokerClass = get_broker_class(child_broker)
+                            
+                            if child_broker == "aliceblue":
+                                api_key = child_credentials.get("api_key")
+                                if not api_key:
+                                    logger.warning(f"Missing API key for AliceBlue child {child_id}")
+                                    continue
+                                device_number = child_credentials.get("device_number") or child.device_number
+                                rest_child = {
+                                    k: v for k, v in child_credentials.items()
+                                    if k not in ("access_token", "api_key", "device_number")
+                                }
+                                child_api = ChildBrokerClass(
+                                    child.client_id, 
+                                    api_key, 
+                                    device_number=device_number, 
+                                    **rest_child
+                                )
+                            elif child_broker == "finvasia":
+                                required = ['password', 'totp_secret', 'vendor_code', 'api_key']
+                                if not all(child_credentials.get(r) for r in required):
+                                    logger.warning(f"Missing credentials for Finvasia child {child_id}")
+                                    continue
+                                imei = child_credentials.get('imei') or 'abc1234'
+                                child_api = ChildBrokerClass(
+                                    client_id=child.client_id,
+                                    password=child_credentials['password'],
+                                    totp_secret=child_credentials['totp_secret'],
+                                    vendor_code=child_credentials['vendor_code'],
+                                    api_key=child_credentials['api_key'],
+                                    imei=imei
+                                )
+                            else:
+                                access_token = child_credentials.get("access_token")
+                                if not access_token:
+                                    logger.warning(f"Missing access token for {child_broker} child {child_id}")
+                                    continue
+                                rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
+                                child_api = ChildBrokerClass(
+                                    client_id=child.client_id,
+                                    access_token=access_token,
+                                    **rest_child
+                                )
+                        except Exception as e:
+                            logger.error(f"Failed to initialize child API for {child_id}: {e}")
+                            continue
+
+                        try:
+                            mapping_child = get_symbol_for_broker(symbol, child_broker)
+                            if not mapping_child:
+                                logger.warning(f"Symbol mapping not found for {symbol} on {child_broker}")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Symbol mapping error for {symbol}: {e}")
+                            continue
+
+                        try:
+                            if child_broker == "dhan":
+                                security_id = (
+                                    mapping_child.get("security_id")
+                                    or mapping_child.get("securityId")
+                                )
+                                if not security_id:
+                                    continue
+                                order_params = {
+                                    "tradingsymbol": symbol,
+                                    "security_id": security_id,
+                                    "exchange_segment": (
+                                        mapping_child.get("exchange_segment")
+                                        or getattr(child_api, "NSE", "NSE_EQ")
+                                    ),
+                                    "transaction_type": transaction_type,
+                                    "quantity": copied_qty,
+                                    "order_type": "MARKET",
+                                    "product_type": getattr(child_api, "INTRA", "INTRADAY"),
+                                    "price": price or 0,
+                                }
+                            elif child_broker == "aliceblue":
+                                symbol_id = mapping_child.get("symbol_id")
+                                if not symbol_id:
+                                    continue
+                                order_params = {
+                                    "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
+                                    "symbol_id": symbol_id,
+                                    "exchange": "NSE",
+                                    "transaction_type": transaction_type,
+                                    "quantity": copied_qty,
+                                    "order_type": "MKT",
+                                    "product": "MIS",
+                                    "price": price or 0
+                                }
+                            elif child_broker == "finvasia":
+                                token = mapping_child.get("token")
+                                if not token:
+                                    continue
+                                order_params = {
+                                    "tradingsymbol": mapping_child.get("symbol", symbol),
+                                    "exchange": mapping_child.get("exchange", "NSE"),
+                                    "transaction_type": transaction_type,
+                                    "quantity": copied_qty,
+                                    "order_type": "MKT",
+                                    "product": "MIS",
+                                    "price": price or 0,
+                                    "token": token
+                                }
+                            else:
+                                order_params = {
+                                    "tradingsymbol": mapping_child.get("tradingsymbol", symbol),
+                                    "exchange": "NSE",
+                                    "transaction_type": transaction_type,
+                                    "quantity": copied_qty,
+                                    "order_type": "MARKET",
+                                    "product": "MIS",
+                                    "price": price or 0
+                                }
+
+                            logger.info(f"Placing {transaction_type} order for {copied_qty} {symbol} on {child_broker} for child {child_id}")
+                            response = child_api.place_order(**order_params)
+
+                        except Exception as e:
+                            logger.error(f"Failed to place order for child {child_id}: {e}")
+                            continue
+
+                        try:
+                            user_email = child.user.email if child.user else "unknown"
+                            
+                            if isinstance(response, dict):
+                                if response.get("status") == "failure":
+                                    error_msg = (
+                                        response.get("error")
+                                        or response.get("remarks")
+                                        or response.get("message")
+                                        or "Unknown error"
+                                    )
+                                    logger.warning(f"Order failed for child {child_id}: {error_msg}")
+                                    
+                                    save_log(
+                                        child_id,
+                                        symbol,
+                                        transaction_type,
+                                        copied_qty,
+                                        "FAILED",
+                                        error_msg
+                                    )
+                                    record_trade(
+                                        user_email,
+                                        symbol,
+                                        transaction_type,
+                                        copied_qty,
+                                        price,
+                                        'FAILED'
+                                    )
+                                else:
+                                    order_id_child = (
+                                        response.get("order_id")
+                                        or response.get("orderId")
+                                        or response.get("id")
+                                        or response.get("nestOrderNumber")
+                                        or response.get("orderNumber")
+                                        or response.get("norenordno")
+                                    )
+                                    
+                                    logger.info(f"Order successful for child {child_id}: {order_id_child}")
+                                    
+                                    save_log(
+                                        child_id,
+                                        symbol,
+                                        transaction_type,
+                                        copied_qty,
+                                        "SUCCESS",
+                                        str(response)
+                                    )
+                                    
+                                    if order_id_child:
+                                        save_order_mapping(
+                                            master_order_id=str(order_id),
+                                            child_order_id=str(order_id_child),
+                                            master_id=master_id,
+                                            master_broker=master_broker,
+                                            child_id=child_id,
+                                            child_broker=child_broker,
+                                            symbol=symbol
+                                        )
+                                    
+                                    record_trade(
+                                        user_email,
+                                        symbol,
+                                        transaction_type,
+                                        copied_qty,
+                                        price,
+                                        'SUCCESS'
+                                    )
+                            else:
+                                logger.warning(f"Unexpected response format for child {child_id}: {type(response)}")
+                                continue
+                                
+                        except Exception as e:
+                            logger.error(f"Failed to handle response for child {child_id}: {e}")
+                            continue
+
+                    if new_last_trade_id:
+                        child.last_copied_trade_id = new_last_trade_id
+                        try:
+                            db.session.commit()
+                            logger.debug(f"Updated marker for child {child_id} to {new_last_trade_id}")
+                        except Exception as e:
+                            logger.error(f"Failed to update marker for child {child_id}: {e}")
+                            db.session.rollback()
+
+            logger.info("🏁 Poll and copy trades cycle completed")
+        except Exception as e:
+            logger.error(f"Error in poll_and_copy_trades: {str(e)}")
+
+# Singleton scheduler to prevent multiple instances
+_scheduler = None
 
 def start_scheduler():
-    """Initialize and start the background scheduler for trade copying.
+    """Initialize and start the background scheduler for trade copying."""
+    global _scheduler
     
-    Returns:
-        BackgroundScheduler: The initialized scheduler instance
-    """
+    # Only start in production or if explicitly enabled
+    if ENVIRONMENT != "production" and os.environ.get("ENABLE_SCHEDULER") != "true":
+        logger.info("Scheduler disabled in development mode")
+        return None
+        
+    if _scheduler is not None:
+        logger.info("Scheduler already running")
+        return _scheduler
+        
     try:
-        # Initialize scheduler with timezone awareness
-        scheduler = BackgroundScheduler(
+        _scheduler = BackgroundScheduler(
             timezone=datetime.now().astimezone().tzinfo
         )
         
-        # Add the trade copying job
-        scheduler.add_job(
+        _scheduler.add_job(
             func=poll_and_copy_trades,
             trigger="interval",
-            seconds=10,
+            seconds=POLLING_INTERVAL,
             id="copy_trades",
             name="Trade Copy Job",
-            max_instances=1,  # Prevent overlapping runs
-            coalesce=True,    # Combine missed runs
-            misfire_grace_time=30  # Allow 30s late start
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=30
         )
         
-        # Start the scheduler
-        scheduler.start()
-        logger.info("✅ Background copy trader scheduler started successfully")
+        _scheduler.start()
+        logger.info(f"✅ Background copy trader scheduler started (interval: {POLLING_INTERVAL}s)")
         
-        return scheduler
+        return _scheduler
         
     except Exception as e:
         logger.error(f"Failed to start scheduler: {str(e)}")
-        raise
+        return None
+
+# Health Check Endpoint
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        
+        # Check scheduler status
+        scheduler_status = "running" if _scheduler and _scheduler.running else "stopped"
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "uptime": format_uptime(),
+            "database": "connected",
+            "scheduler": scheduler_status,
+            "environment": ENVIRONMENT
+        }), 200
+    except Exception as e:
+        return safe_json_response({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }, 503)
 
 @app.route("/connect-zerodha", methods=["POST"])
+@limiter.limit("5 per minute")
 def connect_zerodha():
-    """Connect a Zerodha account using provided credentials.
-    
-    Expected JSON payload:
-    {
-        "client_id": "string",
-        "api_key": "string",
-        "api_secret": "string",
-        "request_token": "string"
-    }
-    
-    Returns:
-        JSON response with access token or error message
-    """
+    """Connect a Zerodha account using provided credentials."""
     try:
-        # Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -1329,7 +1288,10 @@ def connect_zerodha():
                 "error": f"Missing required fields: {', '.join(missing_fields)}"
             }), 400
             
-        # Initialize broker with credentials
+        # Validate client_id format
+        if not validate_client_id(data["client_id"]):
+            return jsonify({"error": "Invalid client_id format"}), 400
+            
         try:
             broker = ZerodhaBroker(
                 client_id=data["client_id"],
@@ -1339,12 +1301,11 @@ def connect_zerodha():
             )
         except Exception as e:
             logger.error(f"Failed to initialize Zerodha broker: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to initialize broker connection",
                 "details": str(e)
-            }), 500
+            }, 500)
             
-        # Validate access token
         if not broker.access_token:
             return jsonify({
                 "error": "Failed to generate access token"
@@ -1359,26 +1320,26 @@ def connect_zerodha():
         
     except Exception as e:
         logger.error(f"Error in connect_zerodha: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
 @app.route('/api/order-book/<client_id>', methods=['GET'])
+@limiter.limit("30 per minute")
+@require_user
 def get_order_book(client_id):
-    """Get order book for a master account - Complete Database Version.
-    
-    Args:
-        client_id (str): Client ID of the master account
-        
-    Returns:
-        JSON response with formatted order list or error message
-    """
+    """Get order book for a master account - Complete Database Version."""
     logger.info(f"Fetching order book for client {client_id}")
     
     try:
-        # ✅ STEP 1: Find master account directly from database (NO JSON)
+        # Validate client_id format
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
+            
+        # Find master account that belongs to current user
         master_account = Account.query.filter_by(
+            user_id=request.current_user.id,
             client_id=client_id, 
             role='master'
         ).first()
@@ -1389,26 +1350,22 @@ def get_order_book(client_id):
                 "error": "Master account not found"
             }), 404
 
-        # ✅ STEP 2: Convert database model to dict for broker_api compatibility
         master = _account_to_dict(master_account)
         logger.info(f"Found master account: {master['broker']} - {master['username']}")
 
-        # ✅ STEP 3: Initialize broker API
         try:
             api = broker_api(master)
             logger.debug(f"Initialized {master['broker']} API for {client_id}")
         except Exception as e:
             logger.error(f"Failed to initialize broker API: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to initialize broker connection",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 4: Fetch orders from broker
         try:
             broker_name = master.get('broker', '').lower()
             
-            # Use appropriate method based on broker
             if broker_name == "aliceblue" and hasattr(api, "get_trade_book"):
                 logger.debug("Using AliceBlue trade book")
                 orders_resp = api.get_trade_book()
@@ -1416,31 +1373,27 @@ def get_order_book(client_id):
                 logger.debug("Using standard order list")
                 orders_resp = api.get_order_list()
                 
-            # Check for API errors
             if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
                 error_msg = orders_resp.get("error", "Failed to fetch orders")
                 logger.error(f"API error: {error_msg}")
                 return jsonify({"error": error_msg}), 500
                 
-            # Parse the response
             orders = parse_order_list(orders_resp)
             logger.info(f"Fetched {len(orders)} raw orders from {broker_name}")
             
         except Exception as e:
             logger.error(f"Failed to fetch orders: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to fetch orders",
                 "details": str(e)
-            }), 500
+            }, 500)
             
-        # ✅ STEP 5: Clean and sanitize data
         orders = strip_emojis_from_obj(orders)
         
         if not isinstance(orders, list):
             logger.warning(f"Invalid orders format: {type(orders)}")
             orders = []
         
-        # ✅ STEP 6: Format orders for frontend
         formatted = []
         for order in orders:
             if not isinstance(order, dict):
@@ -1448,7 +1401,6 @@ def get_order_book(client_id):
                 continue
                 
             try:
-                # Extract order ID with multiple fallbacks
                 order_id = (
                     order.get("orderId")
                     or order.get("order_id") 
@@ -1458,14 +1410,12 @@ def get_order_book(client_id):
                     or order.get("Nstordno")
                     or order.get("nestOrderNumber")
                     or order.get("ExchOrdID")
-                    or order.get("norenordno")  # Finvasia
+                    or order.get("norenordno")
                     or "N/A"
                 )
 
-                # Extract transaction side
                 side = order.get("transactionType") or order.get("side") or order.get("Trantype") or "N/A"
                 
-                # Extract status with fallbacks
                 status_raw = (
                     order.get("orderStatus")
                     or order.get("report_type")
@@ -1474,10 +1424,8 @@ def get_order_book(client_id):
                     or ("FILLED" if order.get("tradedQty") else "PENDING")
                 )
                 
-                # Normalize status
                 status = str(status_raw).upper() if status_raw else "UNKNOWN"
                 
-                # Extract symbol with fallbacks
                 symbol = (
                     order.get("tradingSymbol")
                     or order.get("symbol")
@@ -1487,7 +1435,6 @@ def get_order_book(client_id):
                     or "—"
                 )
 
-                # Extract product type
                 product_type = (
                     order.get("productType")
                     or order.get("product") 
@@ -1496,7 +1443,6 @@ def get_order_book(client_id):
                     or "—"
                 )
 
-                # Extract quantities with validation
                 try:
                     placed_qty = int(
                         order.get("orderQuantity")
@@ -1513,9 +1459,9 @@ def get_order_book(client_id):
                         order.get("filledQuantity")
                         or order.get("filled_qty")
                         or order.get("filledQty")
-                        or order.get("Filledqty")     # AliceBlue
-                        or order.get("Fillshares")    # AliceBlue
-                        or order.get("fillshares")    # Finvasia
+                        or order.get("Filledqty")
+                        or order.get("Fillshares")
+                        or order.get("fillshares")
                         or order.get("tradedQty")
                         or order.get("executedQty")
                         or (placed_qty if status in ["FILLED", "COMPLETE", "TRADED"] else 0)
@@ -1523,13 +1469,12 @@ def get_order_book(client_id):
                 except (TypeError, ValueError):
                     filled_qty = 0
 
-                # Extract average price
                 try:
                     avg_price = float(
                         order.get("averagePrice")
                         or order.get("avg_price")
-                        or order.get("Avgprc")        # AliceBlue
-                        or order.get("avgprc")        # Finvasia
+                        or order.get("Avgprc")
+                        or order.get("avgprc")
                         or order.get("Prc")
                         or order.get("tradePrice")
                         or order.get("tradedPrice")
@@ -1539,22 +1484,19 @@ def get_order_book(client_id):
                 except (TypeError, ValueError):
                     avg_price = 0.0
 
-                # Extract and format order time
                 order_time_raw = (
                     order.get("orderTimestamp")
                     or order.get("order_time")
                     or order.get("create_time")
                     or order.get("orderDateTime")
-                    or order.get("ExchConfrmtime")  # AliceBlue
-                    or order.get("norentm")         # Finvasia
-                    or order.get("exchtime")        # Finvasia
+                    or order.get("ExchConfrmtime")
+                    or order.get("norentm")
+                    or order.get("exchtime")
                     or ""
                 )
                 
-                # Clean up timestamp format
                 order_time = str(order_time_raw).replace("T", " ").split(".")[0] if order_time_raw else "—"
 
-                # Extract remarks
                 remarks = (
                     order.get("remarks")
                     or order.get("Remark")
@@ -1562,11 +1504,10 @@ def get_order_book(client_id):
                     or order.get("usercomment")
                     or order.get("Usercomments")
                     or order.get("remarks1")
-                    or order.get("rejreason")       # Rejection reason
+                    or order.get("rejreason")
                     or "—"
                 )
 
-                # ✅ Create formatted order entry
                 formatted_order = {
                     "order_id": str(order_id),
                     "side": str(side).upper(),
@@ -1577,7 +1518,7 @@ def get_order_book(client_id):
                     "filled_qty": filled_qty,
                     "avg_price": round(avg_price, 2),
                     "order_time": order_time,
-                    "remarks": str(remarks)[:100]  # Limit remarks length
+                    "remarks": str(remarks)[:100]
                 }
                 
                 formatted.append(formatted_order)
@@ -1586,7 +1527,6 @@ def get_order_book(client_id):
                 logger.error(f"Error formatting order {order.get('orderId', 'unknown')}: {str(e)}")
                 continue
 
-        # ✅ STEP 7: Sort orders by time (newest first)
         try:
             formatted.sort(key=lambda x: x.get('order_time', ''), reverse=True)
         except Exception as e:
@@ -1594,30 +1534,29 @@ def get_order_book(client_id):
 
         logger.info(f"Successfully formatted {len(formatted)} orders for client {client_id}")
         
-        # ✅ STEP 8: Return formatted response
         return jsonify(formatted), 200
 
     except Exception as e:
         logger.error(f"Unexpected error in get_order_book: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
 @app.route("/zerodha_redirects/<client_id>")
 def zerodha_redirect_handler(client_id):
-    """Handle OAuth redirect from Zerodha login flow.
-    
-    Args:
-        client_id (str): Client ID from the redirect URL
-        
-    Returns:
-        Redirect to account page on success, or error page on failure
-    """
+    """Handle OAuth redirect from Zerodha login flow."""
     logger.info(f"Processing Zerodha redirect for client {client_id}")
     
     try:
-        # Validate request token
+        # Validate client_id format
+        if not validate_client_id(client_id):
+            return render_template(
+                "error.html",
+                error="Invalid client ID",
+                message="The client ID format is invalid."
+            ), 400
+            
         request_token = request.args.get("request_token")
         if not request_token:
             logger.error("No request token received in redirect")
@@ -1627,7 +1566,6 @@ def zerodha_redirect_handler(client_id):
                 message="The authentication process was incomplete."
             ), 400
 
-        # Load pending authentication data from the database
         try:
             pending = get_pending_zerodha()
         except Exception as e:
@@ -1638,7 +1576,6 @@ def zerodha_redirect_handler(client_id):
                 message="Failed to load authentication data."
             ), 500
 
-        # Validate pending credentials
         cred = pending.pop(client_id, None)
         if not cred:
             logger.error(f"No pending auth found for client {client_id}")
@@ -1648,7 +1585,6 @@ def zerodha_redirect_handler(client_id):
                 message="No pending authentication found for this client."
             ), 400
 
-        # Extract and validate required credentials
         api_key = cred.get("api_key")
         api_secret = cred.get("api_secret")
         if not api_key or not api_secret:
@@ -1662,18 +1598,15 @@ def zerodha_redirect_handler(client_id):
         username = cred.get("username") or client_id
         
         try:
-            # Initialize Kite Connect
             from kiteconnect import KiteConnect
             kite = KiteConnect(api_key=api_key)
             
-            # Generate session
             session_data = kite.generate_session(request_token, api_secret)
             if not session_data or "access_token" not in session_data:
                 raise ValueError("Failed to generate valid session")
                 
             access_token = session_data["access_token"]
             
-            # Prepare account data
             account = {
                 "broker": "zerodha",
                 "client_id": client_id,
@@ -1692,11 +1625,9 @@ def zerodha_redirect_handler(client_id):
                 "copy_status": "Off",
             }
 
-            # Save account data
             try:
                 save_account_to_user(cred.get("owner", username), account)
                 set_pending_zerodha(pending)
-                
                 logger.info(f"Successfully connected Zerodha account for {client_id}")
                 flash("Zerodha account connected successfully!", "success")
                 
@@ -1726,30 +1657,13 @@ def zerodha_redirect_handler(client_id):
             message="An unexpected error occurred."
         ), 500
 
-
-
 @app.route("/webhook/<user_id>", methods=["POST"])
+@limiter.limit("60 per minute")
 def webhook(user_id):
-    """Handle incoming webhook requests for order placement.
-    
-    Args:
-        user_id (str): User ID to identify the account
-        
-    Expected POST data:
-        {
-            "symbol": "string",
-            "action": "BUY|SELL",
-            "quantity": int,
-            "message": "string" (optional, for alerts)
-        }
-        
-    Returns:
-        JSON response with order status or error message
-    """
+    """Handle incoming webhook requests for order placement."""
     logger.info(f"Received webhook request for user {user_id}")
     
     try:
-        # Parse and validate request data
         try:
             data = request.get_json(force=True)
         except Exception as e:
@@ -1759,7 +1673,6 @@ def webhook(user_id):
                 "details": str(e)
             }), 400
 
-        # Handle alert messages
         if isinstance(data, str) or "message" in data:
             message = data if isinstance(data, str) else data.get("message")
             logger.info(f"Alert received for {user_id}: {message}")
@@ -1768,7 +1681,6 @@ def webhook(user_id):
                 "message": message
             }), 200
 
-        # Validate required fields
         symbol = data.get("symbol")
         action = data.get("action")
         quantity = data.get("quantity")
@@ -1785,7 +1697,6 @@ def webhook(user_id):
                 }
             }), 400
 
-        # Load credentials from the database
         user = get_user_credentials(user_id)
         if not user:
             logger.error(f"Invalid webhook ID: {user_id}")
@@ -1795,19 +1706,16 @@ def webhook(user_id):
         client_id = user.get("client_id")
         access_token = user.get("access_token")
 
-
-        # Initialize broker API
         try:
             BrokerClass = get_broker_class(broker_name)
-            broker_api = BrokerClass(client_id, access_token)
+            broker_api_instance = BrokerClass(client_id, access_token)
         except Exception as e:
             logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to initialize broker",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # Get symbol mapping and build order parameters
         try:
             mapping = get_symbol_for_broker(symbol, broker_name)
             
@@ -1822,14 +1730,14 @@ def webhook(user_id):
                 order_params = {
                     "tradingsymbol": symbol,
                     "security_id": security_id,
-                    "exchange_segment": broker_api.NSE,
+                    "exchange_segment": broker_api_instance.NSE,
                     "transaction_type": (
-                        broker_api.BUY if action.upper() == "BUY" 
-                        else broker_api.SELL
+                        broker_api_instance.BUY if action.upper() == "BUY" 
+                        else broker_api_instance.SELL
                     ),
                     "quantity": int(quantity),
-                    "order_type": broker_api.MARKET,
-                    "product_type": broker_api.INTRA,
+                    "order_type": broker_api_instance.MARKET,
+                    "product_type": broker_api_instance.INTRA,
                     "price": 0
                 }
                 
@@ -1853,19 +1761,15 @@ def webhook(user_id):
                 
         except Exception as e:
             logger.error(f"Error building order parameters: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to build order parameters",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # Place order
         try:
-            logger.info(
-                f"Placing {action} order for {quantity} {symbol} "
-                f"via {broker_name}"
-            )
+            logger.info(f"Placing {action} order for {quantity} {symbol} via {broker_name}")
             
-            response = broker_api.place_order(**order_params)
+            response = broker_api_instance.place_order(**order_params)
             
             if isinstance(response, dict) and response.get("status") == "failure":
                 status = "FAILED"
@@ -1892,13 +1796,11 @@ def webhook(user_id):
                     "reason": reason
                 }), 400
 
-            # Order successful
             status = "SUCCESS"
             success_msg = response.get("remarks", "Trade placed successfully")
             
             logger.info(f"Order placed successfully: {success_msg}")
             
-            # Record the trade
             record_trade(
                 user_id, 
                 symbol, 
@@ -1908,12 +1810,10 @@ def webhook(user_id):
                 status
             )
             
-            # Trigger copy trading
             try:
                 poll_and_copy_trades()
             except Exception as e:
                 logger.error(f"Failed to trigger copy trading: {str(e)}")
-                # Don't fail the request if copy trading fails
             
             return jsonify({
                 "status": status,
@@ -1923,34 +1823,26 @@ def webhook(user_id):
 
         except Exception as e:
             logger.error(f"Error placing order: {str(e)}")
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to place order",
                 "details": str(e)
-            }), 500
+            }, 500)
 
     except Exception as e:
         logger.error(f"Unexpected error in webhook: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
 @app.route('/api/master-squareoff', methods=['POST'])
+@limiter.limit("10 per minute")
+@require_user
 def master_squareoff():
-    """Square off child orders for a master order - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "master_order_id": "string"
-        }
-        
-    Returns:
-        JSON response with square-off results for each child
-    """
+    """Square off child orders for a master order - Complete Database Version."""
     logger.info("Processing master square-off request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             logger.error("No data provided in master square-off request")
@@ -1961,10 +1853,13 @@ def master_squareoff():
             logger.error("Missing master_order_id in request")
             return jsonify({"error": "Missing master_order_id"}), 400
 
-        # ✅ STEP 2: Find active order mappings for this master order
-        active_mappings = OrderMapping.query.filter_by(
-            master_order_id=master_order_id,
-            status="ACTIVE"
+        # Find active order mappings for this master order that belong to current user
+        active_mappings = db.session.query(OrderMapping).join(
+            Account, Account.client_id == OrderMapping.child_client_id
+        ).filter(
+            OrderMapping.master_order_id == master_order_id,
+            OrderMapping.status == "ACTIVE",
+            Account.user_id == request.current_user.id
         ).all()
         
         if not active_mappings:
@@ -1978,7 +1873,6 @@ def master_squareoff():
 
         logger.info(f"Found {len(active_mappings)} active mappings for master order {master_order_id}")
 
-        # ✅ STEP 3: Group mappings by child account for processing
         child_mappings = {}
         for mapping in active_mappings:
             child_id = mapping.child_client_id
@@ -1986,16 +1880,21 @@ def master_squareoff():
                 child_mappings[child_id] = []
             child_mappings[child_id].append(mapping)
 
-        # ✅ STEP 4: Process each child account
         results = []
         successful_squareoffs = 0
         failed_squareoffs = 0
 
+        # Pre-load all child accounts to avoid N+1 queries
+        child_ids = list(child_mappings.keys())
+        child_accounts = {a.client_id: a for a in Account.query.filter(
+            Account.client_id.in_(child_ids),
+            Account.user_id == request.current_user.id
+        ).all()}
+
         for child_id, mappings in child_mappings.items():
             logger.info(f"Processing square-off for child {child_id} with {len(mappings)} positions")
             
-            # Find child account in database
-            child_account = Account.query.filter_by(client_id=child_id).first()
+            child_account = child_accounts.get(child_id)
             
             if not child_account:
                 logger.error(f"Child account not found: {child_id}")
@@ -2013,15 +1912,12 @@ def master_squareoff():
                 continue
 
             try:
-                # ✅ STEP 5: Convert account to dict for broker_api compatibility
                 child_dict = _account_to_dict(child_account)
                 broker_api_instance = broker_api(child_dict)
                 
-                # ✅ STEP 6: Get current positions for this child
                 try:
                     positions_response = broker_api_instance.get_positions()
                     
-                    # Handle different response formats
                     if isinstance(positions_response, dict):
                         positions = (
                             positions_response.get("data", []) or 
@@ -2048,12 +1944,10 @@ def master_squareoff():
                         failed_squareoffs += 1
                     continue
 
-                # ✅ STEP 7: Process each symbol mapping for this child
                 for mapping in mappings:
                     symbol = mapping.symbol
                     logger.debug(f"Processing symbol {symbol} for child {child_id}")
                     
-                    # Find matching position
                     matching_position = None
                     for position in positions:
                         pos_symbol = (
@@ -2065,7 +1959,6 @@ def master_squareoff():
                         ).upper()
                         
                         if pos_symbol == symbol.upper():
-                            # Check if there's a net position
                             net_qty = int(
                                 position.get("netQty") or
                                 position.get("net_quantity") or
@@ -2091,7 +1984,6 @@ def master_squareoff():
                         })
                         continue
 
-                    # ✅ STEP 8: Calculate square-off parameters
                     net_qty = int(
                         matching_position.get("netQty") or
                         matching_position.get("net_quantity") or
@@ -2103,7 +1995,6 @@ def master_squareoff():
                     direction = "SELL" if net_qty > 0 else "BUY"
                     abs_qty = abs(net_qty)
                     
-                    # ✅ STEP 9: Build broker-specific order parameters
                     broker_name = child_account.broker.lower()
                     
                     if broker_name == "dhan":
@@ -2149,7 +2040,7 @@ def master_squareoff():
                             "product": "MIS",
                             "price": 0
                         }
-                    else:  # Default format for other brokers
+                    else:
                         order_params = {
                             "tradingsymbol": symbol,
                             "exchange": "NSE",
@@ -2160,12 +2051,10 @@ def master_squareoff():
                             "price": 0
                         }
 
-                    # ✅ STEP 10: Place square-off order
                     try:
                         logger.info(f"Placing square-off order for {child_id}: {direction} {abs_qty} {symbol}")
                         square_off_response = broker_api_instance.place_order(**order_params)
                         
-                        # Check for API errors
                         if isinstance(square_off_response, dict) and square_off_response.get("status") == "failure":
                             error_msg = (
                                 square_off_response.get("remarks") or
@@ -2189,11 +2078,9 @@ def master_squareoff():
                             failed_squareoffs += 1
                             
                         else:
-                            # Success - update mapping status
                             mapping.status = "SQUARED_OFF"
                             mapping.remarks = f"Squared off on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
                             
-                            # Extract order ID from response
                             square_off_order_id = (
                                 square_off_response.get("order_id") or
                                 square_off_response.get("orderId") or
@@ -2247,26 +2134,24 @@ def master_squareoff():
                     })
                     failed_squareoffs += 1
 
-        # ✅ STEP 11: Commit all mapping status updates
         try:
             db.session.commit()
             logger.info(f"Successfully updated {successful_squareoffs} mappings to SQUARED_OFF status")
         except Exception as e:
             logger.error(f"Failed to commit mapping updates: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to update mapping statuses",
                 "details": str(e),
                 "results": results
-            }), 500
+            }, 500)
 
-        # ✅ STEP 12: Log the bulk square-off action
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Master square-off completed: {master_order_id} - {successful_squareoffs} success, {failed_squareoffs} failed",
-                user_id=session.get("user", "system"),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "master_squareoff",
                     "master_order_id": master_order_id,
@@ -2274,13 +2159,7 @@ def master_squareoff():
                     "successful_squareoffs": successful_squareoffs,
                     "failed_squareoffs": failed_squareoffs,
                     "children_processed": len(child_mappings),
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "results_summary": {
-                        "success": len([r for r in results if r["status"] == "SUCCESS"]),
-                        "failed": len([r for r in results if r["status"] == "FAILED"]),
-                        "skipped": len([r for r in results if r["status"] == "SKIPPED"]),
-                        "error": len([r for r in results if r["status"] == "ERROR"])
-                    }
+                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                 })
             )
             db.session.add(log_entry)
@@ -2288,7 +2167,6 @@ def master_squareoff():
         except Exception as e:
             logger.warning(f"Failed to log master square-off action: {str(e)}")
 
-        # ✅ STEP 13: Prepare comprehensive response
         response_data = {
             "message": f"Master square-off completed for order {master_order_id}",
             "master_order_id": master_order_id,
@@ -2303,45 +2181,42 @@ def master_squareoff():
             "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         }
 
-        # ✅ STEP 14: Return appropriate status code
         if failed_squareoffs == 0:
-            return jsonify(response_data), 200  # Complete success
+            return jsonify(response_data), 200
         elif successful_squareoffs > 0:
-            return jsonify(response_data), 207  # Partial success
+            return jsonify(response_data), 207
         else:
             response_data["error"] = "All square-off attempts failed"
-            return jsonify(response_data), 500  # Complete failure
+            return jsonify(response_data), 500
 
     except Exception as e:
         logger.error(f"Unexpected error in master_squareoff: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
 @app.route('/api/master-orders', methods=['GET'])
+@limiter.limit("60 per minute")
+@require_user
 def get_master_orders():
-    """Get all master orders with their child order details.
-    
-    Query Parameters:
-        master_id (optional): Filter orders by master account ID
-        status (optional): Filter orders by status (ACTIVE, COMPLETED, FAILED, etc)
-        
-    Returns:
-        JSON response with master orders and summary statistics
-    """
+    """Get all master orders with their child order details."""
     logger.info("Fetching master orders")
     
     try:
-        # Fetch order mappings from the database
         master_id_filter = request.args.get("master_id")
         status_filter = request.args.get("status", "").upper()
         
-        query = OrderMapping.query
+        # Build query with user filter
+        query = db.session.query(OrderMapping).join(
+            Account, Account.client_id == OrderMapping.master_client_id
+        ).filter(Account.user_id == request.current_user.id)
+        
         if master_id_filter:
-            query = query.filter_by(master_client_id=master_id_filter)
+            query = query.filter(OrderMapping.master_client_id == master_id_filter)
         if status_filter:
-            query = query.filter_by(status=status_filter)
+            query = query.filter(OrderMapping.status == status_filter)
+            
         mappings = query.all()
 
         master_summary = {}
@@ -2405,8 +2280,10 @@ def get_master_orders():
                 master_summary[mid]['status'] = 'COMPLETED'
             else:
                 master_summary[mid]['status'] = 'PARTIAL'
+                
         orders = list(master_summary.values())
         orders.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
         overall_summary = {
             'total_orders': len(orders),
             'active_orders': sum(1 for o in orders if o['status'] == 'ACTIVE'),
@@ -2424,10 +2301,10 @@ def get_master_orders():
 
     except Exception as e:
         logger.error(f"Unexpected error in get_master_orders: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
 @app.route("/api/zerodha-login-url")
 def zerodha_login_url_route():
@@ -2440,31 +2317,28 @@ def zerodha_login_url_route():
     return jsonify({"login_url": kite.login_url()})
 
 @app.route('/api/init-zerodha-login', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def init_zerodha_login():
     data = request.json
     client_id = data.get('client_id')
     api_key = data.get('api_key')
     api_secret = data.get('api_secret')
     username = data.get('username')
+    
     if not all([client_id, api_key, api_secret, username]):
         return jsonify({'error': 'Missing fields'}), 400
 
-    pending_path = 'pending_zerodha.json'
-    if os.path.exists(pending_path):
-        try:
-            with open(pending_path) as f:
-                pending = json.load(f)
-        except Exception:
-            pending = {}
-    else:
-        pending = {}
+    if not validate_client_id(client_id):
+        return jsonify({'error': 'Invalid client_id format'}), 400
+
+    pending = get_pending_zerodha()
 
     pending[client_id] = {
         'api_key': api_key,
         'api_secret': api_secret,
         'username': username,
-        'owner': session.get('user')
+        'owner': request.current_user.email
     }
     set_pending_zerodha(pending)
 
@@ -2472,17 +2346,21 @@ def init_zerodha_login():
     login_url = f"https://kite.zerodha.com/connect/login?api_key={api_key}&v=3&redirect_uri={quote(redirect_uri, safe='')}"
     return jsonify({'login_url': login_url})
 
-# ======== FYERS Authentication ========
 @app.route('/api/init-fyers-login', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def init_fyers_login():
     """Start the Fyers OAuth login flow and return the login URL."""
     data = request.json
     client_id = data.get('client_id')
     secret_key = data.get('secret_key')
     username = data.get('username')
+    
     if not all([client_id, secret_key, username]):
         return jsonify({'error': 'Missing fields'}), 400
+
+    if not validate_client_id(client_id):
+        return jsonify({'error': 'Invalid client_id format'}), 400
 
     pending = get_pending_fyers()
 
@@ -2494,21 +2372,24 @@ def init_fyers_login():
         'redirect_uri': redirect_uri,
         'state': state,
         'username': username,
-        'owner': session.get('user')
+        'owner': request.current_user.email
     }
     set_pending_fyers(pending)
 
     login_url = FyersBroker.login_url(client_id, redirect_uri, state)
     return jsonify({'login_url': login_url})
 
-
 @app.route('/fyers_redirects/<client_id>')
 def fyers_redirect_handler(client_id):
     """Handle redirect from Fyers OAuth flow and store tokens."""
     auth_code = request.args.get('auth_code')
     state = request.args.get('state')
+    
     if not auth_code:
         return "❌ No auth_code received", 400
+
+    if not validate_client_id(client_id):
+        return "❌ Invalid client_id format", 400
 
     pending = get_pending_fyers()
 
@@ -2549,7 +2430,7 @@ def fyers_redirect_handler(client_id):
     save_account_to_user(cred.get('owner', username), account)
     set_pending_fyers(pending)
     return redirect(url_for('AddAccount'))
-    
+
 @app.route("/kite/callback")
 def kite_callback():
     from kiteconnect import KiteConnect
@@ -2566,7 +2447,6 @@ def kite_callback():
     session = kite.generate_session(request_token, api_secret)
     access_token = session["access_token"]
 
-    # Save account
     account = {
         "broker": "zerodha",
         "client_id": client_id,
@@ -2585,13 +2465,13 @@ def kite_callback():
         "copy_status": "Off",
     }
 
-    # Save to accounts.json or DB
     save_account_to_user(username or client_id, account)
 
     return "✅ Zerodha account connected!"
 
-
 @app.route('/api/square-off', methods=['POST'])
+@limiter.limit("20 per minute")
+@require_user
 def square_off():
     data = request.json
     client_id = data.get("client_id")
@@ -2601,21 +2481,25 @@ def square_off():
     if not client_id or not symbol:
         return jsonify({"error": "Missing client_id or symbol"}), 400
 
-    found, parent = find_account_by_client_id(client_id)
+    if not validate_client_id(client_id):
+        return jsonify({"error": "Invalid client_id format"}), 400
 
-    if not found:
-        return jsonify({"error": "Client not found"}), 404
-    if parent is None:
-        master = found
-    else:
-        master = parent
+    # Find account that belongs to current user
+    account = Account.query.filter_by(
+        user_id=request.current_user.id,
+        client_id=client_id
+    ).first()
 
-    if is_master and parent is None:
-        # Square off master only
-        api = broker_api(master)
+    if not account:
+        return jsonify({"error": "Account not found"}), 404
+
+    account_dict = _account_to_dict(account)
+
+    if is_master and account.role == "master":
+        api = broker_api(account_dict)
         try:
             positions_resp = api.get_positions()
-            positions = positions_resp.get("data", [])
+            positions = positions_resp.get("data", []) if isinstance(positions_resp, dict) else []
             match = next((p for p in positions if p.get("tradingSymbol", "").upper() == symbol.upper()), None)
             if not match or int(match.get("netQty", 0)) == 0:
                 return jsonify({"message": f"Master → No active position in {symbol} (already squared off)"}), 200
@@ -2633,26 +2517,30 @@ def square_off():
                 product_type="INTRADAY",
                 price=0
             )
-            save_log(master["client_id"], symbol, "SQUARE_OFF", qty, "SUCCESS", str(resp))
+            save_log(account.client_id, symbol, "SQUARE_OFF", qty, "SUCCESS", str(resp))
             return jsonify({"message": "✅ Master square-off placed", "details": str(resp)}), 200
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return safe_json_response({"error": str(e)}, 500)
     else:
-        # Square off all children under master (parent==None means master, else parent)
+        # Square off all children under master (for current user only)
+        children = Account.query.filter_by(
+            user_id=request.current_user.id,
+            role='child',
+            linked_master_id=client_id,
+            copy_status='On'
+        ).all()
+        
         results = []
-        for child in master.get("children", []):
-            if child.get("copy_status") != "On":
-                results.append(f"Child {child['client_id']} → Skipped (copy OFF)")
-                continue
-
+        for child in children:
             try:
-                api = broker_api(child)
+                child_dict = _account_to_dict(child)
+                api = broker_api(child_dict)
                 positions_resp = api.get_positions()
-                positions = positions_resp.get('data', [])
+                positions = positions_resp.get('data', []) if isinstance(positions_resp, dict) else []
                 match = next((p for p in positions if p.get('tradingSymbol', '').upper() == symbol.upper()), None)
 
                 if not match or int(match.get('netQty', 0)) == 0:
-                    results.append(f"Child {child['client_id']} → Skipped (no active position in {symbol})")
+                    results.append(f"Child {child.client_id} → Skipped (no active position in {symbol})")
                     continue
 
                 security_id = match['securityId']
@@ -2673,22 +2561,29 @@ def square_off():
 
                 if isinstance(response, dict) and response.get("status") == "failure":
                     msg = response.get("remarks", "Unknown error")
-                    results.append(f"Child {child['client_id']} → FAILED: {msg}")
-                    save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "FAILED", msg)
+                    results.append(f"Child {child.client_id} → FAILED: {msg}")
+                    save_log(child.client_id, symbol, "SQUARE_OFF", quantity, "FAILED", msg)
                 else:
-                    results.append(f"Child {child['client_id']} → SUCCESS")
-                    save_log(child['client_id'], symbol, "SQUARE_OFF", quantity, "SUCCESS", str(response))
+                    results.append(f"Child {child.client_id} → SUCCESS")
+                    save_log(child.client_id, symbol, "SQUARE_OFF", quantity, "SUCCESS", str(response))
 
             except Exception as e:
                 error_msg = str(e)
-                results.append(f"Child {child['client_id']} → ERROR: {error_msg}")
-                save_log(child['client_id'], symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
+                results.append(f"Child {child.client_id} → ERROR: {error_msg}")
+                save_log(child.client_id, symbol, "SQUARE_OFF", 0, "ERROR", error_msg)
 
         return jsonify({"message": "🔁 Square-off for all children completed", "details": results}), 200
 
 @app.route('/api/order-mappings', methods=['GET'])
+@limiter.limit("60 per minute")
+@require_user
 def get_order_mappings():
     try:
+        # Filter mappings to only show those belonging to current user
+        mappings_query = db.session.query(OrderMapping).join(
+            Account, Account.client_id == OrderMapping.master_client_id
+        ).filter(Account.user_id == request.current_user.id)
+        
         mappings = [
             {
                 "master_order_id": m.master_order_id,
@@ -2704,20 +2599,27 @@ def get_order_mappings():
                 "remarks": m.remarks,
                 "multiplier": m.multiplier,
             }
-            for m in OrderMapping.query.all()
+            for m in mappings_query.all()
         ]
         return jsonify(mappings), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        logger.error(f"Error in get_order_mappings: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
 @app.route('/api/child-orders')
+@require_user
 def child_orders():
     master_order_id = request.args.get('master_order_id')
-    mappings = OrderMapping.query
+    
+    # Build query with user filter
+    mappings_query = db.session.query(OrderMapping).join(
+        Account, Account.client_id == OrderMapping.master_client_id
+    ).filter(Account.user_id == request.current_user.id)
+    
     if master_order_id:
-        mappings = mappings.filter_by(master_order_id=master_order_id)
+        mappings_query = mappings_query.filter(OrderMapping.master_order_id == master_order_id)
+        
     data = [
         {
             "master_order_id": m.master_order_id,
@@ -2733,40 +2635,47 @@ def child_orders():
             "remarks": m.remarks,
             "multiplier": m.multiplier,
         }
-        for m in mappings.all()
+        for m in mappings_query.all()
     ]
     return jsonify(data)
 
-# --- Cancel Order Endpoint ---
 @app.route('/api/cancel-order', methods=['POST'])
+@limiter.limit("20 per minute")
+@require_user
 def cancel_order():
+    """SECURITY FIX: Only access user's own accounts"""
     try:
         data = request.json
         master_order_id = data.get("master_order_id")
-        mappings = OrderMapping.query.filter_by(
-            master_order_id=master_order_id, status="ACTIVE"
+        
+        # Find mappings that belong to current user
+        mappings = db.session.query(OrderMapping).join(
+            Account, Account.client_id == OrderMapping.child_client_id
+        ).filter(
+            OrderMapping.master_order_id == master_order_id,
+            OrderMapping.status == "ACTIVE",
+            Account.user_id == request.current_user.id
         ).all()
+        
         if not mappings:
             return jsonify({"message": "No active child orders found for this master order."}), 200
 
         results = []
-        accounts = {a.client_id: a for a in Account.query.all()}
+        # Get user's accounts only
+        user_accounts = {a.client_id: a for a in request.current_user.accounts}
 
         for mapping in mappings:
-            child_id = mapping["child_client_id"]
-            child_order_id = mapping["child_order_id"]
-            found = accounts.get(child_id)
+            child_id = mapping.child_client_id
+            child_order_id = mapping.child_order_id
+            found = user_accounts.get(child_id)
 
             if not found:
                 results.append(f"{child_id} → ❌ Client not found")
                 continue
 
             try:
-                api = broker_api({
-                    "broker": found.broker,
-                    "client_id": found.client_id,
-                    "credentials": found.credentials,
-                })
+                found_dict = _account_to_dict(found)
+                api = broker_api(found_dict)
                 cancel_resp = api.cancel_order(child_order_id)
 
                 if isinstance(cancel_resp, dict) and cancel_resp.get("status") == "failure":
@@ -2785,27 +2694,17 @@ def cancel_order():
         return jsonify({"message": "Cancel process completed", "details": results}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        logger.error(f"Error in cancel_order: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
 @app.route('/api/change-master', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def change_master():
-    """Change master for a child account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "child_id": "string",
-            "new_master_id": "string"
-        }
-        
-    Returns:
-        JSON response with change confirmation or error
-    """
+    """Change master for a child account - Complete Database Version."""
     logger.info("Processing change master request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -2817,19 +2716,11 @@ def change_master():
             logger.error(f"Missing required fields: child_id={bool(child_id)}, new_master_id={bool(new_master_id)}")
             return jsonify({"error": "Missing child_id or new_master_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(child_id) or not validate_client_id(new_master_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-        # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=child_id
         ).first()
         
@@ -2837,7 +2728,6 @@ def change_master():
             logger.error(f"Child account not found: {child_id}")
             return jsonify({"error": "Child account not found"}), 404
 
-        # ✅ STEP 4: Validate child account is actually a child
         if child_account.role != "child":
             logger.error(f"Account {child_id} is not configured as child (role: {child_account.role})")
             return jsonify({
@@ -2845,7 +2735,6 @@ def change_master():
                 "current_role": child_account.role
             }), 400
 
-        # ✅ STEP 5: Get current master details for comparison
         old_master_id = child_account.linked_master_id
         old_master_account = None
         
@@ -2854,9 +2743,8 @@ def change_master():
                 client_id=old_master_id
             ).first()
 
-        # ✅ STEP 6: Validate new master account exists and is accessible
         new_master_account = Account.query.filter_by(
-            user_id=user.id,  # Must belong to same user
+            user_id=request.current_user.id,
             client_id=new_master_id,
             role='master'
         ).first()
@@ -2868,7 +2756,6 @@ def change_master():
                 "master_id": new_master_id
             }), 404
 
-        # ✅ STEP 7: Check if already linked to the same master
         if old_master_id == new_master_id:
             logger.info(f"Child {child_id} already linked to master {new_master_id}")
             return jsonify({
@@ -2881,36 +2768,28 @@ def change_master():
                 }
             }), 200
 
-        # ✅ STEP 8: Store previous state for logging and response
         previous_state = {
             "linked_master_id": child_account.linked_master_id,
             "copy_status": child_account.copy_status,
             "last_copied_trade_id": child_account.last_copied_trade_id
         }
 
-        # ✅ STEP 9: Update child account with new master
         logger.info(f"Changing master for {child_id}: {old_master_id} -> {new_master_id}")
         
         child_account.linked_master_id = new_master_id
-        
-        # Reset marker to prevent copying historical orders from new master
         child_account.last_copied_trade_id = "NONE"
         
-        # If copying was active, temporarily turn it off for safety
         was_copying = child_account.copy_status == "On"
         if was_copying:
             child_account.copy_status = "Off"
             logger.info(f"Temporarily disabled copying during master change for {child_id}")
 
-        # ✅ STEP 10: Get latest order from new master for marker
         new_latest_order_id = "NONE"
         
         try:
-            # Convert new master to dict for broker_api
             new_master_dict = _account_to_dict(new_master_account)
             new_master_api = broker_api(new_master_dict)
             
-            # Get orders based on broker type
             broker_name = new_master_account.broker.lower() if new_master_account.broker else "unknown"
             
             if broker_name == "aliceblue" and hasattr(new_master_api, "get_trade_book"):
@@ -2918,7 +2797,6 @@ def change_master():
                 orders_resp = new_master_api.get_trade_book()
                 order_list = parse_order_list(orders_resp)
                 
-                # Fallback to order list if trade book is empty
                 if not order_list and hasattr(new_master_api, "get_order_list"):
                     orders_resp = new_master_api.get_order_list()
                     order_list = parse_order_list(orders_resp)
@@ -2926,7 +2804,6 @@ def change_master():
                 orders_resp = new_master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
             
-            # Process orders
             order_list = strip_emojis_from_obj(order_list or [])
             
             if order_list and isinstance(order_list, list):
@@ -2952,34 +2829,31 @@ def change_master():
         except Exception as e:
             logger.warning(f"Could not fetch latest order from new master {new_master_id}: {str(e)}")
 
-        # Set the new marker
         child_account.last_copied_trade_id = new_latest_order_id
 
-        # ✅ STEP 11: Commit changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully changed master for {child_id}: {old_master_id} -> {new_master_id}")
         except Exception as e:
             logger.error(f"Failed to commit master change: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save master change",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Master changed: {child_id} from {old_master_id} to {new_master_id}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "change_master",
                     "child_id": child_id,
                     "old_master_id": old_master_id,
                     "new_master_id": new_master_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "was_copying": was_copying,
                     "new_marker": new_latest_order_id,
                     "timestamp": datetime.utcnow().isoformat(),
@@ -2991,7 +2865,6 @@ def change_master():
         except Exception as e:
             logger.warning(f"Failed to log master change: {str(e)}")
 
-        # ✅ STEP 13: Prepare comprehensive response
         response_data = {
             "message": f"Master changed successfully for {child_id}",
             "child_account": {
@@ -3019,7 +2892,6 @@ def change_master():
             }
         }
 
-        # Add restart instruction if copying was active
         if was_copying:
             response_data["next_action"] = "Please restart copying to begin following the new master"
 
@@ -3027,29 +2899,19 @@ def change_master():
 
     except Exception as e:
         logger.error(f"Unexpected error in change_master: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
-        
+        }, 500)
 
 @app.route('/api/remove-child', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def remove_child():
-    """Remove child role from account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string"
-        }
-        
-    Returns:
-        JSON response with removal confirmation or error
-    """
+    """Remove child role from account - Complete Database Version."""
     logger.info("Processing remove child request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -3060,28 +2922,19 @@ def remove_child():
             logger.error("Missing client_id in request")
             return jsonify({"error": "Missing client_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-        # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=client_id,
-            role='child'  # Must be a child to remove
+            role='child'
         ).first()
         
         if not child_account:
             logger.error(f"Child account not found: {client_id}")
             return jsonify({"error": "Child account not found or not configured as child"}), 404
 
-        # ✅ STEP 4: Get master account details before removal
         master_account = None
         master_id = child_account.linked_master_id
         
@@ -3090,7 +2943,6 @@ def remove_child():
                 client_id=master_id
             ).first()
 
-        # ✅ STEP 5: Store current state for logging and response
         previous_state = {
             "role": child_account.role,
             "linked_master_id": child_account.linked_master_id,
@@ -3101,13 +2953,11 @@ def remove_child():
             "username": child_account.username
         }
 
-        # ✅ STEP 6: Check if child is currently copying
         was_copying = child_account.copy_status == "On"
         
         if was_copying:
             logger.info(f"Child {client_id} was actively copying, will stop copying during removal")
 
-        # ✅ STEP 7: Find any active order mappings for this child
         active_mappings = OrderMapping.query.filter_by(
             child_client_id=client_id,
             status="ACTIVE"
@@ -3117,16 +2967,14 @@ def remove_child():
         if mapping_count > 0:
             logger.info(f"Found {mapping_count} active order mappings for child {client_id}")
 
-        # ✅ STEP 8: Remove child role and reset account to unassigned state
         logger.info(f"Removing child role from account {client_id}")
         
-        child_account.role = None  # Remove role completely
-        child_account.linked_master_id = None  # Remove master link
-        child_account.copy_status = "Off"  # Ensure copying is stopped
-        child_account.multiplier = 1.0  # Reset to default
-        child_account.last_copied_trade_id = None  # Clear marker
+        child_account.role = None
+        child_account.linked_master_id = None
+        child_account.copy_status = "Off"
+        child_account.multiplier = 1.0
+        child_account.last_copied_trade_id = None
 
-        # ✅ STEP 9: Update any active order mappings to mark them as orphaned
         mappings_updated = 0
         for mapping in active_mappings:
             try:
@@ -3136,34 +2984,32 @@ def remove_child():
             except Exception as e:
                 logger.error(f"Failed to update mapping {mapping.id}: {str(e)}")
 
-        # ✅ STEP 10: Commit all changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully removed child role from {client_id}")
         except Exception as e:
             logger.error(f"Failed to commit child removal: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save child removal",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 11: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Child removed: {client_id} from master {master_id}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "remove_child",
                     "child_id": client_id,
                     "master_id": master_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "was_copying": was_copying,
                     "active_mappings": mapping_count,
                     "mappings_updated": mappings_updated,
-                    "timestamp": "2025-07-05 09:16:02",
+                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                     "previous_state": previous_state
                 })
             )
@@ -3172,7 +3018,6 @@ def remove_child():
         except Exception as e:
             logger.warning(f"Failed to log child removal: {str(e)}")
 
-        # ✅ STEP 12: Prepare comprehensive response
         response_data = {
             "message": f"Child {client_id} removed from master successfully",
             "removed_account": {
@@ -3194,7 +3039,7 @@ def remove_child():
                 "marker_cleared": True,
                 "active_mappings_found": mapping_count,
                 "mappings_updated": mappings_updated,
-                "removed_at": "2025-07-05 09:16:02"
+                "removed_at": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             },
             "account_status": {
                 "role": None,
@@ -3205,7 +3050,6 @@ def remove_child():
             }
         }
 
-        # Add cleanup summary if there were mappings
         if mapping_count > 0:
             response_data["cleanup_summary"] = {
                 "message": f"Updated {mappings_updated} order mappings to CHILD_REMOVED status",
@@ -3216,29 +3060,19 @@ def remove_child():
 
     except Exception as e:
         logger.error(f"Unexpected error in remove_child: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
-        
+        }, 500)
 
 @app.route('/api/remove-master', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def remove_master():
-    """Remove master role from account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string"
-        }
-        
-    Returns:
-        JSON response with removal confirmation or error
-    """
+    """Remove master role from account - Complete Database Version."""
     logger.info("Processing remove master request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -3249,29 +3083,21 @@ def remove_master():
             logger.error("Missing client_id in request")
             return jsonify({"error": "Missing client_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-        # ✅ STEP 3: Find and validate master account
         master_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=client_id,
-            role='master'  # Must be a master to remove
+            role='master'
         ).first()
         
         if not master_account:
             logger.error(f"Master account not found: {client_id}")
             return jsonify({"error": "Master account not found or not configured as master"}), 404
 
-        # ✅ STEP 4: Find all child accounts linked to this master
         linked_children = Account.query.filter_by(
+            user_id=request.current_user.id,  # Only user's children
             role='child',
             linked_master_id=client_id
         ).all()
@@ -3282,7 +3108,6 @@ def remove_master():
 
         logger.info(f"Master {client_id} has {children_count} linked children ({active_count} actively copying)")
 
-        # ✅ STEP 5: Store current state for logging and response
         previous_state = {
             "role": master_account.role,
             "copy_status": master_account.copy_status,
@@ -3293,7 +3118,6 @@ def remove_master():
             "active_children": [child.client_id for child in active_children]
         }
 
-        # ✅ STEP 6: Find all active order mappings for this master
         active_mappings = OrderMapping.query.filter_by(
             master_client_id=client_id,
             status="ACTIVE"
@@ -3303,7 +3127,6 @@ def remove_master():
         if mapping_count > 0:
             logger.info(f"Found {mapping_count} active order mappings for master {client_id}")
 
-        # ✅ STEP 7: Process each linked child (orphan them)
         children_processed = []
         children_failed = []
 
@@ -3339,15 +3162,12 @@ def remove_master():
                     "error": str(e)
                 })
 
-        # ✅ STEP 8: Remove master role from account
         logger.info(f"Removing master role from account {client_id}")
         
         master_account.role = None  # Remove role completely
         master_account.copy_status = "Off"  # Ensure status is off
         master_account.multiplier = 1.0  # Reset to default
-        # Note: linked_master_id is not applicable for masters
 
-        # ✅ STEP 9: Update all active order mappings to mark them as orphaned
         mappings_updated = 0
         mapping_details = []
 
@@ -3367,29 +3187,27 @@ def remove_master():
             except Exception as e:
                 logger.error(f"Failed to update mapping {mapping.id}: {str(e)}")
 
-        # ✅ STEP 10: Commit all changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully removed master role from {client_id} and orphaned {len(children_processed)} children")
         except Exception as e:
             logger.error(f"Failed to commit master removal: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save master removal",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 11: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Master removed: {client_id} with {children_count} children orphaned",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "remove_master",
                     "master_id": client_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "children_count": children_count,
                     "active_children": active_count,
                     "children_processed": len(children_processed),
@@ -3405,7 +3223,6 @@ def remove_master():
         except Exception as e:
             logger.warning(f"Failed to log master removal: {str(e)}")
 
-        # ✅ STEP 12: Prepare comprehensive response
         response_data = {
             "message": f"Master {client_id} removed successfully",
             "removed_master": {
@@ -3442,11 +3259,9 @@ def remove_master():
             }
         }
 
-        # Add failure details if any children failed
         if children_failed:
             response_data["children_affected"]["failures"] = children_failed
 
-        # Add warning if there were many mappings
         if mapping_count > 10:
             response_data["order_mappings"]["note"] = f"Showing first 10 of {mapping_count} total mappings"
 
@@ -3454,30 +3269,19 @@ def remove_master():
 
     except Exception as e:
         logger.error(f"Unexpected error in remove_master: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
-# PATCH for /api/update-multiplier
 @app.route('/api/update-multiplier', methods=['POST'])
-@login_required
+@limiter.limit("20 per minute")
+@require_user
 def update_multiplier():
-    """Update multiplier for account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string",
-            "multiplier": float
-        }
-        
-    Returns:
-        JSON response with update confirmation or error
-    """
+    """Update multiplier for account - Complete Database Version."""
     logger.info("Processing update multiplier request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -3489,7 +3293,9 @@ def update_multiplier():
             logger.error(f"Missing required fields: client_id={bool(client_id)}, multiplier={new_multiplier is not None}")
             return jsonify({"error": "Missing client_id or multiplier"}), 400
 
-        # ✅ STEP 2: Validate multiplier value
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
+
         try:
             new_multiplier = float(new_multiplier)
             if new_multiplier < 0.1:
@@ -3499,27 +3305,15 @@ def update_multiplier():
         except (ValueError, TypeError):
             return jsonify({"error": "Invalid multiplier format - must be a number"}), 400
 
-        # ✅ STEP 3: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
-
-        # ✅ STEP 4: Find and validate account
         account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=client_id
         ).first()
         
         if not account:
-            logger.error(f"Account not found: {client_id} for user {user_email}")
+            logger.error(f"Account not found: {client_id} for user {request.current_user.email}")
             return jsonify({"error": "Account not found"}), 404
 
-        # ✅ STEP 5: Store previous state for logging and response
         previous_state = {
             "multiplier": account.multiplier,
             "role": account.role,
@@ -3529,7 +3323,6 @@ def update_multiplier():
             "username": account.username
         }
 
-        # ✅ STEP 6: Check if multiplier is actually changing
         if abs(float(account.multiplier or 1.0) - new_multiplier) < 0.001:  # Account for floating point precision
             logger.info(f"Multiplier for {client_id} already set to {new_multiplier}")
             return jsonify({
@@ -3544,19 +3337,16 @@ def update_multiplier():
                 }
             }), 200
 
-        # ✅ STEP 7: Get master account details if account is a child
         master_account = None
         if account.role == "child" and account.linked_master_id:
             master_account = Account.query.filter_by(
                 client_id=account.linked_master_id
             ).first()
 
-        # ✅ STEP 8: Update multiplier
         logger.info(f"Updating multiplier for {client_id}: {previous_state['multiplier']} -> {new_multiplier}")
         
         account.multiplier = new_multiplier
 
-        # ✅ STEP 9: Handle special cases based on account role
         warnings = []
         
         if account.role == "child":
@@ -3569,7 +3359,6 @@ def update_multiplier():
         else:
             warnings.append("Multiplier set for unassigned account - will take effect when account is configured as child")
 
-        # ✅ STEP 10: Check for any active order mappings that might be affected
         active_mappings = []
         if account.role == "child":
             active_mappings = OrderMapping.query.filter_by(
@@ -3582,29 +3371,27 @@ def update_multiplier():
         if active_mapping_count > 0:
             warnings.append(f"{active_mapping_count} active order mappings found - multiplier change affects future orders only")
 
-        # ✅ STEP 11: Commit changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully updated multiplier for {client_id} to {new_multiplier}")
         except Exception as e:
             logger.error(f"Failed to commit multiplier update: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save multiplier update",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "update_multiplier",
                     "client_id": client_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "old_multiplier": previous_state['multiplier'],
                     "new_multiplier": new_multiplier,
                     "account_role": account.role,
@@ -3620,7 +3407,6 @@ def update_multiplier():
         except Exception as e:
             logger.warning(f"Failed to log multiplier update: {str(e)}")
 
-        # ✅ STEP 13: Calculate impact estimation if child account
         impact_estimation = None
         if account.role == "child" and master_account:
             impact_estimation = {
@@ -3636,7 +3422,6 @@ def update_multiplier():
                 }
             }
 
-        # ✅ STEP 14: Prepare comprehensive response
         response_data = {
             "message": f"Multiplier updated to {new_multiplier} for {client_id}",
             "account_details": {
@@ -3664,7 +3449,6 @@ def update_multiplier():
             "warnings": warnings if warnings else []
         }
 
-        # Add impact estimation if available
         if impact_estimation:
             response_data["impact_estimation"] = impact_estimation
 
@@ -3672,37 +3456,44 @@ def update_multiplier():
 
     except Exception as e:
         logger.error(f"Unexpected error in update_multiplier: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
-# Delete an account entirely
 @app.route('/api/delete-account', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def delete_account():
     data = request.json
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
-    user = session.get("user")
-    db_user = User.query.filter_by(email=user).first()
-    if not db_user:
-        return jsonify({"error": "Account not found"}), 404
-    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+
+    if not validate_client_id(client_id):
+        return jsonify({"error": "Invalid client_id format"}), 400
+
+    acc_db = Account.query.filter_by(
+        user_id=request.current_user.id, 
+        client_id=client_id
+    ).first()
+    
     if not acc_db:
         return jsonify({"error": "Account not found"}), 404
+
     db.session.delete(acc_db)
     db.session.commit()
 
     return jsonify({"message": f"Account {client_id} deleted."})
 
 @app.route("/marketwatch")
+@login_required
 def market_watch():
     return render_template("marketwatch.html")
 
 @app.route('/api/check-credentials', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def check_credentials():
     """Validate broker credentials without saving them."""
     data = request.json
@@ -3712,10 +3503,13 @@ def check_credentials():
     if not broker or not client_id:
         return jsonify({'error': 'Missing broker or client_id'}), 400
 
+    if not validate_broker(broker) or not validate_client_id(client_id):
+        return jsonify({'error': 'Invalid broker or client_id format'}), 400
+
     credentials = {k: v for k, v in data.items() if k not in ('broker', 'client_id')}
     
-    broker_obj = None # Initialize broker_obj to None
-    error_message = None # Initialize error_message
+    broker_obj = None
+    error_message = None
 
     try:
         BrokerClass = get_broker_class(broker)
@@ -3731,7 +3525,7 @@ def check_credentials():
             if not all(credentials.get(r) for r in required):
                 return jsonify({'error': 'Missing credentials'}), 400
             imei = credentials.get('imei') or 'abc1234'
-            credentials['imei'] = imei # Ensure imei is in credentials if not already
+            credentials['imei'] = imei
             broker_obj = BrokerClass(
                 client_id=client_id,
                 password=credentials['password'],
@@ -3747,16 +3541,13 @@ def check_credentials():
                 return jsonify({'error': 'Missing Access Token'}), 400
             broker_obj = BrokerClass(client_id, access_token)
         else:
-            # For other brokers, assume access_token based authentication
             access_token = credentials.get('access_token')
             rest = {k: v for k, v in credentials.items() if k != 'access_token'}
             broker_obj = BrokerClass(client_id, access_token, **rest)
 
-        # After instantiation, check token validity if the method exists
         if broker_obj and hasattr(broker_obj, 'check_token_valid'):
             valid = broker_obj.check_token_valid()
             if not valid:
-                # If validation fails, try to get a more specific error message
                 error_message = broker_obj.last_auth_error() or 'Invalid broker credentials'
                 return jsonify({'error': error_message}), 400
         elif not broker_obj:
@@ -3765,39 +3556,20 @@ def check_credentials():
         return jsonify({'valid': True})
 
     except Exception as e:
-        # Catch any exceptions during broker instantiation or the check_token_valid call
         if broker_obj and hasattr(broker_obj, 'last_auth_error') and broker_obj.last_auth_error():
             error_message = broker_obj.last_auth_error()
         else:
             error_message = str(e)
-        return jsonify({'error': f'Credential validation failed: {error_message}'}), 400
-
+        return safe_json_response({'error': f'Credential validation failed: {error_message}'}, 400)
 
 @app.route('/api/add-account', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def add_account():
-    """Add account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "broker": "string",
-            "client_id": "string", 
-            "username": "string",
-            "access_token": "string",  # For most brokers
-            "api_key": "string",       # For AliceBlue/Finvasia
-            "password": "string",      # For Finvasia
-            "totp_secret": "string",   # For Finvasia
-            "vendor_code": "string",   # For Finvasia
-            "imei": "string"           # For Finvasia (optional)
-        }
-        
-    Returns:
-        JSON response with account addition confirmation or error
-    """
+    """Add account - Complete Database Version."""
     logger.info("Processing add account request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -3810,36 +3582,26 @@ def add_account():
             logger.error(f"Missing required fields: broker={bool(broker)}, client_id={bool(client_id)}, username={bool(username)}")
             return jsonify({"error": "Missing broker, client_id or username"}), 400
 
-        # Normalize broker name
         broker = broker.lower().strip()
         
-        # Validate broker is supported
-        supported_brokers = ['aliceblue', 'finvasia', 'dhan', 'zerodha', 'groww', 'upstox']
+        if not validate_broker(broker) or not validate_client_id(client_id):
+            return jsonify({"error": "Invalid broker or client_id format"}), 400
+        
+        supported_brokers = ['aliceblue', 'finvasia', 'dhan', 'zerodha', 'groww', 'upstox', 'fyers']
         if broker not in supported_brokers:
             return jsonify({
                 "error": f"Unsupported broker: {broker}",
                 "supported_brokers": supported_brokers
             }), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
-
-        # ✅ STEP 3: Check for duplicate account
         existing_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=client_id,
             broker=broker
         ).first()
         
         if existing_account:
-            logger.warning(f"Account already exists: {client_id} ({broker}) for user {user_email}")
+            logger.warning(f"Account already exists: {client_id} ({broker}) for user {request.current_user.email}")
             return jsonify({
                 "error": "Account already exists",
                 "existing_account": {
@@ -3851,15 +3613,12 @@ def add_account():
                 }
             }), 400
 
-        # ✅ STEP 4: Extract and validate broker-specific credentials
         credentials = {}
         
-        # Copy all credential fields except the basic ones
         for key, value in data.items():
             if key not in ('broker', 'client_id', 'username') and value is not None:
                 credentials[key] = value
 
-        # ✅ STEP 5: Broker-specific validation and setup
         validation_error = None
         
         if broker == 'aliceblue':
@@ -3867,11 +3626,9 @@ def add_account():
             if not api_key:
                 validation_error = "Missing API Key for AliceBlue"
             else:
-                # Generate device number if not provided
                 if 'device_number' not in credentials:
-                    # Check if user has existing AliceBlue account with device_number
                     existing_alice = Account.query.filter_by(
-                        user_id=user.id,
+                        user_id=request.current_user.id,
                         broker='aliceblue'
                     ).first()
                     
@@ -3889,7 +3646,6 @@ def add_account():
             if missing_fields:
                 validation_error = f"Missing required fields for Finvasia: {', '.join(missing_fields)}"
             else:
-                # Set default IMEI if not provided
                 if not credentials.get('imei'):
                     credentials['imei'] = 'abc1234'
                     logger.info("Using default IMEI for Finvasia")
@@ -3899,7 +3655,7 @@ def add_account():
             if not access_token:
                 validation_error = "Missing Access Token for Groww"
                 
-        else:  # dhan, zerodha, upstox
+        else:  # dhan, zerodha, upstox, fyers
             access_token = credentials.get('access_token')
             if not access_token:
                 validation_error = f"Missing Access Token for {broker.title()}"
@@ -3908,13 +3664,11 @@ def add_account():
             logger.error(f"Credential validation failed: {validation_error}")
             return jsonify({"error": validation_error}), 400
 
-        # ✅ STEP 6: Test broker connection and validate credentials
         try:
             BrokerClass = get_broker_class(broker)
             if not BrokerClass:
                 return jsonify({"error": f"Broker class not found for {broker}"}), 500
             
-            # Initialize broker object based on type
             if broker == 'aliceblue':
                 broker_obj = BrokerClass(
                     client_id, 
@@ -3935,13 +3689,11 @@ def add_account():
             elif broker == 'groww':
                 broker_obj = BrokerClass(client_id, credentials['access_token'])
                 
-            else:  # dhan, zerodha, upstox
+            else:  # dhan, zerodha, upstox, fyers
                 access_token = credentials.get('access_token')
-                # Pass additional credentials as kwargs
                 other_creds = {k: v for k, v in credentials.items() if k != 'access_token'}
                 broker_obj = BrokerClass(client_id, access_token, **other_creds)
                 
-            # Test connection if validation method exists
             if hasattr(broker_obj, 'check_token_valid'):
                 logger.info(f"Validating credentials for {broker} account {client_id}")
                 is_valid = broker_obj.check_token_valid()
@@ -3952,7 +3704,7 @@ def add_account():
                         error_message = broker_obj.last_auth_error()
                     
                     logger.error(f"Credential validation failed for {broker}: {error_message}")
-                    return jsonify({"error": f"Credential validation failed: {error_message}"}), 400
+                    return safe_json_response({"error": f"Credential validation failed: {error_message}"}, 400)
                     
                 logger.info(f"Credentials validated successfully for {broker} account {client_id}")
             else:
@@ -3964,28 +3716,26 @@ def add_account():
                 error_message = broker_obj.last_auth_error()
             
             logger.error(f"Failed to initialize/validate {broker} broker: {error_message}")
-            return jsonify({"error": f"Broker initialization failed: {error_message}"}), 400
+            return safe_json_response({"error": f"Broker initialization failed: {error_message}"}, 400)
 
-        # ✅ STEP 7: Create new account in database
-        logger.info(f"Creating new account: {client_id} ({broker}) for user {user_email}")
+        logger.info(f"Creating new account: {client_id} ({broker}) for user {request.current_user.email}")
         
         new_account = Account(
-            user_id=user.id,
+            user_id=request.current_user.id,
             broker=broker,
             client_id=client_id,
             username=username,
-            credentials=credentials,  # Store as JSON
+            credentials=credentials,
             status='Connected',
             auto_login=True,
             last_login_time=datetime.utcnow().isoformat(),
-            role=None,  # Initially unassigned
+            role=None,
             linked_master_id=None,
             multiplier=1.0,
             copy_status='Off',
             device_number=credentials.get('device_number') if broker == 'aliceblue' else None
         )
 
-        # ✅ STEP 8: Add and commit to database
         try:
             db.session.add(new_account)
             db.session.commit()
@@ -3993,24 +3743,23 @@ def add_account():
         except Exception as e:
             logger.error(f"Failed to save account to database: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save account",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 9: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
-                message=f"Account added: {client_id} ({broker}) by {user_email}",
-                user_id=str(user.id),
+                message=f"Account added: {client_id} ({broker}) by {request.current_user.email}",
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "add_account",
                     "client_id": client_id,
                     "broker": broker,
                     "username": username,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "credentials_provided": list(credentials.keys()),
                     "validation_performed": hasattr(broker_obj, 'check_token_valid'),
                     "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
@@ -4021,7 +3770,6 @@ def add_account():
         except Exception as e:
             logger.warning(f"Failed to log account addition: {str(e)}")
 
-        # ✅ STEP 10: Prepare success response
         response_data = {
             "message": f"✅ Account {username} ({broker}) added successfully",
             "account_details": {
@@ -4052,22 +3800,17 @@ def add_account():
 
     except Exception as e:
         logger.error(f"Unexpected error in add_account: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
-    
-    
+        }, 500)
+
 @app.route('/api/accounts')
-@login_required
+@limiter.limit("60 per minute")
+@require_user
 def get_accounts():
     try:
-        user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        accounts = [_account_to_dict(acc) for acc in user.accounts]
+        accounts = [_account_to_dict(acc) for acc in request.current_user.accounts]
 
         # Add opening balances
         for acc in accounts:
@@ -4075,11 +3818,12 @@ def get_accounts():
             if bal is not None:
                 acc["opening_balance"] = bal
 
-        # Group masters with their children
+        # Group masters with their children (only user's own children)
         masters = []
         for acc in accounts:
             if acc.get("role") == "master":
                 children = Account.query.filter_by(
+                    user_id=request.current_user.id,  # Only user's children
                     role="child", 
                     linked_master_id=acc.get("client_id")
                 ).all()
@@ -4093,22 +3837,19 @@ def get_accounts():
         })
     except Exception as e:
         logger.error(f"Error in /api/accounts: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-        
+        return safe_json_response({"error": str(e)}, 500)
+
 @app.route('/api/groups', methods=['GET'])
-@login_required
+@limiter.limit("60 per minute")
+@require_user
 def get_groups():
     """Return all account groups for the logged-in user."""
-    user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
-    if not user_obj:
-        return jsonify([])
-    groups = Group.query.filter_by(user_id=user_obj.id).all()
+    groups = Group.query.filter_by(user_id=request.current_user.id).all()
     return jsonify([_group_to_dict(g) for g in groups])
 
-
 @app.route('/api/create-group', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def create_group():
     """Create a new account group."""
     data = request.json
@@ -4117,39 +3858,44 @@ def create_group():
     if not name:
         return jsonify({"error": "Missing group name"}), 400
 
-    user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
-    if not user_obj:
-        return jsonify({"error": "User not found"}), 400
-    if Group.query.filter_by(user_id=user_obj.id, name=name).first():
+    if Group.query.filter_by(user_id=request.current_user.id, name=name).first():
         return jsonify({"error": "Group already exists"}), 400
 
-    group = Group(name=name, user_id=user_obj.id)
+    group = Group(name=name, user_id=request.current_user.id)
     for cid in members:
-        acc = Account.query.filter_by(user_id=user_obj.id, client_id=cid).first()
+        acc = Account.query.filter_by(
+            user_id=request.current_user.id, 
+            client_id=cid
+        ).first()
         if acc:
             group.accounts.append(acc)
     db.session.add(group)
     db.session.commit()
     return jsonify({"message": f"Group '{name}' created"})
 
-
 @app.route('/api/groups/<group_name>/add', methods=['POST'])
-@login_required
+@limiter.limit("20 per minute")
+@require_user
 def add_account_to_group(group_name):
     """Add an account to an existing group."""
     client_id = request.json.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
 
-    user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
-    if not user_obj:
-        return jsonify({"error": "User not found"}), 400
-    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not validate_client_id(client_id):
+        return jsonify({"error": "Invalid client_id format"}), 400
+
+    group = Group.query.filter_by(
+        user_id=request.current_user.id, 
+        name=group_name
+    ).first()
     if not group:
         return jsonify({"error": "Group not found"}), 404
-    acc = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
+        
+    acc = Account.query.filter_by(
+        user_id=request.current_user.id, 
+        client_id=client_id
+    ).first()
     if not acc:
         return jsonify({"error": "Account not found"}), 404
     if acc in group.accounts:
@@ -4159,30 +3905,37 @@ def add_account_to_group(group_name):
     return jsonify({"message": f"Added {client_id} to {group_name}"})
 
 @app.route('/api/groups/<group_name>/remove', methods=['POST'])
-@login_required
+@limiter.limit("20 per minute")
+@require_user
 def remove_account_from_group(group_name):
     """Remove an account from a group."""
     client_id = request.json.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
 
-    user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
-    if not user_obj:
-        return jsonify({"error": "User not found"}), 400
-    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not validate_client_id(client_id):
+        return jsonify({"error": "Invalid client_id format"}), 400
+
+    group = Group.query.filter_by(
+        user_id=request.current_user.id, 
+        name=group_name
+    ).first()
     if not group:
         return jsonify({"error": "Group not found"}), 404
-    acc = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
+        
+    acc = Account.query.filter_by(
+        user_id=request.current_user.id, 
+        client_id=client_id
+    ).first()
     if not acc or acc not in group.accounts:
         return jsonify({"error": "Account not in group"}), 400
     group.accounts.remove(acc)
     db.session.commit()
     return jsonify({"message": f"Removed {client_id} from {group_name}"})
 
-
 @app.route('/api/group-order', methods=['POST'])
-@login_required
+@limiter.limit("30 per minute")
+@require_user
 def place_group_order():
     """Place the same order across all accounts in a group."""
     data = request.json
@@ -4194,11 +3947,10 @@ def place_group_order():
     if not all([group_name, symbol, action, quantity]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
-    if not user_obj:
-        return jsonify({"error": "User not found"}), 400
-    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    group = Group.query.filter_by(
+        user_id=request.current_user.id, 
+        name=group_name
+    ).first()
     if not group:
         return jsonify({"error": "Group not found"}), 404
 
@@ -4213,6 +3965,7 @@ def place_group_order():
             broker_name = acc.get("broker", "dhan").lower()
             order_params = {}
             mapping = get_symbol_for_broker(symbol, broker_name)
+            
             if broker_name == "dhan":
                 security_id = mapping.get("security_id")
                 order_params = dict(
@@ -4244,10 +3997,9 @@ def place_group_order():
                 )
 
             elif broker_name == "finvasia":
-                # Assuming your symbol_map provides 'symbol', 'token', and 'exchange' for Finvasia
-                finvasia_symbol = mapping.get("symbol", symbol) # Use 'symbol' key from your mapping
-                finvasia_token = mapping.get("token") # Extract the Finvasia token
-                finvasia_exchange = mapping.get("exchange", "NSE") # Use 'exchange' key from your mapping
+                finvasia_symbol = mapping.get("symbol", symbol)
+                finvasia_token = mapping.get("token")
+                finvasia_exchange = mapping.get("exchange", "NSE")
 
                 if not finvasia_token:
                     raise ValueError(f"Finvasia token not found in symbol map for {symbol}")
@@ -4258,9 +4010,9 @@ def place_group_order():
                     transaction_type=action.upper(),
                     quantity=int(quantity),
                     order_type=map_order_type("MARKET", broker_name),
-                    product="MIS", # Or map to 'C' for CNC, 'H' for NRML based on your needs
-                    price=0, # Market orders typically have price=0, or adjust for Limit orders
-                    token=finvasia_token, # <<< CRITICAL: Pass the extracted token here
+                    product="MIS",
+                    price=0,
+                    token=finvasia_token,
                 )
             else:
                 tradingsymbol = mapping.get("tradingsymbol", symbol)
@@ -4273,36 +4025,53 @@ def place_group_order():
                     product="MIS",
                     price=None,
                 )
+                
             resp = api.place_order(**order_params)
             if isinstance(resp, dict) and resp.get("status") == "failure":
                 status = "FAILED"
-                results.append({"client_id": acc.get("client_id"), "status": status, "reason": clean_response_message(resp)})
+                results.append({
+                    "client_id": acc.get("client_id"), 
+                    "status": status, 
+                    "reason": clean_response_message(resp)
+                })
             else:
                 status = "SUCCESS"
-                results.append({"client_id": acc.get("client_id"), "status": status})
+                results.append({
+                    "client_id": acc.get("client_id"), 
+                    "status": status
+                })
 
-            record_trade(user, symbol, action.upper(), quantity, order_params.get('price'), status)
+            record_trade(
+                request.current_user.email, 
+                symbol, 
+                action.upper(), 
+                quantity, 
+                order_params.get('price'), 
+                status
+            )
         except Exception as e:
-            results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
+            results.append({
+                "client_id": acc.get("client_id"), 
+                "status": "ERROR", 
+                "reason": str(e)
+            })
 
     return jsonify(results)
-    
-# Set master account
+
 @app.route('/api/set-master', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def set_master():
     try:
         client_id = request.json.get('client_id')
         if not client_id:
             return jsonify({"error": "Missing client_id"}), 400
 
-        user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
         account = Account.query.filter_by(
-            user_id=user.id, 
+            user_id=request.current_user.id, 
             client_id=client_id
         ).first()
         
@@ -4317,10 +4086,12 @@ def set_master():
 
         return jsonify({"message": "Set as master successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in set_master: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
 @app.route('/api/set-child', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def set_child():
     try:
         client_id = request.json.get('client_id')
@@ -4329,18 +4100,26 @@ def set_child():
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
 
-        user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id) or not validate_client_id(linked_master_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
         account = Account.query.filter_by(
-            user_id=user.id, 
+            user_id=request.current_user.id, 
             client_id=client_id
         ).first()
         
         if not account:
             return jsonify({"error": "Account not found"}), 404
+
+        # Verify master account exists and belongs to user
+        master_account = Account.query.filter_by(
+            user_id=request.current_user.id,
+            client_id=linked_master_id,
+            role='master'
+        ).first()
+        
+        if not master_account:
+            return jsonify({"error": "Master account not found or not accessible"}), 404
 
         account.role = "child"
         account.linked_master_id = linked_master_id
@@ -4350,27 +4129,17 @@ def set_child():
 
         return jsonify({"message": "Set as child successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in set_child: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
-# Start copying for a child account
 @app.route('/api/start-copy', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def start_copy():
-    """Start copying for a child account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string",
-            "master_id": "string"
-        }
-        
-    Returns:
-        JSON response with success message or error
-    """
+    """Start copying for a child account - Complete Database Version."""
     logger.info("Processing start copy request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -4382,19 +4151,11 @@ def start_copy():
             logger.error(f"Missing required fields: client_id={bool(client_id)}, master_id={bool(master_id)}")
             return jsonify({"error": "Missing client_id or master_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id) or not validate_client_id(master_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-        # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
-            user_id=user.id, 
+            user_id=request.current_user.id, 
             client_id=client_id
         ).first()
         
@@ -4402,8 +4163,8 @@ def start_copy():
             logger.error(f"Child account not found: {client_id}")
             return jsonify({"error": "Child account not found"}), 404
 
-        # ✅ STEP 4: Find and validate master account
         master_account = Account.query.filter_by(
+            user_id=request.current_user.id,
             client_id=master_id,
             role='master'
         ).first()
@@ -4412,27 +4173,18 @@ def start_copy():
             logger.error(f"Master account not found: {master_id}")
             return jsonify({"error": "Master account not found"}), 404
 
-        # ✅ STEP 5: Check if master belongs to same user or is accessible
-        if master_account.user_id != user.id:
-            logger.warning(f"User {user_email} trying to access master {master_id} owned by different user")
-            return jsonify({"error": "Master account not accessible"}), 403
-
-        # ✅ STEP 6: Update child account configuration
         child_account.role = "child"
         child_account.linked_master_id = master_id
         child_account.copy_status = "On"
         
         logger.info(f"Setting up child {client_id} to copy from master {master_id}")
 
-        # ✅ STEP 7: Get latest order ID from master to set initial marker
         latest_order_id = "NONE"
         
         try:
-            # Convert master account to dict for broker_api compatibility
             master_dict = _account_to_dict(master_account)
             master_api = broker_api(master_dict)
             
-            # Get orders based on broker type
             broker_name = master_account.broker.lower() if master_account.broker else "unknown"
             
             if broker_name == "aliceblue" and hasattr(master_api, "get_trade_book"):
@@ -4440,7 +4192,6 @@ def start_copy():
                 orders_resp = master_api.get_trade_book()
                 order_list = parse_order_list(orders_resp)
                 
-                # Fallback to order list if trade book is empty
                 if not order_list and hasattr(master_api, "get_order_list"):
                     logger.debug("Trade book empty, falling back to order list")
                     orders_resp = master_api.get_order_list()
@@ -4450,18 +4201,15 @@ def start_copy():
                 orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
             
-            # Clean and process orders
             order_list = strip_emojis_from_obj(order_list or [])
             
             if order_list and isinstance(order_list, list):
-                # Sort orders to get the latest one
                 try:
                     order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
                     
                     if order_list:
                         latest_order = order_list[0]
                         
-                        # Extract order ID with multiple fallbacks
                         latest_order_id = (
                             latest_order.get("orderId")
                             or latest_order.get("order_id")
@@ -4470,7 +4218,7 @@ def start_copy():
                             or latest_order.get("Nstordno")
                             or latest_order.get("nestOrderNumber")
                             or latest_order.get("orderNumber")
-                            or latest_order.get("norenordno")  # Finvasia
+                            or latest_order.get("norenordno")
                             or "NONE"
                         )
                         
@@ -4487,22 +4235,19 @@ def start_copy():
             logger.error(f"Could not fetch latest order for marker from master {master_id}: {str(e)}")
             latest_order_id = "NONE"
 
-        # ✅ STEP 8: Set the marker to prevent copying historical orders
         child_account.last_copied_trade_id = latest_order_id
         
-        # ✅ STEP 9: Commit changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully started copying: {client_id} -> {master_id}, marker: {latest_order_id}")
         except Exception as e:
             logger.error(f"Failed to commit changes: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save configuration",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 10: Return success response
         return jsonify({
             'message': f"✅ Started copying for {client_id} under master {master_id}",
             'details': {
@@ -4516,29 +4261,19 @@ def start_copy():
 
     except Exception as e:
         logger.error(f"Unexpected error in start_copy: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
     
 @app.route('/api/stop-copy', methods=['POST'])
-@login_required
+@limiter.limit("10 per minute")
+@require_user
 def stop_copy():
-    """Stop copying for a child account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string",
-            "master_id": "string" (optional, for validation)
-        }
-        
-    Returns:
-        JSON response with success message or error
-    """
+    """Stop copying for a child account - Complete Database Version."""
     logger.info("Processing stop copy request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -4550,19 +4285,11 @@ def stop_copy():
             logger.error("Missing client_id in request")
             return jsonify({"error": "Missing client_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-        # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
-            user_id=user.id, 
+            user_id=request.current_user.id, 
             client_id=client_id
         ).first()
         
@@ -4570,7 +4297,6 @@ def stop_copy():
             logger.error(f"Child account not found: {client_id}")
             return jsonify({"error": "Child account not found"}), 404
 
-        # ✅ STEP 4: Validate current state
         if child_account.role != "child":
             logger.warning(f"Account {client_id} is not configured as child (role: {child_account.role})")
             return jsonify({"error": "Account is not configured as a child"}), 400
@@ -4582,7 +4308,6 @@ def stop_copy():
                 "current_status": child_account.copy_status
             }), 200
 
-        # ✅ STEP 5: Optional master validation
         current_master_id = child_account.linked_master_id
         if master_id and master_id != current_master_id:
             logger.warning(f"Master ID mismatch: expected {master_id}, current {current_master_id}")
@@ -4592,17 +4317,14 @@ def stop_copy():
                 "current": current_master_id
             }), 400
 
-        # ✅ STEP 6: Get master account details for logging
         master_account = None
         if current_master_id:
             master_account = Account.query.filter_by(
                 client_id=current_master_id
             ).first()
 
-        # ✅ STEP 7: Stop copying configuration
         logger.info(f"Stopping copy trading for {client_id} from master {current_master_id}")
         
-        # Store previous state for response
         previous_state = {
             "role": child_account.role,
             "linked_master_id": child_account.linked_master_id,
@@ -4611,34 +4333,30 @@ def stop_copy():
             "last_copied_trade_id": child_account.last_copied_trade_id
         }
         
-        # Update child account - stop copying but keep role and relationship
         child_account.copy_status = "Off"
-        # Note: We keep role="child" and linked_master_id for potential restart
         
-        # ✅ STEP 8: Commit changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully stopped copying for {client_id}")
         except Exception as e:
             logger.error(f"Failed to commit changes: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save configuration",
                 "details": str(e)
-            }), 500
+            }, 500)
 
-        # ✅ STEP 9: Log the action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.now().isoformat(),
                 level="INFO",
                 message=f"Copy trading stopped: {client_id} -> {current_master_id}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "stop_copy",
                     "child_id": client_id,
                     "master_id": current_master_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "previous_state": previous_state
                 })
             )
@@ -4646,22 +4364,19 @@ def stop_copy():
             db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log action: {str(e)}")
-            # Don't fail the request if logging fails
 
-        # ✅ STEP 10: Return success response with details
         response_data = {
             'message': f"🛑 Stopped copying for {client_id}",
             'details': {
                 'child_account': client_id,
                 'master_account': current_master_id,
                 'copy_status': 'Off',
-                'role': child_account.role,  # Still "child"
+                'role': child_account.role,
                 'broker': child_account.broker,
                 'stopped_at': datetime.now().isoformat()
             }
         }
         
-        # Add master details if available
         if master_account:
             response_data['details']['master_broker'] = master_account.broker
             response_data['details']['master_username'] = master_account.username
@@ -4670,30 +4385,19 @@ def stop_copy():
 
     except Exception as e:
         logger.error(f"Unexpected error in stop_copy: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
-
-# Bulk start copying for all children of a master
 @app.route('/api/start-copy-all', methods=['POST'])
-@login_required
+@limiter.limit("5 per minute")
+@require_user
 def start_copy_all():
-    """Start copying for all children of a master - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "master_id": "string"
-        }
-        
-    Returns:
-        JSON response with bulk operation results
-    """
+    """Start copying for all children of a master - Complete Database Version."""
     logger.info("Processing bulk start copy request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -4704,19 +4408,11 @@ def start_copy_all():
             logger.error("Missing master_id in request")
             return jsonify({"error": "Missing master_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(master_id):
+            return jsonify({"error": "Invalid master_id format"}), 400
 
-        # ✅ STEP 3: Validate master account exists and belongs to user
         master_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=master_id,
             role='master'
         ).first()
@@ -4725,21 +4421,20 @@ def start_copy_all():
             logger.error(f"Master account not found or not accessible: {master_id}")
             return jsonify({"error": "Master account not found or not accessible"}), 404
 
-        # ✅ STEP 4: Find all child accounts linked to this master
-        linked_children = Account.query.filter_by(
-            user_id=user.id,
+        stopped_children = Account.query.filter_by(
+            user_id=request.current_user.id,
             role='child',
-            linked_master_id=master_id
+            linked_master_id=master_id,
+            copy_status='Off'
         ).all()
 
-        # ✅ STEP 5: Filter only children that are currently stopped
-        stopped_children = [child for child in linked_children if child.copy_status == "Off"]
-
-        # ✅ STEP 6: Check if there are any stopped children to start
         if not stopped_children:
-            logger.info(f"No stopped children found for master {master_id}")
+            linked_children = Account.query.filter_by(
+                user_id=request.current_user.id,
+                role='child',
+                linked_master_id=master_id
+            ).all()
             
-            # Check if all are already copying
             all_children_copying = all(child.copy_status == "On" for child in linked_children)
             
             if all_children_copying and linked_children:
@@ -4762,15 +4457,12 @@ def start_copy_all():
 
         logger.info(f"Found {len(stopped_children)} stopped children to start for master {master_id}")
 
-        # ✅ STEP 7: Get latest order from master for initial marker
         master_latest_order_id = "NONE"
         
         try:
-            # Convert master account to dict for broker_api compatibility
             master_dict = _account_to_dict(master_account)
             master_api = broker_api(master_dict)
             
-            # Get orders based on broker type
             broker_name = master_account.broker.lower() if master_account.broker else "unknown"
             
             if broker_name == "aliceblue" and hasattr(master_api, "get_trade_book"):
@@ -4778,7 +4470,6 @@ def start_copy_all():
                 orders_resp = master_api.get_trade_book()
                 order_list = parse_order_list(orders_resp)
                 
-                # Fallback to order list if trade book is empty
                 if not order_list and hasattr(master_api, "get_order_list"):
                     logger.debug("Trade book empty, falling back to order list")
                     orders_resp = master_api.get_order_list()
@@ -4788,18 +4479,15 @@ def start_copy_all():
                 orders_resp = master_api.get_order_list()
                 order_list = parse_order_list(orders_resp)
             
-            # Clean and process orders
             order_list = strip_emojis_from_obj(order_list or [])
             
             if order_list and isinstance(order_list, list):
-                # Sort orders to get the latest one
                 try:
                     order_list = sorted(order_list, key=get_order_sort_key, reverse=True)
                     
                     if order_list:
                         latest_order = order_list[0]
                         
-                        # Extract order ID with multiple fallbacks
                         master_latest_order_id = (
                             latest_order.get("orderId")
                             or latest_order.get("order_id")
@@ -4808,7 +4496,7 @@ def start_copy_all():
                             or latest_order.get("Nstordno")
                             or latest_order.get("nestOrderNumber")
                             or latest_order.get("orderNumber")
-                            or latest_order.get("norenordno")  # Finvasia
+                            or latest_order.get("norenordno")
                             or "NONE"
                         )
                         
@@ -4825,14 +4513,12 @@ def start_copy_all():
             logger.error(f"Could not fetch latest order for bulk marker from master {master_id}: {str(e)}")
             master_latest_order_id = "NONE"
 
-        # ✅ STEP 8: Process each stopped child account
         results = []
         started_count = 0
         failed_count = 0
 
         for child in stopped_children:
             try:
-                # Store previous state for logging
                 previous_state = {
                     "client_id": child.client_id,
                     "copy_status": child.copy_status,
@@ -4840,7 +4526,6 @@ def start_copy_all():
                     "last_copied_trade_id": child.last_copied_trade_id
                 }
 
-                # Start copying for this child
                 child.copy_status = "On"
                 child.last_copied_trade_id = master_latest_order_id
                 
@@ -4870,30 +4555,28 @@ def start_copy_all():
                 })
                 failed_count += 1
 
-        # ✅ STEP 9: Commit all changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully started copying for {started_count} children of master {master_id}")
         except Exception as e:
             logger.error(f"Failed to commit bulk changes: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save bulk configuration changes",
                 "details": str(e),
                 "partial_success": False
-            }), 500
+            }, 500)
 
-        # ✅ STEP 10: Log the bulk action for audit trail
         try:
             log_entry = SystemLog(
                 timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Bulk start copy: {started_count} children started for master {master_id}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "start_copy_all",
                     "master_id": master_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "started_count": started_count,
                     "failed_count": failed_count,
                     "master_marker": master_latest_order_id,
@@ -4905,9 +4588,7 @@ def start_copy_all():
             db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log bulk start action: {str(e)}")
-            # Don't fail the request if logging fails
 
-        # ✅ STEP 11: Prepare comprehensive response
         response_data = {
             "message": f"Bulk start completed for master {master_id}",
             "master_id": master_id,
@@ -4915,55 +4596,40 @@ def start_copy_all():
             "master_username": master_account.username,
             "master_marker": master_latest_order_id,
             "summary": {
-                "total_children": len(linked_children),
+                "total_children": len(stopped_children),
                 "eligible_to_start": len(stopped_children),
                 "started_successfully": started_count,
                 "failed": failed_count,
-                "already_copying": len(linked_children) - len(stopped_children),
                 "success_rate": f"{(started_count/len(stopped_children)*100):.1f}%" if stopped_children else "0%"
             },
             "details": results,
             "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         }
 
-        # ✅ STEP 12: Return appropriate status code based on results
         if failed_count == 0:
-            # Complete success
             return jsonify(response_data), 200
         elif started_count > 0:
-            # Partial success
             response_data["warning"] = f"{failed_count} accounts failed to start"
-            return jsonify(response_data), 207  # Multi-Status
+            return jsonify(response_data), 207
         else:
-            # Complete failure
             response_data["error"] = "Failed to start any child accounts"
             return jsonify(response_data), 500
 
     except Exception as e:
         logger.error(f"Unexpected error in start_copy_all: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
-# Bulk stop copying for all children of a master
 @app.route('/api/stop-copy-all', methods=['POST'])
-@login_required
+@limiter.limit("5 per minute")
+@require_user
 def stop_copy_all():
-    """Bulk stop copying for all children of a master - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "master_id": "string"
-        }
-        
-    Returns:
-        JSON response with bulk operation results
-    """
+    """Stop copying for all children of a master - Complete Database Version."""
     logger.info("Processing bulk stop copy request")
     
     try:
-        # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -4974,19 +4640,11 @@ def stop_copy_all():
             logger.error("Missing master_id in request")
             return jsonify({"error": "Missing master_id"}), 400
 
-        # ✅ STEP 2: Get current user from session
-        user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+        if not validate_client_id(master_id):
+            return jsonify({"error": "Invalid master_id format"}), 400
 
-        # ✅ STEP 3: Validate master account exists and belongs to user
         master_account = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             client_id=master_id,
             role='master'
         ).first()
@@ -4995,34 +4653,37 @@ def stop_copy_all():
             logger.error(f"Master account not found or not accessible: {master_id}")
             return jsonify({"error": "Master account not found or not accessible"}), 404
 
-        # ✅ STEP 4: Find all active child accounts for this master
         active_children = Account.query.filter_by(
-            user_id=user.id,
+            user_id=request.current_user.id,
             role='child',
             linked_master_id=master_id,
             copy_status='On'
         ).all()
 
-        # ✅ STEP 5: Check if there are any active children
         if not active_children:
-            logger.info(f"No active children found for master {master_id}")
+            linked_children = Account.query.filter_by(
+                user_id=request.current_user.id,
+                role='child',
+                linked_master_id=master_id
+            ).all()
+            
             return jsonify({
                 "message": f"No active child accounts found for master {master_id}",
                 "master_id": master_id,
+                "total_children": len(linked_children),
+                "already_stopped": len([c for c in linked_children if c.copy_status == "Off"]),
                 "stopped_count": 0,
                 "details": []
             }), 200
 
-        logger.info(f"Found {len(active_children)} active children for master {master_id}")
+        logger.info(f"Found {len(active_children)} active children to stop for master {master_id}")
 
-        # ✅ STEP 6: Process each child account
         results = []
         stopped_count = 0
         failed_count = 0
 
         for child in active_children:
             try:
-                # Store previous state for logging
                 previous_state = {
                     "client_id": child.client_id,
                     "copy_status": child.copy_status,
@@ -5030,13 +4691,13 @@ def stop_copy_all():
                     "last_copied_trade_id": child.last_copied_trade_id
                 }
 
-                # Stop copying for this child
                 child.copy_status = "Off"
                 
                 results.append({
                     "client_id": child.client_id,
                     "broker": child.broker,
                     "username": child.username,
+                    "multiplier": child.multiplier,
                     "status": "SUCCESS",
                     "previous_status": previous_state["copy_status"],
                     "message": "Copy trading stopped successfully"
@@ -5051,741 +4712,444 @@ def stop_copy_all():
                     "client_id": child.client_id,
                     "broker": child.broker or "Unknown",
                     "username": child.username or "Unknown",
+                    "multiplier": child.multiplier or 1.0,
                     "status": "ERROR",
                     "message": f"Failed to stop: {str(e)}"
                 })
                 failed_count += 1
 
-        # ✅ STEP 7: Commit all changes to database
         try:
             db.session.commit()
             logger.info(f"Successfully stopped copying for {stopped_count} children of master {master_id}")
         except Exception as e:
             logger.error(f"Failed to commit bulk changes: {str(e)}")
             db.session.rollback()
-            return jsonify({
+            return safe_json_response({
                 "error": "Failed to save bulk configuration changes",
                 "details": str(e),
                 "partial_success": False
-            }), 500
+            }, 500)
 
-        # ✅ STEP 8: Log the bulk action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Bulk stop copy: {stopped_count} children stopped for master {master_id}",
-                user_id=str(user.id),
+                user_id=str(request.current_user.id),
                 details=json.dumps({
                     "action": "stop_copy_all",
                     "master_id": master_id,
-                    "user": user_email,
+                    "user": request.current_user.email,
                     "stopped_count": stopped_count,
                     "failed_count": failed_count,
-                    "timestamp": "2025-07-05 09:12:01",
+                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                     "children_affected": [r["client_id"] for r in results if r["status"] == "SUCCESS"]
                 })
             )
             db.session.add(log_entry)
             db.session.commit()
         except Exception as e:
-            logger.warning(f"Failed to log bulk action: {str(e)}")
-            # Don't fail the request if logging fails
+            logger.warning(f"Failed to log bulk stop action: {str(e)}")
 
-        # ✅ STEP 9: Prepare comprehensive response
         response_data = {
             "message": f"Bulk stop completed for master {master_id}",
             "master_id": master_id,
             "master_broker": master_account.broker,
             "master_username": master_account.username,
             "summary": {
-                "total_processed": len(active_children),
+                "total_children": len(active_children),
+                "eligible_to_stop": len(active_children),
                 "stopped_successfully": stopped_count,
                 "failed": failed_count,
                 "success_rate": f"{(stopped_count/len(active_children)*100):.1f}%" if active_children else "0%"
             },
             "details": results,
-            "timestamp": "2025-07-05 09:12:01"
+            "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         }
 
-        # ✅ STEP 10: Return appropriate status code based on results
         if failed_count == 0:
-            # Complete success
             return jsonify(response_data), 200
         elif stopped_count > 0:
-            # Partial success
             response_data["warning"] = f"{failed_count} accounts failed to stop"
-            return jsonify(response_data), 207  # Multi-Status
+            return jsonify(response_data), 207
         else:
-            # Complete failure
             response_data["error"] = "Failed to stop any child accounts"
             return jsonify(response_data), 500
 
     except Exception as e:
         logger.error(f"Unexpected error in stop_copy_all: {str(e)}")
-        return jsonify({
+        return safe_json_response({
             "error": "Internal server error",
             "details": str(e)
-        }), 500
+        }, 500)
 
+@app.route('/api/positions/<client_id>')
+@limiter.limit("60 per minute")
+@require_user
+def get_positions(client_id):
+    try:
+        if not validate_client_id(client_id):
+            return jsonify({"error": "Invalid client_id format"}), 400
 
-# === Endpoint to fetch passive alert logs ===
-@app.route("/api/alerts")
-def get_alerts():
-    user_id = request.args.get("user_id")
-    logs = (
-        TradeLog.query.filter_by(user_id=user_id, status="ALERT")
-        .order_by(TradeLog.id.desc())
-        .limit(20)
-        .all()
-    )
+        account = Account.query.filter_by(
+            user_id=request.current_user.id,
+            client_id=client_id
+        ).first()
+        
+        if not account:
+            return jsonify({"error": "Account not found"}), 404
 
+        account_dict = _account_to_dict(account)
+        api = broker_api(account_dict)
+        
+        positions_resp = api.get_positions()
+        
+        if isinstance(positions_resp, dict):
+            positions = (
+                positions_resp.get("data", []) or 
+                positions_resp.get("positions", []) or
+                positions_resp.get("net", [])
+            )
+        else:
+            positions = positions_resp or []
+            
+        return jsonify(positions)
+        
+    except Exception as e:
+        logger.error(f"Error in get_positions: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
-    alerts = [
-        {"time": log.timestamp, "message": log.response}
-        for log in logs
-    ]
-    return jsonify(alerts)
+@app.route("/api/broker-status")
+def broker_status():
+    """Check the status of various broker APIs."""
+    results = {}
+    for broker, url in BROKER_STATUS_URLS.items():
+        results[broker] = check_api(url)
+    results["uptime"] = format_uptime()
+    return jsonify(results)
 
-
-
-# === API to save new user from login form ===
-# === API to save new user from login form ===
-@app.route("/register", methods=["POST"])
-def register_user():
+@app.route("/api/test-webhook/<user_id>", methods=["POST"])
+@limiter.limit("10 per minute")
+def test_webhook(user_id):
+    """Test webhook endpoint for development/debugging."""
     data = request.json or {}
-    token = data.get("user_id") or uuid.uuid4().hex
-    client_id = data.get("client_id")
-    access_token = data.get("access_token")
-    broker = data.get("broker", "dhan")
+    return jsonify({
+        "message": "Test webhook received",
+        "user_id": user_id,
+        "data": data,
+        "timestamp": datetime.now().isoformat()
+    })
 
-    if not all([client_id, access_token]):
-        return jsonify({"error": "Missing required fields"}), 400
+@app.route("/api/logs")
+@limiter.limit("30 per minute")
+@require_user
+def get_logs():
+    """Get trade logs for the current user."""
+    try:
+        # Get logs for user's accounts only
+        user_client_ids = [acc.client_id for acc in request.current_user.accounts]
+        
+        logs = TradeLog.query.filter(
+            TradeLog.user_id.in_(user_client_ids)
+        ).order_by(TradeLog.timestamp.desc()).limit(100).all()
+        
+        return jsonify([{
+            "timestamp": log.timestamp,
+            "user_id": log.user_id,
+            "symbol": log.symbol,
+            "action": log.action,
+            "quantity": log.quantity,
+            "status": log.status,
+            "response": log.response
+        } for log in logs])
+        
+    except Exception as e:
+        logger.error(f"Error in get_logs: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
 
-    user = get_user_by_token(token)
-    if not user:
-        user = User(webhook_token=token)
+@app.route("/api/trades")
+@limiter.limit("30 per minute")
+@require_user
+def get_trades():
+    """Get trade history for the current user."""
+    try:
+        trades = Trade.query.filter_by(
+            user_id=request.current_user.id
+        ).order_by(Trade.timestamp.desc()).limit(100).all()
+        
+        return jsonify([{
+            "id": trade.id,
+            "symbol": trade.symbol,
+            "action": trade.action,
+            "qty": trade.qty,
+            "price": trade.price,
+            "status": trade.status,
+            "timestamp": trade.timestamp
+        } for trade in trades])
+        
+    except Exception as e:
+        logger.error(f"Error in get_trades: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
+
+@app.route("/api/system-status")
+def system_status():
+    """Get comprehensive system status."""
+    try:
+        # Check database
+        db.session.execute('SELECT 1')
+        
+        # Count various entities
+        total_users = User.query.count()
+        total_accounts = Account.query.count()
+        active_masters = Account.query.filter_by(role='master').count()
+        active_children = Account.query.filter_by(role='child', copy_status='On').count()
+        
+        # Check scheduler
+        scheduler_status = "running" if _scheduler and _scheduler.running else "stopped"
+        
+        # Get broker statuses
+        broker_statuses = {}
+        for broker, url in BROKER_STATUS_URLS.items():
+            broker_statuses[broker] = check_api(url)
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "uptime": format_uptime(),
+            "environment": ENVIRONMENT,
+            "statistics": {
+                "total_users": total_users,
+                "total_accounts": total_accounts,
+                "active_masters": active_masters,
+                "active_children": active_children
+            },
+            "services": {
+                "database": "connected",
+                "scheduler": scheduler_status,
+                "brokers": broker_statuses
+            },
+            "configuration": {
+                "polling_interval": POLLING_INTERVAL,
+                "max_masters_per_cycle": MAX_MASTERS_PER_CYCLE,
+                "log_level": LOG_LEVEL
+            }
+        }), 200
+        
+    except Exception as e:
+        return safe_json_response({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }, 503)
+
+# User Authentication Routes
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        
+        if User.query.filter_by(email=email).first():
+            flash("Email already exists", "error")
+            return render_template("register.html")
+        
+        # Generate webhook token
+        webhook_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+        
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(password),
+            webhook_token=webhook_token
+        )
         db.session.add(user)
         db.session.commit()
-
-    account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
-    creds = {"access_token": access_token}
-    if not account:
-        account = Account(user_id=user.id, broker=broker, client_id=client_id, credentials=creds)
-        db.session.add(account)
-    else:
-        account.credentials = creds
-    db.session.commit()
-
-    return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{token}"})
-
-
-# === API to fetch logs for a user ===
-@app.route("/logs")
-def get_logs():
-    user_id = request.args.get("user_id")
-    rows = (
-        TradeLog.query.filter_by(user_id=user_id)
-        .order_by(TradeLog.id.desc())
-        .limit(100)
-        .all()
-    )
+        
+        flash("Registration successful! Please log in.", "success")
+        return redirect(url_for("login"))
     
-    logs = []
-    for row in rows:
-        logs.append({
-            "timestamp": row.timestamp,
-            "user_id": row.user_id,
-            "symbol": row.symbol,
-            "action": row.action,
-            "quantity": row.quantity,
-            "status": row.status,
-            "response": row.response,
-
-        })
-
-    return jsonify(logs)
-
-# === API to get live portfolio snapshot (holdings) ===
-@app.route("/api/portfolio/<user_id>")
-def get_portfolio(user_id):
-    """Return live positions for any stored account."""
-    user_rec = get_user_by_token(user_id)
-    if not user_rec:
-        user_rec = User.query.filter_by(email=user_id).first()
-    if not user_rec:
-        return jsonify({"error": "Invalid user ID"}), 403
-
-    account = get_primary_account(user_rec)
-    if not account or not account.credentials:
-        return jsonify({"error": "Account not configured"}), 400
-
-    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
-    try:
-        positions_resp = dhan.get_positions()
-        data = (
-            positions_resp.get("data")
-            or positions_resp.get("positions")
-            or (positions_resp if isinstance(positions_resp, list) else [])
-        )
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# === API to get trade summary and open orders ===
-@app.route("/api/orders/<user_id>")
-def get_orders(user_id):
-    """Return recent orders for a stored account."""
-    user_rec = get_user_by_token(user_id)
-    if not user_rec:
-        user_rec = User.query.filter_by(email=user_id).first()
-    if not user_rec:
-        return jsonify({"error": "Invalid user ID"}), 403
-
-    account = get_primary_account(user_rec)
-    if not account or not account.credentials:
-        return jsonify({"error": "Account not configured"}), 400
-
-    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
-
-    try:
-        resp = dhan.get_order_list()
-        print(f"👉 Full Dhan API response for {user_id}: {resp}")
-
-        # Defensive check: is it the expected dict?
-        if not isinstance(resp, dict) or "data" not in resp:
-            return jsonify({"error": "Unexpected response format", "details": resp}), 500
-
-        orders = strip_emojis_from_obj(resp["data"])  # ✅ sanitized orders
-
-        total_trades = len(orders)
-        last_order = orders[0] if orders else {}
-        total_qty = sum(int(o.get("quantity", 0)) for o in orders)
-
-        return jsonify({
-            "orders": orders,
-            "summary": {
-                "total_trades": total_trades,
-                "last_status": last_order.get("orderStatus", "N/A"),
-                "total_quantity": total_qty
-            }
-        })
-    except Exception as e:
-        print(f"❌ Error while fetching orders for {user_id}: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/account/<user_id>")
-def get_account_stats(user_id):
-    """Return account margin/fund stats."""
-    user_rec = get_user_by_token(user_id)
-    if not user_rec:
-        user_rec = User.query.filter_by(email=user_id).first()
-    if not user_rec:
-        return jsonify({"error": "Invalid user ID"}), 403
-
-    account = get_primary_account(user_rec)
-    if not account or not account.credentials:
-        return jsonify({"error": "Account not configured"}), 400
-
-    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
-
-    try:
-        stats_resp = dhan.get_fund_limits()
-        print(f"👉 Fund stats for {user_id}: {stats_resp}")
-
-        if not isinstance(stats_resp, dict) or "data" not in stats_resp:
-            return jsonify({"error": "Unexpected response format", "details": stats_resp}), 500
-
-        stats = stats_resp["data"]
-
-        # Map to clean keys:
-        mapped_stats = {
-            "total_funds": stats.get("availabelBalance", 0),
-            "available_margin": stats.get("withdrawableBalance", 0),
-            "used_margin": stats.get("utilizedAmount", 0)
-        }
-        return jsonify(mapped_stats)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-@app.route("/users", methods=["GET", "POST"])
-@login_required
-def user_profile():
-    username = session.get("user")
-    user = User.query.filter_by(email=username).first_or_404()
-    message = ""
-
-    if request.method == "POST":
-        action = request.form.get("action")
-
-        if action == "save_profile":
-            first_name = request.form.get("first_name", "")
-            last_name = request.form.get("last_name", "")
-
-            user.name = f"{first_name} {last_name}".strip()
-
-            file = request.files.get("profile_image")
-            if file and file.filename:
-                image_dir = os.path.join("static", "profile_images")
-                os.makedirs(image_dir, exist_ok=True)
-                filename = secure_filename(username + "_" + file.filename)
-                file.save(os.path.join(image_dir, filename))
-                user.profile_image = os.path.join("profile_images", filename)
-            message = "Profile updated"
-
-            db.session.commit()
-
-    profile_data = {
-        "email": username,
-        "first_name": (user.name or "").split(" ")[0] if user.name else "",
-        "last_name": (user.name or "").split(" ")[1] if user.name and len(user.name.split(" ")) > 1 else "",
-        "plan": user.plan,
-    }
-
-    return render_template("user.html", user=profile_data, message=message)
-
+    return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("email") or request.form.get("username")
-        password = request.form.get("password")
-        user = User.query.filter_by(email=username).first()
-        if user and user.check_password(password):
-            session["user"] = user.email
-            user.last_login = datetime.now().strftime('%Y-%m-%d')
-            db.session.commit()
-            return redirect(url_for("summary"))
-        return render_template("log-in.html", error="Invalid credentials")
-    return render_template("log-in.html")
-
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
-    if request.method == "POST":
-        username = request.form.get("email") or request.form.get("username")
-        password = request.form.get("password")
-        if User.query.filter_by(email=username).first():
-            return render_template("sign-up.html", error="User already exists")
-        user = User(email=username)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        session["user"] = user.email
-        return redirect(url_for("summary"))
-    return render_template("sign-up.html")
+        email = request.form["email"]
+        password = request.form["password"]
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and check_password_hash(user.password_hash, password):
+            session["user"] = email
+            flash("Login successful!", "success")
+            return redirect(url_for("Dashboard"))
+        else:
+            flash("Invalid email or password", "error")
+    
+    return render_template("login.html")
 
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("home"))
+    flash("You have been logged out", "info")
+    return redirect(url_for("login"))
 
-
-
-# === Page routes ===
-@app.route('/')
-def home():
-    return render_template("index.html")
-
-@app.route('/dhan-dashboard')
+# Dashboard Routes
+@app.route("/")
 @login_required
-def dhan_dashboard():
-    return render_template("dhan-dashboard.html")
+def Dashboard():
+    return render_template("dashboard.html")
 
-@app.route("/Summary")
-@login_required
-def summary():
-    return render_template("Summary.html")  # or "Summary.html" if that's your file name
-
-@app.route("/copy-trading")
-@login_required
-def copytrading():
-    return render_template("copy-trading.html")
-
-@app.route("/Add-Account")
+@app.route("/add-account")
 @login_required
 def AddAccount():
-    return render_template("Add-Account.html")
+    return render_template("add_account.html")
+
+@app.route("/master-child")
+@login_required
+def MasterChild():
+    return render_template("master_child.html")
 
 @app.route("/groups")
 @login_required
-def groups_page():
+def Groups():
     return render_template("groups.html")
 
-# === Admin routes ===
-@app.route('/adminlogin', methods=['GET', 'POST'])
+@app.route("/order-book")
+@login_required
+def OrderBook():
+    return render_template("order_book.html")
+
+@app.route("/trades")
+@login_required
+def Trades():
+    return render_template("trades.html")
+
+@app.route("/logs")
+@login_required
+def Logs():
+    return render_template("logs.html")
+
+@app.route("/settings")
+@login_required
+def Settings():
+    return render_template("settings.html")
+
+@app.route("/help")
+@login_required
+def Help():
+    return render_template("help.html")
+
+# Admin Routes
+@app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
-    import os
-    error = None
-
-    if request.method == 'POST':
-        input_email = request.form.get('email')
-        input_password = request.form.get('password')
-
-        # Compare with Render env vars
-        admin_email = os.environ.get('ADMIN_EMAIL')
-        admin_password = os.environ.get('ADMIN_PASSWORD')
-
-        if input_email == admin_email and input_password == admin_password:
-            session['admin'] = admin_email
-            return redirect(url_for('admin_dashboard'))  # Replace with your dashboard route
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        
+        if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
+            session["admin"] = True
+            flash("Admin login successful!", "success")
+            return redirect(url_for("admin_dashboard"))
         else:
-            error = 'Invalid credentials'
+            flash("Invalid admin credentials", "error")
+    
+    return render_template("admin/login.html")
 
-    return render_template('login.html', error=error)
-
-
-@app.route('/adminlogout')
+@app.route("/admin/logout")
 def admin_logout():
-    session.pop('admin', None)
-    return redirect(url_for('admin_login'))
+    session.pop("admin", None)
+    flash("Admin logged out", "info")
+    return redirect(url_for("admin_login"))
 
-@app.route('/admindashboard')
+@app.route("/admin")
 @admin_login_required
 def admin_dashboard():
     users = load_users()
     accounts = load_accounts()
-    unique_brokers = {acc.broker for acc in accounts if acc.broker}
+    trades = load_trades()
+    webhook_logs, system_logs = load_logs()
+    settings = load_settings()
+    
+    return render_template("admin/dashboard.html",
+                         users=users,
+                         accounts=accounts,
+                         trades=trades,
+                         webhook_logs=webhook_logs,
+                         system_logs=system_logs,
+                         settings=settings)
 
-    today = date.today()
-    start_today = today.strftime('%Y-%m-%d')
-    end_today = (today + timedelta(days=1)).strftime('%Y-%m-%d')
-    trades_today = Trade.query.filter(Trade.timestamp >= start_today, Trade.timestamp < end_today).count()
-    active_users = User.query.filter(User.last_login >= start_today).count()
-    failed_trades = Trade.query.filter_by(status='Failed').count()
-    metrics = {
-        'total_users': len(users),
-        'active_users': active_users,
-        'total_accounts': len(accounts),
-        'brokers_connected': len(unique_brokers),
-        'trades_today': trades_today,
-        'failed_trades': failed_trades,
-        'uptime': format_uptime()
+@app.route("/admin/settings", methods=["POST"])
+@admin_login_required
+def admin_update_settings():
+    settings = {
+        'trading_enabled': request.form.get('trading_enabled') == 'on',
+        'max_accounts_per_user': request.form.get('max_accounts_per_user', '10'),
+        'default_multiplier': request.form.get('default_multiplier', '1.0'),
+        'polling_interval': request.form.get('polling_interval', str(POLLING_INTERVAL))
+    }
+    
+    save_settings(settings)
+    flash("Settings updated successfully!", "success")
+    return redirect(url_for("admin_dashboard"))
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return render_template("error.html", 
+                         error="Page Not Found", 
+                         message="The page you requested was not found."), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template("error.html",
+                         error="Internal Server Error",
+                         message="An internal server error occurred."), 500
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please try again later.",
+        "retry_after": getattr(e, 'retry_after', None)
+    }), 429
+
+# Context processors for templates
+@app.context_processor
+def inject_user():
+    user_email = session.get("user")
+    if user_email:
+        user = User.query.filter_by(email=user_email).first()
+        return {"current_user": user}
+    return {"current_user": None}
+
+@app.context_processor
+def inject_globals():
+    return {
+        "environment": ENVIRONMENT,
+        "app_version": "2.0.0",
+        "uptime": format_uptime()
     }
 
-    labels = []
-    trade_counts = []
-    signup_counts = []
-    for i in range(5):
-        day = today - timedelta(days=4 - i)
-        start = day.strftime('%Y-%m-%d')
-        end = (day + timedelta(days=1)).strftime('%Y-%m-%d')
-        labels.append(day.strftime('%a'))
-        trade_counts.append(Trade.query.filter(Trade.timestamp >= start,
-                                               Trade.timestamp < end).count())
-        signup_counts.append(User.query.filter(User.subscription_start >= start,
-                                              User.subscription_start < end).count())
+# Start scheduler on app startup (only in production or when explicitly enabled)
+if ENVIRONMENT == "production" or os.environ.get("ENABLE_SCHEDULER") == "true":
+    start_scheduler()
 
-    trade_chart = {'labels': labels, 'data': trade_counts}
-    signup_chart = {'labels': labels, 'data': signup_counts}
-
-    broker_list = sorted({acc.broker.lower() for acc in accounts if acc.broker})
-    api_status = []
-    for name in broker_list:
-        url = BROKER_STATUS_URLS.get(name)
-        online = check_api(url) if url else False
-        api_status.append({'name': name.title(), 'online': online})
-    return render_template('dashboard.html', metrics=metrics, api_status=api_status, trade_chart=trade_chart, signup_chart=signup_chart)
-
-@app.route('/adminusers')
-@admin_login_required
-def admin_users():
-    users = load_users()
-    return render_template('users.html', users=users)
-
-@app.route('/adminbrokers')
-@admin_login_required
-def admin_brokers():
-    accounts = load_accounts()
-    broker_names = sorted({acc.broker for acc in accounts if acc.broker})
-    return render_template('brokers.html', accounts=accounts, broker_names=broker_names)
-
-@app.route('/admintrades')
-@admin_login_required
-def admin_trades():
-    trades = load_trades()
-    return render_template('trades.html', trades=trades)
-
-@app.route('/adminsubscriptions')
-@admin_login_required
-def admin_subscriptions():
-    users = load_users()
-    subs = [u for u in users]
-    return render_template('subscriptions.html', subscriptions=subs)
-
-@app.route('/adminlogs')
-@admin_login_required
-def admin_logs():
-    webhook_logs, system_logs = load_logs()
-    return render_template('logs.html', webhook_logs=webhook_logs, system_logs=system_logs)
-
-@app.route('/adminsettings', methods=['GET', 'POST'])
-@admin_login_required
-def admin_settings():
-    settings = load_settings()
-    if request.method == 'POST':
-        settings['trading_enabled'] = bool(request.form.get('trading_enabled'))
-        for key, value in request.form.items():
-            if key == 'trading_enabled':
-                continue
-            settings[key] = value
-        save_settings(settings)
-    return render_template('settings.html', settings=settings)
-
-@app.route('/adminprofile')
-@admin_login_required
-def admin_profile():
-    return render_template('profile.html', admin={'email': session.get('admin')})
-
-# ---- Admin action routes ----
-
-@app.route('/adminusers/<int:user_id>/suspend', methods=['POST'])
-@admin_login_required
-def admin_suspend_user(user_id):
-    user = User.query.get_or_404(user_id)
-    user.plan = 'Suspended'
-    db.session.commit()
-    flash(f'User {user.email} suspended.')
-    return redirect(url_for('admin_users'))
-
-
-@app.route('/adminusers/<int:user_id>/reset', methods=['POST'])
-@admin_login_required
-def admin_reset_password(user_id):
-    user = User.query.get_or_404(user_id)
-    new_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    user.set_password(new_pass)
-    db.session.commit()
-    flash(f'New password for {user.email}: {new_pass}')
-    return redirect(url_for('admin_users'))
-
-
-@app.route('/adminusers/<int:user_id>')
-@admin_login_required
-def admin_view_user(user_id):
-    user = User.query.get_or_404(user_id)
-    return render_template('user_detail.html', user=user)
-
-
-@app.route('/adminbrokers/<int:account_id>/revoke', methods=['POST'])
-@admin_login_required
-def admin_revoke_account(account_id):
-    account = Account.query.get_or_404(account_id)
-    account.status = 'Revoked'
-    db.session.commit()
-    flash('Account revoked')
-    return redirect(url_for('admin_brokers'))
-
-
-@app.route('/admintrades/<int:trade_id>/retry', methods=['POST'])
-@admin_login_required
-def admin_retry_trade(trade_id):
-    trade = Trade.query.get_or_404(trade_id)
-    trade.status = 'Pending'
-    db.session.commit()
-    flash('Trade marked for retry')
-    return redirect(url_for('admin_trades'))
-
-
-@app.route('/adminsubscriptions/<int:user_id>/change', methods=['POST'])
-@admin_login_required
-def admin_change_subscription(user_id):
-    user = User.query.get_or_404(user_id)
-    user.plan = 'Pro' if user.plan != 'Pro' else 'Free'
-    db.session.commit()
-    flash(f'Plan updated to {user.plan} for {user.email}')
-    return redirect(url_for('admin_subscriptions'))
-
-with app.app_context():
-    from sqlalchemy import text, inspect
+# Run the application
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug = ENVIRONMENT == "development"
     
-    print("🔧 Starting comprehensive database migration...")
+    logger.info(f"🚀 Starting Copy Trading Application")
+    logger.info(f"   Environment: {ENVIRONMENT}")
+    logger.info(f"   Port: {port}")
+    logger.info(f"   Debug: {debug}")
+    logger.info(f"   Database: {db_url}")
+    logger.info(f"   Scheduler: {'Enabled' if _scheduler else 'Disabled'}")
+    logger.info(f"   Log Level: {LOG_LEVEL}")
     
-    try:
-        inspector = inspect(db.engine)
-        
-        with db.engine.connect() as connection:
-            # ===== USER TABLE MIGRATIONS =====
-            try:
-                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-                print("✅ Updated user.password_hash to TEXT")
-            except Exception as e:
-                print(f"ℹ️ User table: {e}")
-            
-            # ===== ACCOUNT TABLE MIGRATIONS =====
-            if 'account' in inspector.get_table_names():
-                existing_columns = [col['name'] for col in inspector.get_columns('account')]
-                print(f"📋 Existing account columns: {existing_columns}")
-                
-                # Define all required columns for Account table
-                required_columns = {
-                    'username': 'VARCHAR(120)',
-                    'auto_login': 'BOOLEAN DEFAULT TRUE',
-                    'last_login_time': 'VARCHAR(32)',
-                    'device_number': 'VARCHAR(64)',
-                    'last_copied_trade_id': 'VARCHAR(50)',
-                    'copy_status': 'VARCHAR(10) DEFAULT \'Off\'',
-                    'multiplier': 'FLOAT DEFAULT 1.0',
-                    'credentials': 'JSON',
-                    'role': 'VARCHAR(20)',
-                    'linked_master_id': 'VARCHAR(50)',
-                    'status': 'VARCHAR(20) DEFAULT \'Connected\'',
-                    'token_expiry': 'VARCHAR(32)',
-                    'broker': 'VARCHAR(50)',
-                    'client_id': 'VARCHAR(50)',
-                    'user_id': 'INTEGER REFERENCES "user"(id)'
-                }
-                
-                # Add missing columns one by one
-                for col_name, col_def in required_columns.items():
-                    if col_name not in existing_columns:
-                        try:
-                            connection.execute(text(f'ALTER TABLE account ADD COLUMN {col_name} {col_def};'))
-                            print(f"✅ Added account.{col_name}")
-                        except Exception as e:
-                            print(f"⚠️ Could not add account.{col_name}: {e}")
-            
-            # ===== ORDER_MAPPING TABLE MIGRATIONS =====
-            if 'order_mapping' in inspector.get_table_names():
-                order_mapping_columns = [col['name'] for col in inspector.get_columns('order_mapping')]
-                
-                order_mapping_required = {
-                    'action': 'VARCHAR(10)',
-                    'quantity': 'INTEGER',
-                    'child_timestamp': 'VARCHAR(32)',
-                    'remarks': 'VARCHAR(255)',
-                    'multiplier': 'FLOAT DEFAULT 1.0'
-                }
-                
-                for col_name, col_def in order_mapping_required.items():
-                    if col_name not in order_mapping_columns:
-                        try:
-                            connection.execute(text(f'ALTER TABLE order_mapping ADD COLUMN {col_name} {col_def};'))
-                            print(f"✅ Added order_mapping.{col_name}")
-                        except Exception as e:
-                            print(f"⚠️ Could not add order_mapping.{col_name}: {e}")
-            
-            # ===== 🚀 NEW: PERFORMANCE OPTIMIZATIONS =====
-            print("\n🚀 Applying performance optimizations...")
-            
-            # Add indexes for better query performance
-            optimization_indexes = [
-                "CREATE INDEX IF NOT EXISTS idx_account_client_id ON account (client_id);",
-                "CREATE INDEX IF NOT EXISTS idx_account_role ON account (role);", 
-                "CREATE INDEX IF NOT EXISTS idx_account_copy_status ON account (copy_status);",
-                "CREATE INDEX IF NOT EXISTS idx_account_linked_master ON account (linked_master_id);",
-                "CREATE INDEX IF NOT EXISTS idx_account_broker ON account (broker);",
-                "CREATE INDEX IF NOT EXISTS idx_account_user_role ON account (user_id, role);",
-                "CREATE INDEX IF NOT EXISTS idx_account_master_children ON account (linked_master_id, copy_status);",
-                "CREATE INDEX IF NOT EXISTS idx_account_user_broker ON account (user_id, broker);",
-                # Order mapping indexes
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_master ON order_mapping (master_order_id);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_child ON order_mapping (child_client_id);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_status ON order_mapping (status);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_master_status ON order_mapping (master_client_id, status);",
-            ]
-            
-            indexes_created = 0
-            for index_sql in optimization_indexes:
-                try:
-                    connection.execute(text(index_sql))
-                    index_name = index_sql.split()[5]  # Extract index name
-                    print(f"✅ Created index: {index_name}")
-                    indexes_created += 1
-                except Exception as e:
-                    if "already exists" in str(e).lower():
-                        print(f"ℹ️ Index already exists: {index_sql.split()[5]}")
-                    else:
-                        print(f"⚠️ Index creation failed: {e}")
-            
-            print(f"📊 Performance optimization: {indexes_created} new indexes created")
-            
-            # Commit all changes
-            connection.commit()
-            print("✅ All table alterations and optimizations committed")
-            
-    except Exception as e:
-        print(f"❌ Migration error: {e}")
-        db.session.rollback()
-    
-    # ===== CREATE ANY MISSING TABLES =====
-    try:
-        db.create_all()
-        print("✅ All database tables created/verified")
-    except Exception as e:
-        print(f"❌ Error creating tables: {e}")
-    
-    # ===== DATA MIGRATION =====
-    try:
-        migrate_json_to_database()
-        print("✅ JSON data migration completed")
-    except Exception as e:
-        print(f"ℹ️ JSON migration: {e}")
-    
-    print("🏁 Comprehensive database migration with optimizations complete!")
-
-def migrate_json_to_database():
-    """Migrate existing JSON data to database (run once)."""
-    try:
-        accounts_file = os.path.join(DATA_DIR, "accounts.json")
-        if os.path.exists(accounts_file):
-            print("📦 Migrating accounts.json to database...")
-            with open(accounts_file, 'r') as f:
-                data = json.load(f)
-            
-            for acc_data in data.get("accounts", []):
-                client_id = acc_data.get("client_id")
-                owner_email = acc_data.get("owner")
-                
-                if not client_id or not owner_email:
-                    continue
-                
-                # Get or create user
-                user = User.query.filter_by(email=owner_email).first()
-                if not user:
-                    user = User(email=owner_email)
-                    db.session.add(user)
-                    db.session.flush()
-                
-                # Check if account already exists
-                existing = Account.query.filter_by(
-                    user_id=user.id, 
-                    client_id=client_id
-                ).first()
-                
-                if not existing:
-                    account = Account(
-                        user_id=user.id,
-                        broker=acc_data.get("broker"),
-                        client_id=client_id,
-                        username=acc_data.get("username"),
-                        token_expiry=acc_data.get("token_expiry"),
-                        status=acc_data.get("status", "Connected"),
-                        role=acc_data.get("role"),
-                        linked_master_id=acc_data.get("linked_master_id"),
-                        copy_status=acc_data.get("copy_status", "Off"),
-                        multiplier=acc_data.get("multiplier", 1.0),
-                        credentials=acc_data.get("credentials"),
-                        last_copied_trade_id=acc_data.get("last_copied_trade_id"),
-                        auto_login=acc_data.get("auto_login", True),
-                        last_login_time=acc_data.get("last_login"),
-                        device_number=acc_data.get("device_number")
-                    )
-                    db.session.add(account)
-            
-            db.session.commit()
-            print("✅ Accounts migrated successfully!")
-            
-            # Backup old file
-            backup_path = accounts_file + ".backup"
-            if os.path.exists(accounts_file):
-                os.rename(accounts_file, backup_path)
-                print(f"📁 Backed up to {backup_path}")
-            
-    except Exception as e:
-        print(f"❌ Migration error: {e}")
-        db.session.rollback()
-
-scheduler = start_scheduler()     
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=debug,
+        threaded=True
+    )
