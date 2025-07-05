@@ -1,16 +1,53 @@
+# Core Flask Framework
 flask==3.1.1
-dhanhq==2.0.2
-requests==2.31.0
-gunicorn==23.0.0
-Flask-Cors==4.0.0
-beautifulsoup4==4.13.4
-apscheduler==3.11.0
-pandas==2.2.3
-pyotp==2.9.0
-kiteconnect==5.0.1
 Flask-SQLAlchemy==3.1.1
+Flask-Cors==4.0.0
+Flask-Migrate==4.0.5
+Werkzeug==3.0.1
+
+# Security & Rate Limiting
+Flask-Limiter==3.5.0
+Flask-Talisman==1.1.0
+cryptography==41.0.7
+
+# Trading APIs
+dhanhq==2.0.2
+kiteconnect==5.0.1
 alice-blue==2.0.4
-git+https://github.com/AnkitSG07/ShoonyaApi-py.git
-https://github.com/AnkitSG07/ShoonyaApi-py/raw/master/dist/NorenRestApi-0.0.30-py2.py3-none-any.whl
 fyers-apiv3
-psycopg2
+git+https://github.com/AnkitSG07/ShoonyaApi-py.git
+
+# Background Tasks & Scheduling
+apscheduler==3.11.0
+celery==5.3.4
+redis==5.0.1
+
+# Data Processing
+pandas==2.2.3
+requests==2.31.0
+beautifulsoup4==4.13.4
+
+# Authentication & Security
+pyotp==2.9.0
+python-dotenv==1.0.0
+
+# Validation & Serialization
+marshmallow==3.20.1
+
+# Database
+psycopg2-binary==2.9.9
+
+# Monitoring & Logging
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Caching (Optional but recommended)
+Flask-Caching==2.1.0
+
+# Production Server
+gunicorn==23.0.0
+
+# Development Dependencies (Optional)
+pytest==7.4.3
+pytest-flask==1.3.0
+pytest-cov==4.1.0
