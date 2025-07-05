@@ -3646,19 +3646,26 @@ with app.app_context():
     from sqlalchemy import text
     
     try:
-        # Increase password_hash column size from 128 to 256
-        db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(256);'))
+        # First attempt: Increase password_hash column size from 128 to 256
+        with db.engine.connect() as connection:
+            connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(256);'))
+            connection.commit()
         print("✅ Successfully upgraded password_hash column to VARCHAR(256).")
     except Exception as e:
-        print(f"Migration info: {e}")
+        print(f"Migration attempt 1 info: {e}")
         
-    try:
-        db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-        print("✅ Successfully upgraded password_hash column to TEXT.")
-    except Exception as e:
-        print(f"Migration info: {e}")
-        
+        try:
+            # Second attempt: Change to TEXT type (unlimited length)
+            with db.engine.connect() as connection:
+                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+                connection.commit()
+            print("✅ Successfully upgraded password_hash column to TEXT.")
+        except Exception as e2:
+            print(f"Migration attempt 2 info: {e2}")
+    
+    # Ensure all tables are created
     db.create_all()
+    print("✅ Database initialization complete.")
 
 scheduler = start_scheduler()
 
