@@ -3644,13 +3644,20 @@ def admin_change_subscription(user_id):
 
 with app.app_context():
     from sqlalchemy import text
-
-    with app.app_context():
-        try:
-            db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-            print("Upgraded password_hash column to TEXT.")
-        except Exception as e:
-            print(f"Migration error (can ignore if already migrated): {e}")
+    
+    try:
+        # Increase password_hash column size from 128 to 256
+        db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(256);'))
+        print("✅ Successfully upgraded password_hash column to VARCHAR(256).")
+    except Exception as e:
+        print(f"Migration info: {e}")
+        
+    try:
+        db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+        print("✅ Successfully upgraded password_hash column to TEXT.")
+    except Exception as e:
+        print(f"Migration info: {e}")
+        
     db.create_all()
 
 scheduler = start_scheduler()
