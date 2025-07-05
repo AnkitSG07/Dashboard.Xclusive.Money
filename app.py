@@ -44,7 +44,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 CORS(app)
 # Persist data in a configurable directory. By default this is ``./data`` so
 # that files survive across redeploys on platforms like Render.
-DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(DATA_DIR, "quantbot.db")
