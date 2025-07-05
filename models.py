@@ -23,9 +23,9 @@ class User(db.Model):
     payment_status = db.Column(db.String(32))
     is_admin = db.Column(db.Boolean, default=False)
     
-    # Added: Timestamps for auditing
-    #created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    #updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # COMMENTED OUT: Timestamps causing database errors
+    # created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -61,9 +61,9 @@ class Account(db.Model):
     credentials = db.Column(db.JSON)
     last_copied_trade_id = db.Column(db.String(50))
     
-    # Added: Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # COMMENTED OUT: Timestamps causing database errors
+    # created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = db.relationship('User', backref=db.backref('accounts', lazy=True, cascade='all, delete-orphan'))
@@ -124,6 +124,9 @@ class WebhookLog(db.Model):
     request_data = db.Column(db.JSON)
     response_data = db.Column(db.JSON)
 
+    def __repr__(self):
+        return f'<WebhookLog {self.status} at {self.timestamp}>'
+
 class SystemLog(db.Model):
     __tablename__ = 'system_log'
     
@@ -141,6 +144,9 @@ class SystemLog(db.Model):
         db.Index('idx_level_timestamp', 'level', 'timestamp'),
     )
 
+    def __repr__(self):
+        return f'<SystemLog {self.level}: {self.message[:50]}>'
+
 class Setting(db.Model):
     __tablename__ = 'setting'
     
@@ -149,9 +155,12 @@ class Setting(db.Model):
     value = db.Column(db.Text)  # Changed to Text for longer values
     description = db.Column(db.String(255))  # Added: Setting description
     
-    # Added: Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # COMMENTED OUT: Timestamps causing database errors
+    # created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Setting {self.key}: {self.value}>'
 
 # Association table for many-to-many relationship
 group_members = db.Table(
@@ -168,9 +177,9 @@ class Group(db.Model):
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(255))  # Added: Group description
     
-    # Added: Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # COMMENTED OUT: Timestamps causing database errors
+    # created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = db.relationship("User", backref=db.backref("groups", lazy=True))
