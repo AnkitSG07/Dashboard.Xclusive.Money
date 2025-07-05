@@ -5664,9 +5664,44 @@ with app.app_context():
                         except Exception as e:
                             print(f"⚠️ Could not add order_mapping.{col_name}: {e}")
             
+            # ===== 🚀 NEW: PERFORMANCE OPTIMIZATIONS =====
+            print("\n🚀 Applying performance optimizations...")
+            
+            # Add indexes for better query performance
+            optimization_indexes = [
+                "CREATE INDEX IF NOT EXISTS idx_account_client_id ON account (client_id);",
+                "CREATE INDEX IF NOT EXISTS idx_account_role ON account (role);", 
+                "CREATE INDEX IF NOT EXISTS idx_account_copy_status ON account (copy_status);",
+                "CREATE INDEX IF NOT EXISTS idx_account_linked_master ON account (linked_master_id);",
+                "CREATE INDEX IF NOT EXISTS idx_account_broker ON account (broker);",
+                "CREATE INDEX IF NOT EXISTS idx_account_user_role ON account (user_id, role);",
+                "CREATE INDEX IF NOT EXISTS idx_account_master_children ON account (linked_master_id, copy_status);",
+                "CREATE INDEX IF NOT EXISTS idx_account_user_broker ON account (user_id, broker);",
+                # Order mapping indexes
+                "CREATE INDEX IF NOT EXISTS idx_order_mapping_master ON order_mapping (master_order_id);",
+                "CREATE INDEX IF NOT EXISTS idx_order_mapping_child ON order_mapping (child_client_id);",
+                "CREATE INDEX IF NOT EXISTS idx_order_mapping_status ON order_mapping (status);",
+                "CREATE INDEX IF NOT EXISTS idx_order_mapping_master_status ON order_mapping (master_client_id, status);",
+            ]
+            
+            indexes_created = 0
+            for index_sql in optimization_indexes:
+                try:
+                    connection.execute(text(index_sql))
+                    index_name = index_sql.split()[5]  # Extract index name
+                    print(f"✅ Created index: {index_name}")
+                    indexes_created += 1
+                except Exception as e:
+                    if "already exists" in str(e).lower():
+                        print(f"ℹ️ Index already exists: {index_sql.split()[5]}")
+                    else:
+                        print(f"⚠️ Index creation failed: {e}")
+            
+            print(f"📊 Performance optimization: {indexes_created} new indexes created")
+            
             # Commit all changes
             connection.commit()
-            print("✅ All table alterations committed")
+            print("✅ All table alterations and optimizations committed")
             
     except Exception as e:
         print(f"❌ Migration error: {e}")
@@ -5686,7 +5721,7 @@ with app.app_context():
     except Exception as e:
         print(f"ℹ️ JSON migration: {e}")
     
-    print("🏁 Comprehensive database migration complete!")
+    print("🏁 Comprehensive database migration with optimizations complete!")
 
 def migrate_json_to_database():
     """Migrate existing JSON data to database (run once)."""
@@ -5742,8 +5777,9 @@ def migrate_json_to_database():
             
             # Backup old file
             backup_path = accounts_file + ".backup"
-            os.rename(accounts_file, backup_path)
-            print(f"📁 Backed up to {backup_path}")
+            if os.path.exists(accounts_file):
+                os.rename(accounts_file, backup_path)
+                print(f"📁 Backed up to {backup_path}")
             
     except Exception as e:
         print(f"❌ Migration error: {e}")
