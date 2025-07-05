@@ -124,22 +124,26 @@ def require_user(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Request ID Tracking System
 class RequestIDFormatter(logging.Formatter):
     """Custom formatter that includes request ID"""
     def format(self, record):
-        if hasattr(request, 'request_id'):
-            record.request_id = request.request_id
-        else:
+        try:
+            from flask import has_request_context, request
+            if has_request_context() and hasattr(request, 'request_id'):
+                record.request_id = request.request_id
+            else:
+                record.request_id = 'N/A'
+            
+            if has_request_context() and hasattr(request, 'current_user'):
+                record.user_email = getattr(request.current_user, 'email', 'anonymous')
+            else:
+                record.user_email = 'anonymous'
+        except Exception:
             record.request_id = 'N/A'
-        
-        if hasattr(request, 'current_user'):
-            record.user_email = getattr(request.current_user, 'email', 'anonymous')
-        else:
             record.user_email = 'anonymous'
             
         return super().format(record)
-
+        
 def setup_logging_with_request_id():
     """Configure comprehensive logging with request ID tracking"""
     log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
@@ -4641,11 +4645,6 @@ def summary():
 @login_required
 def copytrading():
     return render_template("copy-trading.html")
-
-@app.route("/Add-Account")
-@login_required
-def AddAccount():
-    return render_template("Add-Account.html")
 
 @app.route("/groups")
 @login_required
