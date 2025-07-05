@@ -3775,32 +3775,51 @@ def admin_change_subscription(user_id):
     return redirect(url_for('admin_subscriptions'))
 
 with app.app_context():
-    from sqlalchemy import text
+    from sqlalchemy import text, inspect
     
     print("🔧 Starting database migration...")
     
     try:
-        # Migrate password_hash column
+        inspector = inspect(db.engine)
+        
         with db.engine.connect() as connection:
-            connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+            # Check and add missing columns to account table
+            if 'account' in inspector.get_table_names():
+                existing_columns = [col['name'] for col in inspector.get_columns('account')]
+                
+                missing_columns = [
+                    ('username', 'VARCHAR(120)'),
+                    ('auto_login', 'BOOLEAN DEFAULT TRUE'),
+                    ('last_login_time', 'VARCHAR(32)'),
+                    ('device_number', 'VARCHAR(64)')
+                ]
+                
+                for col_name, col_def in missing_columns:
+                    if col_name not in existing_columns:
+                        try:
+                            connection.execute(text(f'ALTER TABLE account ADD COLUMN {col_name} {col_def};'))
+                            print(f"✅ Added {col_name} column")
+                        except Exception as e:
+                            print(f"ℹ️ {col_name}: {e}")
+            
+            # Update password_hash column
+            try:
+                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+                print("✅ Updated password_hash column")
+            except Exception as e:
+                print(f"ℹ️ Password hash: {e}")
+            
             connection.commit()
-        print("✅ Successfully upgraded password_hash column to TEXT.")
+            
     except Exception as e:
-        print(f"❌ Password hash migration: {e}")
+        print(f"❌ Migration error: {e}")
     
-    try:
-        # Create all tables with new schema
-        db.create_all()
-        print("✅ Database tables created/updated successfully.")
-        
-        # Migrate any existing JSON data to database
-        migrate_json_to_database()
-        print("✅ JSON data migration completed.")
-        
-    except Exception as e:
-        print(f"❌ Error during database setup: {e}")
-    
-    print("🏁 Database migration complete - fully database-driven!")
+    # Create any missing tables
+    db.create_all()
+    print("🏁 Database migration complete!")
+
+# Then call your scheduler
+scheduler = start_scheduler()
 
 def migrate_json_to_database():
     """Migrate existing JSON data to database (run once)."""
@@ -3863,8 +3882,6 @@ def migrate_json_to_database():
     except Exception as e:
         print(f"❌ Migration error: {e}")
         db.session.rollback()
-
-scheduler = start_scheduler()
 
 if __name__ == '__main__':
     app.run(debug=True)
