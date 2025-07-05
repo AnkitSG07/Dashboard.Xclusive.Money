@@ -24,24 +24,75 @@ class User(db.Model):
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
+
 class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    broker = db.Column(db.String(50))
-    client_id = db.Column(db.String(50))
-    username = db.Column(db.String(120))  # Add this field
+    
+    # Core account fields with indexes and constraints
+    broker = db.Column(
+        db.String(50), 
+        index=True,
+        nullable=False
+    )
+    client_id = db.Column(
+        db.String(50), 
+        index=True, 
+        nullable=False
+    )
+    username = db.Column(db.String(120))
     token_expiry = db.Column(db.String(32))
     status = db.Column(db.String(20), default='Connected')
-    role = db.Column(db.String(20))  # 'master', 'child', or None
-    linked_master_id = db.Column(db.String(50))  # For child accounts
-    copy_status = db.Column(db.String(10), default="Off")  # 'On' or 'Off'
+    
+    # Copy trading fields with indexes and constraints
+    role = db.Column(
+        db.String(20), 
+        index=True
+    )  # 'master', 'child', or None
+    linked_master_id = db.Column(
+        db.String(50), 
+        index=True
+    )  # For child accounts
+    copy_status = db.Column(
+        db.String(10), 
+        default="Off", 
+        index=True
+    )  # 'On' or 'Off'
     multiplier = db.Column(db.Float, default=1.0)
+    
+    # Credentials and tracking
     credentials = db.Column(db.JSON)
-    last_copied_trade_id = db.Column(db.String(50))  # Individual marker per account
-    auto_login = db.Column(db.Boolean, default=True)  # Add this field
-    last_login_time = db.Column(db.String(32))  # Add this field
+    last_copied_trade_id = db.Column(db.String(50))  # Individual marker
+    auto_login = db.Column(db.Boolean, default=True)
+    last_login_time = db.Column(db.String(32))
     device_number = db.Column(db.String(64))  # For AliceBlue
+    
+    # Relationship
     user = db.relationship('User', backref='accounts')
+    
+    # Table constraints for data integrity
+    __table_args__ = (
+        db.CheckConstraint(
+            "role IS NULL OR role IN ('master', 'child')", 
+            name='check_role'
+        ),
+        db.CheckConstraint(
+            "copy_status IN ('On', 'Off')", 
+            name='check_copy_status'
+        ),
+        db.CheckConstraint(
+            "broker IN ('dhan', 'aliceblue', 'finvasia', 'zerodha', 'groww', 'upstox', 'fyers')", 
+            name='check_broker'
+        ),
+        db.CheckConstraint(
+            "multiplier > 0", 
+            name='check_multiplier_positive'
+        ),
+        # Composite indexes for common query patterns
+        db.Index('idx_user_role', 'user_id', 'role'),
+        db.Index('idx_master_children', 'linked_master_id', 'copy_status'),
+        db.Index('idx_user_broker', 'user_id', 'broker'),
+    )
 
 class Trade(db.Model):
     id = db.Column(db.Integer, primary_key=True)
