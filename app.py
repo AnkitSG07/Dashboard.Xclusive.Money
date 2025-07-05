@@ -2402,9 +2402,11 @@ def login():
 
 @app.route("/logout")
 def logout():
-    session.clear()
+    # Only clear user session, not admin session
+    session.pop("user", None)
     flash("You have been logged out", "info")
-    return redirect(url_for("login"))
+    return redirect(url_for("login"))  # ← Fixed: go to login, not home
+
 
 @app.route("/")
 @login_required
