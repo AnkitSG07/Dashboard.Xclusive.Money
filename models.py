@@ -1,7 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
 db = SQLAlchemy()
 
 class User(db.Model):
@@ -30,14 +29,18 @@ class Account(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     broker = db.Column(db.String(50))
     client_id = db.Column(db.String(50))
+    username = db.Column(db.String(120))  # Add this field
     token_expiry = db.Column(db.String(32))
-    status = db.Column(db.String(20))
-    role = db.Column(db.String(20))
-    linked_master_id = db.Column(db.String(50))
-    copy_status = db.Column(db.String(10), default="Off")
+    status = db.Column(db.String(20), default='Connected')
+    role = db.Column(db.String(20))  # 'master', 'child', or None
+    linked_master_id = db.Column(db.String(50))  # For child accounts
+    copy_status = db.Column(db.String(10), default="Off")  # 'On' or 'Off'
     multiplier = db.Column(db.Float, default=1.0)
     credentials = db.Column(db.JSON)
-    last_copied_trade_id = db.Column(db.String(50))
+    last_copied_trade_id = db.Column(db.String(50))  # Individual marker per account
+    auto_login = db.Column(db.Boolean, default=True)  # Add this field
+    last_login_time = db.Column(db.String(32))  # Add this field
+    device_number = db.Column(db.String(64))  # For AliceBlue
     user = db.relationship('User', backref='accounts')
 
 class Trade(db.Model):
@@ -68,16 +71,15 @@ class Setting(db.Model):
     key = db.Column(db.String(100), unique=True)
     value = db.Column(db.String(255))
 
+# Group system for bulk operations
 group_members = db.Table(
     "group_members",
     db.Column("group_id", db.Integer, db.ForeignKey("group.id")),
     db.Column("account_id", db.Integer, db.ForeignKey("account.id")),
 )
 
-
 class Group(db.Model):
     """Collection of accounts owned by a user."""
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     name = db.Column(db.String(120))
@@ -85,7 +87,6 @@ class Group(db.Model):
     accounts = db.relationship(
         "Account", secondary=group_members, backref="groups", lazy="dynamic"
     )
-
 
 class OrderMapping(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -101,10 +102,11 @@ class OrderMapping(db.Model):
     child_timestamp = db.Column(db.String(32))
     remarks = db.Column(db.String(255))
     multiplier = db.Column(db.Float, default=1.0)
+    action = db.Column(db.String(10))  # Add this field
+    quantity = db.Column(db.Integer)   # Add this field
 
 class TradeLog(db.Model):
     """Log entry for trade actions and responses."""
-
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.String(32))
     user_id = db.Column(db.String(50))
