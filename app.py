@@ -41,6 +41,9 @@ from models import (
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
+# Define emoji regex pattern
+EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 CORS(app)
@@ -3611,6 +3614,65 @@ def admin_login():
             error = 'Invalid credentials'
 
     return render_template('login.html', error=error)
+
+@app.route('/admin/force-migration', methods=['POST'])
+def force_migration():
+    """Force database migration - ADMIN ONLY"""
+    from sqlalchemy import text, inspect
+    
+    results = []
+    
+    try:
+        inspector = inspect(db.engine)
+        
+        with db.engine.connect() as connection:
+            # Check current account table structure
+            if 'account' in inspector.get_table_names():
+                existing_columns = [col['name'] for col in inspector.get_columns('account')]
+                results.append(f"Current account columns: {existing_columns}")
+                
+                # Define all missing columns
+                missing_columns = [
+                    ('username', 'VARCHAR(120)'),
+                    ('auto_login', 'BOOLEAN DEFAULT TRUE'),
+                    ('last_login_time', 'VARCHAR(32)'),
+                    ('device_number', 'VARCHAR(64)'),
+                    ('last_copied_trade_id', 'VARCHAR(50)'),
+                    ('copy_status', 'VARCHAR(10) DEFAULT \'Off\''),
+                    ('multiplier', 'FLOAT DEFAULT 1.0'),
+                    ('credentials', 'JSONB'),
+                    ('role', 'VARCHAR(20)'),
+                    ('linked_master_id', 'VARCHAR(50)')
+                ]
+                
+                # Add each missing column
+                for col_name, col_def in missing_columns:
+                    if col_name not in existing_columns:
+                        try:
+                            sql = f'ALTER TABLE account ADD COLUMN {col_name} {col_def};'
+                            connection.execute(text(sql))
+                            results.append(f"✅ Added {col_name}")
+                        except Exception as e:
+                            results.append(f"❌ Failed to add {col_name}: {str(e)}")
+                    else:
+                        results.append(f"ℹ️ {col_name} already exists")
+            
+            # Update user table password_hash
+            try:
+                connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+                results.append("✅ Updated user.password_hash to TEXT")
+            except Exception as e:
+                results.append(f"ℹ️ Password hash: {str(e)}")
+            
+            # Commit changes
+            connection.commit()
+            results.append("✅ All changes committed")
+            
+    except Exception as e:
+        results.append(f"❌ Migration failed: {str(e)}")
+        return jsonify({"error": str(e), "results": results}), 500
+    
+    return jsonify({"success": True, "results": results}), 200
 
 
 @app.route('/adminlogout')
