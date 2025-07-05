@@ -45,6 +45,195 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import logging
 from logging.handlers import RotatingFileHandler
+# Request ID Tracking System
+import uuid
+from datetime import datetime
+
+class RequestIDFormatter(logging.Formatter):
+    """Custom formatter that includes request ID"""
+    def format(self, record):
+        if hasattr(request, 'request_id'):
+            record.request_id = request.request_id
+        else:
+            record.request_id = 'N/A'
+        
+        if hasattr(request, 'current_user'):
+            record.user_email = getattr(request.current_user, 'email', 'anonymous')
+        else:
+            record.user_email = 'anonymous'
+            
+        return super().format(record)
+
+# Update the logging setup function
+def setup_logging_with_request_id():
+    """Configure comprehensive logging with request ID tracking"""
+    log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+    
+    # Create logs directory
+    log_dir = os.path.join(DATA_DIR, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Main application logger
+    app_logger = logging.getLogger(__name__)
+    app_logger.setLevel(log_level)
+    
+    # Custom formatter with request ID
+    formatter = RequestIDFormatter(
+        '%(asctime)s [%(levelname)s] [ReqID:%(request_id)s] [User:%(user_email)s] %(name)s: %(message)s'
+    )
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    app_logger.addHandler(console_handler)
+    
+    # File handler with rotation
+    if ENVIRONMENT == "production":
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, "app.log"),
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=10
+        )
+        file_handler.setFormatter(formatter)
+        app_logger.addHandler(file_handler)
+        
+        # Error-only log file
+        error_handler = RotatingFileHandler(
+            os.path.join(log_dir, "errors.log"),
+            maxBytes=5*1024*1024,  # 5MB
+            backupCount=5
+        )
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(formatter)
+        app_logger.addHandler(error_handler)
+    
+    return app_logger
+
+# Request tracking middleware
+@app.before_request
+def before_request_tracking():
+    request.request_id = str(uuid.uuid4())[:8]
+    request.start_time = time.time()
+    
+    # Log incoming request
+    logger.info(
+        f"REQUEST START: {request.method} {request.path} "
+        f"from {request.remote_addr} "
+        f"User-Agent: {request.headers.get('User-Agent', 'Unknown')[:50]}"
+    )
+
+@app.after_request
+def after_request_tracking(response):
+    if hasattr(request, 'start_time') and hasattr(request, 'request_id'):
+        duration = time.time() - request.start_time
+        
+        # Log response
+        logger.info(
+            f"REQUEST END: {request.method} {request.path} "
+            f"Status: {response.status_code} "
+            f"Duration: {duration:.3f}s "
+            f"Size: {response.content_length or 0} bytes"
+        )
+        
+        # Add headers
+        response.headers['X-Request-ID'] = request.request_id
+        response.headers['X-Response-Time'] = f"{duration * 1000:.1f}ms"
+    
+    return response
+
+# Request tracking endpoint
+@app.route('/api/admin/request-logs')
+@admin_login_required
+def get_request_logs():
+    """Get recent request logs for monitoring"""
+    try:
+        log_file = os.path.join(DATA_DIR, "logs", "app.log")
+        if not os.path.exists(log_file):
+            return jsonify({"logs": [], "message": "No log file found"})
+        
+        # Read last 100 lines
+        with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            recent_lines = lines[-100:] if len(lines) > 100 else lines
+        
+        # Parse request logs
+        request_logs = []
+        for line in recent_lines:
+            if 'REQUEST START:' in line or 'REQUEST END:' in line:
+                request_logs.append(line.strip())
+        
+        return jsonify({
+            "logs": request_logs[-50:],  # Last 50 request logs
+            "total_lines": len(lines),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get request logs: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
+        
+# Sentry Error Tracking
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    
+    # Configure Sentry if DSN is provided
+    if os.environ.get("SENTRY_DSN") and ENVIRONMENT == "production":
+        sentry_logging = LoggingIntegration(
+            level=logging.INFO,        # Capture info and above as breadcrumbs
+            event_level=logging.ERROR  # Send errors as events
+        )
+        
+        sentry_sdk.init(
+            dsn=os.environ.get("SENTRY_DSN"),
+            integrations=[
+                FlaskIntegration(transaction_style='endpoint'),
+                SqlalchemyIntegration(),
+                sentry_logging
+            ],
+            traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+            environment=ENVIRONMENT,
+            release=os.environ.get("APP_VERSION", "2.0.0"),
+            before_send=lambda event, hint: event if ENVIRONMENT == "production" else None
+        )
+        
+        # Set user context
+        @app.before_request
+        def set_sentry_user():
+            if 'user' in session:
+                sentry_sdk.set_user({
+                    "email": session['user'],
+                    "ip_address": request.remote_addr
+                })
+        
+        logger.info("✅ Sentry error tracking initialized")
+    else:
+        logger.info("Sentry DSN not configured - error tracking disabled")
+        
+except ImportError:
+    logger.warning("Sentry SDK not installed - error tracking disabled")
+
+# Custom error context
+def capture_exception_with_context(exception, extra_context=None):
+    """Capture exception with additional context"""
+    try:
+        if 'sentry_sdk' in globals():
+            with sentry_sdk.push_scope() as scope:
+                if extra_context:
+                    for key, value in extra_context.items():
+                        scope.set_tag(key, value)
+                
+                scope.set_tag("environment", ENVIRONMENT)
+                scope.set_tag("component", "copy_trading")
+                
+                if hasattr(request, 'current_user'):
+                    scope.set_user({"email": request.current_user.email})
+                
+                sentry_sdk.capture_exception(exception)
+    except Exception as e:
+        logger.error(f"Failed to capture exception to Sentry: {e}")
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -90,6 +279,214 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 db.init_app(app)
 start_time = datetime.utcnow()
+# API Documentation with Flask-RESTX
+try:
+    from flask_restx import Api, Resource, fields, Namespace
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    
+    app.wsgi_app = ProxyFix(app.wsgi_app)
+    
+    # Configure API documentation
+    api = Api(
+        app,
+        version='2.0.0',
+        title='Copy Trading System API',
+        description='Advanced Copy Trading System with Multi-Broker Support',
+        doc='/api/docs/' if ENVIRONMENT != 'production' else False,  # Disable in production
+        contact_email='support@copytrading.com',
+        authorizations={
+            'sessionAuth': {
+                'type': 'apiKey',
+                'in': 'cookie',
+                'name': 'session'
+            }
+        },
+        security='sessionAuth'
+    )
+    
+    # Define namespaces
+    auth_ns = api.namespace('auth', description='Authentication operations')
+    accounts_ns = api.namespace('accounts', description='Account management')
+    trading_ns = api.namespace('trading', description='Trading operations')
+    admin_ns = api.namespace('admin', description='Admin operations')
+    
+    # Define models for documentation
+    account_model = api.model('Account', {
+        'client_id': fields.String(required=True, description='Unique client identifier'),
+        'broker': fields.String(required=True, description='Broker name'),
+        'username': fields.String(required=True, description='Account username'),
+        'status': fields.String(description='Account status'),
+        'role': fields.String(description='Account role (master/child)'),
+        'copy_status': fields.String(description='Copy trading status'),
+        'multiplier': fields.Float(description='Trading multiplier')
+    })
+    
+    trade_model = api.model('Trade', {
+        'symbol': fields.String(required=True, description='Trading symbol'),
+        'action': fields.String(required=True, description='Trade action (BUY/SELL)'),
+        'quantity': fields.Integer(required=True, description='Trade quantity'),
+        'price': fields.Float(description='Trade price'),
+        'status': fields.String(description='Trade status')
+    })
+    
+    webhook_model = api.model('Webhook', {
+        'symbol': fields.String(required=True, description='Trading symbol'),
+        'action': fields.String(required=True, description='Trade action (BUY/SELL)'),
+        'quantity': fields.Integer(required=True, description='Trade quantity'),
+        'price': fields.Float(description='Optional trade price')
+    })
+    
+    # Document existing endpoints
+    @auth_ns.route('/login')
+    class Login(Resource):
+        def post(self):
+            """User login"""
+            pass
+    
+    @accounts_ns.route('/')
+    class AccountList(Resource):
+        @api.marshal_list_with(account_model)
+        def get(self):
+            """Get user accounts"""
+            pass
+    
+    @trading_ns.route('/webhook/<string:user_id>')
+    class WebhookEndpoint(Resource):
+        @api.expect(webhook_model)
+        def post(self, user_id):
+            """Process trading webhook"""
+            pass
+    
+    logger.info(f"✅ API documentation available at /api/docs/ (env: {ENVIRONMENT})")
+    
+except ImportError:
+    logger.warning("Flask-RESTX not installed - API documentation disabled")
+    api = None
+
+
+# Performance Monitoring
+import time
+from collections import defaultdict
+from threading import Lock
+
+# Performance metrics storage
+performance_metrics = defaultdict(list)
+metrics_lock = Lock()
+
+def monitor_performance(threshold_seconds=2.0):
+    """Decorator to monitor endpoint performance"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            start_time = time.time()
+            endpoint = request.endpoint or f.__name__
+            method = request.method
+            
+            try:
+                result = f(*args, **kwargs)
+                duration = time.time() - start_time
+                status_code = getattr(result, 'status_code', 200) if hasattr(result, 'status_code') else 200
+                
+                # Log slow requests
+                if duration > threshold_seconds:
+                    logger.warning(
+                        f"SLOW REQUEST: {method} {endpoint} took {duration:.2f}s "
+                        f"(threshold: {threshold_seconds}s) - Status: {status_code}"
+                    )
+                
+                # Store metrics
+                with metrics_lock:
+                    performance_metrics[endpoint].append({
+                        'duration': duration,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'method': method,
+                        'status_code': status_code,
+                        'user': getattr(request, 'current_user', {}).get('email', 'anonymous') if hasattr(request, 'current_user') else 'anonymous'
+                    })
+                    
+                    # Keep only last 100 entries per endpoint
+                    if len(performance_metrics[endpoint]) > 100:
+                        performance_metrics[endpoint] = performance_metrics[endpoint][-100:]
+                
+                return result
+                
+            except Exception as e:
+                duration = time.time() - start_time
+                logger.error(
+                    f"REQUEST FAILED: {method} {endpoint} after {duration:.2f}s - Error: {str(e)}"
+                )
+                
+                # Capture to Sentry with performance context
+                capture_exception_with_context(e, {
+                    'endpoint': endpoint,
+                    'method': method,
+                    'duration': duration,
+                    'performance_issue': duration > threshold_seconds
+                })
+                
+                raise
+                
+        return decorated_function
+    return decorator
+
+# Global request monitoring
+@app.before_request
+def before_request_monitor():
+    request.start_time = time.time()
+    request.request_id = str(uuid.uuid4())[:8]
+
+@app.after_request
+def after_request_monitor(response):
+    if hasattr(request, 'start_time'):
+        duration = time.time() - request.start_time
+        
+        # Log slow responses
+        if duration > 3.0:  # Global threshold
+            logger.warning(
+                f"SLOW RESPONSE: {request.method} {request.endpoint} - "
+                f"{duration:.2f}s - Status: {response.status_code}"
+            )
+    
+    # Add performance headers
+    if hasattr(request, 'start_time'):
+        response.headers['X-Response-Time'] = f"{(time.time() - request.start_time) * 1000:.1f}ms"
+    
+    response.headers['X-Request-ID'] = getattr(request, 'request_id', 'unknown')
+    return response
+
+# Performance metrics endpoint
+@app.route('/api/admin/performance-metrics')
+@admin_login_required
+def get_performance_metrics():
+    """Get performance metrics for monitoring"""
+    try:
+        with metrics_lock:
+            metrics_summary = {}
+            
+            for endpoint, measurements in performance_metrics.items():
+                if measurements:
+                    durations = [m['duration'] for m in measurements]
+                    metrics_summary[endpoint] = {
+                        'count': len(measurements),
+                        'avg_duration': sum(durations) / len(durations),
+                        'max_duration': max(durations),
+                        'min_duration': min(durations),
+                        'slow_requests': len([d for d in durations if d > 2.0]),
+                        'recent_requests': measurements[-10:]  # Last 10 requests
+                    }
+        
+        return jsonify({
+            'metrics': metrics_summary,
+            'timestamp': datetime.utcnow().isoformat(),
+            'uptime': format_uptime()
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get performance metrics: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
+
+# Apply performance monitoring to critical endpoints
+# Add @monitor_performance() decorator to your existing critical routes
 
 # Logging Configuration
 def setup_logging():
@@ -5091,6 +5488,98 @@ def admin_update_settings():
     flash("Settings updated successfully!", "success")
     return redirect(url_for("admin_dashboard"))
 
+# Database Backup Strategy
+@app.route('/api/admin/backup-db', methods=['POST'])
+@admin_login_required
+def backup_database():
+    """Create database backup"""
+    try:
+        backup_dir = os.path.join(DATA_DIR, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        backup_file = os.path.join(backup_dir, f"quantbot_backup_{timestamp}.db")
+        
+        # Create backup
+        shutil.copy2(DB_PATH, backup_file)
+        
+        # Clean old backups (keep last 10)
+        backups = sorted(
+            [f for f in os.listdir(backup_dir) if f.startswith("quantbot_backup_")],
+            reverse=True
+        )
+        for old_backup in backups[10:]:
+            os.remove(os.path.join(backup_dir, old_backup))
+        
+        file_size = os.path.getsize(backup_file)
+        
+        logger.info(f"Database backup created: {backup_file} ({file_size} bytes)")
+        
+        return jsonify({
+            "message": "Database backup created successfully",
+            "backup_file": os.path.basename(backup_file),
+            "timestamp": timestamp,
+            "size_bytes": file_size,
+            "location": backup_dir
+        })
+        
+    except Exception as e:
+        logger.error(f"Database backup failed: {str(e)}")
+        return safe_json_response({"error": f"Backup failed: {str(e)}"}, 500)
+
+@app.route('/api/admin/backups', methods=['GET'])
+@admin_login_required
+def list_backups():
+    """List available database backups"""
+    try:
+        backup_dir = os.path.join(DATA_DIR, "backups")
+        if not os.path.exists(backup_dir):
+            return jsonify({"backups": []})
+        
+        backups = []
+        for filename in os.listdir(backup_dir):
+            if filename.startswith("quantbot_backup_") and filename.endswith(".db"):
+                filepath = os.path.join(backup_dir, filename)
+                stat = os.stat(filepath)
+                backups.append({
+                    "filename": filename,
+                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    "size_bytes": stat.st_size,
+                    "size_mb": round(stat.st_size / 1024 / 1024, 2)
+                })
+        
+        backups.sort(key=lambda x: x["created"], reverse=True)
+        return jsonify({"backups": backups})
+        
+    except Exception as e:
+        logger.error(f"Failed to list backups: {str(e)}")
+        return safe_json_response({"error": str(e)}, 500)
+
+# Auto backup scheduler
+def auto_backup_database():
+    """Automatically backup database"""
+    try:
+        if ENVIRONMENT == "production":
+            backup_dir = os.path.join(DATA_DIR, "backups")
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            backup_file = os.path.join(backup_dir, f"auto_backup_{timestamp}.db")
+            
+            shutil.copy2(DB_PATH, backup_file)
+            logger.info(f"Auto backup created: {backup_file}")
+            
+            # Clean old auto backups (keep last 48 hours worth)
+            cutoff = datetime.utcnow() - timedelta(hours=48)
+            for filename in os.listdir(backup_dir):
+                if filename.startswith("auto_backup_"):
+                    filepath = os.path.join(backup_dir, filename)
+                    if datetime.fromtimestamp(os.path.getctime(filepath)) < cutoff:
+                        os.remove(filepath)
+                        
+    except Exception as e:
+        logger.error(f"Auto backup failed: {str(e)}")
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -5129,6 +5618,164 @@ def inject_globals():
         "app_version": "2.0.0",
         "uptime": format_uptime()
     }
+
+# Graceful Shutdown Handling
+import signal
+import sys
+import threading
+import atexit
+
+class GracefulShutdown:
+    """Handle graceful shutdown of the application"""
+    
+    def __init__(self):
+        self.shutdown_requested = False
+        self.active_requests = 0
+        self.shutdown_timeout = 30  # seconds
+        
+    def request_shutdown(self):
+        """Request graceful shutdown"""
+        self.shutdown_requested = True
+        
+    def is_shutdown_requested(self):
+        """Check if shutdown was requested"""
+        return self.shutdown_requested
+        
+    def increment_active_requests(self):
+        """Increment active request counter"""
+        self.active_requests += 1
+        
+    def decrement_active_requests(self):
+        """Decrement active request counter"""
+        self.active_requests = max(0, self.active_requests - 1)
+        
+    def wait_for_requests_to_finish(self):
+        """Wait for active requests to complete"""
+        if self.active_requests > 0:
+            logger.info(f"Waiting for {self.active_requests} active requests to complete...")
+            
+            timeout_counter = 0
+            while self.active_requests > 0 and timeout_counter < self.shutdown_timeout:
+                time.sleep(1)
+                timeout_counter += 1
+                
+            if self.active_requests > 0:
+                logger.warning(f"Timeout: {self.active_requests} requests still active after {self.shutdown_timeout}s")
+            else:
+                logger.info("All requests completed successfully")
+
+# Create global shutdown handler
+shutdown_handler = GracefulShutdown()
+
+def signal_handler(sig, frame):
+    """Handle graceful shutdown signals"""
+    signal_names = {
+        signal.SIGINT: 'SIGINT',
+        signal.SIGTERM: 'SIGTERM'
+    }
+    signal_name = signal_names.get(sig, f'Signal {sig}')
+    
+    logger.info(f"🛑 Received {signal_name}, initiating graceful shutdown...")
+    
+    # Request shutdown
+    shutdown_handler.request_shutdown()
+    
+    # Wait for active requests
+    shutdown_handler.wait_for_requests_to_finish()
+    
+    # Stop background scheduler
+    if _scheduler and _scheduler.running:
+        try:
+            logger.info("Stopping background scheduler...")
+            _scheduler.shutdown(wait=True)
+            logger.info("✅ Scheduler stopped successfully")
+        except Exception as e:
+            logger.error(f"Error stopping scheduler: {e}")
+    
+    # Close database connections
+    try:
+        logger.info("Closing database connections...")
+        db.session.close()
+        logger.info("✅ Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database: {e}")
+    
+    # Final backup if in production
+    if ENVIRONMENT == "production":
+        try:
+            logger.info("Creating shutdown backup...")
+            auto_backup_database()
+            logger.info("✅ Shutdown backup completed")
+        except Exception as e:
+            logger.error(f"Error creating shutdown backup: {e}")
+    
+    logger.info("👋 Graceful shutdown complete")
+    sys.exit(0)
+
+def cleanup_on_exit():
+    """Cleanup function called on normal exit"""
+    logger.info("🧹 Performing cleanup on exit...")
+    
+    # Stop scheduler if running
+    if _scheduler and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+    
+    # Close database
+    try:
+        db.session.close()
+    except Exception:
+        pass
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+atexit.register(cleanup_on_exit)               # Normal exit
+
+# Request tracking for graceful shutdown
+@app.before_request
+def before_request_shutdown_tracking():
+    if shutdown_handler.is_shutdown_requested():
+        return jsonify({
+            "error": "Server is shutting down",
+            "message": "Please try again later"
+        }), 503
+    
+    shutdown_handler.increment_active_requests()
+
+@app.after_request
+def after_request_shutdown_tracking(response):
+    shutdown_handler.decrement_active_requests()
+    return response
+
+# Shutdown status endpoint
+@app.route('/api/admin/shutdown-status')
+@admin_login_required
+def shutdown_status():
+    """Get shutdown status"""
+    return jsonify({
+        "shutdown_requested": shutdown_handler.is_shutdown_requested(),
+        "active_requests": shutdown_handler.active_requests,
+        "uptime": format_uptime(),
+        "scheduler_running": _scheduler.running if _scheduler else False
+    })
+
+@app.route('/api/admin/shutdown', methods=['POST'])
+@admin_login_required
+def initiate_shutdown():
+    """Initiate graceful shutdown (admin only)"""
+    logger.warning(f"Manual shutdown initiated by admin user")
+    
+    # Start shutdown in a separate thread
+    def delayed_shutdown():
+        time.sleep(2)  # Give time for response
+        os.kill(os.getpid(), signal.SIGTERM)
+    
+    threading.Thread(target=delayed_shutdown, daemon=True).start()
+    
+    return jsonify({
+        "message": "Graceful shutdown initiated",
+        "estimated_time": "30 seconds maximum"
+    })
 
 # Start scheduler on app startup (only in production or when explicitly enabled)
 if ENVIRONMENT == "production" or os.environ.get("ENABLE_SCHEDULER") == "true":
