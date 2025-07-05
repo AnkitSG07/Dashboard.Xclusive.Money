@@ -45,8 +45,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import logging
 from logging.handlers import RotatingFileHandler
+import time
 # Request ID Tracking System
-import uuid
 from datetime import datetime
 
 class RequestIDFormatter(logging.Formatter):
@@ -203,10 +203,13 @@ try:
         @app.before_request
         def set_sentry_user():
             if 'user' in session:
-                sentry_sdk.set_user({
-                    "email": session['user'],
-                    "ip_address": request.remote_addr
-                })
+                try:
+                    sentry_sdk.set_user({
+                        "email": session['user'],
+                        "ip_address": request.remote_addr
+                    })
+                except (NameError, AttributeError):
+                    pass  # Sentry not available
         
         logger.info("✅ Sentry error tracking initialized")
     else:
@@ -429,14 +432,6 @@ def monitor_performance(threshold_seconds=2.0):
         return decorated_function
     return decorator
 
-# Global request monitoring
-@app.before_request
-def before_request_monitor():
-    request.start_time = time.time()
-    request.request_id = str(uuid.uuid4())[:8]
-
-@app.after_request
-def after_request_monitor(response):
     if hasattr(request, 'start_time'):
         duration = time.time() - request.start_time
         
@@ -524,7 +519,23 @@ def setup_logging():
     
     return app_logger
 
-logger = setup_logging()
+logger = setup_logging_with_request_id()
+
+# Request tracking for graceful shutdown
+@app.before_request
+def before_request_shutdown_tracking():
+    if shutdown_handler.is_shutdown_requested():
+        return jsonify({
+            "error": "Server is shutting down",
+            "message": "Please try again later"
+        }), 503
+    
+    shutdown_handler.increment_active_requests()
+
+@app.after_request
+def after_request_shutdown_tracking(response):
+    shutdown_handler.decrement_active_requests()
+    return response
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
@@ -1074,18 +1085,6 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         if not session.get("user"):
             return redirect(url_for("login"))
-        return view(*args, **kwargs)
-    return wrapped
-
-# Admin authentication
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
-
-def admin_login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if not session.get("admin"):
-            return redirect(url_for("admin_login"))
         return view(*args, **kwargs)
     return wrapped
 
@@ -5730,22 +5729,6 @@ def cleanup_on_exit():
 signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
 signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 atexit.register(cleanup_on_exit)               # Normal exit
-
-# Request tracking for graceful shutdown
-@app.before_request
-def before_request_shutdown_tracking():
-    if shutdown_handler.is_shutdown_requested():
-        return jsonify({
-            "error": "Server is shutting down",
-            "message": "Please try again later"
-        }), 503
-    
-    shutdown_handler.increment_active_requests()
-
-@app.after_request
-def after_request_shutdown_tracking(response):
-    shutdown_handler.decrement_active_requests()
-    return response
 
 # Shutdown status endpoint
 @app.route('/api/admin/shutdown-status')
