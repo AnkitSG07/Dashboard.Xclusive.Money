@@ -3643,6 +3643,14 @@ def admin_change_subscription(user_id):
     return redirect(url_for('admin_subscriptions'))
 
 with app.app_context():
+    from sqlalchemy import text
+
+    with app.app_context():
+        try:
+            db.engine.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
+            print("Upgraded password_hash column to TEXT.")
+        except Exception as e:
+            print(f"Migration error (can ignore if already migrated): {e}")
     db.create_all()
 
 scheduler = start_scheduler()
