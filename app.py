@@ -5448,11 +5448,9 @@ with app.app_context():
         with db.engine.connect() as connection:
             # ===== USER TABLE MIGRATIONS =====
             try:
-                # This ensures the password hash column is long enough
                 connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
                 print("✅ Verified user.password_hash type")
             except Exception as e:
-                # This will fail safely if the column type is already correct
                 print(f"ℹ️ User table migration check: {e}")
             
             # ===== ACCOUNT TABLE MIGRATIONS =====
@@ -5491,7 +5489,7 @@ with app.app_context():
                         except Exception as e:
                             print(f"⚠️ Could not add order_mapping.{col_name}: {e}")
 
-            # ===== SYSTEM_LOG TABLE MIGRATIONS (FIX) =====
+            # ===== SYSTEM_LOG TABLE MIGRATIONS =====
             if 'system_log' in inspector.get_table_names():
                 system_log_columns = [col['name'] for col in inspector.get_columns('system_log')]
                 if 'level' not in system_log_columns:
@@ -5501,39 +5499,38 @@ with app.app_context():
                     except Exception as e:
                         print(f"⚠️ Could not add system_log.level: {e}")
             
-            # ===== GROUP TABLE MIGRATIONS (FIX) =====
+            # ===== GROUP TABLE MIGRATIONS =====
             if 'group' in inspector.get_table_names():
                 group_columns = [col['name'] for col in inspector.get_columns('group')]
                 if 'description' not in group_columns:
                     try:
-                        # Use quotes for "group" as it's a reserved keyword
                         connection.execute(text('ALTER TABLE "group" ADD COLUMN description TEXT;'))
                         print("✅ Added missing column: group.description")
                     except Exception as e:
                         print(f"⚠️ Could not add group.description: {e}")
+            
+            # ===== SETTING TABLE MIGRATIONS (FINAL FIX) =====
+            if 'setting' in inspector.get_table_names():
+                setting_columns = [col['name'] for col in inspector.get_columns('setting')]
+                if 'description' not in setting_columns:
+                    try:
+                        connection.execute(text('ALTER TABLE setting ADD COLUMN description TEXT;'))
+                        print("✅ Added missing column: setting.description")
+                    except Exception as e:
+                        print(f"⚠️ Could not add setting.description: {e}")
 
             # ===== PERFORMANCE OPTIMIZATIONS =====
             print("\n🚀 Applying performance optimizations...")
             optimization_indexes = [
                 "CREATE INDEX IF NOT EXISTS idx_account_client_id ON account (client_id);",
-                "CREATE INDEX IF NOT EXISTS idx_account_role ON account (role);",
-                "CREATE INDEX IF NOT EXISTS idx_account_linked_master ON account (linked_master_id);",
                 "CREATE INDEX IF NOT EXISTS idx_order_mapping_master ON order_mapping (master_order_id);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_status ON order_mapping (status);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_master_status ON order_mapping (master_client_id, status);",
             ]
-            indexes_created = 0
             for index_sql in optimization_indexes:
                 try:
                     connection.execute(text(index_sql))
-                    index_name = index_sql.split()[5]
-                    # This message is better as it clarifies it won't fail if the index is already there
-                    print(f"✅ Ensured performance index exists: {index_name}")
-                    indexes_created += 1
+                    print(f"✅ Ensured performance index exists: {index_sql.split()[5]}")
                 except Exception as e:
                     print(f"⚠️ Index creation check failed: {e}")
-            
-            print(f"📊 Performance optimization: {indexes_created} indexes verified/created")
             
             # Commit all schema changes
             connection.commit()
@@ -5545,7 +5542,6 @@ with app.app_context():
     
     # ===== CREATE ANY MISSING TABLES =====
     try:
-        # This creates tables from your models.py if they don't exist at all
         db.create_all()
         print("✅ All database tables created/verified successfully")
     except Exception as e:
