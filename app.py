@@ -2676,55 +2676,79 @@ def child_orders():
     return jsonify(data)
 
 # --- Cancel Order Endpoint ---
+# --- Corrected and Optimized Cancel Order Endpoint ---
 @app.route('/api/cancel-order', methods=['POST'])
 def cancel_order():
     try:
         data = request.json
         master_order_id = data.get("master_order_id")
+        
+        # Find all active child orders linked to the master order
         mappings = OrderMapping.query.filter_by(
             master_order_id=master_order_id, status="ACTIVE"
         ).all()
+
         if not mappings:
             return jsonify({"message": "No active child orders found for this master order."}), 200
 
         results = []
-        accounts = {a.client_id: a for a in Account.query.all()}
+        
+        # --- EFFICIENCY IMPROVEMENT ---
+        # 1. Get only the child_ids we need to process
+        child_ids_to_find = {m.child_client_id for m in mappings}
+        
+        # 2. Fetch only those specific accounts in a single query
+        accounts = {
+            acc.client_id: acc 
+            for acc in Account.query.filter(Account.client_id.in_(child_ids_to_find)).all()
+        }
 
         for mapping in mappings:
-            child_id = mapping["child_client_id"]
-            child_order_id = mapping["child_order_id"]
-            found = accounts.get(child_id)
+            # --- CORRECTNESS FIX ---
+            # Use dot notation to access attributes of the SQLAlchemy object
+            child_id = mapping.child_client_id
+            child_order_id = mapping.child_order_id
+            
+            found_account = accounts.get(child_id)
 
-            if not found:
-                results.append(f"{child_id} → ❌ Client not found")
+            if not found_account:
+                results.append(f"{child_id} → ❌ Client account not found")
                 continue
 
             try:
+                # Use the fetched account object to initialize the broker API
                 api = broker_api({
-                    "broker": found.broker,
-                    "client_id": found.client_id,
-                    "credentials": found.credentials,
+                    "broker": found_account.broker,
+                    "client_id": found_account.client_id,
+                    "credentials": found_account.credentials,
                 })
+                
                 cancel_resp = api.cancel_order(child_order_id)
 
                 if isinstance(cancel_resp, dict) and cancel_resp.get("status") == "failure":
-                    results.append(
-                        f"{child_id} → ❌ Cancel failed: {cancel_resp.get('remarks', cancel_resp.get('error', 'Unknown error'))}"
-                    )
+                    # Handle API-level failure
+                    error_message = clean_response_message(cancel_resp)
+                    results.append(f"{child_id} → ❌ Cancel failed: {error_message}")
                 else:
+                    # On success, update the mapping's status
                     results.append(f"{child_id} → ✅ Cancelled")
                     mapping.status = "CANCELLED"
+                    mapping.remarks = f"Cancelled by user on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
 
             except Exception as e:
+                # Handle exceptions during the API call
                 results.append(f"{child_id} → ❌ ERROR: {str(e)}")
 
+        # Commit all status changes to the database at once
         db.session.commit()
 
         return jsonify({"message": "Cancel process completed", "details": results}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        # Rollback in case of an unexpected error during the process
+        db.session.rollback()
+        logger.error(f"Unexpected error in cancel_order: {str(e)}")
+        return jsonify({"error": "An internal server error occurred.", "details": str(e)}), 500
 
 @app.route('/api/change-master', methods=['POST'])
 @login_required
@@ -5547,7 +5571,7 @@ with app.app_context():
                 connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
                 print("✅ Updated user.password_hash to TEXT")
             except Exception as e:
-                print(f"ℹ️ User table: {e}")
+                print(f"ℹ️ User table migration check: {e}")
             
             # ===== ACCOUNT TABLE MIGRATIONS =====
             if 'account' in inspector.get_table_names():
@@ -5586,9 +5610,11 @@ with app.app_context():
             if 'order_mapping' in inspector.get_table_names():
                 order_mapping_columns = [col['name'] for col in inspector.get_columns('order_mapping')]
                 
+                # --- FIX IS HERE: Added 'price' to the required columns ---
                 order_mapping_required = {
                     'action': 'VARCHAR(10)',
                     'quantity': 'INTEGER',
+                    'price': 'FLOAT DEFAULT 0.0', # <-- THIS IS THE FIX
                     'child_timestamp': 'VARCHAR(32)',
                     'remarks': 'VARCHAR(255)',
                     'multiplier': 'FLOAT DEFAULT 1.0'
@@ -5653,7 +5679,6 @@ with app.app_context():
         print(f"❌ Error creating tables: {e}")
     
     print("🏁 Comprehensive database migration with optimizations complete!")
-
 scheduler = start_scheduler()     
 
 if __name__ == '__main__':
