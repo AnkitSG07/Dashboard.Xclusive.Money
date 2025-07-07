@@ -1765,7 +1765,6 @@ def zerodha_redirect_handler(client_id):
         ), 500
 
 @app.route("/webhook/<user_id>", methods=["POST"])
-# @limiter.limit("60 per minute")
 def webhook(user_id):
     """Handle incoming webhook requests for order placement."""
     logger.info(f"Received webhook request for user {user_id}")
@@ -1780,6 +1779,7 @@ def webhook(user_id):
                 "details": str(e)
             }), 400
 
+        # Handle alert messages (like first file)
         if isinstance(data, str) or "message" in data:
             message = data if isinstance(data, str) else data.get("message")
             logger.info(f"Alert received for {user_id}: {message}")
@@ -1788,6 +1788,7 @@ def webhook(user_id):
                 "message": message
             }), 200
 
+        # Validate required fields
         symbol = data.get("symbol")
         action = data.get("action")
         quantity = data.get("quantity")
@@ -1804,14 +1805,26 @@ def webhook(user_id):
                 }
             }), 400
 
-        user = get_user_credentials(user_id)
+        # Use database lookup instead of JSON file
+        user = get_user_by_token(user_id)
         if not user:
-            logger.error(f"Invalid webhook ID: {user_id}")
-            return jsonify({"error": "Invalid webhook ID"}), 403
+            # Try client_id lookup
+            account = Account.query.filter_by(client_id=user_id).first()
+            if account and account.user:
+                user = account.user
+            else:
+                logger.error(f"Invalid webhook ID: {user_id}")
+                return jsonify({"error": "Invalid webhook ID"}), 403
 
-        broker_name = user.get("broker", "dhan").lower()
-        client_id = user.get("client_id")
-        access_token = user.get("access_token")
+        # Get primary account for user
+        account = get_primary_account(user)
+        if not account:
+            return jsonify({"error": "No account configured"}), 400
+
+        broker_name = account.broker.lower()
+        client_id = account.client_id
+        credentials = account.credentials or {}
+        access_token = credentials.get("access_token")
 
         try:
             BrokerClass = get_broker_class(broker_name)
@@ -2393,30 +2406,51 @@ def login():
         
         if user and check_password_hash(user.password_hash, password):
             session["user"] = email
-            flash("Login successful!", "success")
-            return redirect(url_for("Dashboard"))
+            user.last_login = datetime.now().strftime('%Y-%m-%d')
+            db.session.commit()
+            return redirect(url_for("summary"))  # Match first file
         else:
-            flash("Invalid email or password", "error")
+            return render_template("log-in.html", error="Invalid credentials")  # Match template name
     
-    return render_template("login.html")
+    return render_template("log-in.html")  # Match template name
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        
+        if User.query.filter_by(email=email).first():
+            return render_template("sign-up.html", error="User already exists")  # Match template name
+        
+        webhook_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(password),
+            webhook_token=webhook_token
+        )
+        db.session.add(user)
+        db.session.commit()
+        
+        session["user"] = email
+        return redirect(url_for("summary"))  # Match first file
+    
+    return render_template("sign-up.html")  # Match template name
 
 @app.route("/logout")
 def logout():
-    # Only clear user session, not admin session
-    session.pop("user", None)
-    flash("You have been logged out", "info")
-    return redirect(url_for("login"))  # ← Fixed: go to login, not home
+    session.clear()  # Clear all session data like first file
+    return redirect(url_for("home"))  # Redirect to home like first file
+    
+@app.route('/')
+def home():
+    return render_template("index.html")
 
 
-@app.route("/")
-@login_required
-def Dashboard():
-    return render_template("dashboard.html")
-
-@app.route("/add-account")
+@app.route("/Add-Account")
 @login_required
 def AddAccount():
-    return render_template("add_account.html")
+    return render_template("Add-Account.html")
 
 @app.route("/manage-accounts")
 @login_required
@@ -4638,7 +4672,7 @@ def user_profile():
 
     return render_template("user.html", user=profile_data, message=message)
 
-@app.route('/Summary')
+@app.route("/Summary")
 @login_required
 def summary():
     return render_template("Summary.html")
