@@ -5448,118 +5448,110 @@ with app.app_context():
         with db.engine.connect() as connection:
             # ===== USER TABLE MIGRATIONS =====
             try:
+                # This ensures the password hash column is long enough
                 connection.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE TEXT;'))
-                print("✅ Updated user.password_hash to TEXT")
+                print("✅ Verified user.password_hash type")
             except Exception as e:
+                # This will fail safely if the column type is already correct
                 print(f"ℹ️ User table migration check: {e}")
             
             # ===== ACCOUNT TABLE MIGRATIONS =====
             if 'account' in inspector.get_table_names():
                 existing_columns = [col['name'] for col in inspector.get_columns('account')]
-                print(f"📋 Existing account columns: {existing_columns}")
-                
-                # Define all required columns for Account table
                 required_columns = {
-                    'username': 'VARCHAR(120)',
-                    'auto_login': 'BOOLEAN DEFAULT TRUE',
-                    'last_login_time': 'VARCHAR(32)',
-                    'device_number': 'VARCHAR(64)',
-                    'last_copied_trade_id': 'VARCHAR(50)',
-                    'copy_status': 'VARCHAR(10) DEFAULT \'Off\'',
-                    'multiplier': 'FLOAT DEFAULT 1.0',
-                    'credentials': 'JSON',
-                    'role': 'VARCHAR(20)',
-                    'linked_master_id': 'VARCHAR(50)',
-                    'status': 'VARCHAR(20) DEFAULT \'Connected\'',
-                    'token_expiry': 'VARCHAR(32)',
-                    'broker': 'VARCHAR(50)',
-                    'client_id': 'VARCHAR(50)',
+                    'username': 'VARCHAR(120)', 'auto_login': 'BOOLEAN DEFAULT TRUE',
+                    'last_login_time': 'VARCHAR(32)', 'device_number': 'VARCHAR(64)',
+                    'last_copied_trade_id': 'VARCHAR(50)', 'copy_status': 'VARCHAR(10) DEFAULT \'Off\'',
+                    'multiplier': 'FLOAT DEFAULT 1.0', 'credentials': 'JSON', 'role': 'VARCHAR(20)',
+                    'linked_master_id': 'VARCHAR(50)', 'status': 'VARCHAR(20) DEFAULT \'Connected\'',
+                    'token_expiry': 'VARCHAR(32)', 'broker': 'VARCHAR(50)', 'client_id': 'VARCHAR(50)',
                     'user_id': 'INTEGER REFERENCES "user"(id)'
                 }
-                
-                # Add missing columns one by one
                 for col_name, col_def in required_columns.items():
                     if col_name not in existing_columns:
                         try:
                             connection.execute(text(f'ALTER TABLE account ADD COLUMN {col_name} {col_def};'))
-                            print(f"✅ Added account.{col_name}")
+                            print(f"✅ Added missing column: account.{col_name}")
                         except Exception as e:
                             print(f"⚠️ Could not add account.{col_name}: {e}")
-            
-            # ===== ORDER_MAPPING TABLE MIGRATIONS (Comprehensive) =====
+
+            # ===== ORDER_MAPPING TABLE MIGRATIONS =====
             if 'order_mapping' in inspector.get_table_names():
                 order_mapping_columns = [col['name'] for col in inspector.get_columns('order_mapping')]
-                print(f"📋 Existing order_mapping columns: {order_mapping_columns}")
-                
-                # --- THIS IS THE COMPREHENSIVE FIX ---
-                # A complete list of all columns the app expects on the OrderMapping table.
                 order_mapping_required = {
-                    'action': 'VARCHAR(10)',
-                    'quantity': 'INTEGER',
-                    'price': 'FLOAT DEFAULT 0.0',
-                    'child_timestamp': 'VARCHAR(32)',
-                    'remarks': 'VARCHAR(255)',
+                    'action': 'VARCHAR(10)', 'quantity': 'INTEGER', 'price': 'FLOAT DEFAULT 0.0',
+                    'child_timestamp': 'VARCHAR(32)', 'remarks': 'VARCHAR(255)',
                     'multiplier': 'FLOAT DEFAULT 1.0'
                 }
-                
                 for col_name, col_def in order_mapping_required.items():
                     if col_name not in order_mapping_columns:
                         try:
                             connection.execute(text(f'ALTER TABLE order_mapping ADD COLUMN {col_name} {col_def};'))
-                            print(f"✅ Added order_mapping.{col_name}")
+                            print(f"✅ Added missing column: order_mapping.{col_name}")
                         except Exception as e:
                             print(f"⚠️ Could not add order_mapping.{col_name}: {e}")
+
+            # ===== SYSTEM_LOG TABLE MIGRATIONS (FIX) =====
+            if 'system_log' in inspector.get_table_names():
+                system_log_columns = [col['name'] for col in inspector.get_columns('system_log')]
+                if 'level' not in system_log_columns:
+                    try:
+                        connection.execute(text('ALTER TABLE system_log ADD COLUMN level VARCHAR(20);'))
+                        print("✅ Added missing column: system_log.level")
+                    except Exception as e:
+                        print(f"⚠️ Could not add system_log.level: {e}")
             
+            # ===== GROUP TABLE MIGRATIONS (FIX) =====
+            if 'group' in inspector.get_table_names():
+                group_columns = [col['name'] for col in inspector.get_columns('group')]
+                if 'description' not in group_columns:
+                    try:
+                        # Use quotes for "group" as it's a reserved keyword
+                        connection.execute(text('ALTER TABLE "group" ADD COLUMN description TEXT;'))
+                        print("✅ Added missing column: group.description")
+                    except Exception as e:
+                        print(f"⚠️ Could not add group.description: {e}")
+
             # ===== PERFORMANCE OPTIMIZATIONS =====
             print("\n🚀 Applying performance optimizations...")
-            
-            # Indexes for better query performance
             optimization_indexes = [
                 "CREATE INDEX IF NOT EXISTS idx_account_client_id ON account (client_id);",
-                "CREATE INDEX IF NOT EXISTS idx_account_role ON account (role);", 
-                "CREATE INDEX IF NOT EXISTS idx_account_copy_status ON account (copy_status);",
+                "CREATE INDEX IF NOT EXISTS idx_account_role ON account (role);",
                 "CREATE INDEX IF NOT EXISTS idx_account_linked_master ON account (linked_master_id);",
-                "CREATE INDEX IF NOT EXISTS idx_account_broker ON account (broker);",
-                "CREATE INDEX IF NOT EXISTS idx_account_user_role ON account (user_id, role);",
-                "CREATE INDEX IF NOT EXISTS idx_account_master_children ON account (linked_master_id, copy_status);",
-                "CREATE INDEX IF NOT EXISTS idx_account_user_broker ON account (user_id, broker);",
                 "CREATE INDEX IF NOT EXISTS idx_order_mapping_master ON order_mapping (master_order_id);",
-                "CREATE INDEX IF NOT EXISTS idx_order_mapping_child ON order_mapping (child_client_id);",
                 "CREATE INDEX IF NOT EXISTS idx_order_mapping_status ON order_mapping (status);",
                 "CREATE INDEX IF NOT EXISTS idx_order_mapping_master_status ON order_mapping (master_client_id, status);",
             ]
-            
             indexes_created = 0
             for index_sql in optimization_indexes:
                 try:
                     connection.execute(text(index_sql))
                     index_name = index_sql.split()[5]
-                    print(f"✅ Created index: {index_name}")
+                    # This message is better as it clarifies it won't fail if the index is already there
+                    print(f"✅ Ensured performance index exists: {index_name}")
                     indexes_created += 1
                 except Exception as e:
-                    if "already exists" in str(e).lower():
-                        print(f"ℹ️ Index already exists: {index_sql.split()[5]}")
-                    else:
-                        print(f"⚠️ Index creation failed: {e}")
+                    print(f"⚠️ Index creation check failed: {e}")
             
-            print(f"📊 Performance optimization: {indexes_created} new indexes created")
+            print(f"📊 Performance optimization: {indexes_created} indexes verified/created")
             
-            # Commit all changes
+            # Commit all schema changes
             connection.commit()
             print("✅ All table alterations and optimizations committed")
             
     except Exception as e:
-        print(f"❌ Migration error: {e}")
+        print(f"❌ A critical migration error occurred: {e}")
         db.session.rollback()
     
     # ===== CREATE ANY MISSING TABLES =====
     try:
+        # This creates tables from your models.py if they don't exist at all
         db.create_all()
-        print("✅ All database tables created/verified")
+        print("✅ All database tables created/verified successfully")
     except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+        print(f"❌ Error during final table creation: {e}")
     
-    print("🏁 Comprehensive database migration with optimizations complete!")
+    print("🏁 Comprehensive database migration complete!")
     
 scheduler = start_scheduler()     
 
