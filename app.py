@@ -5269,8 +5269,11 @@ def create_app(config_class=Config):
 # ==============================================================================
 # Main Execution
 # ==============================================================================
+
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
+
     
     # For production, use a WSGI server like Gunicorn instead of the development server
     # Command: gunicorn --workers 4 --bind 0.0.0.0:5000 'app:create_app()'
