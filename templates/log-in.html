@@ -64,10 +64,10 @@
                 <div class="row">
                     <div class="col-xl-6 offset-xl-3">
                         <div class="text-box mt-5 mb-5">
-                             <p class="mb-4">You don't have a password? Then please <a class="blue" href="{{ url_for('signup') }}">Sign Up</a></p>
+                             <p class="mb-4">You don't have a password? Then please <a class="blue" href="{{ url_for('auth.signup') }}">Sign Up</a></p>
 
                             <!-- Log In Form -->
-                            <form method="post" action="{{ url_for('login') }}">
+                            <form method="post" action="{{ url_for('auth.login') }}">
                                 <div class="mb-4 form-floating">
                                     <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com" required>
                                     <label for="floatingInput">Email address</label>
