@@ -164,18 +164,16 @@
               if (newContent.dataset.page) {
                 pageContainer.dataset.page = newContent.dataset.page;
               }
-            doc.querySelectorAll('script').forEach(srcEl => {
+              doc.querySelectorAll('script').forEach(srcEl => {
                 if (srcEl.id === 'spa-script') return;
                 const s = document.createElement('script');
                 if (srcEl.src) {
                   s.src = srcEl.src;
 
                 } else if (srcEl.textContent) {
-                  try {
-                    eval(srcEl.textContent);
                   s.textContent = srcEl.textContent;
                 }
-                document.body.appendChild(s);    
+                document.body.appendChild(s);
               });
               history.pushState(null, '', url);
               highlightActivePage();
