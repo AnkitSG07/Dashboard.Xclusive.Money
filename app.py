@@ -1189,7 +1189,7 @@ def poll_and_copy_trades():
                         logger.error(f"Failed to update marker for child {child_id}: {e}")
                         db.session.rollback()
 
-      logger.info("Poll and copy trades cycle completed")
+    logger.info("Poll and copy trades cycle completed")
         
     except Exception as e:
         logger.error(f"Failed to start scheduler: {str(e)}")
