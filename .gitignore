@@ -1,0 +1,6 @@
+# Ignore environment variables and runtime data
+.env
+*.pyc
+__pycache__/
+data/
+*.db
