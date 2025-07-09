@@ -1,8 +1,11 @@
 import requests
 import hashlib
 import json
+import logging
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker
+
+logger = logging.getLogger(__name__)
 
 class AliceBlueBroker(BrokerBase):
     BROKER = "aliceblue"
@@ -42,26 +45,26 @@ class AliceBlueBroker(BrokerBase):
         api_key = str(self.api_key).strip()
         enc_key = str(enc_key).strip()  # from previous step
 
-        print("client_id:", repr(client_id))
-        print("api_key:", repr(api_key))
-        print("enc_key:", repr(enc_key))
+        logger.debug("client_id: %r", client_id)
+        logger.debug("api_key: %r", api_key)
+        logger.debug("enc_key: %r", enc_key)
 
         to_hash = f"{client_id}{api_key}{enc_key}"
-        print("concat string:", repr(to_hash))
+        logger.debug("concat string: %r", to_hash)
 
         user_data = hashlib.sha256(to_hash.encode()).hexdigest()
-        print("sha256:", user_data)
+        logger.debug("sha256: %s", user_data)
 
         payload = {
             "userId": client_id,
             "userData": user_data,
         }
-        print("payload:", json.dumps(payload))
+        logger.debug("payload: %s", json.dumps(payload))
 
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getUserSID"
         headers = {"Content-Type": "application/json"}
         resp = requests.post(url, headers=headers, data=json.dumps(payload))
-        print(resp.text)
+        logger.debug("getUserSID raw response: %s", resp.text)
 
         # Step 3: Get Session ID
         url = self.BASE_URL + "customer/getUserSID"
