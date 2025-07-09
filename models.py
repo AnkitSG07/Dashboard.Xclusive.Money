@@ -1,7 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-import uuid # ADDED: Import uuid library
 
 db = SQLAlchemy()
 
@@ -9,7 +8,8 @@ class User(db.Model):
     __tablename__ = 'user'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=True)
     name = db.Column(db.String(120))
@@ -41,10 +41,8 @@ class User(db.Model):
 class Account(db.Model):
     __tablename__ = 'account'
     
-    # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    # CORRECTED: Changed foreign key type to String(36) to match User.id
-    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     broker = db.Column(db.String(50), index=True)
     client_id = db.Column(db.String(50), nullable=False, index=True)
     
@@ -81,9 +79,9 @@ class Trade(db.Model):
     __tablename__ = 'trade'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    # CORRECTED: Changed foreign key type to String(36) to match User.id
-    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     symbol = db.Column(db.String(50), index=True)
     action = db.Column(db.String(10))
     qty = db.Column(db.Integer)
@@ -110,13 +108,12 @@ class WebhookLog(db.Model):
     __tablename__ = 'webhook_log'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     reason = db.Column(db.Text)
     
-    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
-    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
+    user_id = db.Column(db.Integer, index=True)
     endpoint = db.Column(db.String(100))
     request_data = db.Column(db.JSON)
     response_data = db.Column(db.JSON)
@@ -128,14 +125,13 @@ class SystemLog(db.Model):
     __tablename__ = 'system_log'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     level = db.Column(db.String(20), default='INFO')
     message = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     details = db.Column(db.JSON)
     
-    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
-    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
+    user_id = db.Column(db.Integer, index=True)
     module = db.Column(db.String(50))
     
     __table_args__ = (
@@ -149,7 +145,7 @@ class Setting(db.Model):
     __tablename__ = 'setting'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True, nullable=False, index=True)
     value = db.Column(db.Text)
     description = db.Column(db.String(255))
@@ -164,17 +160,16 @@ class Setting(db.Model):
 group_members = db.Table(
     "group_members",
     # CORRECTED: Changed foreign key types to String(36)
-    db.Column("group_id", db.String(36), db.ForeignKey("group.id"), primary_key=True),
-    db.Column("account_id", db.String(36), db.ForeignKey("account.id"), primary_key=True),
+    db.Column("group_id", db.Integer, db.ForeignKey("group.id"), primary_key=True),
+    db.Column("account_id", db.Integer, db.ForeignKey("account.id"), primary_key=True),
 )
 
 class Group(db.Model):
     __tablename__ = 'group'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    # CORRECTED: Changed foreign key type to String(36) to match User.id
-    user_id = db.Column(db.String(36), db.ForeignKey("user.id"), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(255))
     
@@ -200,7 +195,7 @@ class OrderMapping(db.Model):
     __tablename__ = 'order_mapping'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     master_order_id = db.Column(db.String(50), nullable=False, index=True)
     child_order_id = db.Column(db.String(50), index=True)
     master_client_id = db.Column(db.String(50), nullable=False, index=True)
@@ -233,10 +228,9 @@ class TradeLog(db.Model):
     __tablename__ = 'trade_log'
     
     # CORRECTED: Changed from Integer to String(36) for UUID
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
-    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
+    user_id = db.Column(db.Integer, index=True)
     symbol = db.Column(db.String(50), index=True)
     action = db.Column(db.String(10))
     quantity = db.Column(db.Integer)
