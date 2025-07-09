@@ -65,10 +65,10 @@
                 <div class="row">
                     <div class="col-xl-6 offset-xl-3">
                         <div class="text-box mt-5 mb-5">
-                            <p class="mb-4">Fill out the form below to sign up for the service. Already signed up? Then just <a class="blue" href="{{ url_for('login') }}">Log In</a></p>
+                            <p class="mb-4">Fill out the form below to sign up for the service. Already signed up? Then just <a class="blue" href="{{ url_for('auth.login') }}">Log In</a></p>
 
                             <!-- Sign Up Form -->
-                            <form method="post" action="{{ url_for('signup') }}">
+                            <form method="post" action="{{ url_for('auth.signup') }}">
                                 <div class="mb-4 form-floating">
                                     <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com" required>
                                     <label for="floatingInput">Email address</label>
