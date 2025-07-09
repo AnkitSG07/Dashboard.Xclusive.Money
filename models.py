@@ -1,13 +1,14 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import uuid
 
 db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = 'user'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=True)
     name = db.Column(db.String(120))
@@ -41,8 +42,8 @@ class User(db.Model):
 class Account(db.Model):
     __tablename__ = 'account'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     broker = db.Column(db.String(50), index=True)
     client_id = db.Column(db.String(50), nullable=False, index=True)
     
@@ -82,8 +83,8 @@ class Account(db.Model):
 class Trade(db.Model):
     __tablename__ = 'trade'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     symbol = db.Column(db.String(50), index=True)
     action = db.Column(db.String(10))  # BUY/SELL
     qty = db.Column(db.Integer)
@@ -104,7 +105,7 @@ class Trade(db.Model):
     # Added: Indexes for performance
     __table_args__ = (
         db.Index('idx_user_timestamp', 'user_id', 'timestamp'),
-        db.Index('idx_symbol_action', 'symbol', 'action'),
+        db.Index('idx_trade_symbol_action', 'symbol', 'action'),
     )
 
     def __repr__(self):
@@ -113,7 +114,7 @@ class Trade(db.Model):
 class WebhookLog(db.Model):
     __tablename__ = 'webhook_log'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     status = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
     reason = db.Column(db.Text)  # Changed to Text for longer messages
@@ -130,7 +131,7 @@ class WebhookLog(db.Model):
 class SystemLog(db.Model):
     __tablename__ = 'system_log'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     level = db.Column(db.String(20), default='INFO')  # Added: Log level
     message = db.Column(db.Text)  # Changed from 'type' to 'message'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
@@ -150,7 +151,7 @@ class SystemLog(db.Model):
 class Setting(db.Model):
     __tablename__ = 'setting'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     key = db.Column(db.String(100), unique=True, nullable=False, index=True)
     value = db.Column(db.Text)  # Changed to Text for longer values
     description = db.Column(db.String(255))  # Added: Setting description
@@ -165,15 +166,15 @@ class Setting(db.Model):
 # Association table for many-to-many relationship
 group_members = db.Table(
     "group_members",
-    db.Column("group_id", db.Integer, db.ForeignKey("group.id"), primary_key=True),
-    db.Column("account_id", db.Integer, db.ForeignKey("account.id"), primary_key=True),
+    db.Column("group_id", db.String(36), db.ForeignKey("group.id"), primary_key=True),
+    db.Column("account_id", db.String(36), db.ForeignKey("account.id"), primary_key=True),
 )
 
 class Group(db.Model):
     __tablename__ = 'group'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("user.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(255))  # Added: Group description
     
@@ -201,7 +202,7 @@ class Group(db.Model):
 class OrderMapping(db.Model):
     __tablename__ = 'order_mapping'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     master_order_id = db.Column(db.String(50), nullable=False, index=True)
     child_order_id = db.Column(db.String(50), index=True)
     master_client_id = db.Column(db.String(50), nullable=False, index=True)
@@ -236,7 +237,7 @@ class OrderMapping(db.Model):
 class TradeLog(db.Model):
     __tablename__ = 'trade_log'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
     user_id = db.Column(db.String(50), index=True)
     symbol = db.Column(db.String(50), index=True)
@@ -256,7 +257,7 @@ class TradeLog(db.Model):
     __table_args__ = (
         db.Index('idx_client_timestamp', 'client_id', 'timestamp'),
         db.Index('idx_status_timestamp', 'status', 'timestamp'),
-        db.Index('idx_symbol_action', 'symbol', 'action'),
+        db.Index('idx_tradelog_symbol_action', 'symbol', 'action'),
     )
 
     def __repr__(self):
