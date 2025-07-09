@@ -152,14 +152,12 @@ def ensure_system_log_schema():
         # 2. Check and add missing columns
         existing_columns = {col['name'] for col in insp.get_columns(table_name)}
 
-        # These column definitions MUST match your models.py SystemLog exactly
-        # Corrected: Use TEXT for message, JSONB for details to avoid truncation
         columns_to_add = {
-            'level': 'VARCHAR(50) DEFAULT \'INFO\'', # Increased size for safety
-            'message': 'TEXT', # Changed to TEXT to avoid truncation
+            'level': 'VARCHAR(50) DEFAULT \'INFO\'',
+            'message': 'TEXT',
             'timestamp': 'TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP',
-            'details': 'JSONB', # Changed to JSONB for proper JSON storage and no length limit
-            'user_id': 'VARCHAR(36)', # Ensure this matches the type of User.id (UUID)
+            'details': 'JSONB',
+            'user_id': 'VARCHAR(36)',
             'module': 'VARCHAR(50)'
         }
 
@@ -172,27 +170,24 @@ def ensure_system_log_schema():
                 except Exception as exc:
                     logger.warning(f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.')
             else:
-                # Check and alter type if current type is too small (e.g., VARCHAR(255) for details)
-                # This part is more complex and usually handled by Flask-Migrate for existing columns.
-                # For `details`, if it's already `VARCHAR(255)` and needs to be `JSONB`,
-                # a direct ALTER COLUMN TYPE might require a REBUILD or intermediate step
-                # depending on data and PostgreSQL version.
-                # A simple check for `VARCHAR(255)` on 'details' and altering it is added here as a basic attempt.
                 if col_name == 'details':
-                    current_type = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), '').upper()
-                    if 'VARCHAR' in current_type and '255' in current_type: # Crude check for existing VARCHAR(255)
+                    # Convert to string before calling .upper()
+                    current_type_obj = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), None)
+                    current_type = str(current_type_obj).upper() if current_type_obj else ''
+
+                    if 'VARCHAR' in current_type and '255' in current_type:
                         try:
                             with db.engine.begin() as conn:
-                                # This might require a cast or intermediate column depending on data
-                                # A safer way is `ALTER TABLE system_log ALTER COLUMN details TYPE JSONB USING details::jsonb;`
-                                # but for an example, we keep it simple. Real-world: use Flask-Migrate or direct DDL.
                                 conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{col_name}" TYPE JSONB USING "{col_name}"::jsonb'))
                             logger.info(f'Altered column "{col_name}" to JSONB in "{table_name}" table.')
                         except Exception as exc:
                             logger.warning(f'Failed to alter column "{col_name}" to JSONB in "{table_name}": {exc}. Manual migration for existing data might be required.')
-                elif col_name == 'message': # Ensure message is TEXT
-                    current_type = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), '').upper()
-                    if 'VARCHAR' in current_type: # If it's still VARCHAR, try to change to TEXT
+                elif col_name == 'message':
+                    # Convert to string before calling .upper()
+                    current_type_obj = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), None)
+                    current_type = str(current_type_obj).upper() if current_type_obj else ''
+
+                    if 'VARCHAR' in current_type:
                         try:
                             with db.engine.begin() as conn:
                                 conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{col_name}" TYPE TEXT'))
