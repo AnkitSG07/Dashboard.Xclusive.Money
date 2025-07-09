@@ -3118,7 +3118,7 @@ def remove_master():
         # ✅ STEP 4: Find all child accounts linked to this master
         linked_children = Account.query.filter_by(
             role='child',
-            linked_master_id=client_id
+            linked_master_id=client_id,
             user_id=user.id
         ).all()
 
@@ -4254,7 +4254,7 @@ def start_copy():
         # ✅ STEP 4: Find and validate master account
         master_account = Account.query.filter_by(
             client_id=master_id,
-            role='master'
+            role='master',
             user_id=user.id
         ).first()
         
@@ -4445,7 +4445,7 @@ def stop_copy():
         master_account = None
         if current_master_id:
             master_account = Account.query.filter_by(
-                client_id=current_master_id
+                client_id=current_master_id,
                 user_id=user.id
             ).first()
 
