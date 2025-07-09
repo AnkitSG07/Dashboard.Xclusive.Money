@@ -16,11 +16,12 @@
 </table>
 <h5>System Events</h5>
 <table class="table table-bordered">
-  <thead><tr><th>Type</th><th>Time</th><th>Details</th></tr></thead>
+  <thead><tr><th>Level</th><th>Message</th><th>Time</th><th>Details</th></tr></thead>
   <tbody>
     {% for log in system_logs %}
     <tr>
-      <td>{{ log.type }}</td>
+      <td>{{ log.level }}</td>
+      <td>{{ log.message }}</td>
       <td>{{ log.time }}</td>
       <td>{{ log.details }}</td>
     </tr>
