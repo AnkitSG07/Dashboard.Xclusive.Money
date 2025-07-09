@@ -16,7 +16,7 @@ depends_on = None
 def upgrade():
     op.create_table(
         'user',
-        sa.Column('id', sa.String(length=36), primary_key=True),
+       sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('email', sa.String(length=120), nullable=False, unique=True),
         sa.Column('password_hash', sa.String(length=128)),
         sa.Column('name', sa.String(length=120)),
@@ -33,8 +33,8 @@ def upgrade():
 
     op.create_table(
         'account',
-        sa.Column('id', sa.String(length=36), primary_key=True),
-        sa.Column('user_id', sa.String(length=36), sa.ForeignKey('user.id'), nullable=False),
+        sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), nullable=False),
         sa.Column('broker', sa.String(length=50)),
         sa.Column('client_id', sa.String(length=50), nullable=False),
         sa.Column('username', sa.String(length=100)),
@@ -57,8 +57,8 @@ def upgrade():
 
     op.create_table(
         'trade',
-        sa.Column('id', sa.String(length=36), primary_key=True),
-        sa.Column('user_id', sa.String(length=36), sa.ForeignKey('user.id'), nullable=False),
+        sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), nullable=False),
         sa.Column('symbol', sa.String(length=50)),
         sa.Column('action', sa.String(length=10)),
         sa.Column('qty', sa.Integer()),
@@ -74,7 +74,7 @@ def upgrade():
 
     op.create_table(
         'order_mapping',
-        sa.Column('id', sa.String(length=36), primary_key=True),
+        sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('master_order_id', sa.String(length=50), nullable=False),
         sa.Column('child_order_id', sa.String(length=50)),
         sa.Column('master_client_id', sa.String(length=50), nullable=False),
@@ -95,9 +95,9 @@ def upgrade():
 
     op.create_table(
         'trade_log',
-        sa.Column('id', sa.String(length=36), primary_key=True),
+        sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('timestamp', sa.DateTime()),
-        sa.Column('user_id', sa.String(length=50)),
+        sa.Column('user_id', sa.Integer),
         sa.Column('symbol', sa.String(length=50)),
         sa.Column('action', sa.String(length=10)),
         sa.Column('quantity', sa.Integer()),
