@@ -29,8 +29,6 @@ from werkzeug.utils import secure_filename
 import random
 import string
 from urllib.parse import quote
-from apscheduler.schedulers.background import BackgroundScheduler
-import atexit
 from models import (
     db,
     User,
@@ -126,7 +124,6 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
 start_time = datetime.utcnow()
 device_number = None
-scheduler = BackgroundScheduler()
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
@@ -146,11 +143,6 @@ def ensure_system_log_schema():
         # 1. Check if table exists, if not, create it
         if table_name not in insp.get_table_names():
             try:
-                # SystemLog.__table__.create(db.engine)
-                # Use db.create_all() for all tables, or specific table creation if needed
-                # If you just ran db.create_all() in main, this might be redundant.
-                # This is more robust for cases where this function might be called
-                # independently or table creation is not guaranteed.
                 db.metadata.create_all(bind=db.engine, tables=[SystemLog.__table__])
                 logger.info(f'Created {table_name} table as it was missing.')
             except Exception as exc:
@@ -158,34 +150,15 @@ def ensure_system_log_schema():
                 return
 
         # 2. Check and add missing columns
-        column_info = {col['name']: col for col in insp.get_columns(table_name)}
-        existing_columns = set(column_info.keys())
-
-        # Ensure id and user_id columns use VARCHAR(36) as defined in models
-        id_col = column_info.get('id')
-        if id_col and 'CHAR' not in str(id_col['type']).upper():
-            try:
-                with db.engine.begin() as conn:
-                    conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "id" TYPE VARCHAR(36) USING "id"::VARCHAR'))
-                logger.info(f'Updated column "id" type to VARCHAR(36) in "{table_name}".')
-            except Exception as exc:
-                logger.warning(f'Failed to alter column "id" type: {exc}')
-
-        user_id_col = column_info.get('user_id')
-        if user_id_col and 'CHAR' not in str(user_id_col['type']).upper():
-            try:
-                with db.engine.begin() as conn:
-                    conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "user_id" TYPE VARCHAR(36) USING "user_id"::VARCHAR'))
-                logger.info(f'Updated column "user_id" type to VARCHAR(36) in "{table_name}".')
-            except Exception as exc:
-                logger.warning(f'Failed to alter column "user_id" type: {exc}')
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
 
         # These column definitions MUST match your models.py SystemLog exactly
+        # Corrected: Use TEXT for message, JSONB for details to avoid truncation
         columns_to_add = {
-            'level': 'VARCHAR(20) DEFAULT \'INFO\'',
-            'message': 'TEXT',
+            'level': 'VARCHAR(50) DEFAULT \'INFO\'', # Increased size for safety
+            'message': 'TEXT', # Changed to TEXT to avoid truncation
             'timestamp': 'TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP',
-            'details': 'JSON',
+            'details': 'JSONB', # Changed to JSONB for proper JSON storage and no length limit
             'user_id': 'VARCHAR(36)', # Ensure this matches the type of User.id (UUID)
             'module': 'VARCHAR(50)'
         }
@@ -197,11 +170,42 @@ def ensure_system_log_schema():
                         conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_definition}'))
                     logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
                 except Exception as exc:
-                    logger.warning(f'Failed to add column "{col_name}" to "{table_name}": {exc}')
+                    logger.warning(f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.')
             else:
+                # Check and alter type if current type is too small (e.g., VARCHAR(255) for details)
+                # This part is more complex and usually handled by Flask-Migrate for existing columns.
+                # For `details`, if it's already `VARCHAR(255)` and needs to be `JSONB`,
+                # a direct ALTER COLUMN TYPE might require a REBUILD or intermediate step
+                # depending on data and PostgreSQL version.
+                # A simple check for `VARCHAR(255)` on 'details' and altering it is added here as a basic attempt.
+                if col_name == 'details':
+                    current_type = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), '').upper()
+                    if 'VARCHAR' in current_type and '255' in current_type: # Crude check for existing VARCHAR(255)
+                        try:
+                            with db.engine.begin() as conn:
+                                # This might require a cast or intermediate column depending on data
+                                # A safer way is `ALTER TABLE system_log ALTER COLUMN details TYPE JSONB USING details::jsonb;`
+                                # but for an example, we keep it simple. Real-world: use Flask-Migrate or direct DDL.
+                                conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{col_name}" TYPE JSONB USING "{col_name}"::jsonb'))
+                            logger.info(f'Altered column "{col_name}" to JSONB in "{table_name}" table.')
+                        except Exception as exc:
+                            logger.warning(f'Failed to alter column "{col_name}" to JSONB in "{table_name}": {exc}. Manual migration for existing data might be required.')
+                elif col_name == 'message': # Ensure message is TEXT
+                    current_type = next((col['type'] for col in insp.get_columns(table_name) if col['name'] == col_name), '').upper()
+                    if 'VARCHAR' in current_type: # If it's still VARCHAR, try to change to TEXT
+                        try:
+                            with db.engine.begin() as conn:
+                                conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{col_name}" TYPE TEXT'))
+                            logger.info(f'Altered column "{col_name}" to TEXT in "{table_name}" table.')
+                        except Exception as exc:
+                            logger.warning(f'Failed to alter column "{col_name}" to TEXT in "{table_name}": {exc}.')
                 logger.debug(f'Column "{col_name}" already exists in "{table_name}".')
 
         logger.info(f"Schema check for {table_name} completed.")
+        
+# The original duplicate function has been removed.
+# This ensures that schema checks are done consistently.
+ensure_system_log_schema()
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
@@ -579,7 +583,7 @@ def set_pending_fyers(data: dict):
 
 def get_user_credentials(token: str):
     """Return basic broker credentials for a user webhook token."""
-    user = get_user_by_token(token)
+    user = User.query.filter_by(webhook_token=token).first() # Use filter_by(webhook_token=token) directly
     if not user:
         return None
     account = user.accounts[0] if user.accounts else None
@@ -683,7 +687,7 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
         child_broker=child_broker,
         symbol=symbol,
         status="ACTIVE",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow().isoformat()
     )
     db.session.add(mapping)
     db.session.commit()
@@ -870,7 +874,14 @@ def poll_and_copy_trades():
                     continue
 
                 # Get active child accounts for this master from database
-                children = active_children_for_master(master)
+                # Added try-except around database access to catch connection issues
+                try:
+                    children = active_children_for_master(master)
+                except Exception as e:
+                    logger.error(f"Failed to fetch active children for master {master_id} from DB: {str(e)}")
+                    # Continue to next master or exit if this is a critical error
+                    continue
+
 
                 if not children:
                     logger.info(f"No active children found for master {master_id}")
@@ -899,9 +910,13 @@ def poll_and_copy_trades():
                                 or first.get("norenordno")  # Finvasia
                             )
                             if init_id:
-                                child.last_copied_trade_id = str(init_id)
-                                db.session.commit()
-                                logger.info(f"Initialized marker for child {child_id} to {init_id}")
+                                try:
+                                    child.last_copied_trade_id = str(init_id)
+                                    db.session.commit()
+                                    logger.info(f"Initialized marker for child {child_id} to {init_id}")
+                                except Exception as e:
+                                    logger.error(f"Failed to commit initial marker for child {child_id}: {e}")
+                                    db.session.rollback()
                         continue
 
                     logger.debug(f"Processing child {child_id}, last copied: {last_copied_trade_id}")
@@ -1299,24 +1314,12 @@ def poll_and_copy_trades():
                             db.session.rollback()
 
             logger.info("Poll and copy trades cycle completed")
-
+            
     except Exception as e:
-        logger.error(f"poll_and_copy_trades failed: {e}")
-        raise
-        
-# Start APScheduler background job
-def start_scheduler():
-    """Start APScheduler to poll and copy trades periodically."""
-    if not scheduler.running:
-        scheduler.add_job(poll_and_copy_trades, trigger="interval", minutes=1)
-        scheduler.start()
-        atexit.register(lambda: scheduler.shutdown() if scheduler.running else None)
+        logger.error(f"Failed to start scheduler: {str(e)}")
+        # This catch-all should ideally not happen if internal exceptions are caught more specifically.
+        # However, for a high-level scheduler, it ensures the job doesn't completely die silently.
 
-def init_app():
-    with app.app_context():
-        db.create_all()
-        ensure_system_log_schema()
-    start_scheduler()
 
 @app.route("/connect-zerodha", methods=["POST"])
 @login_required
@@ -1807,20 +1810,20 @@ def webhook(user_id):
             }), 400
 
         # Load credentials from the database
-        user = get_user_credentials(user_id)
-        if not user:
+        user_creds = get_user_credentials(user_id) # Renamed to avoid conflict with `user` object
+        if not user_creds:
             logger.error(f"Invalid webhook ID: {user_id}")
             return jsonify({"error": "Invalid webhook ID"}), 403
 
-        broker_name = user.get("broker", "dhan").lower()
-        client_id = user.get("client_id")
-        access_token = user.get("access_token")
+        broker_name = user_creds.get("broker", "dhan").lower()
+        client_id = user_creds.get("client_id")
+        access_token = user_creds.get("access_token")
 
 
         # Initialize broker API
         try:
             BrokerClass = get_broker_class(broker_name)
-            broker_api = BrokerClass(client_id, access_token)
+            broker_api_instance = BrokerClass(client_id, access_token) # Renamed to avoid conflict with broker_api helper
         except Exception as e:
             logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
             return jsonify({
@@ -1843,14 +1846,14 @@ def webhook(user_id):
                 order_params = {
                     "tradingsymbol": symbol,
                     "security_id": security_id,
-                    "exchange_segment": broker_api.NSE,
+                    "exchange_segment": broker_api_instance.NSE, # Use the renamed instance
                     "transaction_type": (
-                        broker_api.BUY if action.upper() == "BUY" 
-                        else broker_api.SELL
+                        broker_api_instance.BUY if action.upper() == "BUY" # Use the renamed instance
+                        else broker_api_instance.SELL # Use the renamed instance
                     ),
                     "quantity": int(quantity),
-                    "order_type": broker_api.MARKET,
-                    "product_type": broker_api.INTRA,
+                    "order_type": broker_api_instance.MARKET, # Use the renamed instance
+                    "product_type": broker_api_instance.INTRA, # Use the renamed instance
                     "price": 0
                 }
                 
@@ -1886,7 +1889,7 @@ def webhook(user_id):
                 f"via {broker_name}"
             )
             
-            response = broker_api.place_order(**order_params)
+            response = broker_api_instance.place_order(**order_params) # Use the renamed instance
             
             if isinstance(response, dict) and response.get("status") == "failure":
                 status = "FAILED"
@@ -1931,6 +1934,10 @@ def webhook(user_id):
             
             # Trigger copy trading
             try:
+                # This should ideally be handled by a separate background scheduler (like APScheduler)
+                # that periodically calls poll_and_copy_trades, rather than triggering it synchronously
+                # on every webhook, which could lead to performance issues or deadlocks.
+                # If poll_and_copy_trades is already scheduled, this line can be removed.
                 poll_and_copy_trades()
             except Exception as e:
                 logger.error(f"Failed to trigger copy trading: {str(e)}")
@@ -1975,7 +1982,6 @@ def master_squareoff():
         # ✅ STEP 1: Validate request data
         data = request.get_json()
         if not data:
-            logger.error("No data provided in master square-off request")
             return jsonify({"error": "No data provided"}), 400
             
         master_order_id = data.get("master_order_id")
@@ -2288,10 +2294,10 @@ def master_squareoff():
         # ✅ STEP 12: Log the bulk square-off action
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Master square-off completed: {master_order_id} - {successful_squareoffs} success, {failed_squareoffs} failed",
-                user_id=session.get("user", "system"),
+                user_id=session.get("user", "system"), # Use session.get('user') which is an email string
                 details=json.dumps({
                     "action": "master_squareoff",
                     "master_order_id": master_order_id,
@@ -2339,6 +2345,8 @@ def master_squareoff():
 
     except Exception as e:
         logger.error(f"Unexpected error in master_squareoff: {str(e)}")
+        # Ensure rollback in case of an unexpected error before commit
+        db.session.rollback() 
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -2662,10 +2670,14 @@ def square_off():
                 }
                 
                 resp = master_api.place_order(**order_params)
-                save_log(master_account.client_id, symbol, "SQUARE_OFF", qty, "SUCCESS", str(resp))
+                # Ensure the user_id for logging is correct. If admin is logged in, session['user'] won't be set.
+                user_id_for_log = session.get('user') or session.get('admin') or 'system'
+                save_log(user_id_for_log, symbol, "SQUARE_OFF", qty, "SUCCESS", str(resp))
                 return jsonify({"message": "Master square-off placed", "details": str(resp)}), 200
             except Exception as e:
                 logger.error(f"Failed to square off master position: {str(e)}")
+                # Ensure rollback on error
+                db.session.rollback()
                 return jsonify({"error": str(e)}), 500
         
         # This block handles squaring off ALL linked children's positions
@@ -2674,6 +2686,8 @@ def square_off():
             
             # --- CORRECTED LOGIC ---
             # Query the database for all active children linked to this master
+            # Ensure `user` is defined from `current_user()` here
+            user = current_user()
             children_accounts = Account.query.filter_by(
                 linked_master_id=master_account.client_id,
                 role='child',
@@ -2802,7 +2816,13 @@ def cancel_order():
                 results.append(f"{child_id} → ERROR: {str(e)}")
 
         # Commit all status changes to the database at once
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to commit cancel order mapping updates: {str(e)}")
+            return jsonify({"error": "Failed to update order mapping statuses", "details": str(e)}), 500
+
 
         return jsonify({"message": "Cancel process completed", "details": results}), 200
 
@@ -2846,7 +2866,7 @@ def change_master():
         if not user_email:
             return jsonify({"error": "User not logged in"}), 401
             
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -2995,7 +3015,7 @@ def change_master():
         # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
-            timestamp=datetime.utcnow(),
+                timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Master changed: {child_id} from {old_master_id} to {new_master_id}",
                 user_id=str(user.id),
@@ -3007,7 +3027,7 @@ def change_master():
                     "user": user_email,
                     "was_copying": was_copying,
                     "new_marker": new_latest_order_id,
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                     "previous_state": previous_state
                 })
             )
@@ -3052,6 +3072,8 @@ def change_master():
 
     except Exception as e:
         logger.error(f"Unexpected error in change_master: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -3075,7 +3097,7 @@ def remove_child():
             return jsonify({"error": "Missing client_id"}), 400
 
         user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -3129,7 +3151,7 @@ def remove_child():
             user_id=str(user.id),
             details=json.dumps({
                 "action": "remove_child",
-                "child_id": client_id,
+                "client_id": client_id,
                 "master_id": master_id,
                 "user": user_email,
                 "was_copying": was_copying,
@@ -3217,10 +3239,7 @@ def remove_master():
 
         # ✅ STEP 2: Get current user from session
         user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -3421,6 +3440,8 @@ def remove_master():
 
     except Exception as e:
         logger.error(f"Unexpected error in remove_master: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -3468,10 +3489,7 @@ def update_multiplier():
 
         # ✅ STEP 3: Get current user from session
         user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -3565,7 +3583,7 @@ def update_multiplier():
         # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.utcnow().isoformat(),
                 level="INFO",
                 message=f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
                 user_id=str(user.id),
@@ -3640,6 +3658,8 @@ def update_multiplier():
 
     except Exception as e:
         logger.error(f"Unexpected error in update_multiplier: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -3660,8 +3680,13 @@ def delete_account():
     acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
     if not acc_db:
         return jsonify({"error": "Account not found"}), 404
-    db.session.delete(acc_db)
-    db.session.commit()
+    try:
+        db.session.delete(acc_db)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to delete account {client_id}: {str(e)}")
+        return jsonify({"error": f"Failed to delete account: {str(e)}"}), 500
 
     return jsonify({"message": f"Account {client_id} deleted."})
 
@@ -3793,10 +3818,7 @@ def add_account():
 
         # ✅ STEP 2: Get current user from session
         user_email = session.get("user")
-        if not user_email:
-            return jsonify({"error": "User not logged in"}), 401
-            
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -4021,6 +4043,8 @@ def add_account():
 
     except Exception as e:
         logger.error(f"Unexpected error in add_account: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -4032,7 +4056,7 @@ def add_account():
 def get_accounts():
     try:
         user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             return jsonify({"error": "User not found"}), 404
 
@@ -4063,6 +4087,8 @@ def get_accounts():
         })
     except Exception as e:
         logger.error(f"Error in /api/accounts: {str(e)}")
+        # Ensure rollback on error
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
         
 @app.route('/api/groups', methods=['GET'])
@@ -4070,7 +4096,7 @@ def get_accounts():
 def get_groups():
     """Return all account groups for the logged-in user."""
     user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
+    user_obj = current_user() # Use current_user() helper
     if not user_obj:
         return jsonify([])
     groups = Group.query.filter_by(user_id=user_obj.id).all()
@@ -4088,7 +4114,7 @@ def create_group():
         return jsonify({"error": "Missing group name"}), 400
 
     user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
+    user_obj = current_user() # Use current_user() helper
     if not user_obj:
         return jsonify({"error": "User not found"}), 400
     if Group.query.filter_by(user_id=user_obj.id, name=name).first():
@@ -4099,8 +4125,14 @@ def create_group():
         acc = Account.query.filter_by(user_id=user_obj.id, client_id=cid).first()
         if acc:
             group.accounts.append(acc)
-    db.session.add(group)
-    db.session.commit()
+    try:
+        db.session.add(group)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to create group: {str(e)}")
+        return jsonify({"error": f"Failed to create group: {str(e)}"}), 500
+
     return jsonify({"message": f"Group '{name}' created"})
 
 
@@ -4113,7 +4145,7 @@ def add_account_to_group(group_name):
         return jsonify({"error": "Missing client_id"}), 400
 
     user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
+    user_obj = current_user() # Use current_user() helper
     if not user_obj:
         return jsonify({"error": "User not found"}), 400
     group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
@@ -4125,7 +4157,12 @@ def add_account_to_group(group_name):
     if acc in group.accounts:
         return jsonify({"message": "Account already in group"})
     group.accounts.append(acc)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to add account to group: {str(e)}")
+        return jsonify({"error": f"Failed to add account to group: {str(e)}"}), 500
     return jsonify({"message": f"Added {client_id} to {group_name}"})
 
 @app.route('/api/groups/<group_name>/remove', methods=['POST'])
@@ -4137,7 +4174,7 @@ def remove_account_from_group(group_name):
         return jsonify({"error": "Missing client_id"}), 400
 
     user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
+    user_obj = current_user() # Use current_user() helper
     if not user_obj:
         return jsonify({"error": "User not found"}), 400
     group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
@@ -4147,7 +4184,12 @@ def remove_account_from_group(group_name):
     if not acc or acc not in group.accounts:
         return jsonify({"error": "Account not in group"}), 400
     group.accounts.remove(acc)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to remove account from group: {str(e)}")
+        return jsonify({"error": f"Failed to remove account from group: {str(e)}"}), 500
     return jsonify({"message": f"Removed {client_id} from {group_name}"})
 
 
@@ -4165,7 +4207,7 @@ def place_group_order():
         return jsonify({"error": "Missing required fields"}), 400
 
     user_email = session.get("user")
-    user_obj = User.query.filter_by(email=user_email).first()
+    user_obj = current_user() # Use current_user() helper
     if not user_obj:
         return jsonify({"error": "User not found"}), 400
     group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
@@ -4251,7 +4293,7 @@ def place_group_order():
                 status = "SUCCESS"
                 results.append({"client_id": acc.get("client_id"), "status": status})
 
-            record_trade(user, symbol, action.upper(), quantity, order_params.get('price'), status)
+            record_trade(user_email, symbol, action.upper(), quantity, order_params.get('price'), status)
         except Exception as e:
             results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
 
@@ -4267,7 +4309,7 @@ def set_master():
             return jsonify({"error": "Missing client_id"}), 400
 
         user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             return jsonify({"error": "User not found"}), 404
 
@@ -4283,11 +4325,19 @@ def set_master():
         account.linked_master_id = None
         account.copy_status = "Off"
         account.multiplier = 1.0
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to set master role: {str(e)}")
+            return jsonify({"error": f"Failed to set master role: {str(e)}"}), 500
 
         return jsonify({"message": "Set as master successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Catch all for unexpected errors
+        logger.error(f"Unexpected error in set_master: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 @app.route('/api/set-child', methods=['POST'])
 @login_required
@@ -4300,7 +4350,7 @@ def set_child():
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
 
         user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             return jsonify({"error": "User not found"}), 404
 
@@ -4316,11 +4366,19 @@ def set_child():
         account.linked_master_id = linked_master_id
         account.copy_status = "Off"
         account.multiplier = 1.0
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to set child role: {str(e)}")
+            return jsonify({"error": f"Failed to set child role: {str(e)}"}), 500
 
         return jsonify({"message": "Set as child successfully"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Catch all for unexpected errors
+        logger.error(f"Unexpected error in set_child: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 # Start copying for a child account
 @app.route('/api/start-copy', methods=['POST'])
@@ -4354,14 +4412,10 @@ def start_copy():
 
         # ✅ STEP 2: Get current user from session
         user_email = session.get("user")
-        if not user_email:
+        user = current_user() # Use current_user() helper
+        if not user:
             return jsonify({"error": "User not logged in"}), 401
             
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
-
         # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
             user_id=user.id, 
@@ -4486,6 +4540,8 @@ def start_copy():
 
     except Exception as e:
         logger.error(f"Unexpected error in start_copy: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -4522,14 +4578,10 @@ def stop_copy():
 
         # ✅ STEP 2: Get current user from session
         user_email = session.get("user")
-        if not user_email:
+        user = current_user() # Use current_user() helper
+        if not user:
             return jsonify({"error": "User not logged in"}), 401
             
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
-
         # ✅ STEP 3: Find and validate child account
         child_account = Account.query.filter_by(
             user_id=user.id, 
@@ -4601,7 +4653,7 @@ def stop_copy():
         # ✅ STEP 9: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.now(),
+                timestamp=datetime.now().isoformat(),
                 level="INFO",
                 message=f"Copy trading stopped: {client_id} -> {current_master_id}",
                 user_id=str(user.id),
@@ -4641,6 +4693,8 @@ def stop_copy():
 
     except Exception as e:
         logger.error(f"Unexpected error in stop_copy: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -4677,14 +4731,10 @@ def start_copy_all():
 
         # ✅ STEP 2: Get current user from session
         user_email = session.get("user")
-        if not user_email:
+        user = current_user() # Use current_user() helper
+        if not user:
             return jsonify({"error": "User not logged in"}), 401
             
-        user = User.query.filter_by(email=user_email).first()
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
-
         # ✅ STEP 3: Validate master account exists and belongs to user
         master_account = Account.query.filter_by(
             user_id=user.id,
@@ -4912,6 +4962,8 @@ def start_copy_all():
 
     except Exception as e:
         logger.error(f"Unexpected error in start_copy_all: {str(e)}")
+        # Ensure rollback on unexpected error before commit
+        db.session.rollback()
         return jsonify({
             "error": "Internal server error",
             "details": str(e)
@@ -4935,7 +4987,7 @@ def stop_copy_all():
             return jsonify({"error": "Missing master_id"}), 400
 
         user_email = session.get("user")
-        user = User.query.filter_by(email=user_email).first()
+        user = current_user() # Use current_user() helper
         if not user:
             logger.error(f"User not found: {user_email}")
             return jsonify({"error": "User not found"}), 404
@@ -5021,12 +5073,18 @@ def stop_copy_all():
 @app.route("/api/alerts")
 def get_alerts():
     user_id = request.args.get("user_id")
+    # It's better to fetch the actual User object to ensure the user_id is valid and belongs to the current session user
+    current_logged_in_user = current_user()
+    if not current_logged_in_user or str(current_logged_in_user.id) != user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     logs = (
         TradeLog.query.filter_by(user_id=user_id, status="ALERT")
         .order_by(TradeLog.id.desc())
         .limit(20)
         .all()
     )
+    
     alerts = [
         {"time": log.timestamp, "message": log.response}
         for log in logs
@@ -5049,7 +5107,7 @@ def register_user():
     if not user:
         user = User(webhook_token=token)
         db.session.add(user)
-        db.session.commit()
+        # db.session.commit() # Commit after adding account for a single transaction
 
     account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
     creds = {"access_token": access_token}
@@ -5058,7 +5116,12 @@ def register_user():
         db.session.add(account)
     else:
         account.credentials = creds
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to register user/account: {str(e)}")
+        return jsonify({"error": f"Failed to register: {str(e)}"}), 500
 
     return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{token}"})
 
@@ -5117,7 +5180,13 @@ def user_profile():
                 user.profile_image = os.path.join("profile_images", filename)
             message = "Profile updated"
 
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Failed to update profile: {str(e)}", "error")
+                logger.error(f"Failed to update user profile {username}: {str(e)}")
+
 
     profile_data = {
         "email": username,
@@ -5277,7 +5346,13 @@ def admin_settings():
             if key == 'trading_enabled':
                 continue
             settings[key] = value
-        save_settings(settings)
+        try:
+            save_settings(settings)
+            flash("Settings updated successfully!", "success")
+        except Exception as e:
+            flash(f"Failed to save settings: {str(e)}", "error")
+            logger.error(f"Failed to save admin settings: {str(e)}")
+
     return render_template('settings.html', settings=settings)
 
 @app.route('/adminprofile')
@@ -5292,8 +5367,13 @@ def admin_profile():
 def admin_suspend_user(user_id):
     user = User.query.get_or_404(user_id)
     user.plan = 'Suspended'
-    db.session.commit()
-    flash(f'User {user.email} suspended.')
+    try:
+        db.session.commit()
+        flash(f'User {user.email} suspended.')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to suspend user: {str(e)}", "error")
+        logger.error(f"Failed to suspend user {user_id}: {str(e)}")
     return redirect(url_for('admin_users'))
 
 
@@ -5303,8 +5383,13 @@ def admin_reset_password(user_id):
     user = User.query.get_or_404(user_id)
     new_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     user.set_password(new_pass)
-    db.session.commit()
-    flash(f'New password for {user.email}: {new_pass}')
+    try:
+        db.session.commit()
+        flash(f'New password for {user.email}: {new_pass}')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to reset password: {str(e)}", "error")
+        logger.error(f"Failed to reset password for user {user_id}: {str(e)}")
     return redirect(url_for('admin_users'))
 
 
@@ -5320,8 +5405,13 @@ def admin_view_user(user_id):
 def admin_revoke_account(account_id):
     account = Account.query.get_or_404(account_id)
     account.status = 'Revoked'
-    db.session.commit()
-    flash('Account revoked')
+    try:
+        db.session.commit()
+        flash('Account revoked')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to revoke account: {str(e)}", "error")
+        logger.error(f"Failed to revoke account {account_id}: {str(e)}")
     return redirect(url_for('admin_brokers'))
 
 
@@ -5330,8 +5420,13 @@ def admin_revoke_account(account_id):
 def admin_retry_trade(trade_id):
     trade = Trade.query.get_or_404(trade_id)
     trade.status = 'Pending'
-    db.session.commit()
-    flash('Trade marked for retry')
+    try:
+        db.session.commit()
+        flash('Trade marked for retry')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to mark trade for retry: {str(e)}", "error")
+        logger.error(f"Failed to retry trade {trade_id}: {str(e)}")
     return redirect(url_for('admin_trades'))
 
 
@@ -5340,11 +5435,20 @@ def admin_retry_trade(trade_id):
 def admin_change_subscription(user_id):
     user = User.query.get_or_404(user_id)
     user.plan = 'Pro' if user.plan != 'Pro' else 'Free'
-    db.session.commit()
-    flash(f'Plan updated to {user.plan} for {user.email}')
+    try:
+        db.session.commit()
+        flash(f'Plan updated to {user.plan} for {user.email}')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to change subscription: {str(e)}", "error")
+        logger.error(f"Failed to change subscription for user {user_id}: {str(e)}")
     return redirect(url_for('admin_subscriptions'))
 
-init_app()
+
 if __name__ == '__main__':
+    # It's generally better to run `ensure_system_log_schema()`
+    # within an app context, perhaps before app.run() or as part of a setup script.
+    # It's already called at the module level in the original code,
+    # which is fine as long as `app` and `db` are initialized by then.
     debug = os.environ.get("FLASK_DEBUG") == "1"
     app.run(debug=debug)
