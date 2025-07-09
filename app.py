@@ -62,7 +62,33 @@ if not secret_key:
     raise RuntimeError("SECRET_KEY environment variable is required")
 app.secret_key = secret_key
 CORS(app)
-Talisman(app, force_https=os.environ.get("FORCE_HTTPS") == "1")
+# Allow required external resources while keeping a restrictive default CSP
+csp = {
+    'default-src': ["'self'"],
+    "img-src": ["'self'", "data:", "https:"],
+    'script-src': [
+        "'self'",
+        "'unsafe-inline'",
+        'https://cdn.jsdelivr.net',
+        'https://s3.tradingview.com',
+    ],
+    'style-src': [
+        "'self'",
+        "'unsafe-inline'",
+        'https://cdn.jsdelivr.net',
+        'https://fonts.googleapis.com',
+    ],
+    'font-src': [
+        "'self'",
+        'https://fonts.gstatic.com',
+        'https://cdn.jsdelivr.net',
+    ],
+    'connect-src': [
+        "'self'",
+        'https://latest-stock-price.p.rapidapi.com',
+    ],
+}
+Talisman(app, content_security_policy=csp, force_https=os.environ.get("FORCE_HTTPS") == "1")
 limiter = Limiter(get_remote_address, app=app,
                   default_limits=["200 per day", "50 per hour"])
 # Persist data in a configurable directory. By default this is ``./data`` so
