@@ -164,19 +164,18 @@
               if (newContent.dataset.page) {
                 pageContainer.dataset.page = newContent.dataset.page;
               }
-                            doc.querySelectorAll('script').forEach(srcEl => {
+            doc.querySelectorAll('script').forEach(srcEl => {
                 if (srcEl.id === 'spa-script') return;
+                const s = document.createElement('script');
                 if (srcEl.src) {
-                  const s = document.createElement('script');
                   s.src = srcEl.src;
-                  document.body.appendChild(s);
+
                 } else if (srcEl.textContent) {
                   try {
                     eval(srcEl.textContent);
-                  } catch (err) {
-                    console.error('Script eval failed:', err);
-                  }
+                  s.textContent = srcEl.textContent;
                 }
+                document.body.appendChild(s);    
               });
               history.pushState(null, '', url);
               highlightActivePage();
