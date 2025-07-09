@@ -149,6 +149,8 @@ def ensure_system_log_schema():
             except Exception as exc:  # pragma: no cover - depends on DB perms
                 logger.warning(f'Failed to add message column to system_log: {exc}')
 
+ensure_system_log_schema()
+
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
     if not order_type:
