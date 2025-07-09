@@ -1,6 +1,9 @@
 import pyotp
+import logging
 from api_helper import ShoonyaApiPy  # From ShoonyaApi-py cloned from GitHub (AnkitSG07/ShoonyaApi-py)
 from .base import BrokerBase
+
+logger = logging.getLogger(__name__)
 
 class FinvasiaBroker(BrokerBase):
     """
@@ -8,14 +11,16 @@ class FinvasiaBroker(BrokerBase):
     Required:
         - client_id, password, totp_secret, vendor_code, api_key, imei
     """
-    def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei="abc1234", **kwargs):
-        kwargs.pop("access_token", None) # Remove access_token if present from kwargs
+    def __init__(self, client_id, password=None, totp_secret=None, vendor_code=None, api_key=None, imei=None, **kwargs):
+        kwargs.pop("access_token", None)  # Remove access_token if present from kwargs
         super().__init__(client_id, "", **kwargs)
+        if not imei:
+            raise ValueError("IMEI is required for Finvasia accounts")
         self.password = password
         self.totp_secret = totp_secret
         self.vendor_code = vendor_code
         self.api_key = api_key
-        self.imei = imei or "abc1234"
+        self.imei = imei
         self.api = ShoonyaApiPy()
         self.session = None
         self._last_auth_error = None
@@ -45,17 +50,17 @@ class FinvasiaBroker(BrokerBase):
             if ret and ret.get("stat") == "Ok":
                 self.session = ret # Store the session info if needed, or just status
                 self._last_auth_error = None
-                print(f"Finvasia login successful for {self.client_id}")
+                logger.info("Finvasia login successful for %s", self.client_id)
                 return {"status": "success", "message": "Login successful"}
             else:
                 error_msg = ret.get("emsg", "Unknown login error") if ret else "No response from login API"
                 self._last_auth_error = error_msg
-                print(f"Finvasia login failed for {self.client_id}: {error_msg}")
+                logger.error("Finvasia login failed for %s: %s", self.client_id, error_msg)
                 return {"status": "failure", "error": error_msg}
         except Exception as e:
             error_msg = f"Exception during Finvasia login: {e}"
             self._last_auth_error = error_msg
-            print(error_msg)
+            logger.error(error_msg)
             return {"status": "failure", "error": error_msg}
 
     def _normalize_product(self, product_type):
@@ -127,18 +132,18 @@ class FinvasiaBroker(BrokerBase):
             # token parameter is NOT passed directly to self.api.place_order
             # as ShoonyaApiPy handles instrument identification via tradingsymbol and exchange.
         )
-        print("Finvasia place_order params:", order_params)
+        logger.debug("Finvasia place_order params: %s", order_params)
 
         try:
             resp = self.api.place_order(**order_params)
         except Exception as e:
             # Attempt re-login on session expiry and retry the order
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying order.")
+                        logger.info("Re-login successful. Retrying order.")
                         resp = self.api.place_order(**order_params) # Retry order after successful re-login
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -196,16 +201,16 @@ class FinvasiaBroker(BrokerBase):
         if kwargs.get("remarks"):
             modify_params["remarks"] = kwargs["remarks"]
 
-        print("Finvasia modify_order params:", modify_params)
+        logger.debug("Finvasia modify_order params: %s", modify_params)
         try:
             resp = self.api.modify_order(**modify_params)
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during modify. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during modify. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying modify order.")
+                        logger.info("Re-login successful. Retrying modify order.")
                         resp = self.api.modify_order(**modify_params)
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -237,11 +242,11 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.cancel_order(orderno=order_id)
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during cancel. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during cancel. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying cancel order.")
+                        logger.info("Re-login successful. Retrying cancel order.")
                         resp = self.api.cancel_order(orderno=order_id)
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -272,11 +277,11 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.get_order_book()
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during get_order_book. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during get_order_book. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying get_order_book.")
+                        logger.info("Re-login successful. Retrying get_order_book.")
                         resp = self.api.get_order_book()
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -308,11 +313,11 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.get_positions()
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during get_positions. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during get_positions. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying get_positions.")
+                        logger.info("Re-login successful. Retrying get_positions.")
                         resp = self.api.get_positions()
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -344,11 +349,11 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.get_holdings()
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during get_holdings. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during get_holdings. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying get_holdings.")
+                        logger.info("Re-login successful. Retrying get_holdings.")
                         resp = self.api.get_holdings()
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
@@ -380,11 +385,11 @@ class FinvasiaBroker(BrokerBase):
             resp = self.api.get_limits()
         except Exception as e:
             if "Session Expired" in str(e) or "Invalid session" in str(e) or "Login again" in str(e) or "api_session_timeout" in str(e):
-                print(f"Session expired or invalid during get_limits. Attempting re-login for {self.client_id}...")
+                logger.warning("Session expired or invalid during get_limits. Attempting re-login for %s", self.client_id)
                 try:
                     login_result = self.login()
                     if login_result.get("status") == "success":
-                        print("Re-login successful. Retrying get_limits.")
+                        logger.info("Re-login successful. Retrying get_limits.")
                         resp = self.api.get_limits()
                     else:
                         return {"status": "failure", "error": f"Re-login failed: {login_result.get('error')}"}
