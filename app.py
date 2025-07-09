@@ -42,7 +42,7 @@ from models import (
     TradeLog,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_
+from sqlalchemy import or_, text, inspect
 import re
 from blueprints.auth import auth_bp
 from blueprints.api import api_bp
@@ -119,6 +119,24 @@ BROKER_STATUS_URLS = {
     "fyers": "https://api.fyers.in",
     "groww": "https://groww.in",
 }
+
+def ensure_system_log_schema():
+    """Ensure required columns exist in the system_log table."""
+    with app.app_context():
+        insp = inspect(db.engine)
+        if 'system_log' not in insp.get_table_names():
+            return
+        columns = {col['name'] for col in insp.get_columns('system_log')}
+        if 'message' not in columns:
+            try:
+                db.engine.execute(text('ALTER TABLE system_log ADD COLUMN message TEXT'))
+                logger.info('Added missing message column to system_log table')
+            except Exception as exc:  # pragma: no cover - depends on DB perms
+                logger.warning(f'Failed to add message column to system_log: {exc}')
+
+
+ensure_system_log_schema()
+
 
 
 def map_order_type(order_type: str, broker: str) -> str:
