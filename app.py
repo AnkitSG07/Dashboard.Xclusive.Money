@@ -2754,7 +2754,7 @@ def change_master():
         
         if old_master_id:
             old_master_account = Account.query.filter_by(
-                client_id=old_master_id
+                client_id=old_master_id,
                 user_id=user.id
             ).first()
 
