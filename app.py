@@ -1279,9 +1279,9 @@ def poll_and_copy_trades():
                             db.session.rollback()
 
             logger.info("Poll and copy trades cycle completed")
-            
+
     except Exception as e:
-       logger.error(f"poll_and_copy_trades failed: {e}")
+        logger.error(f"poll_and_copy_trades failed: {e}")
         raise
         
 # Start APScheduler background job
