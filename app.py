@@ -97,6 +97,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Setup basic logging
+log_path = os.path.join(DATA_DIR, 'app.log')
+log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=10)
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler(), file_handler],
+)
+logger = logging.getLogger(__name__)
+
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     raise RuntimeError("DATABASE_URL must be set to a PostgreSQL connection")
@@ -129,15 +143,11 @@ def ensure_system_log_schema():
         columns = {col['name'] for col in insp.get_columns('system_log')}
         if 'message' not in columns:
             try:
-                db.engine.execute(text('ALTER TABLE system_log ADD COLUMN message TEXT'))
+                with db.engine.begin() as conn:
+                    conn.execute(text('ALTER TABLE system_log ADD COLUMN message TEXT'))
                 logger.info('Added missing message column to system_log table')
             except Exception as exc:  # pragma: no cover - depends on DB perms
                 logger.warning(f'Failed to add message column to system_log: {exc}')
-
-
-ensure_system_log_schema()
-
-
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
