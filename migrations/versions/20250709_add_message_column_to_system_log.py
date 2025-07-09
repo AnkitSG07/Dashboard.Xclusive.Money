@@ -1,21 +1,22 @@
-"""Add message column to system_log table
+"""add message column to system_log
 
-Revision ID: fix_system_log_20250709
-Revises: 69a08f36e333
-Create Date: 2025-07-09 08:54:00
+Revision ID: 20250709_add_message_column_to_system_log
+Revises: 
+Create Date: 2025-07-09 10:20:00
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'fix_system_log_20250709'
-down_revision = '69a08f36e333'
+revision = '20250709_add_message_column_to_system_log'
+down_revision = None
 branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.add_column('system_log', sa.Column('message', sa.Text()))
+    op.add_column('system_log', sa.Column('message', sa.Text(), nullable=True))
 
 def downgrade():
     op.drop_column('system_log', 'message')
