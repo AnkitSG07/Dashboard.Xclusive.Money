@@ -1,13 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import uuid # ADDED: Import uuid library
 
 db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = 'user'
     
-    id = db.Column(db.Integer, primary_key=True)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=True)
     name = db.Column(db.String(120))
@@ -16,14 +18,12 @@ class User(db.Model):
     profile_image = db.Column(db.String(120))
     plan = db.Column(db.String(20), default='Free')
     
-    # Fixed: Use DateTime instead of String
     last_login = db.Column(db.DateTime)
     subscription_start = db.Column(db.DateTime)
     subscription_end = db.Column(db.DateTime)
     payment_status = db.Column(db.String(32))
     is_admin = db.Column(db.Boolean, default=False)
     
-    # COMMENTED OUT: Timestamps causing database errors
     # created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -41,34 +41,32 @@ class User(db.Model):
 class Account(db.Model):
     __tablename__ = 'account'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # CORRECTED: Changed foreign key type to String(36) to match User.id
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     broker = db.Column(db.String(50), index=True)
     client_id = db.Column(db.String(50), nullable=False, index=True)
     
-    # FIXED: Added missing fields from app.py
-    username = db.Column(db.String(100))  # Critical missing field
-    auto_login = db.Column(db.Boolean, default=True)  # Missing field
-    last_login_time = db.Column(db.DateTime)  # Missing field
-    device_number = db.Column(db.String(50))  # Missing field
+    username = db.Column(db.String(100))
+    auto_login = db.Column(db.Boolean, default=True)
+    last_login_time = db.Column(db.DateTime)
+    device_number = db.Column(db.String(50))
     
-    token_expiry = db.Column(db.DateTime)  # Fixed: DateTime instead of String
+    token_expiry = db.Column(db.DateTime)
     status = db.Column(db.String(20), default='Pending')
-    role = db.Column(db.String(20), index=True)  # Added index
-    linked_master_id = db.Column(db.String(50), index=True)  # Added index
-    copy_status = db.Column(db.String(10), default="Off", index=True)  # Added index
+    role = db.Column(db.String(20), index=True)
+    linked_master_id = db.Column(db.String(50), index=True)
+    copy_status = db.Column(db.String(10), default="Off", index=True)
     multiplier = db.Column(db.Float, default=1.0)
     credentials = db.Column(db.JSON)
     last_copied_trade_id = db.Column(db.String(50))
     
-    # COMMENTED OUT: Timestamps causing database errors
     # created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user = db.relationship('User', backref=db.backref('accounts', lazy=True, cascade='all, delete-orphan'))
     
-    # Added: Composite indexes for performance
     __table_args__ = (
         db.Index('idx_user_client', 'user_id', 'client_id'),
         db.Index('idx_role_status', 'role', 'copy_status'),
@@ -82,26 +80,24 @@ class Account(db.Model):
 class Trade(db.Model):
     __tablename__ = 'trade'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # CORRECTED: Changed foreign key type to String(36) to match User.id
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     symbol = db.Column(db.String(50), index=True)
-    action = db.Column(db.String(10))  # BUY/SELL
+    action = db.Column(db.String(10))
     qty = db.Column(db.Integer)
     price = db.Column(db.Float)
     status = db.Column(db.String(20), index=True)
     
-    # Fixed: Use DateTime instead of String
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
-    # Added: Additional fields for better tracking
     broker = db.Column(db.String(50))
     order_id = db.Column(db.String(50))
     client_id = db.Column(db.String(50))
     
-    # Relationships
     user = db.relationship('User', backref=db.backref('trades', lazy=True))
     
-    # Added: Indexes for performance
     __table_args__ = (
         db.Index('idx_user_timestamp', 'user_id', 'timestamp'),
         db.Index('idx_trade_symbol_action', 'symbol', 'action'),
@@ -113,13 +109,14 @@ class Trade(db.Model):
 class WebhookLog(db.Model):
     __tablename__ = 'webhook_log'
     
-    id = db.Column(db.Integer, primary_key=True)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     status = db.Column(db.Integer)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
-    reason = db.Column(db.Text)  # Changed to Text for longer messages
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    reason = db.Column(db.Text)
     
-    # Added: Additional tracking fields
-    user_id = db.Column(db.Integer, index=True)
+    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
+    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
     endpoint = db.Column(db.String(100))
     request_data = db.Column(db.JSON)
     response_data = db.Column(db.JSON)
@@ -130,14 +127,15 @@ class WebhookLog(db.Model):
 class SystemLog(db.Model):
     __tablename__ = 'system_log'
     
-    id = db.Column(db.Integer, primary_key=True)
-    level = db.Column(db.String(20), default='INFO')  # Added: Log level
-    message = db.Column(db.Text)  # Changed from 'type' to 'message'
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
-    details = db.Column(db.JSON)  # Changed to JSON for structured data
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    level = db.Column(db.String(20), default='INFO')
+    message = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    details = db.Column(db.JSON)
     
-    # Added: Additional tracking
-    user_id = db.Column(db.Integer, index=True)
+    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
+    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
     module = db.Column(db.String(50))
     
     __table_args__ = (
@@ -150,12 +148,12 @@ class SystemLog(db.Model):
 class Setting(db.Model):
     __tablename__ = 'setting'
     
-    id = db.Column(db.Integer, primary_key=True)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     key = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    value = db.Column(db.Text)  # Changed to Text for longer values
-    description = db.Column(db.String(255))  # Added: Setting description
+    value = db.Column(db.Text)
+    description = db.Column(db.String(255))
     
-    # COMMENTED OUT: Timestamps causing database errors
     # created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -165,23 +163,24 @@ class Setting(db.Model):
 # Association table for many-to-many relationship
 group_members = db.Table(
     "group_members",
-    db.Column("group_id", db.Integer, db.ForeignKey("group.id"), primary_key=True),
-    db.Column("account_id", db.Integer, db.ForeignKey("account.id"), primary_key=True),
+    # CORRECTED: Changed foreign key types to String(36)
+    db.Column("group_id", db.String(36), db.ForeignKey("group.id"), primary_key=True),
+    db.Column("account_id", db.String(36), db.ForeignKey("account.id"), primary_key=True),
 )
 
 class Group(db.Model):
     __tablename__ = 'group'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # CORRECTED: Changed foreign key type to String(36) to match User.id
+    user_id = db.Column(db.String(36), db.ForeignKey("user.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(255))  # Added: Group description
+    description = db.Column(db.String(255))
     
-    # COMMENTED OUT: Timestamps causing database errors
     # created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user = db.relationship("User", backref=db.backref("groups", lazy=True))
     accounts = db.relationship(
         "Account", 
@@ -190,7 +189,6 @@ class Group(db.Model):
         lazy="dynamic"
     )
     
-    # Added: Constraint for unique group names per user
     __table_args__ = (
         db.UniqueConstraint('user_id', 'name', name='uq_user_group_name'),
     )
@@ -201,7 +199,8 @@ class Group(db.Model):
 class OrderMapping(db.Model):
     __tablename__ = 'order_mapping'
     
-    id = db.Column(db.Integer, primary_key=True)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     master_order_id = db.Column(db.String(50), nullable=False, index=True)
     child_order_id = db.Column(db.String(50), index=True)
     master_client_id = db.Column(db.String(50), nullable=False, index=True)
@@ -211,19 +210,16 @@ class OrderMapping(db.Model):
     symbol = db.Column(db.String(50), index=True)
     status = db.Column(db.String(20), default='ACTIVE', index=True)
     
-    # Fixed: Use DateTime objects
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     child_timestamp = db.Column(db.DateTime)
     
-    remarks = db.Column(db.Text)  # Changed to Text for longer remarks
+    remarks = db.Column(db.Text)
     multiplier = db.Column(db.Float, default=1.0)
     
-    # Added: Additional tracking fields
-    action = db.Column(db.String(10))  # BUY/SELL
+    action = db.Column(db.String(10))
     quantity = db.Column(db.Integer)
     price = db.Column(db.Float)
     
-    # Added: Composite indexes for performance
     __table_args__ = (
         db.Index('idx_master_order_status', 'master_order_id', 'status'),
         db.Index('idx_child_client_status', 'child_client_id', 'status'),
@@ -236,23 +232,23 @@ class OrderMapping(db.Model):
 class TradeLog(db.Model):
     __tablename__ = 'trade_log'
     
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Fixed
-    user_id = db.Column(db.Integer, index=True)
+    # CORRECTED: Changed from Integer to String(36) for UUID
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    # CORRECTED: Changed user_id to String(36) (assuming it refers to User.id UUID)
+    user_id = db.Column(db.String(36), index=True) # If it references user.id, it should be a ForeignKey
     symbol = db.Column(db.String(50), index=True)
-    action = db.Column(db.String(10))  # BUY/SELL/SQUARE_OFF
+    action = db.Column(db.String(10))
     quantity = db.Column(db.Integer)
-    status = db.Column(db.String(20), index=True)  # SUCCESS/FAILED/ERROR
+    status = db.Column(db.String(20), index=True)
     response = db.Column(db.Text)
     
-    # Added: Additional tracking fields
     broker = db.Column(db.String(50))
     client_id = db.Column(db.String(50), index=True)
     order_id = db.Column(db.String(50))
     price = db.Column(db.Float)
     error_code = db.Column(db.String(50))
     
-    # Added: Indexes for performance
     __table_args__ = (
         db.Index('idx_client_timestamp', 'client_id', 'timestamp'),
         db.Index('idx_status_timestamp', 'status', 'timestamp'),
