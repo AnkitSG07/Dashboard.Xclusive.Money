@@ -29,6 +29,8 @@ from werkzeug.utils import secure_filename
 import random
 import string
 from urllib.parse import quote
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 from models import (
     db,
     User,
@@ -124,6 +126,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
 start_time = datetime.utcnow()
 device_number = None
+scheduler = BackgroundScheduler()
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
@@ -179,36 +182,6 @@ def ensure_system_log_schema():
                 logger.debug(f'Column "{col_name}" already exists in "{table_name}".')
 
         logger.info(f"Schema check for {table_name} completed.")
-        
-def ensure_system_log_schema():
-    """Ensure required columns exist in the system_log table."""
-    with app.app_context():
-        insp = inspect(db.engine)
-        if 'system_log' not in insp.get_table_names():
-            # Table may be missing on fresh setups where migrations were not run
-            try:
-                SystemLog.__table__.create(db.engine)
-                logger.info('Created system_log table')
-            except Exception as exc:  # pragma: no cover - depends on DB perms
-                logger.error(f'Failed to create system_log table: {exc}')
-                return
-        columns = {col['name'] for col in insp.get_columns('system_log')}
-        if 'message' not in columns:
-            try:
-                with db.engine.begin() as conn:
-                    conn.execute(text('ALTER TABLE system_log ADD COLUMN message TEXT'))
-                logger.info('Added missing message column to system_log table')
-            except Exception as exc:  # pragma: no cover - depends on DB perms
-                logger.warning(f'Failed to add message column to system_log: {exc}')
-        if 'timestamp' not in columns:
-            try:
-                with db.engine.begin() as conn:
-                    conn.execute(text('ALTER TABLE system_log ADD COLUMN timestamp TIMESTAMP'))
-                logger.info('Added missing timestamp column to system_log table')
-            except Exception as exc:  # pragma: no cover - depends on DB perms
-                logger.warning(f'Failed to add timestamp column to system_log: {exc}')
-                
-ensure_system_log_schema()
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
@@ -690,7 +663,7 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
         child_broker=child_broker,
         symbol=symbol,
         status="ACTIVE",
-        timestamp=datetime.utcnow().isoformat()
+        timestamp=datetime.utcnow()
     )
     db.session.add(mapping)
     db.session.commit()
@@ -1308,9 +1281,22 @@ def poll_and_copy_trades():
             logger.info("Poll and copy trades cycle completed")
             
     except Exception as e:
-        logger.error(f"Failed to start scheduler: {str(e)}")
+       logger.error(f"poll_and_copy_trades failed: {e}")
         raise
+        
+# Start APScheduler background job
+def start_scheduler():
+    """Start APScheduler to poll and copy trades periodically."""
+    if not scheduler.running:
+        scheduler.add_job(poll_and_copy_trades, trigger="interval", minutes=1)
+        scheduler.start()
+        atexit.register(lambda: scheduler.shutdown() if scheduler.running else None)
 
+def init_app():
+    with app.app_context():
+        db.create_all()
+        ensure_system_log_schema()
+    start_scheduler()
 
 @app.route("/connect-zerodha", methods=["POST"])
 @login_required
@@ -2282,7 +2268,7 @@ def master_squareoff():
         # ✅ STEP 12: Log the bulk square-off action
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.utcnow(),
                 level="INFO",
                 message=f"Master square-off completed: {master_order_id} - {successful_squareoffs} success, {failed_squareoffs} failed",
                 user_id=session.get("user", "system"),
@@ -2989,7 +2975,7 @@ def change_master():
         # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.utcnow(),
                 level="INFO",
                 message=f"Master changed: {child_id} from {old_master_id} to {new_master_id}",
                 user_id=str(user.id),
@@ -3001,7 +2987,7 @@ def change_master():
                     "user": user_email,
                     "was_copying": was_copying,
                     "new_marker": new_latest_order_id,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.utcnow(),
                     "previous_state": previous_state
                 })
             )
@@ -3559,7 +3545,7 @@ def update_multiplier():
         # ✅ STEP 12: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.utcnow(),
                 level="INFO",
                 message=f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
                 user_id=str(user.id),
@@ -4595,7 +4581,7 @@ def stop_copy():
         # ✅ STEP 9: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(),
                 level="INFO",
                 message=f"Copy trading stopped: {client_id} -> {current_master_id}",
                 user_id=str(user.id),
@@ -5338,7 +5324,7 @@ def admin_change_subscription(user_id):
     flash(f'Plan updated to {user.plan} for {user.email}')
     return redirect(url_for('admin_subscriptions'))
 
-
+init_app()
 if __name__ == '__main__':
     debug = os.environ.get("FLASK_DEBUG") == "1"
     app.run(debug=debug)
