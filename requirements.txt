@@ -20,6 +20,7 @@ git+https://github.com/AnkitSG07/ShoonyaApi-py.git
 # Background Tasks & Scheduling
 celery==5.3.4
 redis==5.0.1
+APScheduler==3.10.4
 
 # Data Processing
 pandas==2.2.3
