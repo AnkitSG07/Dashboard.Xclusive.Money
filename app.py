@@ -158,7 +158,27 @@ def ensure_system_log_schema():
                 return
 
         # 2. Check and add missing columns
-        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+        column_info = {col['name']: col for col in insp.get_columns(table_name)}
+        existing_columns = set(column_info.keys())
+
+        # Ensure id and user_id columns use VARCHAR(36) as defined in models
+        id_col = column_info.get('id')
+        if id_col and 'CHAR' not in str(id_col['type']).upper():
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "id" TYPE VARCHAR(36) USING "id"::VARCHAR'))
+                logger.info(f'Updated column "id" type to VARCHAR(36) in "{table_name}".')
+            except Exception as exc:
+                logger.warning(f'Failed to alter column "id" type: {exc}')
+
+        user_id_col = column_info.get('user_id')
+        if user_id_col and 'CHAR' not in str(user_id_col['type']).upper():
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "user_id" TYPE VARCHAR(36) USING "user_id"::VARCHAR'))
+                logger.info(f'Updated column "user_id" type to VARCHAR(36) in "{table_name}".')
+            except Exception as exc:
+                logger.warning(f'Failed to alter column "user_id" type: {exc}')
 
         # These column definitions MUST match your models.py SystemLog exactly
         columns_to_add = {
