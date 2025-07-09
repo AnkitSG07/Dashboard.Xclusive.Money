@@ -139,7 +139,13 @@ def ensure_system_log_schema():
     with app.app_context():
         insp = inspect(db.engine)
         if 'system_log' not in insp.get_table_names():
-            return
+            # Table may be missing on fresh setups where migrations were not run
+            try:
+                SystemLog.__table__.create(db.engine)
+                logger.info('Created system_log table')
+            except Exception as exc:  # pragma: no cover - depends on DB perms
+                logger.error(f'Failed to create system_log table: {exc}')
+                return
         columns = {col['name'] for col in insp.get_columns('system_log')}
         if 'message' not in columns:
             try:
@@ -148,7 +154,14 @@ def ensure_system_log_schema():
                 logger.info('Added missing message column to system_log table')
             except Exception as exc:  # pragma: no cover - depends on DB perms
                 logger.warning(f'Failed to add message column to system_log: {exc}')
-
+        if 'timestamp' not in columns:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text('ALTER TABLE system_log ADD COLUMN timestamp TIMESTAMP'))
+                logger.info('Added missing timestamp column to system_log table')
+            except Exception as exc:  # pragma: no cover - depends on DB perms
+                logger.warning(f'Failed to add timestamp column to system_log: {exc}')
+                
 ensure_system_log_schema()
 
 def map_order_type(order_type: str, broker: str) -> str:
