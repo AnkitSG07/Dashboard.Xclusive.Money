@@ -18,6 +18,7 @@ from flask_cors import CORS
 from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from apscheduler.schedulers.background import BackgroundScheduler
 import io
 from datetime import datetime, timedelta, date
 import requests
@@ -110,6 +111,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(), file_handler],
 )
 logger = logging.getLogger(__name__)
+_scheduler = None
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
@@ -1356,6 +1358,37 @@ def poll_and_copy_trades():
         logger.error(f"Failed to start scheduler: {str(e)}")
         # This catch-all should ideally not happen if internal exceptions are caught more specifically.
         # However, for a high-level scheduler, it ensures the job doesn't completely die silently.
+
+def start_scheduler():
+    """Start a background scheduler for ``poll_and_copy_trades``."""
+    if app.config.get("TESTING") or os.environ.get("RUN_SCHEDULER", "1") == "0":
+        logger.info("Scheduler disabled")
+        return
+
+    global _scheduler
+    if _scheduler is not None and _scheduler.running:
+        return
+    try:
+        _scheduler = BackgroundScheduler(timezone="UTC", daemon=True)
+
+        def _job():
+            with app.app_context():
+                poll_and_copy_trades()
+
+        _scheduler.add_job(
+            _job,
+            "interval",
+            seconds=10,
+            id="poll_trades",
+            replace_existing=True,
+        )
+        _scheduler.start()
+        logger.info("Scheduler started")
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
+        _scheduler = None
+
+
 
 
 @app.route("/connect-zerodha", methods=["POST"])
@@ -5481,6 +5514,7 @@ def admin_change_subscription(user_id):
         logger.error(f"Failed to change subscription for user {user_id}: {str(e)}")
     return redirect(url_for('admin_subscriptions'))
 
+start_scheduler()
 
 if __name__ == '__main__':
     # It's generally better to run `ensure_system_log_schema()`
