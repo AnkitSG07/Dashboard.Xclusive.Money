@@ -3903,6 +3903,52 @@ def delete_account():
 
     return jsonify({"message": f"Account {client_id} deleted."})
 
+# Reconnect an existing account by validating stored credentials
+@app.route('/api/reconnect-account', methods=['POST'])
+@login_required
+def reconnect_account():
+    data = request.json
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    user_email = session.get("user")
+    db_user = User.query.filter_by(email=user_email).first()
+    if not db_user:
+        return jsonify({"error": "Account not found"}), 404
+
+    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+    if not acc_db:
+        return jsonify({"error": "Account not found"}), 404
+
+    try:
+        acc_dict = _account_to_dict(acc_db)
+        api = broker_api(acc_dict)
+        valid = True
+        if hasattr(api, 'check_token_valid'):
+            valid = api.check_token_valid()
+        if not valid:
+            acc_db.status = 'Failed'
+            db.session.commit()
+            return jsonify({"error": "Failed to reconnect with stored credentials"}), 400
+
+        # Update stored access token if broker object exposes it
+        if getattr(api, 'access_token', None):
+            creds = acc_db.credentials or {}
+            creds['access_token'] = api.access_token
+            acc_db.credentials = creds
+
+        acc_db.status = 'Connected'
+        acc_db.last_login_time = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to reconnect account {client_id}: {str(e)}")
+        return jsonify({"error": f"Failed to reconnect: {str(e)}"}), 500
+
+    return jsonify({"message": f"Account {client_id} reconnected."})
+
+
 @app.route("/marketwatch")
 def market_watch():
     return render_template("marketwatch.html")
