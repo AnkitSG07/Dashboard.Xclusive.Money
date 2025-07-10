@@ -1,6 +1,6 @@
 from flask import session
 from sqlalchemy import or_
-from models import User, OrderMapping, Account, d
+from models import User, OrderMapping, Account, db
 
 
 def current_user():
