@@ -569,6 +569,7 @@ def save_account_to_user(owner: str, account: dict):
         user_id=user.id,
         broker=account.get("broker"),
         client_id=account.get("client_id"),
+        username=account.get("username"),
         token_expiry=account.get("token_expiry"),
         status=account.get("status", "active"),
         role=account.get("role"),
