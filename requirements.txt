@@ -16,6 +16,7 @@ kiteconnect==5.0.1
 alice-blue==2.0.4
 fyers-apiv3
 git+https://github.com/AnkitSG07/ShoonyaApi-py.git
+NorenRestApiPy==0.0.22
 
 # Background Tasks & Scheduling
 celery==5.3.4
