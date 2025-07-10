@@ -4014,6 +4014,7 @@ def add_account():
             return jsonify({"error": validation_error}), 400
 
         # ✅ STEP 6: Test broker connection and validate credentials
+        broker_obj = None  # ensure variable defined for error handling
         try:
             BrokerClass = get_broker_class(broker)
             if not BrokerClass:
