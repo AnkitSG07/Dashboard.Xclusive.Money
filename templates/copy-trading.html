@@ -294,9 +294,6 @@ window.pageScripts["copy-trading"] = function () {
                 </button>
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.removeMaster('${master.client_id}')">Remove Master</a></li>
-                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.toggleOrderBook('${master.client_id}')">Order Book</a></li>
-                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.togglePositions('${master.client_id}')">Positions</a></li>
-                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.toggleChildList('${master.client_id}')">View Children</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.exitAllChildren('${master.client_id}')">Exit in all Children</a></li>
@@ -304,6 +301,21 @@ window.pageScripts["copy-trading"] = function () {
               </div>
             </td>
           </tr>
+          <tr id="master-tabs-${master.client_id}">
+            <td colspan="5" class="p-0">
+              <ul class="nav nav-tabs master-tab-links px-3" id="tabs-${master.client_id}">
+                <li class="nav-item">
+                  <a class="nav-link" id="tab-children-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'children')">View Children</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="tab-positions-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'positions')">Positions</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="tab-orders-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'orders')">Order Book</a>
+                </li>
+              </ul>
+            </td>
+          </tr>    
           <tr id="order-book-${master.client_id}" style="display: none;">
             <td colspan="5">
               <div class="p-2 bg-light rounded table-responsive">
@@ -485,10 +497,11 @@ window.pageScripts["copy-trading"] = function () {
 
   // ============ TABLE TOGGLE + ORDERS ============
 
-  window.toggleChildList = function(clientId) {
+  window.toggleChildList = function(clientId, show) {
     const row = document.getElementById(`child-list-${clientId}`);
     const tbody = document.getElementById(`child-rows-${clientId}`);
-    if (row.style.display === "none") {
+    const shouldShow = show !== undefined ? show : row.style.display === "none";
+    if (shouldShow) {
       fetch("/api/accounts")
         .then(res => res.json())
         .then(data => {
@@ -530,10 +543,11 @@ window.pageScripts["copy-trading"] = function () {
     }
   };
 
-  window.toggleOrderBook = function(clientId) {
+  window.toggleOrderBook = function(clientId, show) {
     const row = document.getElementById(`order-book-${clientId}`);
     const tbody = document.getElementById(`orders-body-${clientId}`);
-    if (row.style.display === "none") {
+    const shouldShow = show !== undefined ? show : row.style.display === "none";
+    if (shouldShow) {
       fetch(`/api/order-book/${clientId}`)
         .then(res => res.json())
         .then(data => {
@@ -574,10 +588,11 @@ window.pageScripts["copy-trading"] = function () {
     }
   };
   
-  window.togglePositions = function(clientId) {
+  window.togglePositions = function(clientId, show) {
     const row = document.getElementById(`positions-${clientId}`);
     const tbody = document.getElementById(`positions-body-${clientId}`);
-    if (row.style.display === "none") {
+    const shouldShow = show !== undefined ? show : row.style.display === "none";
+    if (shouldShow) {
       fetch(`/api/portfolio/${clientId}`)
         .then(res => res.json())
         .then(data => {
@@ -616,6 +631,31 @@ window.pageScripts["copy-trading"] = function () {
     } else {
       row.style.display = "none";
     }
+  };
+  
+  window.showMasterTab = function(clientId, tab) {
+    const tabs = document.querySelectorAll(`#tabs-${clientId} .nav-link`);
+    tabs.forEach(t => t.classList.remove('active'));
+    const active = document.getElementById(`tab-${tab}-${clientId}`);
+    if (active) active.classList.add('active');
+
+    const sections = {
+      children: 'child-list',
+      positions: 'positions',
+      orders: 'order-book'
+    };
+    Object.entries(sections).forEach(([key, idPrefix]) => {
+      const row = document.getElementById(`${idPrefix}-${clientId}`);
+      if (!row) return;
+      if (key === tab) {
+        if (key === 'children') window.toggleChildList(clientId, true);
+        if (key === 'positions') window.togglePositions(clientId, true);
+        if (key === 'orders') window.toggleOrderBook(clientId, true);
+        row.style.display = 'table-row';
+      } else {
+        row.style.display = 'none';
+      }
+    });
   };
 
   // --- Master Orders Table ---
