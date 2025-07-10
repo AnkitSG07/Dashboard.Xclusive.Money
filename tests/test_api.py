@@ -138,3 +138,70 @@ def test_save_account_persists_username(client):
         app_module.save_account_to_user(user.email, data)
         acc = Account.query.filter_by(client_id='F1', user_id=user.id).first()
         assert acc.username == 'demo'
+
+def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    import brokers
+
+    class DummyMasterBroker(brokers.base.BrokerBase):
+        def place_order(self, *a, **k):
+            pass
+        def get_order_list(self):
+            return [{
+                'orderId': '1',
+                'status': 'COMPLETE',
+                'filledQuantity': 1,
+                'price': 100,
+                'tradingSymbol': 'TESTSYM',
+                'transactionType': 'BUY'
+            }]
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    placed = []
+    class DummyChildBroker(brokers.base.BrokerBase):
+        def place_order(self, **kwargs):
+            placed.append(kwargs)
+            return {'status': 'success', 'order_id': 'child1'}
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    def fake_get_broker_class(name):
+        if name == 'master_broker':
+            return DummyMasterBroker
+        return DummyChildBroker
+
+    monkeypatch.setattr(brokers.factory, 'get_broker_class', fake_get_broker_class)
+    monkeypatch.setattr(app_module, 'get_broker_class', fake_get_broker_class)
+    assert app_module.poll_and_copy_trades.__globals__['get_broker_class'] is fake_get_broker_class
+    monkeypatch.setattr(app_module, 'save_log', lambda *a, **k: None)
+    monkeypatch.setattr(app_module, 'save_order_mapping', lambda *a, **k: None)
+    monkeypatch.setattr(app_module, 'record_trade', lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        master = Account(user_id=user.id, role='master', broker='master_broker', client_id='M', credentials={'access_token': 'x'})
+        child = Account(user_id=user.id, role='child', broker='child_broker', client_id='C', linked_master_id='M', copy_status='On', credentials={'access_token': 'y'}, last_copied_trade_id='0')
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, 'TESTSYM', {
+            'master_broker': {'trading_symbol': 'TESTSYM'},
+            'child_broker': {'tradingsymbol': 'TESTSYM'}
+        })
+
+        app_module.poll_and_copy_trades()
+
+        assert placed
+        db.session.refresh(child)
+        assert child.last_copied_trade_id == '1'
