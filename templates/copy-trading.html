@@ -263,6 +263,7 @@ window.pageScripts["copy-trading"] = function () {
         ...m,
         role: "master"
       }));
+      window.masterAccounts = masters;
       // 2. Children (flattened, with .linked_master_id if possible)
       let children = [];
       for (const master of masters) {
@@ -275,7 +276,7 @@ window.pageScripts["copy-trading"] = function () {
           }
         }
       }
-
+      window.childAccounts = children;
       // --- Masters Table ---
       const masterBody = document.getElementById("master-table-body");
       masterBody.innerHTML = "";
@@ -298,6 +299,7 @@ window.pageScripts["copy-trading"] = function () {
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.toggleChildList('${master.client_id}')">View Children</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child</a></li>
+                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.exitAllChildren('${master.client_id}')">Exit in all Children</a></li>
                 </ul>
               </div>
             </td>
@@ -378,6 +380,7 @@ window.pageScripts["copy-trading"] = function () {
       children.forEach(child => {
         // Find the master for this child
         const master = masters.find(m => m.client_id === child.linked_master_id) || {};
+        const exited = window.exitedChildren && window.exitedChildren[child.client_id]; 
         childrenBody.innerHTML += `
           <tr>
             <td><i class="bi bi-bank"></i> ${child.broker}</td>
@@ -409,6 +412,7 @@ window.pageScripts["copy-trading"] = function () {
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.startCopying('${child.client_id}', '${master.client_id}')">Start</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.stopCopying('${child.client_id}', '${master.client_id}')">Stop</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off</a></li>
+                    <li><a class="dropdown-item exit-all ${exited ? 'disabled' : ''}" href="javascript:void(0)" ${exited ? '' : `onclick=\"window.exitAllPositions('${child.client_id}')\"`}>${exited ? 'Exited' : 'Exit All Positions'}</a></li>    
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.removeChild('${child.client_id}')">Remove</a></li>
                     <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.openChangeMaster('${child.client_id}')">Change Master</a></li>
                 </ul>
@@ -842,8 +846,53 @@ window.pageScripts["copy-trading"] = function () {
       })
       .catch(err => {
         console.error(err);
-        alert("Failed to load holdings for child account.");
-      });
+      alert("Failed to load holdings for child account.");
+    });
+  };
+
+  window.exitedChildren = window.exitedChildren || {};
+
+  window.exitAllPositions = function(childId) {
+    if (window.exitedChildren[childId]) {
+      alert("Child positions already exited.");
+      return;
+    }
+    fetch('/api/exit-child-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ child_id: childId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+      if (Array.isArray(data.results) && data.results.some(r => r.status === 'SUCCESS')) {
+        window.exitedChildren[childId] = true;
+      }
+      window.loadAccounts();
+    });
+  };
+
+  window.exitAllChildren = function(masterId) {
+    const toExit = (window.childAccounts || [])
+      .filter(c => c.linked_master_id === masterId && !window.exitedChildren[c.client_id])
+      .map(c => c.client_id);
+    if (toExit.length === 0) {
+      alert('All linked children already exited.');
+      return;
+    }
+    fetch('/api/exit-all-children', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_id: masterId, child_ids: toExit })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+      if (Array.isArray(data.exited_children)) {
+        data.exited_children.forEach(id => { window.exitedChildren[id] = true; });
+      }
+      window.loadAccounts();
+    });
   };
 
   window.updateMultiplier = function(clientId) {
