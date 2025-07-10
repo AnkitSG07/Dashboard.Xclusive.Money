@@ -425,6 +425,8 @@ window.pageScripts["Add-Account"] = function() {
   if (addAccountBtn) {
     addAccountBtn.onclick = function() {
       document.getElementById('add-account-section').style.display = 'block';
+      editingAccountId = null;
+      document.getElementById('submit-account-btn').textContent = 'Add Account';
     };
   }
 
@@ -486,7 +488,10 @@ window.pageScripts["Add-Account"] = function() {
         return;
       }
 
-      fetch('/api/add-account', {
+      const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
+      if (editingAccountId) data['client_id'] = editingAccountId;
+
+      fetch(endpoint, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
@@ -495,6 +500,7 @@ window.pageScripts["Add-Account"] = function() {
       .then(resp => {
         if (resp.message) {
           alert(resp.message);
+          editingAccountId = null;
           location.reload();
         } else {
           alert(resp.error || 'Unknown error');
@@ -509,6 +515,7 @@ window.pageScripts["Add-Account"] = function() {
   let statusFilter = 'all';
   let brokerFilter = '';
   let searchFilter = '';
+  let editingAccountId = null;
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
@@ -543,6 +550,7 @@ window.pageScripts["Add-Account"] = function() {
           <td>${acc.username || '-'}</td>
           <td><span class="badge ${statusClass}">${statusText}</span></td>
           <td>
+            <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')">Edit</button>
             <button class="btn btn-outline-success btn-sm" onclick="window.reconnectAccount('${acc.client_id}')">Reconnect</button>
             <button class="btn btn-outline-danger btn-sm ms-1" onclick="window.deleteAccount('${acc.client_id}')">Delete</button>
           </td>
@@ -627,6 +635,42 @@ window.pageScripts["Add-Account"] = function() {
       location.reload();
     });
   };
-};     
+  window.editAccount = function(cid) {
+    const acc = allAccounts.find(a => a.client_id === cid);
+    if (!acc) return;
+    editingAccountId = cid;
+    document.getElementById('add-account-section').style.display = 'block';
+    document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
+    const icon = document.querySelector(`.broker-icon[data-broker="${acc.broker}"]`);
+    if (icon) icon.classList.add('border-primary');
+    showBrokerFields(acc.broker);
+    setTimeout(() => {
+      const form = document.getElementById('broker-credentials-form');
+      if (!form) return;
+      form.querySelector('input[name="username"]').value = acc.username || '';
+      Object.entries(acc.credentials || {}).forEach(([k,v]) => {
+        const inp = form.querySelector(`input[name="${k}"]`);
+        if (inp) {
+          inp.value = v;
+          if (k === 'client_id') inp.readOnly = true;
+        }
+      });
+      document.getElementById('submit-account-btn').textContent = 'Update Account';
+    }, 50);
+  };
+
+  window.reconnectAccount = function(cid) {
+    fetch('/api/reconnect-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: cid })
+    })
+    .then(r => r.json())
+    .then(resp => {
+      alert(resp.message || resp.error || 'Unknown error');
+      location.reload();
+    });
+  };
+};
 </script>
 {% endblock %}
