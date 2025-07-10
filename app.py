@@ -1150,6 +1150,7 @@ def poll_and_copy_trades():
                         # Extract trading symbol
                         symbol = (
                             order.get("tradingSymbol")
+                            or order.get("tradingsymbol")  # Zerodha uses lowercase key
                             or order.get("symbol")
                             or order.get("stock")
                             or order.get("scripCode")
@@ -1618,9 +1619,10 @@ def get_order_book(client_id):
                 # Extract symbol with fallbacks
                 symbol = (
                     order.get("tradingSymbol")
+                    or order.get("tradingsymbol")  # Zerodha uses lowercase key
                     or order.get("symbol")
-                    or order.get("Tsym") 
-                    or order.get("tsym") 
+                    or order.get("Tsym")
+                    or order.get("tsym")
                     or order.get("Trsym")
                     or "—"
                 )
@@ -2202,11 +2204,12 @@ def master_squareoff():
                     matching_position = None
                     for position in positions:
                         pos_symbol = (
-                            position.get("tradingSymbol") or 
-                            position.get("symbol") or
-                            position.get("tsym") or
-                            position.get("Tsym") or
-                            ""
+                            position.get("tradingSymbol")
+                            or position.get("tradingsymbol")  # Zerodha lowercase
+                            or position.get("symbol")
+                            or position.get("tsym")
+                            or position.get("Tsym")
+                            or ""
                         ).upper()
                         
                         if pos_symbol == symbol.upper():
@@ -2763,7 +2766,18 @@ def square_off():
                 master_api = broker_api(_account_to_dict(master_account))
                 positions_resp = master_api.get_positions()
                 positions = positions_resp.get("data", [])
-                match = next((p for p in positions if p.get("tradingSymbol", "").upper() == symbol.upper()), None)
+                match = next(
+                    (
+                        p
+                        for p in positions
+                        if (
+                            p.get("tradingSymbol", "")
+                            or p.get("tradingsymbol", "")  # Zerodha lowercase
+                        ).upper()
+                        == symbol.upper()
+                    ),
+                    None,
+                )
                 
                 if not match or int(match.get("netQty", 0)) == 0:
                     return jsonify({"message": f"Master → No active position in {symbol} (already squared off)"}), 200
@@ -2818,7 +2832,18 @@ def square_off():
                     child_api = broker_api(_account_to_dict(child))
                     positions_resp = child_api.get_positions()
                     positions = positions_resp.get('data', [])
-                    match = next((p for p in positions if p.get('tradingSymbol', '').upper() == symbol.upper()), None)
+                    match = next(
+                        (
+                            p
+                            for p in positions
+                            if (
+                                p.get('tradingSymbol', '')
+                                or p.get('tradingsymbol', '')  # Zerodha lowercase
+                            ).upper()
+                            == symbol.upper()
+                        ),
+                        None,
+                    )
 
                     if not match or int(match.get('netQty', 0)) == 0:
                         results.append(f"Child {child.client_id} → Skipped (no active position in {symbol})")
