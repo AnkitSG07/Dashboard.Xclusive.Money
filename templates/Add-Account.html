@@ -543,7 +543,7 @@ window.pageScripts["Add-Account"] = function() {
           <td>${acc.username || '-'}</td>
           <td><span class="badge ${statusClass}">${statusText}</span></td>
           <td>
-            <button class="btn btn-outline-success btn-sm" onclick="alert('Reconnect coming soon')">Reconnect</button>
+            <button class="btn btn-outline-success btn-sm" onclick="window.reconnectAccount('${acc.client_id}')">Reconnect</button>
             <button class="btn btn-outline-danger btn-sm ms-1" onclick="window.deleteAccount('${acc.client_id}')">Delete</button>
           </td>
         </tr>`;
