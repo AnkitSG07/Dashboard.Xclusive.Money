@@ -93,8 +93,15 @@ csp = {
     ],
 }
 Talisman(app, content_security_policy=csp, force_https=os.environ.get("FORCE_HTTPS") == "1")
-limiter = Limiter(get_remote_address, app=app,
-                  default_limits=["200 per day", "50 per hour"])
+# Configure rate limiting with a pluggable storage backend. Default to
+# in-memory storage but allow overriding via an environment variable.
+limiter_storage = os.environ.get("LIMITER_STORAGE_URL", "memory://")
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=limiter_storage,
+)
 # Persist data in a configurable directory. By default this is ``./data`` so
 # that files survive across redeploys on platforms like Render.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
