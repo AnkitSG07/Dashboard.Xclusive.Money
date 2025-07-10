@@ -818,6 +818,136 @@ def record_trade(user_email, symbol, action, qty, price, status):
     db.session.commit()
 
 
+def exit_all_positions_for_account(account):
+    """Square off all open positions for the given account."""
+    api = broker_api(_account_to_dict(account))
+    try:
+        pos_resp = api.get_positions()
+        positions = (
+            pos_resp.get("data")
+            or pos_resp.get("positions")
+            or pos_resp.get("net")
+            or pos_resp
+            or []
+        )
+    except Exception as e:
+        logger.error(f"Failed to fetch positions for {account.client_id}: {e}")
+        return [{"symbol": None, "status": "ERROR", "message": str(e)}]
+
+    results = []
+    for pos in positions:
+        net_qty = int(
+            pos.get("netQty")
+            or pos.get("net_quantity")
+            or pos.get("netQuantity")
+            or pos.get("Netqty")
+            or 0
+        )
+        if net_qty == 0:
+            continue
+
+        symbol = (
+            pos.get("tradingSymbol")
+            or pos.get("tradingsymbol")
+            or pos.get("symbol")
+            or pos.get("tsym")
+            or pos.get("Tsym")
+            or ""
+        )
+        if not symbol and (
+            pos.get("instrument_token")
+            or pos.get("instrumentToken")
+            or pos.get("token")
+        ):
+            symbol = get_symbol_by_token(
+                pos.get("instrument_token")
+                or pos.get("instrumentToken")
+                or pos.get("token"),
+                account.broker,
+            ) or ""
+
+        symbol = str(symbol).upper()
+        direction = "SELL" if net_qty > 0 else "BUY"
+        qty = abs(net_qty)
+        broker_name = (account.broker or "").lower()
+
+        if broker_name == "dhan":
+            order_params = {
+                "tradingsymbol": symbol,
+                "security_id": pos.get("securityId") or pos.get("security_id"),
+                "exchange_segment": pos.get("exchangeSegment")
+                or pos.get("exchange_segment")
+                or "NSE_EQ",
+                "transaction_type": direction,
+                "quantity": qty,
+                "order_type": "MARKET",
+                "product_type": "INTRADAY",
+                "price": 0,
+            }
+        elif broker_name == "aliceblue":
+            order_params = {
+                "tradingsymbol": symbol,
+                "symbol_id": pos.get("securityId") or pos.get("security_id"),
+                "exchange": "NSE",
+                "transaction_type": direction,
+                "quantity": qty,
+                "order_type": "MKT",
+                "product": "MIS",
+                "price": 0,
+            }
+        elif broker_name == "finvasia":
+            order_params = {
+                "tradingsymbol": symbol,
+                "exchange": "NSE",
+                "transaction_type": direction,
+                "quantity": qty,
+                "order_type": "MKT",
+                "product": "MIS",
+                "price": 0,
+                "token": pos.get("token", ""),
+            }
+        elif broker_name == "zerodha":
+            order_params = {
+                "tradingsymbol": symbol,
+                "exchange": "NSE",
+                "transaction_type": direction,
+                "quantity": qty,
+                "order_type": "MARKET",
+                "product": "MIS",
+                "price": 0,
+            }
+        else:
+            order_params = {
+                "tradingsymbol": symbol,
+                "exchange": "NSE",
+                "transaction_type": direction,
+                "quantity": qty,
+                "order_type": "MARKET",
+                "product": "MIS",
+                "price": 0,
+            }
+
+        try:
+            resp = api.place_order(**order_params)
+            if isinstance(resp, dict) and resp.get("status") == "failure":
+                msg = clean_response_message(resp)
+                status = "FAILED"
+                results.append({"symbol": symbol, "status": status, "message": msg})
+                save_log(account.client_id, symbol, "SQUARE_OFF", qty, status, msg)
+            else:
+                status = "SUCCESS"
+                results.append({"symbol": symbol, "status": status})
+                save_log(account.client_id, symbol, "SQUARE_OFF", qty, status, str(resp))
+        except Exception as e:
+            status = "ERROR"
+            results.append({"symbol": symbol, "status": status, "message": str(e)})
+            save_log(account.client_id, symbol, "SQUARE_OFF", qty, status, str(e))
+
+    if not results:
+        results.append({"symbol": None, "status": "NO_POSITIONS"})
+    return results
+
+
 # Authentication decorator
 def login_required(view):
     @wraps(view)
