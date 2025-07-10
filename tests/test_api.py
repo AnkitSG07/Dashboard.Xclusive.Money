@@ -103,3 +103,20 @@ def test_child_orders_endpoint_requires_auth(client):
     login(client)
     resp = client.get('/api/child-orders')
     assert resp.status_code == 200
+
+def test_save_account_persists_username(client):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        data = {
+            'broker': 'fyers',
+            'client_id': 'F1',
+            'username': 'demo',
+            'credentials': {'access_token': 'x'}
+        }
+        app_module.save_account_to_user(user.email, data)
+        acc = Account.query.filter_by(client_id='F1', user_id=user.id).first()
+        assert acc.username == 'demo'
