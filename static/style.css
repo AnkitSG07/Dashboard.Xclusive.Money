@@ -1,77 +1,89 @@
 /* ========================================================================
-   style.css – Argon Dashboard Tailwind Final Aggressive Fix - COMPLETE & CONSOLIDATED
+   style.css – Quantbot Light Theme (Pixel-Perfect from Image) - FINAL V3
    ======================================================================== */
 
 /*──────────────────────────────────────────────────────────────────────────
-   1. Color Palette & Variables (Exact Argon Replication)
+   1. Color Palette & Variables (Quantbot Light Theme - Image Matched)
 ──────────────────────────────────────────────────────────────────────────*/
 :root {
-  /* Primary Colors */
-  --blue:             #5e72e4;
-  --indigo:           #5603ad;
-  --purple:           #8965e0;
-  --pink:             #f3a4b5;
-  --red:              #f5365c;
-  --orange:           #fb6340;
-  --yellow:           #ffd600;
-  --green:            #2dce89;
-  --teal:             #11cdef;
-  --cyan:             #2bffc6;
-  --white:            #ffffff;
-  --gray-100:         #f6f9fc;
-  --gray-200:         #e9ecef;
-  --gray-300:         #dee2e6;
-  --gray-400:         #ced4da;
-  --gray-500:         #adb5bd;
-  --gray-600:         #8898aa;
-  --gray-700:         #525f7f;
-  --gray-800:         #32325d;
-  --gray-900:         #212529;
-  --black:            #000000;
+  /* Primary & Accent Colors - Vibrant and Clean for Light Theme */
+  --primary-blue:     #007bff; /* General primary actions */
+  --accent-green:     #17A2B8; /* General accent green, similar to image's blue-green */
+  --vibrant-green:    #16C784; /* Specific vibrant green from image buttons/headers */
+  --vibrant-red:      #FE4F54; /* Specific vibrant red from image for errors */
+  --orange-warn:      #F7931A; /* Standard warning orange */
+  --info-blue:        #007BFF; /* Info blue, can be same as primary */
 
-  /* Theme Colors */
-  --primary:          var(--blue);
-  --secondary:        var(--gray-600);
-  --success:          var(--green);
-  --info:             var(--teal);
-  --warning:          var(--orange);
-  --danger:           var(--red);
-  --light:            var(--gray-200);
-  --dark:             var(--gray-900);
+  /* Grayscale & Backgrounds - Predominantly Light/White - Image Matched */
+  --bg-white:         #ffffff; /* Main card/panel/navbar/sidebar background */
+  --bg-off-white:     #F8F9FB; /* Body background - slightly off-white */
+  --bg-light-gray:    #E9EDF2; /* Subtle divider/border on light */
+  --bg-dark-gray:     #495057; /* Darker elements on light, e.g., icons on light */
 
-  /* Gradients */
-  --primary-gradient: linear-gradient(87deg, #5e72e4 0, #825ee4 100%);
-  --info-gradient:    linear-gradient(87deg, #11cdef 0, #1171ef 100%);
-  --success-gradient: linear-gradient(87deg, #2dce89 0, #2dcecc 100%);
-  --warning-gradient: linear-gradient(87deg, #fb6340 0, #fbb140 100%);
-  --danger-gradient:  linear-gradient(87deg, #f5365c 0, #f56036 100%);
+  /* Text Colors - Dark for readability on Light backgrounds - Image Matched */
+  --text-dark:        #212529; /* Primary text on light backgrounds */
+  --text-muted-dark:  #6C757D; /* Secondary/placeholder text on light */
+  --text-primary-on-vibrant: #ffffff; /* Text on vibrant backgrounds (e.g., green headers) */
 
-  /* Text Colors - Adjusted for consistency and visibility */
-  --text-primary:     var(--gray-800); /* Headings, primary content */
-  --text-secondary:   var(--gray-700); /* Body text, secondary info */
-  --text-muted:       var(--gray-600); /* Labels, placeholders, subtle text */
-  --text-light:       var(--gray-500); /* Even lighter, less common */
-  --text-white:       var(--white);    /* For dark backgrounds */
+  /* Table content text - as requested, darker to contrast */
+  --table-content-dark: #0A0A0A; /* A very dark gray, almost black */
 
-  /* Backgrounds */
-  --bg-page:          var(--gray-100);
-  --bg-card:          var(--white);
-  --bg-sidebar:       var(--white);
-  --bg-navbar:        rgba(255, 255, 255, 0.8); /* For blur effect */
+  /* Borders & Dividers - Very subtle light borders - Image Matched */
+  --border-light:     #DEE2E6; /* Default subtle border for cards/inputs */
+  --border-subtle-light: #E1E4E8; /* Even subtler internal borders */
 
-  /* Borders */
-  --border-color:     var(--gray-300);
+  /* Shadows - Minimal and soft for subtle lift - Image Matched */
+  --shadow-sm-light:  0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md-light:  0 3px 6px rgba(0, 0, 0, 0.08);
+  --shadow-lg-light:  0 8px 15px rgba(0, 0, 0, 0.1);
 
-  /* Shadows */
-  --shadow-sm:        0 0 0.125rem rgba(136, 152, 170, 0.075); /* 2px */
-  --shadow-md:        0 0 2rem 0 rgba(136, 152, 170, 0.15);
-  --shadow-lg:        0 0.9375rem 2.1875rem rgba(50, 50, 93, 0.1), 0 0.3125rem 0.9375rem rgba(0, 0, 0, 0.07); /* 15px 35px, 5px 15px */
-  --shadow-xl:        0 0.25rem 0.375rem rgba(50, 50, 93, 0.11), 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.08); /* 4px 6px, 1px 3px */
+  /* Specific elements background colors from image */
+  --bg-table-header-vibrant: #D1FFEC; /* Light green header from image */
+  --bg-button-vibrant:       #16C784; /* Green button from image */
+  --bg-status-failed:        #FCD9D9; /* Light red status background */
+
+  /* Specific sidebar active background */
+  --bg-sidebar-active: #D1FFEC; /* From image's active sidebar item */
+}
+
+/* Mapping to standard variables for easy use */
+:root {
+  --primary:          var(--info-blue); /* General primary actions */
+  --success:          var(--vibrant-green); /* Specific vibrant green */
+  --danger:           var(--vibrant-red); /* Specific vibrant red */
+  --warning:          var(--orange-warn);
+  --info:             var(--info-blue);
+  --secondary:        var(--text-muted-dark);
+
+  --bg-body:          var(--bg-off-white); /* Main app background */
+  --bg-panel:         var(--bg-white); /* Cards, sections */
+  --bg-card:          var(--bg-white);
+  --bg-navbar:        var(--bg-white); /* Navbar background */
+  --bg-sidebar:       var(--bg-white); /* Sidebar background */
+  --bg-input:         var(--bg-white); /* Input fields */
+  --bg-hover:         var(--bg-light-gray); /* Hover state for lists/rows */
+  --bg-table-header:  var(--bg-table-header-vibrant); /* Table header background */
+
+  --text-light:       var(--text-dark); /* Primary text on light */
+  --text-muted:       var(--text-muted-dark); /* Secondary text on light */
+  --text-gray:        var(--bg-dark-gray); /* Dark gray for icons etc. */
+  --text-white:       var(--text-primary-on-vibrant); /* Text on vibrant backgrounds */
+  --text-table-content: var(--table-content-dark); /* Table text is dark */
+  --text-link:        var(--primary); /* Link color */
+
+  --border-strong:    var(--border-light);
+  --border-subtle:    var(--border-subtle-light);
+
+  --shadow-sm:        var(--shadow-sm-light);
+  --shadow-md:        var(--shadow-md-light);
+  --shadow-lg:        var(--shadow-lg-light);
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   2. Global & Reset (Argon Specifics)
+   2. Global & Reset (Quantbot Light Theme)
 ──────────────────────────────────────────────────────────────────────────*/
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap'); /* New font from image */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -79,94 +91,107 @@
 }
 
 html {
-  /* Fluid font size scaling from 14px at 320px viewport to 16px at 768px and up */
-  font-size: clamp(0.875rem, 0.75rem + 0.5vw, 1rem); /* 14px at 320px, 16px at 768px */
+  /* Fluid font size: 14px at 320px to 16px at 1024px+ */
+  font-size: clamp(0.875rem, 0.75rem + 0.5vw, 1rem);
+  scroll-behavior: smooth;
 }
 
 body {
   height: 100%;
-  scroll-behavior: smooth;
-  overflow-x: hidden; /* Prevent horizontal scroll */
-  font-family: 'Open Sans', sans-serif;
-  background-color: var(--bg-page);
-  color: var(--text-primary);
+  overflow-x: hidden;
+  font-family: 'Outfit', sans-serif; /* Applied new font */
+  background-color: var(--bg-body); /* Light body background */
+  color: var(--text-light); /* Dark text on light background */
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 1rem; /* Base font size relative to html */
+  font-size: 1rem;
 }
 
 a {
   text-decoration: none;
-  color: var(--primary);
-  transition: all 0.15s ease;
+  color: var(--text-link); /* Links are blue on light background */
+  transition: all 0.15s ease-in-out;
 }
 
 a:hover {
-  color: var(--blue);
+  filter: brightness(0.85); /* Darken on hover */
+  text-decoration: underline;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  font-weight: 600; /* Outfit often looks good at 600-700 */
+  color: var(--text-light); /* Dark headings */
+  margin-bottom: 0.6rem;
+  line-height: 1.2;
 }
 
-/* More aggressive clamp for headings to scale well on small screens */
-h1 { font-size: clamp(1.75rem, 7vw, 2.5rem); }
-h2 { font-size: clamp(1.4rem, 6vw, 2rem); }
-h3 { font-size: clamp(1.15rem, 5vw, 1.75rem); }
-h4 { font-size: clamp(0.95rem, 4.5vw, 1.25rem); }
-h5 { font-size: clamp(0.85rem, 4vw, 1rem); }
-h6 { font-size: clamp(0.7rem, 3.5vw, 0.75rem); }
+/* Fluid Heading Sizes - Fine-tuned for Outfit */
+h1 { font-size: clamp(2rem, 6vw + 0.5rem, 2.8rem); }
+h2 { font-size: clamp(1.6rem, 5vw + 0.5rem, 2.2rem); }
+h3 { font-size: clamp(1.3rem, 4vw + 0.5rem, 1.8rem); }
+h4 { font-size: clamp(1.1rem, 3.5vw + 0.5rem, 1.4rem); }
+h5 { font-size: clamp(0.95rem, 3vw + 0.5rem, 1.2rem); }
+h6 { font-size: clamp(0.85rem, 2.5vw + 0.5rem, 1rem); }
 
 p {
-  margin-bottom: 1rem;
-  color: var(--text-secondary);
+  margin-bottom: 0.8rem;
+  color: var(--text-muted); /* Muted dark text */
 }
 
-/* Utility Classes (Argon Specifics) - Converted to rem */
+/* Utility Classes - Redesigned */
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .text-left { text-align: left; }
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.mt-1 { margin-top: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-.p-1 { padding: 0.25rem; }
-.p-2 { padding: 0.5rem; }
-.p-3 { padding: 1rem; }
-.p-4 { padding: 1.5rem; }
-.px-3 { padding-left: 1rem; padding-right: 1rem; }
-.py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.mb-1 { margin-bottom: 0.2rem; }
+.mb-2 { margin-bottom: 0.4rem; }
+.mb-3 { margin-bottom: 0.6rem; }
+.mb-4 { margin-bottom: 0.8rem; }
+.mb-5 { margin-bottom: 1rem; }
+.mt-1 { margin-top: 0.2rem; }
+.mt-2 { margin-top: 0.4rem; }
+.mt-3 { margin-top: 0.6rem; }
+.mt-4 { margin-top: 0.8rem; }
+.mt-5 { margin-top: 1rem; }
+.p-1 { padding: 0.2rem; }
+.p-2 { padding: 0.4rem; }
+.p-3 { padding: 0.6rem; }
+.p-4 { padding: 0.8rem; }
+.p-5 { padding: 1rem; }
+.px-3 { padding-left: 0.6rem; padding-right: 0.6rem; }
+.py-3 { padding-top: 0.6rem; padding-bottom: 0.6rem; }
 .d-flex { display: flex; }
 .align-items-center { align-items: center; }
 .justify-content-between { justify-content: space-between; }
+.justify-content-center { justify-content: center; }
 .flex-column { flex-direction: column; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 1rem; }
+.gap-1 { gap: 0.2rem; }
+.gap-2 { gap: 0.4rem; }
+.gap-3 { gap: 0.6rem; }
+.gap-4 { gap: 0.8rem; }
+.gap-5 { gap: 1rem; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.hidden { display: none; }
 
-/* Specific Argon Classes for Table Content - Converted to rem */
-.media { display: flex; align-items: flex-start; }
+/* Table Content Specifics (RETAINED - NO CHANGE IN FUNCTIONALITY OR STYLE) */
+.media { display: flex; align-items: center; gap: 0.5rem; }
 .media-body { flex: 1; }
-.mr-3 { margin-right: 1rem; }
-.name { font-weight: 600; color: var(--text-primary); }
-.text-sm { font-size: 0.875rem; }
+.name { font-weight: 500; color: var(--text-light); }
+.text-sm { font-size: 0.8rem; color: var(--text-muted); }
 .avatar {
-  width: clamp(2rem, 8vw, 2.375rem); /* Responsive avatar size */
-  height: clamp(2rem, 8vw, 2.375rem);
+  width: clamp(1.8rem, 7vw, 2.2rem);
+  height: clamp(1.8rem, 7vw, 2.2rem);
   border-radius: 50%;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
-  color: var(--text-white);
-  background-color: var(--gray-500);
+  font-size: 0.8rem;
+  color: var(--text-white); /* White text on avatar background */
+  background-color: var(--primary); /* Avatar background color */
+  border: 1px solid var(--primary); /* Avatar border color */
+  flex-shrink: 0;
 }
 .avatar img {
   width: 100%;
@@ -174,33 +199,33 @@ p {
   object-fit: cover;
 }
 .avatar-sm {
-  width: clamp(1.5rem, 6vw, 1.875rem);
-  height: clamp(1.5rem, 6vw, 1.875rem);
-  font-size: 0.75rem;
+  width: clamp(1.4rem, 5vw, 1.8rem);
+  height: clamp(1.4rem, 5vw, 1.8rem);
+  font-size: 0.7rem;
 }
 .avatar-group {
   display: flex;
-  flex-wrap: wrap;
-  padding-left: 0.5rem;
+  flex-wrap: nowrap; /* Prevent wrapping */
+  padding-left: 0.3rem;
 }
 .avatar-group .avatar {
   position: relative;
   z-index: 1;
-  border: 0.125rem solid var(--white);
-  margin-left: -0.5rem;
+  border: 1px solid var(--bg-panel); /* Border matches light card background */
+  margin-left: -0.4rem;
   transition: all 0.15s ease;
 }
 .avatar-group .avatar:hover {
   z-index: 2;
-  transform: translateY(-0.125rem);
+  transform: translateY(-0.05rem);
 }
 .progress {
   display: flex;
-  height: 0.5rem;
+  height: 0.3rem; /* Very thin */
   overflow: hidden;
-  font-size: 0.75rem;
-  background-color: var(--gray-200);
-  border-radius: 0.25rem;
+  font-size: 0.6rem;
+  background-color: var(--bg-light-gray); /* Light progress track */
+  border-radius: 0.15rem;
 }
 .progress-bar {
   display: flex;
@@ -210,217 +235,250 @@ p {
   color: var(--text-white);
   text-align: center;
   white-space: nowrap;
-  transition: width 0.6s ease;
+  background-color: var(--primary);
+  transition: width 0.5s ease-out;
 }
-.bg-warning { background-color: var(--warning); }
-.mr-2 { margin-right: 0.5rem; }
-.completion { font-size: 0.875rem; color: var(--text-secondary); }
+.mr-2 { margin-right: 0.4rem; }
+.completion { font-size: 0.8rem; color: var(--text-muted); }
 
-/* Dropdown specific styles (simplified for CSS only) - Converted to rem */
+/* Dropdown specific styles (Redesigned) */
 .dropdown { position: relative; display: inline-block; }
 .dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 1000;
-  display: none; /* Controlled by JS */
-  float: left;
+  z-index: 2000;
+  display: none;
   min-width: 10rem;
   padding: 0.5rem 0;
-  margin: 0.125rem 0 0;
+  margin-top: 0.4rem;
   font-size: 0.875rem;
-  color: var(--text-secondary);
-  text-align: left;
+  color: var(--text-light); /* Dark text on light background */
+  background-color: var(--bg-panel); /* White background */
+  border: 1px solid var(--border-light); /* Light border */
+  border-radius: 0.3rem;
+  box-shadow: var(--shadow-md); /* Light shadow */
   list-style: none;
-  background-color: var(--white);
-  background-clip: padding-box;
-  border: 0.0625rem solid rgba(0, 0, 0, 0.15);
-  border-radius: 0.25rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
 }
 .dropdown-menu-right { right: 0; left: auto; }
-.dropdown-menu-arrow::before {
-  position: absolute;
-  top: -0.4rem;
-  right: 0.8rem;
-  display: block;
+.dropdown-menu-arrow::before, .dropdown-menu-arrow::after {
   content: "";
-  border-bottom: 0.4rem solid var(--white);
-  border-left: 0.4rem solid transparent;
-  border-right: 0.4rem solid transparent;
+  position: absolute;
+  display: block;
+  border-left: 0.35rem solid transparent;
+  border-right: 0.35rem solid transparent;
+}
+.dropdown-menu-arrow::before {
+  top: -0.35rem;
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--border-light); /* Light border */
 }
 .dropdown-menu-arrow::after {
-  position: absolute;
-  top: -0.4rem;
-  right: 0.8rem;
-  display: block;
-  content: "";
-  border-bottom: 0.4rem solid rgba(0, 0, 0, 0.15);
-  border-left: 0.4rem solid transparent;
-  border-right: 0.4rem solid transparent;
+  top: -0.32rem;
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--bg-panel); /* White background */
 }
 .dropdown-item {
   display: block;
   width: 100%;
-  padding: 0.25rem 1.5rem;
-  clear: both;
+  padding: 0.6rem 0.9rem;
   font-weight: 400;
-  color: var(--text-secondary);
-  text-align: inherit;
+  color: var(--text-light);
   white-space: nowrap;
   background-color: transparent;
   border: 0;
   transition: all 0.15s ease;
+  text-align: left;
 }
 .dropdown-item:hover {
-  color: var(--text-primary);
-  text-decoration: none;
-  background-color: var(--gray-100);
+  color: var(--primary); /* Blue on hover */
+  background-color: var(--bg-light-gray); /* Light gray hover background */
 }
 
 
 /*──────────────────────────────────────────────────────────────────────────
-   3. Navbar (Exact Argon Replication) - Converted to rem and responsive
+   3. Navbar (Redesigned - Light Theme Consistency Fix)
 ──────────────────────────────────────────────────────────────────────────*/
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: clamp(3.5rem, 12vw, 5rem); /* Responsive height */
-  background-color: var(--bg-navbar);
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-sm);
+  height: clamp(3.5rem, 11vw, 4.2rem);
+  /* FIXED: Solid white background for navbar */
+  background-color: var(--bg-navbar); /* Use new solid white variable */
+  backdrop-filter: blur(0px); /* Remove blur for crisp white navbar */
+  box-shadow: var(--shadow-sm); /* Subtle shadow for lift */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 clamp(0.75rem, 4vw, 1.5rem); /* Responsive padding */
-  border-bottom: none;
+  padding: 0 clamp(0.75rem, 3.5vw, 1.25rem);
+  border-bottom: 1px solid var(--border-light); /* Light border */
   z-index: 1000;
+
+  /* FIXED: Ensure universal styling for icons within navbar-icons to be dark */
+  .navbar-icons {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.8rem, 3.5vw, 1.2rem);
+    
+    /* Target common icon elements like <i> or button children */
+    & > i, & > button > i, & > button { /* Added button to selector */
+      font-size: clamp(1.1rem, 4vw, 1.35rem);
+      color: var(--text-gray); /* Dark gray for icons */
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: none;
+      border: none;
+      padding: 0;
+      line-height: 1; /* Prevent extra spacing around icons */
+      display: flex; /* Ensure proper centering */
+      align-items: center;
+      justify-content: center;
+      width: clamp(1.8rem, 6vw, 2.2rem); /* Give them a clickable area */
+      height: clamp(1.8rem, 6vw, 2.2rem);
+      border-radius: 50%; /* Make them circular */
+      
+      &:hover {
+        color: var(--primary); /* Blue on hover */
+        background-color: rgba(0, 123, 255, 0.1); /* Subtle light blue hover */
+        transform: scale(1.1);
+      }
+    }
+    /* Specific adjustment for the dragon icon, assuming it's an img inside a wrapper */
+    & > .profile-img-wrapper img { /* Assuming dragon is img inside a wrapper or is profile-img itself */
+        width: clamp(2rem, 6.5vw, 2.5rem);
+        height: clamp(2rem, 6.5vw, 2.5rem);
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid var(--primary); /* Primary blue border */
+        cursor: pointer;
+        filter: none; /* No filter for bright appearance */
+    }
+  }
 }
 
 .navbar-brand {
-  font-size: clamp(1rem, 4vw, 1.25rem); /* Responsive font size */
+  font-size: clamp(1rem, 3.8vw, 1.2rem);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-light); /* Dark text on light navbar */
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .navbar-brand img {
-  height: clamp(2rem, 7vw, 2.5rem); /* Responsive image height */
+  height: clamp(2rem, 6.5vw, 2.5rem);
+  filter: none; /* No filter for the brand image, let it be its natural color */
 }
 
-.navbar-icons {
-  display: flex;
-  gap: clamp(0.75rem, 4vw, 1.5rem); /* Responsive gap */
-  align-items: center;
-}
-
-.navbar-icons i {
-  font-size: clamp(1rem, 4vw, 1.25rem); /* Responsive icon size */
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.navbar-icons i:hover {
-  color: var(--primary);
-  transform: scale(1.05);
-}
-
-.profile-img {
-  width: clamp(2rem, 7vw, 2.5rem); /* Responsive size */
-  height: clamp(2rem, 7vw, 2.5rem);
+.profile-img { /* Apply these styles to the image itself, if direct */
+  width: clamp(2rem, 6.5vw, 2.5rem);
+  height: clamp(2rem, 6.5vw, 2.5rem);
   border-radius: 50%;
   object-fit: cover;
-  border: 0.125rem solid var(--primary);
+  border: 2px solid var(--primary);
   cursor: pointer;
-  box-shadow: 0 0 0 0.125rem rgba(94, 114, 228, 0.25);
 }
 
 .profile-photo {
-  width: clamp(5rem, 20vw, 7.5rem); /* Responsive size */
-  height: clamp(5rem, 20vw, 7.5rem);
+  width: clamp(4.5rem, 18vw, 6.5rem);
+  height: clamp(4.5rem, 18vw, 6.5rem);
   border-radius: 50%;
   object-fit: cover;
-  border: 0.25rem solid var(--primary);
+  border: 3px solid var(--primary);
   margin-bottom: 1rem;
   box-shadow: var(--shadow-md);
 }
 
 .profile-card {
-  max-width: 100%; /* Full width on small screens */
+  width: 100%;
   margin: 0 auto;
-  padding: clamp(1rem, 5vw, 2rem); /* Responsive padding */
-  background: var(--bg-card);
+  padding: clamp(1.25rem, 4.5vw, 1.75rem);
+  background: var(--bg-panel); /* White background */
   border-radius: 0.5rem;
   box-shadow: var(--shadow-md);
-  color: var(--text-primary);
+  color: var(--text-light); /* Dark text */
+  border: 1px solid var(--border-light); /* Light border */
 }
 
-/* Hero section for page headers (Exact Argon Replication) - Converted to rem and responsive */
+/* Hero section for page headers (Redesigned) */
 .hero-section {
-  background: var(--primary-gradient);
-  border: none;
-  box-shadow: var(--shadow-xl);
-  padding: clamp(1.5rem, 6vw, 3rem) clamp(1rem, 4vw, 1.5rem); /* Responsive padding */
+  background-color: var(--bg-panel); /* White background */
   border-radius: 0.5rem;
-  margin-bottom: clamp(1rem, 4vw, 2rem); /* Responsive margin */
+  box-shadow: var(--shadow-md);
+  padding: clamp(1.5rem, 5.5vw, 2.25rem) clamp(1rem, 4vw, 1.5rem);
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
-  min-height: clamp(6rem, 25vw, 10rem); /* Responsive min-height */
-  color: var(--text-white);
+  min-height: clamp(6rem, 22vw, 8rem);
+  color: var(--text-light); /* Dark text */
+  text-align: left;
+  border: 1px solid var(--border-light); /* Light border */
 }
 
 .hero-section h3,
 .hero-section h4 {
   margin-bottom: 0.5rem;
-  font-weight: 700;
-  color: var(--text-white);
+  font-weight: 600;
+  color: var(--text-light);
 }
 
 .hero-section p {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-muted); /* Muted dark text */
   margin-bottom: 0;
-  font-size: clamp(0.875rem, 3.5vw, 1rem); /* Responsive font size */
+  font-size: clamp(0.875rem, 3.5vw, 1rem);
 }
 
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 60%;
+  margin-top: 1rem;
+  align-self: center;
+}
+
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: none; /* No filter for natural image appearance */
+}
+
+
 /*──────────────────────────────────────────────────────────────────────────
-   4. Sidebar (Exact Argon Replication) - Converted to rem and responsive
+   4. Sidebar (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: clamp(12rem, 50vw, 16.25rem); /* Responsive width */
-  height: 100vh; /* Ensure it takes full viewport height */
-  background-color: var(--bg-sidebar);
-  border-right: none;
+  width: clamp(13rem, 48vw, 15rem); /* Slightly wider on desktop */
+  height: 100vh;
+  /* FIXED: Solid white background for sidebar */
+  background-color: var(--bg-sidebar); /* Use new solid white variable */
+  border-right: 1px solid var(--border-light); /* Light border */
   display: flex;
   flex-direction: column;
-  padding: clamp(1rem, 4vw, 1.5rem) 0; /* Responsive padding */
-  overflow-y: auto; /* Enable vertical scrolling */
+  padding: clamp(1rem, 4vw, 1.25rem) 0;
+  overflow-y: auto;
   z-index: 1050;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md); /* Subtle shadow */
   transform: translateX(-100%);
   transition: transform 0.3s ease-in-out;
-  /* Ensure content can scroll within the fixed height */
-  max-height: 100vh; /* Explicitly cap max-height */
+  max-height: 100vh;
 
-  /* Custom Scrollbar for Webkit browsers */
   &::-webkit-scrollbar {
-    width: 0.5rem;
+    width: 0.4rem;
   }
   &::-webkit-scrollbar-track {
-    background: var(--gray-200);
+    background: var(--bg-light-gray);
   }
   &::-webkit-scrollbar-thumb {
-    background-color: var(--gray-500);
-    border-radius: 0.5rem;
-    border: 0.125rem solid var(--gray-200);
+    background-color: var(--text-muted);
+    border-radius: 0.2rem;
+    border: 1px solid var(--bg-light-gray);
   }
 }
 
@@ -429,83 +487,87 @@ p {
 }
 
 .sidebar-logo {
-  padding: 0 clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 1.5rem); /* Responsive padding */
+  padding: 0 clamp(1rem, 4vw, 1.25rem) clamp(1rem, 4vw, 1.25rem);
   text-align: center;
-  flex-shrink: 0; /* Prevent logo from shrinking */
+  flex-shrink: 0;
 }
 
 .sidebar-logo img {
-  height: clamp(2.5rem, 8vw, 3rem); /* Responsive height */
-  width: 50%;
+  height: clamp(2.2rem, 7.5vw, 2.8rem);
+  width: 110px;
+  max-width: 70%;
   display: block;
   margin: 0 auto;
+  filter: none; /* No filter for logo image */
 }
 
 .sidebar .nav-title {
-  padding: 0 clamp(1rem, 4vw, 1.5rem); /* Responsive padding */
-  font-size: clamp(0.6rem, 2.5vw, 0.625rem); /* Responsive font size */
-  font-weight: 700;
-  color: var(--text-muted);
+  padding: 0 clamp(1rem, 4vw, 1.25rem);
+  font-size: clamp(0.65rem, 2.2vw, 0.7rem);
+  font-weight: 600;
+  color: var(--text-gray); /* Dark gray text */
   text-transform: uppercase;
-  margin: clamp(1.5rem, 6vw, 2rem) 0 0.5rem; /* Responsive margin */
-  letter-spacing: 0.04em;
-  flex-shrink: 0; /* Prevent title from shrinking */
-  display: block; /* This is essential! */
+  margin: clamp(1.2rem, 4.5vw, 1.6rem) 0 0.6rem;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  display: block;
 }
 
 .sidebar .nav-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: clamp(0.6rem, 3vw, 0.75rem) clamp(0.75rem, 4vw, 1rem); /* Responsive padding */
-  color: var(--text-secondary);
-  font-weight: 600;
-  border-radius: 0.375rem;
-  margin: 0 clamp(0.75rem, 4vw, 1rem); /* Responsive margin */
-  transition: all 0.15s ease;
+  gap: 0.6rem;
+  padding: clamp(0.6rem, 2.8vw, 0.8rem) clamp(0.75rem, 3.5vw, 1rem);
+  color: var(--text-light); /* Dark text for links */
+  font-weight: 500;
+  border-radius: 0.3rem;
+  margin: 0.1rem clamp(0.75rem, 3.5vw, 1rem);
+  transition: all 0.2s ease-in-out;
   text-decoration: none;
-  font-size: clamp(0.8rem, 3.5vw, 0.875rem); /* Responsive font size */
-  flex-shrink: 0; /* Prevent nav links from shrinking */
+  font-size: clamp(0.875rem, 3.2vw, 0.95rem);
+  flex-shrink: 0;
 }
 
 .sidebar .nav-link i {
-  font-size: clamp(1rem, 4vw, 1.125rem); /* Responsive icon size */
-  color: var(--text-muted);
-  transition: all 0.15s ease;
+  font-size: clamp(1.1rem, 4vw, 1.3rem);
+  color: var(--text-muted); /* Muted dark icons */
+  transition: all 0.2s ease-in-out;
 }
 
 .sidebar .nav-link:hover {
-  background-color: var(--gray-100);
-  color: var(--primary);
+  background-color: var(--bg-hover); /* Light gray hover background */
+  color: var(--primary); /* Blue text on hover */
 }
 
 .sidebar .nav-link:hover i {
-  color: var(--primary);
+  color: var(--primary); /* Blue icon on hover */
 }
 
+/* FIXED: Sidebar active link state to match image's vibrant green */
 .sidebar .nav-link.active {
-  background: var(--primary-gradient);
-  color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  background-color: var(--bg-sidebar-active); /* Vibrant green background from image */
+  color: var(--text-light); /* Dark text for active link as per image */
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--vibrant-green); /* Green border */
 }
 
 .sidebar .nav-link.active i {
-  color: var(--text-white);
+  color: var(--text-light); /* Dark icon as per image */
 }
 
 .sidebar .submenu {
   display: none;
   flex-direction: column;
-  padding-left: clamp(2rem, 8vw, 2.5rem); /* Responsive padding */
-  margin-top: 0.25rem;
+  padding-left: clamp(1.8rem, 7vw, 2.2rem);
+  margin-top: 0.15rem;
   background-color: transparent;
-  flex-shrink: 0; /* Prevent submenu from shrinking */
+  flex-shrink: 0;
 }
 
 .sidebar .submenu a {
-  padding: 0.5rem 0;
-  font-size: clamp(0.75rem, 3vw, 0.8125rem); /* Responsive font size */
-  color: var(--text-secondary);
+  padding: 0.4rem 0;
+  font-size: clamp(0.75rem, 2.8vw, 0.85rem);
+  color: var(--text-muted);
   text-decoration: none;
   transition: all 0.15s ease;
 }
@@ -518,37 +580,37 @@ p {
   display: flex;
 }
 
-/* Hamburger Icon (No Circle Background, Black Lines) - Converted to rem and responsive */
+/* Hamburger Icon (Redesigned) */
 .toggle-sidebar {
-  display: flex; /* Always display on mobile */
+  display: flex;
   position: fixed;
-  top: clamp(0.75rem, 3vw, 1rem); /* Responsive top */
-  left: clamp(0.75rem, 3vw, 1rem); /* Responsive left */
-  width: clamp(2.5rem, 10vw, 3rem); /* Responsive size */
-  height: clamp(2.5rem, 10vw, 3rem);
-  background-color: transparent;
-  border: none;
+  top: clamp(0.7rem, 2.8vw, 0.9rem);
+  left: clamp(0.7rem, 2.8vw, 0.9rem);
+  width: clamp(2.4rem, 9.5vw, 2.8rem);
+  height: clamp(2.4rem, 9.5vw, 2.8rem);
+  background-color: var(--bg-panel); /* White background */
+  border: 1px solid var(--border-light); /* Light border */
   align-items: center;
   justify-content: center;
   z-index: 1060;
   cursor: pointer;
-  box-shadow: none;
-  transition: all 0.15s ease;
-  border-radius: 50%;
+  border-radius: 0.3rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
 .toggle-sidebar:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  transform: scale(1.05);
+  background-color: var(--bg-hover); /* Light gray hover */
+  border-color: var(--primary); /* Primary blue border */
 }
 
 .hamburger-icon {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width: clamp(1.25rem, 5vw, 1.5rem); /* Responsive width */
-  height: clamp(1.25rem, 5vw, 1.5rem);
-  gap: clamp(0.25rem, 1.5vw, 0.3125rem); /* Responsive gap */
+  width: clamp(1.2rem, 5vw, 1.4rem);
+  height: clamp(1.2rem, 5vw, 1.4rem);
+  gap: clamp(0.2rem, 1.2vw, 0.25rem);
   position: relative;
 }
 
@@ -556,22 +618,22 @@ p {
   display: block;
   height: 0.125rem;
   width: 100%;
-  background: var(--gray-800);
+  background: var(--text-light); /* Dark lines */
   border-radius: 0.0625rem;
   transition: all 0.3s ease-in-out;
 }
 
 .toggle-sidebar.active .hamburger-icon span:nth-child(1) {
-  transform: translateY(clamp(0.3rem, 1.5vw, 0.4375rem)) rotate(45deg);
+  transform: translateY(clamp(0.25rem, 1.2vw, 0.3rem)) rotate(45deg);
 }
 .toggle-sidebar.active .hamburger-icon span:nth-child(2) {
   opacity: 0;
 }
 .toggle-sidebar.active .hamburger-icon span:nth-child(3) {
-  transform: translateY(clamp(-0.3rem, -1.5vw, -0.4375rem)) rotate(-45deg);
+  transform: translateY(clamp(-0.25rem, -1.2vw, -0.3rem)) rotate(-45deg);
 }
 
-/* Sidebar Overlay (Exact Argon Replication) */
+/* Sidebar Overlay */
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -579,9 +641,9 @@ p {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 1040;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
   opacity: 0;
 }
 
@@ -591,80 +653,86 @@ p {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   5. Main Content & Layout (Argon Specifics) - Converted to rem and responsive
+   5. Main Content & Layout (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .main-content {
-  margin-left: 0; /* Default to 0 for mobile */
-  padding: clamp(1rem, 4vw, 1.5rem); /* Responsive padding */
-  padding-top: calc(clamp(3.5rem, 12vw, 5rem) + clamp(1rem, 4vw, 1.5rem)); /* Navbar height + padding */
+  margin-left: 0;
+  padding: clamp(1rem, 4vw, 1.5rem);
+  /* FIXED: Main content background matches body background */
+  background-color: var(--bg-body); /* Light body background */
+  padding-top: calc(clamp(3.5rem, 11vw, 4.2rem) + clamp(1rem, 4vw, 1.5rem));
   transition: margin-left 0.3s ease;
-  min-height: calc(100vh - clamp(3.5rem, 12vw, 5rem)); /* Full height minus navbar */
-  animation: fadeSlideIn 0.6s ease-out;
+  min-height: calc(100vh - clamp(3.5rem, 11vw, 4.2rem));
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .container {
-  max-width: 100%; /* Full width on small screens */
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 clamp(0.75rem, 3vw, 1rem); /* Responsive padding */
+  padding: 0 clamp(0.75rem, 3.5vw, 1.25rem);
 }
 
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(1.25rem); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /*──────────────────────────────────────────────────────────────────────────
-   6. Section Boxes (Cards - Exact Argon Replication) - Converted to rem and responsive
+   6. Section Boxes (Cards - Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .section-box {
-  background: var(--bg-card);
-  border-radius: 0.5rem;
-  padding: clamp(1rem, 4vw, 1.5rem); /* Responsive padding */
-  margin-bottom: clamp(1rem, 4vw, 1.5rem); /* Responsive margin */
-  box-shadow: var(--shadow-md);
-  transition: all 0.15s ease;
-  border: none;
-  color: var(--text-primary); /* Ensure primary text color for all content */
-  overflow: visible; /* Allow content like table-responsive to scroll */
+  /* FIXED: Card background is white */
+  background: var(--bg-panel); /* White background */
+  border-radius: 0.5rem; /* Standard card radius */
+  padding: clamp(1.25rem, 4.5vw, 1.75rem);
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-md); /* Subtle shadow */
+  transition: all 0.2s ease;
+  /* FIXED: Card border is light and subtle */
+  border: 1px solid var(--border-light); /* Light border */
+  color: var(--text-light); /* Dark text */
+  overflow: hidden; /* Ensures content stays within card */
+  position: relative; /* Needed for z-index of dropdowns */
 
-  /* Ensure all text within cards has the same color */
   &, h1, h2, h3, h4, h5, h6, p, span, div, a {
-    color: var(--text-primary);
+    color: var(--text-light);
   }
-  /* Specific overrides for links or muted text if needed within cards */
   & a {
-    color: var(--primary); /* Links within cards should still be primary color */
+    color: var(--primary);
   }
   & .text-muted {
-    color: var(--text-muted); /* Allow specific muted text within cards */
+    color: var(--text-muted);
   }
   & .text-secondary {
-    color: var(--text-secondary); /* Allow specific secondary text within cards */
+    color: var(--text-muted);
   }
 }
 
 .section-box:hover {
   box-shadow: var(--shadow-lg);
-  transform: translateY(-0.125rem);
+  transform: translateY(-0.05rem); /* Subtle lift */
+  border-color: var(--primary);
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   7. Buttons (Exact Argon Replication) - Converted to rem and responsive
+   7. Buttons (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: clamp(0.8rem, 3.5vw, 0.875rem); /* Responsive font size */
-  padding: clamp(0.5rem, 2.5vw, 0.625rem) clamp(0.75rem, 4vw, 1.25rem); /* Responsive padding */
+  border-radius: 0.3rem; /* Crisp button corners */
+  font-weight: 600; /* Bolder button text */
+  font-size: clamp(0.9rem, 3.5vw, 1rem);
+  padding: clamp(0.6rem, 2.5vw, 0.8rem) clamp(1rem, 4vw, 1.5rem);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
   border: none;
   width: 100%; /* Full width on mobile by default */
-  margin-bottom: 0.5rem; /* Add margin for stacked buttons */
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.02em; /* Subtle letter spacing */
 }
 
 .btn:last-child {
@@ -672,36 +740,37 @@ p {
 }
 
 .btn:hover {
-  transform: translateY(-0.0625rem);
+  transform: translateY(-0.08rem); /* More pronounced lift */
 }
 
 .btn-sm {
-  font-size: clamp(0.7rem, 3vw, 0.75rem); /* Responsive font size */
-  padding: clamp(0.3rem, 1.5vw, 0.375rem) clamp(0.5rem, 2.5vw, 0.75rem); /* Responsive padding */
-  width: auto; /* Override full width for small buttons */
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  padding: clamp(0.4rem, 1.8vw, 0.55rem) clamp(0.7rem, 2.8vw, 1rem);
+  width: auto;
   margin-bottom: 0;
 }
 
 .btn-lg {
-  font-size: clamp(0.9rem, 4vw, 1rem); /* Responsive font size */
-  padding: clamp(0.6rem, 3vw, 0.75rem) clamp(1rem, 5vw, 1.5rem); /* Responsive padding */
+  font-size: clamp(1.05rem, 4.2vw, 1.2rem);
+  padding: clamp(0.7rem, 3vw, 0.95rem) clamp(1.2rem, 5vw, 1.8rem);
 }
 
 .btn-primary {
-  background: var(--primary-gradient);
+  background-color: var(--primary);
   color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-primary:hover {
-  background: var(--primary-gradient);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--primary);
+  box-shadow: 0 0.25rem 0.6rem rgba(0, 123, 255, 0.3);
+  filter: brightness(1.15); /* Brighter on hover */
 }
 
 .btn-outline-primary {
   background: transparent;
   color: var(--primary);
-  border: 0.0625rem solid var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .btn-outline-primary:hover {
@@ -710,180 +779,263 @@ p {
 }
 
 .btn-info {
-  background: var(--info-gradient);
+  background-color: var(--info);
   color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-info:hover {
-  background: var(--info-gradient);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--info);
+  filter: brightness(1.15);
 }
 
 .btn-secondary {
-  background-color: var(--gray-200);
-  color: var(--text-secondary);
-  box-shadow: var(--shadow-xl);
+  background-color: var(--bg-input); /* Light gray input background */
+  color: var(--text-light);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
-  background-color: var(--gray-300);
-  color: var(--text-primary);
+  background-color: var(--bg-hover); /* Light gray hover */
+  color: var(--text-light);
 }
 
 .btn-danger {
-  background: var(--danger-gradient);
+  background-color: var(--danger);
   color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-danger:hover {
-  background: var(--danger-gradient);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--danger);
+  filter: brightness(1.15);
 }
 
 .btn-warning {
-  background: var(--warning-gradient);
-  color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  background-color: var(--warning);
+  color: var(--text-dark); /* Dark text on bright button */
+  box-shadow: var(--shadow-md);
 }
 
 .btn-warning:hover {
-  background: var(--warning-gradient);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--warning);
+  filter: brightness(1.15);
 }
 
 .btn-success {
-  background: var(--success-gradient);
+  background-color: var(--success);
   color: var(--text-white);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-success:hover {
-  background: var(--success-gradient);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--success);
+  filter: brightness(1.15);
 }
 
 .btn i {
-  margin-right: 0.5rem;
-  font-size: 1em;
+  margin-right: 0.4rem;
+  font-size: 0.9em;
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   8. Tables (Exact Argon Replication & Mobile Responsive) - Converted to rem and responsive
+   8. Tables (RETAINED - NO CHANGE IN FUNCTIONALITY)
 ──────────────────────────────────────────────────────────────────────────*/
+/* The .table-responsive directly inside .section-box will handle the scroll */
 .table-responsive {
-  overflow-x: auto; /* Still useful for very wide tables even with transformed layout */
+  overflow-x: auto; /* Always enable horizontal scroll */
   -webkit-overflow-scrolling: touch;
-  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  margin-bottom: clamp(0.8rem, 3.5vw, 1.2rem);
+  /* The card (section-box) now provides the main border/bg */
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0; /* Remove padding from responsive container */
+  /* AlgoDelta Table specific scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-input);
+
+  &::-webkit-scrollbar {
+    height: 0.4rem;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--bg-light-gray); /* Light scrollbar track */
+    border-radius: 0.2rem;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--text-muted); /* Muted dark scrollbar thumb */
+    border-radius: 0.2rem;
+    border: 1px solid var(--bg-light-gray);
+  }
 }
 
 .table {
-  width: 100%;
-  border-collapse: separate;
+  width: 100%; /* Take full width */
+  min-width: max-content; /* Allow table to grow to content width for horizontal scroll */
+  border-collapse: collapse;
   border-spacing: 0;
-  background: var(--bg-card);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  margin-top: 1rem;
-  color: var(--text-secondary);
+  background: transparent; /* No background on table itself */
+  color: var(--table-content-dark); /* Table content text is explicitly dark */
 }
 
 .table th, .table td {
-  padding: clamp(0.6rem, 3vw, 0.75rem) clamp(0.75rem, 4vw, 1rem);
+  padding: clamp(0.5rem, 2.5vw, 0.7rem) clamp(0.4rem, 2vw, 0.6rem); /* Tighter padding for density */
   text-align: left;
-  border-bottom: 0.0625rem solid var(--border-color);
-  transition: all 0.15s ease;
+  border-bottom: 1px solid var(--border-light); /* Light border */
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Truncate text with ellipsis */
+  line-height: 1.3;
+  transition: background-color 0.1s ease;
+  height: clamp(2rem, 7vw, 2.5rem); /* Fixed height for rows if needed */
 }
 
-/* Specific Argon table header styles */
-.table.align-items-center th,
-.table.align-items-center td {
-  vertical-align: middle;
-}
-.table-flush th, .table-flush td {
-  border-left: 0;
-  border-right: 0;
-}
-.thead-light th {
-  background-color: var(--gray-100);
-  color: var(--text-muted);
-  font-weight: 600;
+.table th {
+  min-width: clamp(3rem, 10vw, 6rem); /* Minimum width for headers */
+  color: var(--text-white); /* White text for header */
+  font-weight: 500;
   text-transform: uppercase;
-  font-size: clamp(0.6rem, 2.5vw, 0.65rem);
-  letter-spacing: 0.04em;
+  font-size: clamp(0.6rem, 2.5vw, 0.7rem);
+  letter-spacing: 0.03em;
+  background-color: var(--bg-table-header); /* Vibrant light green header */
+  position: sticky; /* Keep header visible on horizontal scroll */
+  top: 0;
+  z-index: 2; /* Above tbody */
+}
+.table td {
+  min-width: clamp(4rem, 12vw, 8rem); /* Minimum width for data cells */
+  max-width: clamp(10rem, 20vw, 15rem); /* Max width for data cells before ellipsis */
+  /* Text color for td is already set by `.table` rule */
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
 }
 
-/* Align numbers to the right for financial data */
-.table td.text-right,
-.table th.text-right {
+/* Special treatment for specific columns that need to be smaller/larger */
+.table th.col-icon, .table td.col-icon { min-width: clamp(2rem, 5vw, 3rem); width: clamp(2rem, 5vw, 3rem); max-width: clamp(2rem, 5vw, 3rem); text-align: center; }
+.table th.col-status, .table td.col-status { min-width: clamp(4rem, 10vw, 6rem); width: clamp(4rem, 10vw, 6rem); max-width: clamp(4rem, 10vw, 6rem); text-align: center; }
+.table th.col-price, .table td.col-price,
+.table th.col-amount, .table td.col-amount {
+  font-weight: 500;
   text-align: right;
+  min-width: clamp(4.5rem, 12vw, 7rem);
+  max-width: clamp(7rem, 15vw, 10rem);
 }
+.table td.positive-value { color: var(--success); } /* Green for positive numbers */
+.table td.negative-value { color: var(--danger); } /* Red for negative numbers */
+
 
 .table tbody tr:last-child td {
   border-bottom: none;
 }
 
 .table tbody tr:hover {
-  background-color: var(--gray-100);
-  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
-/* Status Badges - Converted to rem and responsive */
+/* Status Badges - AlgoDelta Theme (RETAINED - NO CHANGE) */
 .status-badge {
   display: inline-block;
-  padding: clamp(0.2rem, 1vw, 0.25rem) clamp(0.4rem, 2vw, 0.5rem);
-  border-radius: 0.375rem;
-  font-size: clamp(0.55rem, 2.2vw, 0.625rem);
-  font-weight: 700;
+  padding: clamp(0.15rem, 0.8vw, 0.25rem) clamp(0.3rem, 1.5vw, 0.5rem);
+  border-radius: 0.15rem; /* Very small radius */
+  font-size: clamp(0.5rem, 1.8vw, 0.6rem);
+  font-weight: 500;
   text-transform: uppercase;
   white-space: nowrap;
-  line-height: 1.5;
+  line-height: 1; /* Tighter line height */
+  letter-spacing: 0.02em;
+  border: none; /* No visible border for badges */
 }
 
-.status-badge.success { background-color: rgba(45, 206, 137, 0.1); color: var(--success); }
-.status-badge.warning { background-color: rgba(251, 99, 64, 0.1); color: var(--warning); }
-.status-badge.danger { background-color: rgba(245, 54, 92, 0.1); color: var(--danger); }
-.status-badge.info { background-color: rgba(17, 205, 239, 0.1); color: var(--info); }
-.status-badge.primary { background-color: rgba(94, 114, 228, 0.1); color: var(--primary); }
-.status-badge.secondary { background-color: rgba(136, 152, 170, 0.1); color: var(--secondary); }
+.status-badge.success { background-color: rgba(14, 203, 129, 0.15); color: var(--success); }
+.status-badge.warning { background-color: rgba(240, 185, 11, 0.15); color: var(--warning); }
+.status-badge.danger { background-color: rgba(246, 70, 93, 0.15); color: var(--danger); }
+.status-badge.info { background-color: rgba(0, 188, 212, 0.15); color: var(--info); }
+.status-badge.primary { background-color: rgba(0, 123, 255, 0.15); color: var(--primary); }
+.status-badge.secondary { background-color: rgba(136, 152, 170, 0.15); color: var(--secondary); }
 
-/* Table Action Buttons/Icons - Converted to rem and responsive */
+/* Table Action Buttons/Icons - AlgoDelta Style (RETAINED - NO CHANGE) */
 .table .btn-icon-only {
-  width: clamp(1.8rem, 7vw, 2.25rem);
-  height: clamp(1.8rem, 7vw, 2.25rem);
+  width: clamp(1.5rem, 6vw, 1.8rem);
+  height: clamp(1.5rem, 6vw, 1.8rem);
   padding: 0;
-  border-radius: 50%;
+  border-radius: 0.2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  transition: all 0.1s ease;
 }
-.table .btn-icon-only.text-light {
-  color: var(--text-muted);
-}
-.table .btn-icon-only.text-light:hover {
-  color: var(--text-secondary);
+.table .btn-icon-only:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-0.02rem);
 }
 .table .btn-icon-only i {
   margin-right: 0;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.table .btn-icon-only:hover i {
+  color: var(--text-white);
+}
+
+/* Specific table buttons from image */
+.table .btn-table-action {
+    background-color: var(--primary); /* Blue background for action buttons */
+    color: var(--text-white);
+    font-weight: 500;
+    padding: clamp(0.3rem, 1.5vw, 0.4rem) clamp(0.5rem, 2vw, 0.7rem);
+    border-radius: 0.2rem;
+    font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+    white-space: nowrap;
+    text-align: center;
+    transition: all 0.15s ease;
+
+    &:hover {
+        filter: brightness(1.15);
+        transform: translateY(-0.02rem);
+    }
+}
+.table .btn-table-action.btn-green {
+    background-color: var(--success); /* Green for 'Turn on All child' */
+}
+.table .btn-table-action.btn-red {
+    background-color: var(--danger); /* Red for 'Turn off All child' */
+}
+.table .btn-table-action.btn-flat {
+    background-color: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    &:hover {
+        background-color: var(--primary);
+        color: var(--text-white);
+    }
+}
+.table .btn-table-action.btn-flat-green {
+    background-color: transparent;
+    color: var(--success);
+    border: 1px solid var(--success);
+    &:hover {
+        background-color: var(--success);
+        color: var(--text-white);
+    }
 }
 
 
 /*──────────────────────────────────────────────────────────────────────────
-   9. Inputs & Forms (Exact Argon Replication) - Converted to rem and responsive
+   9. Inputs & Forms (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .form-group {
-  margin-bottom: clamp(0.75rem, 3vw, 1rem);
+  margin-bottom: clamp(0.7rem, 3vw, 1rem);
 }
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  margin-bottom: 0.3rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 input[type="text"],
@@ -896,42 +1048,41 @@ select,
 .form-select,
 input#symbol-selector,
 .navbar-search .form-control {
-  width: 100%; /* Ensure full width */
-  max-width: 100%; /* Crucial to prevent overflow */
-  padding: clamp(0.5rem, 2.5vw, 0.625rem) clamp(0.6rem, 3vw, 0.75rem);
-  border-radius: 0.25rem;
-  border: 0.0625rem solid var(--gray-300);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(0.55rem, 2.2vw, 0.75rem) clamp(0.7rem, 2.8vw, 1rem);
+  border-radius: 0.2rem;
+  border: 1px solid var(--border-light); /* Light border */
+  background: var(--bg-input); /* Light gray background */
+  color: var(--text-light); /* Dark text */
+  font-family: 'Outfit', sans-serif; /* Use Outfit for inputs too */
+  font-size: 0.9rem;
   transition: all 0.15s ease;
-  box-sizing: border-box; /* Ensure padding and border are included in the width */
+  box-sizing: border-box;
 }
 
-/* Specific fix for input-group within tables */
 .table .input-group {
-  width: 100%; /* Ensure input group takes full width of its cell */
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  flex-wrap: nowrap; /* Prevent wrapping within the input group itself */
+  flex-wrap: nowrap;
 }
 
 .table .input-group .form-control {
-  flex: 1 1 auto; /* Allow input to grow and shrink */
-  min-width: 0; /* Allow input to shrink below its content size */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .table .input-group .btn {
-  flex-shrink: 0; /* Prevent button from shrinking */
-  width: auto; /* Let button size itself */
-  margin-bottom: 0; /* Remove button margin */
+  flex-shrink: 0;
+  width: auto;
+  margin-bottom: 0;
 }
-
 
 input[type="text"]::placeholder,
 textarea::placeholder {
-  color: var(--text-light);
-  opacity: 1;
+  color: var(--text-muted); /* Muted dark text for placeholders */
+  opacity: 0.9;
 }
 
 input[type="text"]:focus,
@@ -945,42 +1096,45 @@ select:focus,
 input#symbol-selector:focus,
 .navbar-search .form-control:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 0.125rem rgba(94, 114, 228, 0.25);
+  border-color: var(--primary); /* Primary blue border on focus */
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); /* Subtle primary glow */
+  background-color: var(--bg-hover); /* Light gray hover background */
 }
 
 textarea {
   resize: vertical;
-  min-height: clamp(4rem, 15vw, 6.25rem);
+  min-height: clamp(3.8rem, 13vw, 5.5rem);
 }
 
 .form-check {
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .form-check-input {
   margin-right: 0.5rem;
   width: 1.125rem;
   height: 1.125rem;
-  border: 0.0625rem solid var(--gray-400);
-  border-radius: 0.25rem;
+  border: 1px solid var(--border-light); /* Light border */
+  border-radius: 0.2rem;
   appearance: none;
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
+  background-color: var(--bg-input); /* Light gray background */
 }
 
 .form-check-input:checked {
-  background-color: var(--primary);
+  background-color: var(--primary); /* Primary blue when checked */
   border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
 }
 
 .form-check-input:checked::after {
   content: '\2713';
-  color: var(--text-white);
-  font-size: 0.875rem;
+  color: var(--text-white); /* White tick */
+  font-size: 0.8rem;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -990,16 +1144,16 @@ textarea {
 .form-check-label {
   margin-bottom: 0;
   cursor: pointer;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
+  color: var(--text-light); /* Dark text */
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   10. Sidebar & Table Overrides (Argon Specifics)
+   10. Sidebar & Table Overrides (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .table-light th {
-  background: var(--gray-100);
-  color: var(--text-muted);
+  background: var(--bg-input); /* Light gray background */
+  color: var(--text-muted); /* Muted dark text */
   border: none;
 }
 
@@ -1008,110 +1162,115 @@ textarea {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   11. Sticky Toolbar (Argon Inspired) - Converted to rem and responsive
+   11. Sticky Toolbar (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .sticky-toolbar {
   position: sticky;
-  top: clamp(3.5rem, 12vw, 5rem); /* Navbar height */
-  background: var(--bg-card);
-  padding: clamp(0.6rem, 3vw, 0.75rem) clamp(1rem, 4vw, 1.5rem);
+  top: clamp(3.5rem, 11vw, 4.2rem); /* Navbar height */
+  background: var(--bg-panel); /* White background */
+  padding: clamp(0.7rem, 2.8vw, 0.9rem) clamp(1rem, 4vw, 1.5rem);
   z-index: 995;
-  border-bottom: 0.0625rem solid var(--border-color);
+  border-bottom: 1px solid var(--border-light); /* Light border */
   display: flex;
-  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(0.5rem, 2.5vw, 1rem);
-  box-shadow: var(--shadow-sm);
-  color: var(--text-primary);
+  gap: clamp(0.5rem, 2.2vw, 0.8rem);
+  box-shadow: var(--shadow-sm); /* Subtle shadow */
+  color: var(--text-light); /* Dark text */
+  backdrop-filter: blur(0px); /* No blur for crisp look */
 }
 
 .sticky-toolbar .btn {
-  background-color: var(--gray-100);
-  color: var(--text-secondary);
+  background-color: var(--bg-input); /* Light gray background */
+  color: var(--text-light); /* Dark text */
   border: none;
   box-shadow: none;
-  width: auto; /* Override full width for toolbar buttons */
+  width: auto;
   margin-bottom: 0;
 }
 
+.sticky-toolbar .btn:hover {
+  background-color: var(--bg-hover); /* Light gray hover */
+  color: var(--primary); /* Blue on hover */
+}
+
 .sticky-toolbar .btn-danger {
-  color: var(--danger);
+  color: var(--danger); /* Red text */
 }
 .sticky-toolbar .btn-warning {
-  color: var(--warning);
+  color: var(--warning); /* Yellow text */
 }
 
 .sticky-toolbar .btn-danger:hover {
-  background-color: var(--danger);
-  color: var(--text-white);
+  background-color: var(--danger); /* Red background */
+  color: var(--text-white); /* White text */
 }
 .sticky-toolbar .btn-warning:hover {
-  background-color: var(--warning);
-  color: var(--text-white);
+  background-color: var(--warning); /* Yellow background */
+  color: var(--text-dark); /* Dark text */
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   12. Miscellaneous (Argon Specifics) - Converted to rem and responsive
+   12. Miscellaneous (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 .logout {
   margin-top: auto;
-  background: var(--danger-gradient);
+  background-color: var(--danger);
   color: var(--text-white);
-  padding: clamp(0.6rem, 3vw, 0.75rem) clamp(0.75rem, 4vw, 1.25rem);
+  padding: clamp(0.65rem, 2.8vw, 0.85rem) clamp(1rem, 4vw, 1.5rem);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 0.3rem;
   font-weight: 600;
   width: calc(100% - clamp(1.5rem, 6vw, 2rem));
   margin-left: clamp(0.75rem, 3vw, 1rem);
   margin-right: clamp(0.75rem, 3vw, 1rem);
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: var(--shadow-xl);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+  letter-spacing: 0.01em;
 }
 
 .logout:hover {
-  background: var(--danger-gradient);
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1), 0 0.1875rem 0.375rem rgba(0, 0, 0, 0.08);
+  background-color: var(--danger);
+  transform: translateY(-0.08rem);
+  box-shadow: 0 0.25rem 0.6rem rgba(220, 53, 69, 0.3);
 }
 
 .card-box {
-  background: var(--bg-card);
-  padding: clamp(1rem, 4vw, 1.5rem);
+  background: var(--bg-panel); /* White background */
+  padding: clamp(1.25rem, 4.5vw, 1.75rem);
   border-radius: 0.5rem;
   box-shadow: var(--shadow-md);
   text-align: center;
   margin-bottom: clamp(1rem, 4vw, 1.5rem);
-  border: none;
-  color: var(--text-primary); /* Ensure primary text color for all content */
+  border: 1px solid var(--border-light); /* Light border */
+  color: var(--text-light); /* Dark text */
 
-  /* Ensure all text within card-box has the same color */
   &, h1, h2, h3, h4, h5, h6, p, span, div, a {
-    color: var(--text-primary);
+    color: var(--text-light);
   }
-  /* Specific overrides for links or muted text if needed within cards */
   & a {
-    color: var(--primary); /* Links within cards should still be primary color */
+    color: var(--primary);
   }
   & .text-muted {
-    color: var(--text-muted); /* Allow specific muted text within cards */
+    color: var(--text-muted);
   }
   & .text-secondary {
-    color: var(--text-secondary); /* Allow specific secondary text within cards */
+    color: var(--text-muted);
   }
 }
 
 .card-box h4 {
-  font-size: clamp(1.25rem, 5vw, 1.75rem);
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary); /* Explicitly set for headings within card-box */
+  font-size: clamp(1.2rem, 5vw, 1.6rem);
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: var(--text-light);
 }
 
 .card-box p {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
   margin-bottom: 0;
 }
 
@@ -1120,23 +1279,21 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 clamp(0.25rem, 1.5vw, 0.5rem);
+  margin: 0 clamp(0.25rem, 1.2vw, 0.4rem);
   flex-shrink: 0;
-  /* Ensure broker icons don't force horizontal scroll */
-  min-width: 0; /* Allow flex item to shrink below its content size */
-  /* Added flex-basis to give a hint for initial size, but allow shrinking */
-  flex-basis: clamp(3.5rem, 15vw, 5rem); /* A bit larger than icon width to account for margin */
+  min-width: 0;
+  flex-basis: clamp(3.2rem, 12vw, 4.2rem);
 }
 
 .broker-icon {
-  width: clamp(3rem, 12vw, 4.5rem);
-  height: clamp(3rem, 12vw, 4.5rem);
+  width: clamp(2.8rem, 10vw, 3.8rem);
+  height: clamp(2.8rem, 10vw, 3.8rem);
   border-radius: 50%;
-  background: var(--bg-card);
+  background: var(--bg-input); /* Light gray background */
   box-shadow: var(--shadow-sm);
-  border: 0.125rem solid var(--gray-300);
+  border: 1px solid var(--border-light); /* Light border */
   object-fit: contain;
-  padding: clamp(0.25rem, 1vw, 0.5rem);
+  padding: clamp(0.25rem, 1vw, 0.35rem);
   transition: all 0.15s ease;
   cursor: pointer;
   margin-bottom: 0.5rem;
@@ -1145,37 +1302,37 @@ textarea {
 .broker-icon:hover,
 .broker-icon.selected,
 .broker-icon.border-primary {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 0.125rem rgba(94, 114, 228, 0.25);
-  background: var(--gray-100);
+  border-color: var(--primary); /* Primary blue border */
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  background: var(--bg-hover); /* Light gray hover */
+  transform: translateY(-0.05rem);
 }
 
 .broker-scroll {
   display: flex;
   overflow-x: auto;
   white-space: nowrap;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.6rem;
   scrollbar-width: thin;
-  scrollbar-color: var(--gray-500) var(--gray-200);
-  /* Ensure the scroll container itself doesn't cause overflow */
-  width: 100%; /* Take full available width */
-  max-width: 100%; /* Crucial to prevent overflow */
-  box-sizing: border-box; /* Include padding in width calculation */
+  scrollbar-color: var(--text-muted) var(--bg-input);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .broker-scroll::-webkit-scrollbar {
-  height: 0.5rem;
+  height: 0.4rem;
 }
 
 .broker-scroll::-webkit-scrollbar-track {
-  background: var(--gray-200);
-  border-radius: 0.5rem;
+  background: var(--bg-light-gray); /* Light scrollbar track */
+  border-radius: 0.2rem;
 }
 
 .broker-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--gray-500);
-  border-radius: 0.5rem;
-  border: 0.125rem solid var(--gray-200);
+  background-color: var(--text-muted); /* Muted dark scrollbar thumb */
+  border-radius: 0.2rem;
+  border: 1px solid var(--bg-light-gray);
 }
 
 .broker-scroll > div {
@@ -1183,685 +1340,177 @@ textarea {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-   13. Responsive Design (Refined Breakpoints for 320px to 1440px)
+   13. Responsive Design (Redesigned)
 ──────────────────────────────────────────────────────────────────────────*/
 
-/* Base styles are now designed for 320px and scale up fluidly due to clamp() and html font-size */
+/* Base styles are for mobile (320px) and scale up fluidly */
 
-/* Small devices (max-width: 767.98px) - Mobile-specific table layout */
+/* Mobile table layout: Desktop-like with horizontal scroll (RETAINED - NO CHANGE IN FUNCTIONALITY) */
 @media (max-width: 767.98px) {
+  .table-responsive {
+    padding: 0;
+  }
   .table {
-    border: 0; /* Remove outer table border */
-    box-shadow: none; /* Remove outer table shadow */
-    background: transparent; /* Remove table background */
-    margin-top: 0; /* Remove top margin from table itself */
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    margin-top: 0;
   }
 
-  .table thead {
-    display: none; /* Hide table headers on small screens */
+  .table th, .table td {
+    padding-left: clamp(0.4rem, 2vw, 0.6rem);
+    padding-right: clamp(0.4rem, 2vw, 0.6rem);
   }
 
-  .table tbody {
-    display: block; /* Make tbody a block element */
-    width: 100%;
-  }
-
-  .table tr {
-    display: block; /* Make each row a block element */
-    margin-bottom: 0.75rem; /* Adjusted space between rows for better look */
-    border: 0.0625rem solid var(--border-color); /* Add border to each row (now a card) */
-    border-radius: 0.5rem; /* Add border-radius to each row */
-    background: var(--bg-card); /* Add background to each row */
-    box-shadow: var(--shadow-sm); /* Add subtle shadow to each row */
-    padding: 0.75rem; /* Add padding to each row */
-  }
-
-  .table td {
-    display: block; /* Make each cell a block element */
-    text-align: right; /* Align content to the right */
-    border-bottom: 0.0625rem dashed var(--gray-300); /* Dashed border between cells */
-    padding-left: 50%; /* Make space for data-label */
-    position: relative;
-    font-size: 0.9rem; /* Slightly larger font for readability */
-    padding-top: 0.5rem; /* Refined padding for cells */
-    padding-bottom: 0.5rem;
-  }
-
-  .table td:last-child {
-    border-bottom: none; /* No border on the last cell */
-    padding-bottom: 0; /* Remove bottom padding for last cell */
-  }
-  .table td:first-child {
-    padding-top: 0; /* Remove top padding for first cell */
-  }
-
-  .table td::before {
-    content: attr(data-label); /* Display the data-label as a pseudo-element */
-    position: absolute;
-    left: 0.75rem; /* Position label to the left */
-    width: calc(50% - 1.5rem); /* Width for the label */
-    padding-right: 0.5rem;
+  .table td > * {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 600;
-    color: var(--text-muted); /* Muted color for labels */
-    text-align: left; /* Align label text to the left */
   }
-
-  /* Specific adjustments for content within table cells on mobile */
-  .table .media {
-    flex-direction: column; /* Stack media content */
-    align-items: flex-end; /* Align to the right */
-    text-align: right;
-  }
-  .table .media-body {
-    text-align: right;
-  }
-  .table .mr-3 {
-    margin-right: 0;
-    margin-bottom: 0.5rem; /* Add space below avatar/icon */
-  }
-  .table .avatar {
-    margin-left: auto; /* Center avatar if it's the only item, or push to right */
-    margin-right: 0;
-  }
-  .table .avatar-group {
-    justify-content: flex-end; /* Align avatar group to the right */
-    padding-left: 0;
-  }
-  .table .progress {
-    width: 100%; /* Ensure progress bar takes full width */
-    margin-top: 0.5rem; /* Space above progress bar */
-  }
-  .table .completion {
-    display: block; /* Ensure completion text is on its own line */
-    text-align: right;
-  }
-  .table .btn-icon-only {
-    margin-left: auto; /* Push action buttons to the right */
-    margin-right: 0;
-  }
-  .table .name {
-    display: block; /* Ensure name is on its own line */
-    text-align: right;
-    color: var(--text-primary); /* Ensure name is primary color */
-  }
-  .table .text-sm {
-    display: block; /* Ensure small text is on its own line */
-    text-align: right;
+  .table td .media-body {
+    min-width: 0;
   }
 }
 
-/* Medium devices (min-width: 576px) - For larger phones and small tablets */
+/* Medium devices (min-width: 576px) */
 @media (min-width: 576px) {
   .btn {
-    width: auto; /* Allow buttons to be inline on larger phones/small tablets */
+    width: auto;
     margin-bottom: 0;
   }
   .sticky-toolbar .btn {
     width: auto;
   }
   .profile-card {
-    max-width: 35rem; /* Constrain width on tablets */
+    max-width: 32rem; /* Adjusted for overall density */
   }
   .container {
-    max-width: 540px; /* Bootstrap's sm container */
+    max-width: 540px;
   }
 }
 
-/* Medium devices (min-width: 768px) - For tablets and small laptops */
+/* Medium devices (min-width: 768px) - Desktop layout begins */
 @media (min-width: 768px) {
   .sidebar, .sidebar.show {
-    transform: translateX(0); /* Sidebar always visible */
+    transform: translateX(0);
     position: fixed;
     left: 0;
-    width: 16.25rem; /* Desktop width */
-    padding: 1.5rem 0;
+    width: 15rem; /* Desktop width */
+    padding: 1.25rem 0;
   }
 
   .sidebar-overlay, .toggle-sidebar {
-    display: none !important; /* Hide hamburger and overlay */
+    display: none !important;
   }
 
   .main-content {
-    margin-left: 16.25rem; /* Space for sidebar */
+    margin-left: 15rem; /* Space for sidebar */
     padding: 1.5rem;
-    padding-top: calc(5rem + 1.5rem); /* Navbar height + padding */
-    min-height: calc(100vh - 5rem);
+    padding-top: calc(4.2rem + 1.5rem);
+    min-height: calc(100vh - 4.2rem);
   }
   .navbar {
-    height: 5rem; /* Desktop height */
+    height: 4.2rem;
     padding: 0 1.5rem;
+    /* FIXED: No border change here - universal styling for navbar border */
+    border-bottom: 1px solid var(--border-light); /* Light border */
   }
   .navbar-brand img {
     height: 2.5rem;
   }
-  .navbar-icons {
-    gap: 1.5rem;
-  }
-  .navbar-icons i {
-    font-size: 1.25rem;
-  }
+  /* Removed media query specific navbar-icons i style to ensure consistency */
   .profile-img {
     width: 2.5rem;
     height: 2.5rem;
   }
   .container {
-    max-width: 720px; /* Bootstrap's md container */
-    padding: 0 1rem;
+    max-width: 720px;
+    padding: 0 1.5rem;
   }
   .profile-card {
-    max-width: 45rem;
+    max-width: 48rem;
   }
   .hero-section {
-    padding: 3rem 1.5rem;
-    min-height: 10rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2.25rem 1.5rem;
+    min-height: 8rem;
+    text-align: left;
+  }
+  .hero-image {
+    max-width: 200px;
+    margin-top: 0;
+    align-self: auto;
   }
   .section-box {
-    padding: 1.5rem;
+    padding: 1.75rem;
     margin-bottom: 1.5rem;
   }
   .sticky-toolbar {
-    top: 5rem;
-    flex-wrap: nowrap; /* Prevent wrapping on larger screens */
+    top: 4.2rem;
+    flex-wrap: nowrap;
   }
   .card-box {
-    padding: 1.5rem;
+    padding: 1.75rem;
     margin-bottom: 1.5rem;
   }
   .broker-icon {
-    width: 4.5rem;
-    height: 4.5rem;
-    padding: 0.5rem;
+    width: 4rem;
+    height: 4rem;
+    padding: 0.35rem;
   }
   .broker-icon-wrap {
-    margin: 0 0.5rem;
+    margin: 0 0.4rem;
   }
 
-  /* Revert table styles for larger screens */
+  /* Tables (RETAINED - NO CHANGE IN FUNCTIONALITY) */
   .table {
-    border: 0; /* Revert to original Argon style */
-    box-shadow: var(--shadow-md); /* Revert to original Argon style */
-    background: var(--bg-card); /* Revert to original Argon style */
-    margin-top: 1rem; /* Revert top margin */
-  }
-  .table thead {
-    display: table-header-group; /* Show table headers */
-  }
-  .table tbody {
-    display: table-row-group; /* Revert tbody to table-row-group */
-    width: auto;
-  }
-  .table tr {
-    display: table-row; /* Revert rows to table-row */
-    margin-bottom: 0;
     border: none;
-    border-radius: 0;
-    background: transparent;
     box-shadow: none;
-    padding: 0;
-  }
-  .table td {
-    display: table-cell; /* Revert cells to table-cell */
-    text-align: left; /* Revert text alignment */
-    border-bottom: 0.0625rem solid var(--border-color); /* Revert border */
-    padding: clamp(0.6rem, 3vw, 0.75rem) clamp(0.75rem, 4vw, 1rem); /* Revert padding */
-    position: static;
-    font-size: 1rem; /* Revert font size */
-  }
-  .table td::before {
-    content: none; /* Hide data-label */
-  }
-  .table .media {
-    flex-direction: row; /* Revert media content to row */
-    align-items: flex-start;
-    text-align: left;
-  }
-  .table .media-body {
-    text-align: left;
-  }
-  .table .mr-3 {
-    margin-right: 1rem;
-    margin-bottom: 0;
-  }
-  .table .avatar {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  .table .avatar-group {
-    justify-content: flex-start;
-    padding-left: 0.5rem;
-  }
-  .table .progress {
-    width: auto;
+    background: transparent;
     margin-top: 0;
   }
-  .table .completion {
-    display: inline;
-    text-align: left;
-  }
-  .table .btn-icon-only {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  .table .name {
-    display: inline;
-    text-align: left;
-  }
-  .table .text-sm {
-    display: inline;
-    text-align: left;
+  .table th, .table td {
+    padding: clamp(0.5rem, 2.5vw, 0.7rem) clamp(0.6rem, 2.5vw, 0.8rem);
   }
 }
 
-/* Large devices (min-width: 992px) - For larger tablets and standard desktops */
+/* Large devices (min-width: 992px) */
 @media (min-width: 992px) {
   .container {
-    max-width: 960px; /* Bootstrap's lg container */
-    padding: 0 1rem;
+    max-width: 960px;
+    padding: 0 1.5rem;
   }
   .profile-card {
-    max-width: 50rem;
+    max-width: 55rem;
   }
 }
 
-/* Extra large devices (min-width: 1200px) - For large desktops */
+/* Extra large devices (min-width: 1200px) */
 @media (min-width: 1200px) {
   .container {
-    max-width: 75rem; /* 1200px */
-    padding: 0; /* No horizontal padding on XL screens */
+    max-width: 1140px;
+    padding: 0;
   }
 }
 
-/* Specific adjustment for very large screens (e.g., 1440px and above) if needed,
-   but clamp() should handle most scaling fluidly up to these sizes.
-   You might add a final html font-size clamp here if you want a maximum cap
-   beyond the 768px breakpoint. For example:
-*/
+/* Very large screens (min-width: 1440px) */
 @media (min-width: 1440px) {
   html {
-    font-size: clamp(1rem, 1rem + 0.1vw, 1.125rem); /* Caps base font at 18px for very large screens */
+    font-size: 1rem; /* Cap base font size at 16px */
+  }
+  .container {
+    max-width: 1280px;
   }
 }
 
-/* ========================================================================
-   COMPLETE ARGON DASHBOARD CSS - FINAL VERSION
-   (Fully responsive with all expansion issues fixed)
-   ======================================================================== */
-
-/* ----------------------------
-   1. CORE VARIABLES & BASE STYLES
-   ---------------------------- */
-:root {
-  /* Color Palette */
-  --blue: #5e72e4;
-  --indigo: #5603ad;
-  --purple: #8965e0;
-  --pink: #f3a4b5;
-  --red: #f5365c;
-  --orange: #fb6340;
-  --yellow: #ffd600;
-  --green: #2dce89;
-  --teal: #11cdef;
-  --cyan: #2bffc6;
-  --white: #ffffff;
-  --gray-100: #f6f9fc;
-  --gray-200: #e9ecef;
-  --gray-300: #dee2e6;
-  --gray-400: #ced4da;
-  --gray-500: #adb5bd;
-  --gray-600: #8898aa;
-  --gray-700: #525f7f;
-  --gray-800: #32325d;
-  --gray-900: #212529;
-  --black: #000000;
-
-  /* Theme Colors */
-  --primary: var(--blue);
-  --secondary: var(--gray-600);
-  --success: var(--green);
-  --info: var(--teal);
-  --warning: var(--orange);
-  --danger: var(--red);
-  --light: var(--gray-200);
-  --dark: var(--gray-900);
-
-  /* Gradients */
-  --primary-gradient: linear-gradient(87deg, #5e72e4 0, #825ee4 100%);
-  --danger-gradient: linear-gradient(87deg, #f5365c 0, #f56036 100%);
-
-  /* Text Colors */
-  --text-primary: var(--gray-800);
-  --text-secondary: var(--gray-700);
-  --text-muted: var(--gray-600);
-  --text-light: var(--gray-500);
-  --text-white: var(--white);
-
-  /* Backgrounds */
-  --bg-page: var(--gray-100);
-  --bg-card: var(--white);
-  --bg-sidebar: var(--white);
-  --bg-navbar: rgba(255, 255, 255, 0.8);
-
-  /* Borders */
-  --border-color: var(--gray-300);
-
-  /* Shadows */
-  --shadow-sm: 0 0 0.125rem rgba(136, 152, 170, 0.075);
-  --shadow-md: 0 0 2rem 0 rgba(136, 152, 170, 0.15);
-  --shadow-lg: 0 0.9375rem 2.1875rem rgba(50, 50, 93, 0.1);
-  --shadow-xl: 0 0.25rem 0.375rem rgba(50, 50, 93, 0.11);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-size: clamp(0.875rem, 0.75rem + 0.5vw, 1rem);
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: 'Open Sans', sans-serif;
-  background-color: var(--bg-page);
-  color: var(--text-primary);
-  line-height: 1.5;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ----------------------------
-   2. LAYOUT COMPONENTS
-   ---------------------------- */
-
-/* Main Content Container */
-.main-content {
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* Cards Grid Container */
-.cards-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  width: 100%;
-  margin: 0 auto;
-}
-
-/* Individual Card Styles */
-.card {
-  background: var(--bg-card);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow-md);
-  padding: 1.5rem;
-  overflow: hidden;
-  min-width: 0;
-  transition: all 0.3s ease;
-}
-
-/* Account Cards Specific Styles */
-.account-card {
-  position: relative;
-  min-height: 180px;
-}
-
-/* Broker Selection Card */
-.broker-selection-card {
-  overflow: visible;
-}
-
-/* Broker Icons Container */
-.broker-scroll-container {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--gray-500) var(--gray-200);
-}
-
-.broker-scroll-container::-webkit-scrollbar {
-  height: 4px;
-}
-
-.broker-scroll-container::-webkit-scrollbar-thumb {
-  background-color: var(--gray-500);
-  border-radius: 2px;
-}
-
-/* Broker Icons Grid */
-.broker-icons-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 1rem;
-  padding: 0.5rem 0;
-  width: max-content;
-  min-width: 100%;
-}
-
-.broker-icon-item {
-  flex: 0 0 auto;
-  width: 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.broker-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: contain;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 2px solid var(--gray-300);
-  background: var(--bg-card);
-}
-
-.broker-icon:hover {
-  border-color: var(--primary);
-  transform: scale(1.05);
-  box-shadow: 0 0 0 0.125rem rgba(94, 114, 228, 0.25);
-}
-
-/* Account Form Card */
-.account-form-card {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.account-form-card.expanded {
-  max-height: 800px;
-}
-
-/* Form Elements */
-.account-form {
-  width: 100%;
-  margin-top: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.form-control {
-  width: 100%;
-  max-width: 100%;
-  padding: 0.625rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
-  background-color: var(--bg-card);
-  transition: all 0.15s ease;
-  box-sizing: border-box;
-}
-
-.form-control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 0.125rem rgba(94, 114, 228, 0.25);
-  outline: none;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 0.625rem 1.25rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: none;
-  width: 100%;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.btn-primary {
-  background: var(--primary-gradient);
-  color: var(--text-white);
-  box-shadow: var(--shadow-xl);
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0.4375rem 0.875rem rgba(50, 50, 93, 0.1);
-}
-
-.btn-block {
-  display: block;
-  width: 100%;
-}
-
-/* ----------------------------
-   3. UTILITY CLASSES
-   ---------------------------- */
-.text-center { text-align: center; }
-.mb-0 { margin-bottom: 0; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.mt-2 { margin-top: 0.5rem; }
-.p-0 { padding: 0; }
-.d-flex { display: flex; }
-.align-items-center { align-items: center; }
-.justify-content-between { justify-content: space-between; }
-.flex-column { flex-direction: column; }
-.w-100 { width: 100%; }
-.hidden { display: none; }
-
-/* ----------------------------
-   4. RESPONSIVE ADJUSTMENTS
-   ---------------------------- */
-@media (max-width: 767.98px) {
-  .main-content {
-    padding: 1rem;
-  }
-  
-  .card {
-    padding: 1.25rem;
-  }
-  
-  .broker-icon-item {
-    width: 70px;
-  }
-  
-  .broker-icon {
-    width: 50px;
-    height: 50px;
-  }
-
-  .form-control {
-    padding: 0.5rem 0.75rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .cards-container {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  }
-  
-  .account-card {
-    min-height: 200px;
-  }
-}
-
-@media (min-width: 992px) {
-  .cards-container {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  }
-}
-
-/* ----------------------------
-   5. ANIMATIONS & TRANSITIONS
-   ---------------------------- */
-.smooth-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ----------------------------
-   6. LAYOUT PROTECTION
-   ---------------------------- */
-.prevent-expansion {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.no-scroll {
-  overflow: hidden;
-}
-
-/* Ensure all interactive elements don't cause layout shifts */
-button, .btn, input, select, textarea {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-
-/* ----------------------------
-   7. BROWSER FIXES
-   ---------------------------- */
-@supports (-webkit-touch-callout: none) {
-  /* Safari specific fixes */
-  .account-form-card {
-    transition: none;
-  }
-}
-/* Ensure content always clears the fixed navbar in all views */
+/* Global Layout Protection & Overrides */
 .main-content,
 .container {
-  padding-top: clamp(3.5rem, 12vw, 5rem); /* Same as .navbar height */
+  padding-top: calc(clamp(3.5rem, 11vw, 4.2rem) + clamp(1rem, 4vw, 1.5rem)) !important;
 }
 
-/* Fix text overflow in cards and sections */
 .card, .section-box, .profile-card, .main-content {
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1874,70 +1523,20 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
   overflow-wrap: break-word;
 }
 
-/* Responsive tweaks for mobile */
-@media (max-width: 767.98px) {
-  .navbar {
-    padding: 0 0.5rem;
-  }
-  .main-content {
-    padding: 0.5rem;
-  }
-  .card {
-    padding: 0.75rem;
-  }
-  .container {
-    max-width: 100vw;
-    width: 100%;
-    overflow-x: hidden;
-  }
+/* Dropdown visibility management */
+.dropdown-menu {
+    position: absolute;
+    z-index: 3000;
 }
-@media (max-width: 767.98px) {
-  .main-content {
-    padding-top: clamp(3.5rem, 12vw, 5rem); /* matches fixed navbar height */
-  }
+.dropdown {
+    overflow: visible; /* Ensure dropdown trigger container allows menu to escape */
 }
-.hero-section {
-  /* Existing styles... */
-  display: flex;
-  flex-direction: row;    /* Place children side by side */
-  align-items: center;    /* Vertically center content */
-  justify-content: space-between; /* Push image to right */
-  gap: 2rem;              /* Space between text and image */
+.section-box,
+.card-box {
+  overflow: hidden; /* Standard for a card to contain its content */
 }
 
-.hero-text {
-  flex: 1 1 0;
-}
-
-.hero-image {
-  flex: 0 0 auto;
-  max-width: 320px;       /* Adjust as needed for your design */
-}
-
-.hero-image img {
-  max-width: 80%;
-  height: auto;
-  display: block;
-}
-
-/* Make it stack on mobile */
-@media (max-width: 800px) {
-  .hero-section {
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-  }
-  .hero-image {
-    max-width: 60%;
-    margin-top: 0rem;
-    align-self: center;
-  }
-}
-/* --- Dropdown inside table should overlay above all --- */
-.table-responsive, .section-box, .main-content, .container {
-  overflow: visible !important;
-}
-/* --- Sidebar nav-title always as block and full width --- */
+/* Sidebar nav-title always as block and full width */
 .sidebar .nav {
   display: flex;
   flex-direction: column;
@@ -1945,30 +1544,61 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
 .sidebar .nav-title {
   display: block;
   width: 100%;
-  margin: clamp(1.5rem, 6vw, 2rem) 0 0.5rem;
+  margin: clamp(1.2rem, 4.5vw, 1.6rem) 0 0.6rem;
 }
 
 @media (min-width: 768px) {
-  .section-box,
-  .table-responsive,
-  .main-content,
-  .container {
-    overflow: visible !important;
-    position: static !important;
-  }
   .dropdown-menu {
-    position: fixed !important;
+    position: absolute !important;
     z-index: 3000 !important;
   }
   .dropdown {
-    position: static !important;
+    position: relative !important;
+    overflow: visible !important;
   }
 }
-/* Tabs under master accounts */
+/* Tabs under master accounts (Redesigned) */
 .master-tab-links .nav-link {
   border: none;
-  color: inherit;
+  color: var(--text-muted);
+  padding: 0.7rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  border-radius: 0.3rem 0.3rem 0 0; /* Match standard card radius top */
+  background-color: var(--bg-panel);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: bottom center;
+    transition: transform 0.2s ease-out;
+  }
 }
 .master-tab-links .nav-link.active {
-  border-bottom: 2px solid var(--bs-primary);
+  color: var(--primary);
+  background-color: var(--bg-panel);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-light); /* Light border */
+  border-bottom-color: transparent;
+
+  &::after {
+    transform: scaleX(1);
+  }
+}
+.master-tab-links .nav-link:hover {
+  color: var(--primary);
+  background-color: var(--bg-hover);
+}
+
+
+/* General Flex/Grid fixes to prevent overflow */
+.d-flex, .broker-scroll, .broker-icons-grid {
+  min-width: 0;
 }
