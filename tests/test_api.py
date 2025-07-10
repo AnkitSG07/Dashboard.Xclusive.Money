@@ -265,3 +265,25 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         assert placed
         db.session.refresh(child)
         assert child.last_copied_trade_id == '2'
+        
+
+def test_opening_balance_cache(monkeypatch):
+    app = app_module.app
+
+    class DummyBroker:
+        def get_opening_balance(self):
+            calls.append(1)
+            return 42
+
+    calls = []
+    monkeypatch.setattr(app_module, 'broker_api', lambda acc: DummyBroker())
+    app_module.OPENING_BALANCE_CACHE.clear()
+
+    acc = {'client_id': 'A1', 'broker': 'dummy', 'credentials': {}}
+
+    bal1 = app_module.get_opening_balance_for_account(acc)
+    bal2 = app_module.get_opening_balance_for_account(acc)
+
+    assert bal1 == 42
+    assert bal2 == 42
+    assert len(calls) == 1
