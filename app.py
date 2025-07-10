@@ -245,6 +245,50 @@ def ensure_trade_schema():
 ensure_system_log_schema()
 ensure_trade_schema()
 
+def ensure_trade_log_schema():
+    """Ensure the trade_log table has required columns."""
+    logger.info("Ensuring trade_log table schema is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'trade_log'
+
+        # 1. Create table if missing
+        if table_name not in insp.get_table_names():
+            try:
+                db.metadata.create_all(bind=db.engine, tables=[TradeLog.__table__])
+                logger.info(f'Created {table_name} table as it was missing.')
+            except Exception as exc:
+                logger.error(f'Failed to create {table_name} table: {exc}')
+                return
+
+        # 2. Add missing columns
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+
+        columns_to_add = {
+            'broker': 'VARCHAR(50)',
+            'client_id': 'VARCHAR(50)',
+            'order_id': 'VARCHAR(50)',
+            'price': 'FLOAT',
+            'error_code': 'VARCHAR(50)',
+        }
+
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in existing_columns:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_def}'))
+                    logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(
+                        f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.'
+                    )
+            else:
+                logger.debug(f'Column "{col_name}" already exists in "{table_name}".')
+
+        logger.info(f"Schema check for {table_name} completed.")
+
+ensure_trade_log_schema()
+
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
     if not order_type:
