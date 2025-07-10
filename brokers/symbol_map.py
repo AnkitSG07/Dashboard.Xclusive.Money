@@ -2178,3 +2178,15 @@ def get_symbol_for_broker(symbol, broker):
     return mapping.get(broker, {}) if mapping else {}
 
 
+def get_symbol_by_token(token, broker):
+    """Return the base symbol for a broker given its token/instrument id."""
+    broker = broker.lower()
+    token = str(token)
+
+    for symbol, mapping in SYMBOL_MAP.items():
+        broker_map = mapping.get(broker)
+        if broker_map and str(broker_map.get("token")) == token:
+            return symbol
+    return None
+
+
