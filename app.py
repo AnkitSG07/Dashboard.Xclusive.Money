@@ -947,7 +947,6 @@ def exit_all_positions_for_account(account):
         results.append({"symbol": None, "status": "NO_POSITIONS"})
     return results
 
-
 # Authentication decorator
 def login_required(view):
     @wraps(view)
@@ -4078,6 +4077,108 @@ def reconnect_account():
 
     return jsonify({"message": f"Account {client_id} reconnected."})
 
+# Update credentials for an existing account
+@app.route('/api/update-account', methods=['POST'])
+@login_required
+def update_account():
+    data = request.json or {}
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    user_email = session.get("user")
+    db_user = User.query.filter_by(email=user_email).first()
+    if not db_user:
+        return jsonify({"error": "Account not found"}), 404
+
+    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+    if not acc_db:
+        return jsonify({"error": "Account not found"}), 404
+
+    broker = acc_db.broker
+    if data.get("broker") and data.get("broker") != broker:
+        return jsonify({"error": "Broker cannot be changed"}), 400
+
+    new_creds = dict(acc_db.credentials or {})
+    for k, v in data.items():
+        if k not in ("client_id", "broker", "username") and v is not None:
+            new_creds[k] = v
+
+    acc_db.username = data.get("username", acc_db.username)
+    acc_db.credentials = new_creds
+
+    try:
+        acc_dict = _account_to_dict(acc_db)
+        acc_dict["credentials"] = new_creds
+        api = broker_api(acc_dict)
+        valid = True
+        if hasattr(api, "check_token_valid"):
+            valid = api.check_token_valid()
+        if not valid:
+            acc_db.status = "Failed"
+            db.session.commit()
+            return jsonify({"error": "Credential validation failed"}), 400
+
+        if getattr(api, "access_token", None):
+            new_creds["access_token"] = api.access_token
+            acc_db.credentials = new_creds
+
+        acc_db.status = "Connected"
+        acc_db.last_login_time = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to update account {client_id}: {str(e)}")
+        return jsonify({"error": f"Failed to update account: {str(e)}"}), 500
+
+    return jsonify({"message": f"Account {client_id} updated."})
+
+
+# Reconnect an existing account by validating stored credentials
+@app.route('/api/reconnect-account', methods=['POST'])
+@login_required
+def reconnect_account():
+    data = request.json
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    user_email = session.get("user")
+    db_user = User.query.filter_by(email=user_email).first()
+    if not db_user:
+        return jsonify({"error": "Account not found"}), 404
+
+    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+    if not acc_db:
+        return jsonify({"error": "Account not found"}), 404
+
+    try:
+        acc_dict = _account_to_dict(acc_db)
+        api = broker_api(acc_dict)
+        valid = True
+        if hasattr(api, 'check_token_valid'):
+            valid = api.check_token_valid()
+        if not valid:
+            acc_db.status = 'Failed'
+            db.session.commit()
+            return jsonify({"error": "Failed to reconnect with stored credentials"}), 400
+
+        # Update stored access token if broker object exposes it
+        if getattr(api, 'access_token', None):
+            creds = acc_db.credentials or {}
+            creds['access_token'] = api.access_token
+            acc_db.credentials = creds
+
+        acc_db.status = 'Connected'
+        acc_db.last_login_time = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to reconnect account {client_id}: {str(e)}")
+        return jsonify({"error": f"Failed to reconnect: {str(e)}"}), 500
+
+    return jsonify({"message": f"Account {client_id} reconnected."})
+
 
 @app.route("/marketwatch")
 def market_watch():
@@ -5457,6 +5558,78 @@ def stop_copy_all():
         logger.error(f"Unexpected error in stop_copy_all: {str(e)}")
         db.session.rollback()
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+# Exit all open positions for a single child account
+@app.route('/api/exit-child-positions', methods=['POST'])
+@login_required
+def exit_child_positions():
+    logger.info("Processing exit child positions request")
+    try:
+        data = request.get_json() or {}
+        child_id = data.get('child_id')
+        if not child_id:
+            return jsonify({'error': 'Missing child_id'}), 400
+
+        user = current_user()
+        child = Account.query.filter_by(user_id=user.id, client_id=child_id, role='child').first()
+        if not child:
+            return jsonify({'error': 'Child account not found'}), 404
+
+        results = exit_all_positions_for_account(child)
+        exited = any(r.get('status') == 'SUCCESS' for r in results)
+        return jsonify({
+            'message': f'Exit process completed for {child_id}',
+            'child_id': child_id,
+            'results': results,
+            'exited': exited
+        }), 200
+    except Exception as e:
+        logger.error(f"Unexpected error in exit_child_positions: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
+
+# Exit all open positions for every child under a master
+@app.route('/api/exit-all-children', methods=['POST'])
+@login_required
+def exit_all_children():
+    logger.info("Processing exit all children request")
+    try:
+        data = request.get_json() or {}
+        master_id = data.get('master_id')
+        if not master_id:
+            return jsonify({'error': 'Missing master_id'}), 400
+        child_ids = data.get('child_ids') or []
+
+        user = current_user()
+        master = Account.query.filter_by(user_id=user.id, client_id=master_id, role='master').first()
+        if not master:
+            return jsonify({'error': 'Master account not found'}), 404
+
+        query = Account.query.filter_by(user_id=user.id, role='child', linked_master_id=master_id)
+        if child_ids:
+            query = query.filter(Account.client_id.in_(child_ids))
+        children = query.all()
+        if not children:
+            return jsonify({'message': 'No child accounts found', 'master_id': master_id, 'exited_children': []}), 200
+
+        all_results = {}
+        exited = []
+        for child in children:
+            res = exit_all_positions_for_account(child)
+            all_results[child.client_id] = res
+            if any(r.get('status') == 'SUCCESS' for r in res):
+                exited.append(child.client_id)
+
+        return jsonify({
+            'message': f'Exit completed for {len(children)} children',
+            'master_id': master_id,
+            'results': all_results,
+            'exited_children': exited
+        }), 200
+    except Exception as e:
+        logger.error(f"Unexpected error in exit_all_children: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
 
 
 # === Endpoint to fetch passive alert logs ===
