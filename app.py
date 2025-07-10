@@ -5519,7 +5519,14 @@ def stop_copy_all():
 def exit_child_positions():
     logger.info("Processing exit child positions request")
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True)
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = {}
+        if data is None:
+            data = {}
         child_id = data.get('child_id')
         if not child_id:
             return jsonify({'error': 'Missing child_id'}), 400
@@ -5548,7 +5555,14 @@ def exit_child_positions():
 def exit_all_children():
     logger.info("Processing exit all children request")
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True)
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = {}
+        if data is None:
+            data = {}
         master_id = data.get('master_id')
         if not master_id:
             return jsonify({'error': 'Missing master_id'}), 400
