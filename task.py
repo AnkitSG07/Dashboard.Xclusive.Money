@@ -12,7 +12,7 @@ celery.conf.timezone = "UTC"
 
 celery.conf.beat_schedule = {
     "poll-trades": {
-        "task": "tasks.poll_trades_task",
+        "task": "task.poll_trades_task",
         "schedule": 10.0,
     }
 }
