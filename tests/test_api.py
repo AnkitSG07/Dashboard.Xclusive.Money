@@ -205,3 +205,63 @@ def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
         assert placed
         db.session.refresh(child)
         assert child.last_copied_trade_id == '1'
+
+def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    import brokers
+
+    placed = []
+
+    class DummyZerodha(brokers.base.BrokerBase):
+        def __init__(self, *a, **k):
+            pass
+
+        def place_order(self, **kwargs):
+            placed.append(kwargs)
+            return {'status': 'success', 'order_id': 'child1'}
+
+        def get_order_list(self):
+            return [{
+                'orderId': '2',
+                'status': 'COMPLETE',
+                'filledQuantity': 1,
+                'price': 50,
+                'transactionType': 'BUY',
+                'instrument_token': '926241'
+            }]
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    def fake_get_broker_class(name):
+        return DummyZerodha
+
+    monkeypatch.setattr(brokers.factory, 'get_broker_class', fake_get_broker_class)
+    monkeypatch.setattr(app_module, 'get_broker_class', fake_get_broker_class)
+    monkeypatch.setattr(app_module, 'save_log', lambda *a, **k: None)
+    monkeypatch.setattr(app_module, 'save_order_mapping', lambda *a, **k: None)
+    monkeypatch.setattr(app_module, 'record_trade', lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        master = Account(user_id=user.id, role='master', broker='zerodha', client_id='ZM', credentials={'access_token': 'x'})
+        child = Account(user_id=user.id, role='child', broker='zerodha', client_id='ZC', linked_master_id='ZM', copy_status='On', credentials={'access_token': 'y'}, last_copied_trade_id='0')
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, 'IDEA', {
+            'zerodha': {'trading_symbol': 'IDEA', 'token': '926241'}
+        })
+
+        app_module.poll_and_copy_trades()
+
+        assert placed
+        db.session.refresh(child)
+        assert child.last_copied_trade_id == '2'
