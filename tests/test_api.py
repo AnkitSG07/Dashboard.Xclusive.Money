@@ -88,6 +88,24 @@ def test_active_children_scoped_to_user(client):
         ids = {c.client_id for c in children}
         assert ids == {'C1'}
 
+def test_active_children_case_insensitive_status(client):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        master = Account(user_id=user.id, role='master', client_id='M2')
+        c1 = Account(user_id=user.id, role='child', client_id='C3', linked_master_id='M2', copy_status='ON')
+        db.session.add_all([master, c1])
+        db.session.commit()
+
+        from helpers import active_children_for_master
+
+        children = active_children_for_master(master)
+        ids = {c.client_id for c in children}
+        assert ids == {'C3'}
+
 
 def test_order_mappings_endpoint_requires_auth(client):
     resp = client.get('/api/order-mappings')
