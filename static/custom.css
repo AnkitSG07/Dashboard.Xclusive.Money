@@ -20,3 +20,11 @@ tr:hover {
 }
 
 /* Add any other custom rules here */
+/* Tabs under master accounts */
+.master-tab-links .nav-link {
+  border: none;
+  color: inherit;
+}
+.master-tab-links .nav-link.active {
+  border-bottom: 2px solid var(--bs-primary);
+}
