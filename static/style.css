@@ -1,5 +1,5 @@
 /* ========================================================================
-   style.css – Quantbot Light Theme (Pixel-Perfect from Image) - FINAL V3
+   style.css – Quantbot Light Theme (Pixel-Perfect from Image) - FINAL V5 (Dropdown Focus)
    ======================================================================== */
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@
 
   /* Grayscale & Backgrounds - Predominantly Light/White - Image Matched */
   --bg-white:         #ffffff; /* Main card/panel/navbar/sidebar background */
-  --bg-off-white:     #F8F9FB; /* Body background - slightly off-white */
+  --bg-off-white:     #F8F9FB; /* Body background */
   --bg-light-gray:    #E9EDF2; /* Subtle divider/border on light */
   --bg-dark-gray:     #495057; /* Darker elements on light, e.g., icons on light */
 
@@ -25,8 +25,8 @@
   --text-muted-dark:  #6C757D; /* Secondary/placeholder text on light */
   --text-primary-on-vibrant: #ffffff; /* Text on vibrant backgrounds (e.g., green headers) */
 
-  /* Table content text - as requested, darker to contrast */
-  --table-content-dark: #0A0A0A; /* A very dark gray, almost black */
+  /* NEW: Table content text - as requested, darker to contrast with white table background */
+  --table-content-dark: #0A0A0A; /* A very dark gray, almost black, for table cell content */
 
   /* Borders & Dividers - Very subtle light borders - Image Matched */
   --border-light:     #DEE2E6; /* Default subtle border for cards/inputs */
@@ -241,61 +241,6 @@ p {
 .mr-2 { margin-right: 0.4rem; }
 .completion { font-size: 0.8rem; color: var(--text-muted); }
 
-/* Dropdown specific styles (Redesigned) */
-.dropdown { position: relative; display: inline-block; }
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 2000;
-  display: none;
-  min-width: 10rem;
-  padding: 0.5rem 0;
-  margin-top: 0.4rem;
-  font-size: 0.875rem;
-  color: var(--text-light); /* Dark text on light background */
-  background-color: var(--bg-panel); /* White background */
-  border: 1px solid var(--border-light); /* Light border */
-  border-radius: 0.3rem;
-  box-shadow: var(--shadow-md); /* Light shadow */
-  list-style: none;
-}
-.dropdown-menu-right { right: 0; left: auto; }
-.dropdown-menu-arrow::before, .dropdown-menu-arrow::after {
-  content: "";
-  position: absolute;
-  display: block;
-  border-left: 0.35rem solid transparent;
-  border-right: 0.35rem solid transparent;
-}
-.dropdown-menu-arrow::before {
-  top: -0.35rem;
-  right: 0.7rem;
-  border-bottom: 0.35rem solid var(--border-light); /* Light border */
-}
-.dropdown-menu-arrow::after {
-  top: -0.32rem;
-  right: 0.7rem;
-  border-bottom: 0.35rem solid var(--bg-panel); /* White background */
-}
-.dropdown-item {
-  display: block;
-  width: 100%;
-  padding: 0.6rem 0.9rem;
-  font-weight: 400;
-  color: var(--text-light);
-  white-space: nowrap;
-  background-color: transparent;
-  border: 0;
-  transition: all 0.15s ease;
-  text-align: left;
-}
-.dropdown-item:hover {
-  color: var(--primary); /* Blue on hover */
-  background-color: var(--bg-light-gray); /* Light gray hover background */
-}
-
-
 /*──────────────────────────────────────────────────────────────────────────
    3. Navbar (Redesigned - Light Theme Consistency Fix)
 ──────────────────────────────────────────────────────────────────────────*/
@@ -492,10 +437,10 @@ p {
   flex-shrink: 0;
 }
 
+/* FIXED: Logo size for Quantbot logo */
 .sidebar-logo img {
-  height: clamp(2.2rem, 7.5vw, 2.8rem);
-  width: 110px;
-  max-width: 70%;
+  width: 66px; /* Explicit width as requested */
+  height: auto; /* Maintain aspect ratio */
   display: block;
   margin: 0 auto;
   filter: none; /* No filter for logo image */
@@ -545,7 +490,7 @@ p {
 
 /* FIXED: Sidebar active link state to match image's vibrant green */
 .sidebar .nav-link.active {
-  background-color: var(--bg-sidebar-active); /* Vibrant green background from image */
+  background-color: var(--bg-sidebar-active); /* Vibrant light green background from image */
   color: var(--text-light); /* Dark text for active link as per image */
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--vibrant-green); /* Green border */
@@ -875,13 +820,15 @@ p {
   min-width: max-content; /* Allow table to grow to content width for horizontal scroll */
   border-collapse: collapse;
   border-spacing: 0;
-  background: transparent; /* No background on table itself */
+  /* FIXED: Table background is white */
+  background: var(--bg-panel); /* White background for the table body */
   color: var(--table-content-dark); /* Table content text is explicitly dark */
 }
 
 .table th, .table td {
   padding: clamp(0.5rem, 2.5vw, 0.7rem) clamp(0.4rem, 2vw, 0.6rem); /* Tighter padding for density */
   text-align: left;
+  /* FIXED: Table cell borders are light */
   border-bottom: 1px solid var(--border-light); /* Light border */
   white-space: nowrap; /* Prevent text wrapping */
   overflow: hidden;
@@ -898,6 +845,7 @@ p {
   text-transform: uppercase;
   font-size: clamp(0.6rem, 2.5vw, 0.7rem);
   letter-spacing: 0.03em;
+  /* FIXED: Table header background is vibrant green */
   background-color: var(--bg-table-header); /* Vibrant light green header */
   position: sticky; /* Keep header visible on horizontal scroll */
   top: 0;
@@ -963,7 +911,7 @@ p {
   align-items: center;
   justify-content: center;
   background-color: var(--bg-input);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-light); /* Light border */
   transition: all 0.1s ease;
 }
 .table .btn-icon-only:hover {
@@ -1418,7 +1366,6 @@ textarea {
   .navbar-brand img {
     height: 2.5rem;
   }
-  /* Removed media query specific navbar-icons i style to ensure consistency */
   .profile-img {
     width: 2.5rem;
     height: 2.5rem;
@@ -1601,4 +1548,74 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
 /* General Flex/Grid fixes to prevent overflow */
 .d-flex, .broker-scroll, .broker-icons-grid {
   min-width: 0;
+}
+/* Fix for dropdown menus to appear on top and avoid clipping */
+.dropdown-menu {
+  /* Attempt the most aggressive positioning to force visibility */
+  position: fixed !important; /* Force it out of any overflow context */
+  top: 50% !important;        /* Attempt to center it on screen */
+  left: 50% !important;       /* Attempt to center it on screen */
+  transform: translate(-50%, -50%) !important; /* Visually center fixed element */
+
+  /* Ensure maximum visibility */
+  z-index: 999999 !important; /* Extremely high z-index to be on top of everything */
+
+  display: none; /* This MUST be toggled by JS to 'block' or 'flex' */
+
+  /* Retain other existing styles for appearance */
+  min-width: 10rem;
+  padding: 0.5rem 0;
+  margin-top: 0; /* Remove margin-top, as it's now fixed and centered */
+  font-size: 0.875rem;
+  color: var(--text-light);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: 0.3rem;
+  box-shadow: var(--shadow-md);
+  list-style: none;
+  opacity: 1 !important; /* Ensure it's not transparent from other rules */
+  visibility: visible !important; /* Ensure it's not hidden by other rules */
+}
+
+/* Ensure the dropdown trigger's parent doesn't hide it with overflow */
+.dropdown {
+  overflow: visible !important; /* Crucial for trigger to not clip */
+  position: relative !important; /* Ensure relative positioning for its absolute children if any */
+}
+
+/* Specific styling for dropdown items themselves */
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  font-weight: 400;
+  color: var(--text-light);
+  border: 0;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  color: var(--primary);
+  background-color: var(--bg-hover);
+}
+
+/* Dropdown arrow styles - will be very difficult to position correctly with fixed positioning */
+/* These will typically look broken unless controlled by JS alongside the fixed positioning. */
+.dropdown-menu-arrow::before, .dropdown-menu-arrow::after {
+  content: "";
+  position: absolute; /* Relative to the fixed dropdown menu */
+  display: block;
+  border-left: 0.35rem solid transparent;
+  border-right: 0.35rem solid transparent;
+}
+.dropdown-menu-arrow::before {
+  top: -0.35rem; /* These values will need manual adjustment or JS calculation */
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--border-light);
+}
+.dropdown-menu-arrow::after {
+  top: -0.32rem;
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--bg-panel);
 }
