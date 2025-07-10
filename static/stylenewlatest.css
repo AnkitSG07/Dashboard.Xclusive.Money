@@ -1,0 +1,1569 @@
+/* ========================================================================
+   style.css – AlgoDelta Theme Dashboard (Image-Based Fixes - Final) - V2
+   ======================================================================== */
+
+/*──────────────────────────────────────────────────────────────────────────
+   1. Color Palette & Variables (AlgoDelta Inspired - Image-Adjusted)
+──────────────────────────────────────────────────────────────────────────*/
+:root {
+  /* Primary & Accent Colors - Professional and Clean */
+  --primary-blue:     #007bff; /* Standard blue, clear and professional */
+  --accent-green:     #28a745; /* Clean success green */
+  --accent-red:       #dc3545; /* Clear danger red */
+  --accent-yellow:    #ffc107; /* Standard warning yellow */
+  --accent-teal:      #17a2b8; /* Info teal */
+  --accent-purple:    #6f42c1;
+
+  /* Grayscale & Backgrounds - Deep, refined darks (Adjusted based on image) */
+  --bg-deep-dark:     #171923; /* Main body and sidebar background - very dark */
+  --bg-medium-dark:   #20242D; /* Card/Panel background - slightly lighter, distinct */
+  --bg-light-dark:    #3E4B5E; /* Input fields, some hover states */
+  /* FIXED: Navbar Background - Solid dark, matches body/sidebar for seamless deep-dark header */
+  --bg-navbar-solid:  #171923; /* Consistent dark color */
+
+  /* Text Colors - Clear and readable on dark */
+  --text-primary-light: #E8EBF2; /* Main content text on dark */
+  --text-secondary-light: #9AA7B8; /* Muted text, labels on dark */
+  --text-gray-subtle: #6C7A8A; /* Even more subtle text */
+  --text-white:       #ffffff; /* For primary buttons etc. */
+
+  /* Table content text - as requested, darker to contrast */
+  --table-content-dark: #0A0A0A; /* A very dark gray, almost black */
+
+  /* Borders & Dividers - Ultra thin, subtle, but visible */
+  --border-default:   #363c43; /* Default border color */
+  --border-light:     rgba(224, 230, 238, 0.1); /* Lighter border for highlights */
+
+  /* Shadows - Minimal and soft for depth */
+  --shadow-sm:        0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:        0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg:        0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Mapping to standard variables for easy use */
+:root {
+  --primary:          var(--primary-blue);
+  --success:          var(--accent-green);
+  --danger:           var(--accent-red);
+  --warning:          var(--accent-yellow);
+  --info:             var(--accent-teal);
+  --secondary:        var(--text-secondary-light);
+
+  --bg-body:          var(--bg-deep-dark);
+  --bg-panel:         var(--bg-medium-dark);
+  --bg-card:          var(--bg-medium-dark);
+  --bg-navbar:        var(--bg-navbar-solid); /* Use the new solid color variable */
+  --bg-sidebar:       var(--bg-deep-dark); /* Sidebar matches body background */
+  --bg-input:         var(--bg-light-dark);
+  --bg-hover:         #354050; /* Slightly distinct hover for lists/rows */
+  --bg-table-header:  var(--bg-medium-dark); /* Using panel background for table header */
+
+  --text-light:       var(--text-primary-light);
+  --text-muted:       var(--text-secondary-light);
+  --text-gray:        var(--text-gray-subtle);
+  --text-white:       var(--text-white);
+  --text-table-content: var(--table-content-dark);
+
+  --border-strong:    var(--border-default);
+  --border-subtle:    var(--border-light);
+
+  --shadow-sm:        var(--shadow-sm);
+  --shadow-md:        var(--shadow-md);
+  --shadow-lg:        var(--shadow-lg);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   2. Global & Reset (AlgoDelta Theme)
+──────────────────────────────────────────────────────────────────────────*/
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Fluid font size: 13px at 320px to 15px at 1024px+ */
+  font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem);
+  scroll-behavior: smooth;
+}
+
+body {
+  height: 100%;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+  /* FIXED: Ensure body background is consistently deep dark */
+  background-color: var(--bg-body);
+  color: var(--text-light);
+  line-height: 1.5; /* Tighter line height for density */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 1rem;
+}
+
+a {
+  text-decoration: none;
+  color: var(--primary);
+  transition: all 0.15s ease-in-out;
+}
+
+a:hover {
+  color: var(--primary);
+  text-decoration: underline; /* Subtle underline */
+  filter: brightness(1.1); /* Slight glow */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 0.6rem; /* Tighter spacing */
+  line-height: 1.2;
+}
+
+/* Fluid Heading Sizes */
+h1 { font-size: clamp(2rem, 6vw + 0.5rem, 2.8rem); }
+h2 { font-size: clamp(1.6rem, 5vw + 0.5rem, 2.2rem); }
+h3 { font-size: clamp(1.3rem, 4vw + 0.5rem, 1.8rem); }
+h4 { font-size: clamp(1.1rem, 3.5vw + 0.5rem, 1.4rem); }
+h5 { font-size: clamp(0.95rem, 3vw + 0.5rem, 1.2rem); }
+h6 { font-size: clamp(0.85rem, 2.5vw + 0.5rem, 1rem); }
+
+p {
+  margin-bottom: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Utility Classes - AlgoDelta Style */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.mb-1 { margin-bottom: 0.2rem; }
+.mb-2 { margin-bottom: 0.4rem; }
+.mb-3 { margin-bottom: 0.6rem; }
+.mb-4 { margin-bottom: 0.8rem; }
+.mb-5 { margin-bottom: 1rem; }
+.mt-1 { margin-top: 0.2rem; }
+.mt-2 { margin-top: 0.4rem; }
+.mt-3 { margin-top: 0.6rem; }
+.mt-4 { margin-top: 0.8rem; }
+.mt-5 { margin-top: 1rem; }
+.p-1 { padding: 0.2rem; }
+.p-2 { padding: 0.4rem; }
+.p-3 { padding: 0.6rem; }
+.p-4 { padding: 0.8rem; }
+.p-5 { padding: 1rem; }
+.px-3 { padding-left: 0.6rem; padding-right: 0.6rem; }
+.py-3 { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.d-flex { display: flex; }
+.align-items-center { align-items: center; }
+.justify-content-between { justify-content: space-between; }
+.justify-content-center { justify-content: center; }
+.flex-column { flex-direction: column; }
+.gap-1 { gap: 0.2rem; }
+.gap-2 { gap: 0.4rem; }
+.gap-3 { gap: 0.6rem; }
+.gap-4 { gap: 0.8rem; }
+.gap-5 { gap: 1rem; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.hidden { display: none; }
+
+/* Table Content Specifics (RETAINED - NO CHANGE IN FUNCTIONALITY OR STYLE) */
+.media { display: flex; align-items: center; gap: 0.5rem; }
+.media-body { flex: 1; }
+.name { font-weight: 500; color: var(--text-light); }
+.text-sm { font-size: 0.8rem; color: var(--text-muted); }
+.avatar {
+  width: clamp(1.8rem, 7vw, 2.2rem);
+  height: clamp(1.8rem, 7vw, 2.2rem);
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--text-white);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-sm {
+  width: clamp(1.4rem, 5vw, 1.8rem);
+  height: clamp(1.4rem, 5vw, 1.8rem);
+  font-size: 0.7rem;
+}
+.avatar-group {
+  display: flex;
+  flex-wrap: nowrap; /* Prevent wrapping */
+  padding-left: 0.3rem;
+}
+.avatar-group .avatar {
+  position: relative;
+  z-index: 1;
+  border: 1px solid var(--bg-panel);
+  margin-left: -0.4rem;
+  transition: all 0.15s ease;
+}
+.avatar-group .avatar:hover {
+  z-index: 2;
+  transform: translateY(-0.05rem);
+}
+.progress {
+  display: flex;
+  height: 0.3rem; /* Very thin */
+  overflow: hidden;
+  font-size: 0.6rem;
+  background-color: var(--bg-input);
+  border-radius: 0.15rem;
+}
+.progress-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--text-white);
+  text-align: center;
+  white-space: nowrap;
+  background-color: var(--primary);
+  transition: width 0.5s ease-out;
+}
+.mr-2 { margin-right: 0.4rem; }
+.completion { font-size: 0.8rem; color: var(--text-muted); }
+
+/* Dropdown specific styles (Redesigned) */
+.dropdown { position: relative; display: inline-block; }
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 2000;
+  display: none;
+  min-width: 10rem;
+  padding: 0.5rem 0;
+  margin-top: 0.4rem;
+  font-size: 0.875rem;
+  color: var(--text-light);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.3rem;
+  box-shadow: var(--shadow-md);
+  list-style: none;
+}
+.dropdown-menu-right { right: 0; left: auto; }
+.dropdown-menu-arrow::before, .dropdown-menu-arrow::after {
+  content: "";
+  position: absolute;
+  display: block;
+  border-left: 0.35rem solid transparent;
+  border-right: 0.35rem solid transparent;
+}
+.dropdown-menu-arrow::before {
+  top: -0.35rem;
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--border-strong);
+}
+.dropdown-menu-arrow::after {
+  top: -0.32rem;
+  right: 0.7rem;
+  border-bottom: 0.35rem solid var(--bg-panel);
+}
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  font-weight: 400;
+  color: var(--text-light);
+  white-space: nowrap;
+  background-color: transparent;
+  border: 0;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.dropdown-item:hover {
+  color: var(--primary);
+  background-color: var(--bg-hover);
+}
+
+
+/*──────────────────────────────────────────────────────────────────────────
+   3. Navbar (Redesigned - Color Consistency Fix)
+──────────────────────────────────────────────────────────────────────────*/
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: clamp(3.5rem, 11vw, 4.2rem);
+  /* FIXED: Use the solid background variable universally, remove backdrop-filter here if it causes issues */
+  background-color: var(--bg-navbar);
+  /* Optional: Keep backdrop-filter if it doesn't cause issues, but comment out if it does */
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(0.75rem, 3.5vw, 1.25rem);
+  border-bottom: 1px solid var(--border-strong);
+  z-index: 1000;
+
+  /* FIXED: Ensure universal styling for icons within navbar-icons */
+  .navbar-icons {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.8rem, 3.5vw, 1.2rem);
+    
+    /* Target common icon elements */
+    & > i, & > button > i, & > .profile-img + i { /* Adjust selectors based on actual HTML */
+      font-size: clamp(1.1rem, 4vw, 1.35rem);
+      color: var(--text-muted); /* Consistent color */
+      cursor: pointer;
+      transition: all 0.2s ease;
+      /* Remove any specific background or border that might be causing issues */
+      background: none;
+      border: none;
+      padding: 0;
+      line-height: 1; /* Prevent extra spacing around icons */
+      display: flex; /* Ensure proper centering */
+      align-items: center;
+      justify-content: center;
+      width: clamp(1.8rem, 6vw, 2.2rem); /* Give them a clickable area */
+      height: clamp(1.8rem, 6vw, 2.2rem);
+      border-radius: 50%; /* Make them circular */
+      
+      &:hover {
+        color: var(--primary);
+        background-color: rgba(0, 123, 255, 0.1); /* Subtle hover background */
+        transform: scale(1.1);
+      }
+    }
+    /* Specific adjustment for the dragon icon, assuming it's an img inside a wrapper */
+    & > .profile-img-wrapper img { /* Assuming dragon is img inside a wrapper or is profile-img itself */
+        width: clamp(2rem, 6.5vw, 2.5rem);
+        height: clamp(2rem, 6.5vw, 2.5rem);
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid var(--primary);
+        cursor: pointer;
+        filter: brightness(1.1); /* Maintain brightness */
+    }
+  }
+}
+
+.navbar-brand {
+  font-size: clamp(1rem, 3.8vw, 1.2rem);
+  font-weight: 700; /* Bolder logo text */
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-brand img {
+  height: clamp(2rem, 6.5vw, 2.5rem);
+  filter: brightness(1.2); /* Keep subtle brightness */
+}
+
+/* Original navbar-icons (redundant now, but kept for review) */
+/* .navbar-icons i {
+  font-size: clamp(1.1rem, 4vw, 1.35rem);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navbar-icons i:hover {
+  color: var(--primary);
+  transform: scale(1.1);
+} */
+
+.profile-img { /* Apply these styles to the image itself, if direct */
+  width: clamp(2rem, 6.5vw, 2.5rem);
+  height: clamp(2rem, 6.5vw, 2.5rem);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+}
+
+.profile-photo {
+  width: clamp(4.5rem, 18vw, 6.5rem);
+  height: clamp(4.5rem, 18vw, 6.5rem);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-md);
+}
+
+.profile-card {
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4.5vw, 1.75rem); /* More generous padding */
+  background: var(--bg-panel);
+  border-radius: 0.5rem; /* Standard card radius */
+  box-shadow: var(--shadow-md);
+  color: var(--text-light);
+  border: 1px solid var(--border-strong);
+}
+
+/* Hero section for page headers (Redesigned) */
+.hero-section {
+  background-color: var(--bg-panel);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-md);
+  padding: clamp(1.5rem, 5.5vw, 2.25rem) clamp(1rem, 4vw, 1.5rem);
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: clamp(6rem, 22vw, 8rem);
+  color: var(--text-light);
+  text-align: left;
+  border: 1px solid var(--border-strong);
+}
+
+.hero-section h3,
+.hero-section h4 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.hero-section p {
+  color: var(--text-muted);
+  margin-bottom: 0;
+  font-size: clamp(0.875rem, 3.5vw, 1rem);
+}
+
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 60%;
+  margin-top: 1rem;
+  align-self: center;
+}
+
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: grayscale(0.5) brightness(1.1); /* Subtle professional filter */
+}
+
+
+/*──────────────────────────────────────────────────────────────────────────
+   4. Sidebar (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: clamp(13rem, 48vw, 15rem); /* Slightly wider on desktop */
+  height: 100vh;
+  /* FIXED: Ensure sidebar background is consistently deep dark */
+  background-color: var(--bg-sidebar); /* Use specific sidebar background variable */
+  border-right: 1px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1rem, 4vw, 1.25rem) 0;
+  overflow-y: auto;
+  z-index: 1050;
+  box-shadow: var(--shadow-md);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  max-height: 100vh;
+
+  &::-webkit-scrollbar {
+    width: 0.4rem;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--bg-panel);
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--bg-input);
+    border-radius: 0.2rem;
+    border: 1px solid var(--bg-panel);
+  }
+}
+
+.sidebar.show {
+  transform: translateX(0);
+}
+
+.sidebar-logo {
+  padding: 0 clamp(1rem, 4vw, 1.25rem) clamp(1rem, 4vw, 1.25rem);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sidebar-logo img {
+  height: clamp(2.2rem, 7.5vw, 2.8rem); /* Slightly larger logo */
+  width: auto;
+  max-width: 70%;
+  display: block;
+  margin: 0 auto;
+}
+
+.sidebar .nav-title {
+  padding: 0 clamp(1rem, 4vw, 1.25rem);
+  font-size: clamp(0.65rem, 2.2vw, 0.7rem);
+  font-weight: 600;
+  color: var(--text-gray);
+  text-transform: uppercase;
+  margin: clamp(1.2rem, 4.5vw, 1.6rem) 0 0.6rem;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  display: block;
+}
+
+.sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: clamp(0.6rem, 2.8vw, 0.8rem) clamp(0.75rem, 3.5vw, 1rem);
+  color: var(--text-light);
+  font-weight: 500;
+  border-radius: 0.3rem; /* Standard radius */
+  margin: 0.1rem clamp(0.75rem, 3.5vw, 1rem);
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+  font-size: clamp(0.875rem, 3.2vw, 0.95rem);
+  flex-shrink: 0;
+}
+
+.sidebar .nav-link i {
+  font-size: clamp(1.1rem, 4vw, 1.3rem);
+  color: var(--text-muted);
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar .nav-link:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary);
+}
+
+.sidebar .nav-link:hover i {
+  color: var(--primary);
+}
+
+/* FIXED: Sidebar active link state to match primary blue */
+.sidebar .nav-link.active {
+  background-color: var(--primary);
+  color: var(--text-white);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--primary);
+}
+
+.sidebar .nav-link.active i {
+  color: var(--text-white);
+}
+
+.sidebar .submenu {
+  display: none;
+  flex-direction: column;
+  padding-left: clamp(1.8rem, 7vw, 2.2rem);
+  margin-top: 0.15rem;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+
+.sidebar .submenu a {
+  padding: 0.4rem 0;
+  font-size: clamp(0.75rem, 2.8vw, 0.85rem);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.sidebar .submenu a:hover {
+  color: var(--primary);
+}
+
+.sidebar .nav-collapse.active + .submenu {
+  display: flex;
+}
+
+/* Hamburger Icon (Redesigned) */
+.toggle-sidebar {
+  display: flex;
+  position: fixed;
+  top: clamp(0.7rem, 2.8vw, 0.9rem);
+  left: clamp(0.7rem, 2.8vw, 0.9rem);
+  width: clamp(2.4rem, 9.5vw, 2.8rem);
+  height: clamp(2.4rem, 9.5vw, 2.8rem);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  align-items: center;
+  justify-content: center;
+  z-index: 1060;
+  cursor: pointer;
+  border-radius: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--primary);
+}
+
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: clamp(1.2rem, 5vw, 1.4rem);
+  height: clamp(1.2rem, 5vw, 1.4rem);
+  gap: clamp(0.2rem, 1.2vw, 0.25rem);
+  position: relative;
+}
+
+.hamburger-icon span {
+  display: block;
+  height: 0.125rem;
+  width: 100%;
+  background: var(--text-light);
+  border-radius: 0.0625rem;
+  transition: all 0.3s ease-in-out;
+}
+
+.toggle-sidebar.active .hamburger-icon span:nth-child(1) {
+  transform: translateY(clamp(0.25rem, 1.2vw, 0.3rem)) rotate(45deg);
+}
+.toggle-sidebar.active .hamburger-icon span:nth-child(2) {
+  opacity: 0;
+}
+.toggle-sidebar.active .hamburger-icon span:nth-child(3) {
+  transform: translateY(clamp(-0.25rem, -1.2vw, -0.3rem)) rotate(-45deg);
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1040;
+  transition: opacity 0.25s ease;
+  opacity: 0;
+}
+
+.sidebar-overlay.show {
+  display: block;
+  opacity: 1;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   5. Main Content & Layout (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.main-content {
+  margin-left: 0;
+  padding: clamp(1rem, 4vw, 1.5rem);
+  padding-top: calc(clamp(3.5rem, 11vw, 4.2rem) + clamp(1rem, 4vw, 1.5rem));
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - clamp(3.5rem, 11vw, 4.2rem));
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(0.75rem, 3.5vw, 1.25rem);
+}
+
+
+/*──────────────────────────────────────────────────────────────────────────
+   6. Section Boxes (Cards - Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.section-box {
+  /* FIXED: Ensure card background is distinct and dark */
+  background: var(--bg-panel);
+  border-radius: 0.5rem; /* Standard card radius */
+  padding: clamp(1.25rem, 4.5vw, 1.75rem);
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+  /* FIXED: Ensure card border is visible */
+  border: 1px solid var(--border-strong);
+  color: var(--text-light);
+  overflow: hidden; /* Ensures content stays within card */
+  position: relative; /* Needed for z-index of dropdowns */
+
+  &, h1, h2, h3, h4, h5, h6, p, span, div, a {
+    color: var(--text-light);
+  }
+  & a {
+    color: var(--primary);
+  }
+  & .text-muted {
+    color: var(--text-muted);
+  }
+  & .text-secondary {
+    color: var(--text-muted);
+  }
+}
+
+.section-box:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-0.05rem); /* Subtle lift */
+  border-color: var(--primary);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   7. Buttons (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem; /* Crisp button corners */
+  font-weight: 600; /* Bolder button text */
+  font-size: clamp(0.9rem, 3.5vw, 1rem);
+  padding: clamp(0.6rem, 2.5vw, 0.8rem) clamp(1rem, 4vw, 1.5rem);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: none;
+  width: 100%; /* Full width on mobile by default */
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.02em; /* Subtle letter spacing */
+}
+
+.btn:last-child {
+  margin-bottom: 0;
+}
+
+.btn:hover {
+  transform: translateY(-0.08rem); /* More pronounced lift */
+}
+
+.btn-sm {
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  padding: clamp(0.4rem, 1.8vw, 0.55rem) clamp(0.7rem, 2.8vw, 1rem);
+  width: auto;
+  margin-bottom: 0;
+}
+
+.btn-lg {
+  font-size: clamp(1.05rem, 4.2vw, 1.2rem);
+  padding: clamp(0.7rem, 3vw, 0.95rem) clamp(1.2rem, 5vw, 1.8rem);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary);
+  box-shadow: 0 0.25rem 0.6rem rgba(0, 123, 255, 0.3);
+  filter: brightness(1.15); /* Brighter on hover */
+}
+
+.btn-outline-primary {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary);
+  color: var(--text-white);
+}
+
+.btn-info {
+  background-color: var(--info);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-info:hover {
+  background-color: var(--info);
+  filter: brightness(1.15);
+}
+
+.btn-secondary {
+  background-color: var(--bg-input);
+  color: var(--text-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-light);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-danger:hover {
+  background-color: var(--danger);
+  filter: brightness(1.15);
+}
+
+.btn-warning {
+  background-color: var(--warning);
+  color: var(--bg-body); /* Dark text on bright button */
+  box-shadow: var(--shadow-md);
+}
+
+.btn-warning:hover {
+  background-color: var(--warning);
+  filter: brightness(1.15);
+}
+
+.btn-success {
+  background-color: var(--success);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-success:hover {
+  background-color: var(--success);
+  filter: brightness(1.15);
+}
+
+.btn i {
+  margin-right: 0.4rem;
+  font-size: 0.9em;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   8. Tables (RETAINED - NO CHANGE IN FUNCTIONALITY)
+──────────────────────────────────────────────────────────────────────────*/
+/* The .table-responsive directly inside .section-box will handle the scroll */
+.table-responsive {
+  overflow-x: auto; /* Always enable horizontal scroll */
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: clamp(0.8rem, 3.5vw, 1.2rem);
+  /* The card (section-box) now provides the main border/bg */
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0; /* Remove padding from responsive container */
+  /* AlgoDelta Table specific scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-input);
+
+  &::-webkit-scrollbar {
+    height: 0.4rem;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--bg-input);
+    border-radius: 0.2rem;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--text-muted);
+    border-radius: 0.2rem;
+    border: 1px solid var(--bg-input);
+  }
+}
+
+.table {
+  width: 100%; /* Take full width */
+  min-width: max-content; /* Allow table to grow to content width for horizontal scroll */
+  border-collapse: collapse;
+  border-spacing: 0;
+  background: transparent; /* No background on table itself */
+  color: var(--text-table-content); /* Table content text is explicitly dark */
+}
+
+.table th, .table td {
+  padding: clamp(0.5rem, 2.5vw, 0.7rem) clamp(0.4rem, 2vw, 0.6rem); /* Tighter padding for density */
+  text-align: left;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Truncate text with ellipsis */
+  line-height: 1.3;
+  transition: background-color 0.1s ease;
+  height: clamp(2rem, 7vw, 2.5rem); /* Fixed height for rows if needed */
+}
+
+.table th {
+  min-width: clamp(3rem, 10vw, 6rem); /* Minimum width for headers */
+  color: var(--text-muted); /* Header text remains muted light */
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: clamp(0.6rem, 2.5vw, 0.7rem);
+  letter-spacing: 0.03em;
+  background-color: var(--bg-table-header); /* Header background */
+  position: sticky; /* Keep header visible on horizontal scroll */
+  top: 0;
+  z-index: 2; /* Above tbody */
+}
+.table td {
+  min-width: clamp(4rem, 12vw, 8rem); /* Minimum width for data cells */
+  max-width: clamp(10rem, 20vw, 15rem); /* Max width for data cells before ellipsis */
+  /* Text color for td is already set by `.table` rule */
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+}
+
+/* Special treatment for specific columns that need to be smaller/larger */
+.table th.col-icon, .table td.col-icon { min-width: clamp(2rem, 5vw, 3rem); width: clamp(2rem, 5vw, 3rem); max-width: clamp(2rem, 5vw, 3rem); text-align: center; }
+.table th.col-status, .table td.col-status { min-width: clamp(4rem, 10vw, 6rem); width: clamp(4rem, 10vw, 6rem); max-width: clamp(4rem, 10vw, 6rem); text-align: center; }
+.table th.col-price, .table td.col-price,
+.table th.col-amount, .table td.col-amount {
+  /* Use Inter for numbers as well for consistency with AlgoDelta */
+  font-weight: 500;
+  text-align: right;
+  min-width: clamp(4.5rem, 12vw, 7rem);
+  max-width: clamp(7rem, 15vw, 10rem);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Status Badges - AlgoDelta Theme (RETAINED - NO CHANGE) */
+.status-badge {
+  display: inline-block;
+  padding: clamp(0.15rem, 0.8vw, 0.25rem) clamp(0.3rem, 1.5vw, 0.5rem);
+  border-radius: 0.15rem; /* Very small radius */
+  font-size: clamp(0.5rem, 1.8vw, 0.6rem);
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1; /* Tighter line height */
+  letter-spacing: 0.02em;
+  border: none; /* No visible border for badges */
+}
+
+.status-badge.success { background-color: rgba(14, 203, 129, 0.15); color: var(--success); }
+.status-badge.warning { background-color: rgba(240, 185, 11, 0.15); color: var(--warning); }
+.status-badge.danger { background-color: rgba(246, 70, 93, 0.15); color: var(--danger); }
+.status-badge.info { background-color: rgba(0, 188, 212, 0.15); color: var(--info); }
+.status-badge.primary { background-color: rgba(0, 123, 255, 0.15); color: var(--primary); }
+.status-badge.secondary { background-color: rgba(136, 152, 170, 0.15); color: var(--secondary); }
+
+/* Table Action Buttons/Icons - AlgoDelta Style (RETAINED - NO CHANGE) */
+.table .btn-icon-only {
+  width: clamp(1.5rem, 6vw, 1.8rem);
+  height: clamp(1.5rem, 6vw, 1.8rem);
+  padding: 0;
+  border-radius: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  transition: all 0.1s ease;
+}
+.table .btn-icon-only:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-0.02rem);
+}
+.table .btn-icon-only i {
+  margin-right: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.table .btn-icon-only:hover i {
+  color: var(--text-white);
+}
+
+
+/*──────────────────────────────────────────────────────────────────────────
+   9. Inputs & Forms (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.form-group {
+  margin-bottom: clamp(0.7rem, 3vw, 1rem);
+}
+
+label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select,
+.form-control,
+.form-select,
+input#symbol-selector,
+.navbar-search .form-control {
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(0.55rem, 2.2vw, 0.75rem) clamp(0.7rem, 2.8vw, 1rem);
+  border-radius: 0.2rem;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text-light);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.table .input-group {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+}
+
+.table .input-group .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.table .input-group .btn {
+  flex-shrink: 0;
+  width: auto;
+  margin-bottom: 0;
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: var(--text-gray);
+  opacity: 0.9;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus,
+.form-control:focus,
+.form-select:focus,
+input#symbol-selector:focus,
+.navbar-search .form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); /* Subtle primary glow */
+  background-color: var(--bg-hover);
+}
+
+textarea {
+  resize: vertical;
+  min-height: clamp(3.8rem, 13vw, 5.5rem);
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.form-check-input {
+  margin-right: 0.5rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.2rem;
+  appearance: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  background-color: var(--bg-input);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.form-check-input:checked::after {
+  content: '\2713';
+  color: var(--text-white);
+  font-size: 0.8rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.form-check-label {
+  margin-bottom: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   10. Sidebar & Table Overrides (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.table-light th {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: none;
+}
+
+.table-bordered, .table-bordered th, .table-bordered td {
+  border: none;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   11. Sticky Toolbar (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.sticky-toolbar {
+  position: sticky;
+  top: clamp(3.5rem, 11vw, 4.2rem); /* Navbar height */
+  background: var(--bg-panel);
+  padding: clamp(0.7rem, 2.8vw, 0.9rem) clamp(1rem, 4vw, 1.5rem);
+  z-index: 995;
+  border-bottom: 1px solid var(--border-strong);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(0.5rem, 2.2vw, 0.8rem);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-light);
+  backdrop-filter: blur(5px);
+}
+
+.sticky-toolbar .btn {
+  background-color: var(--bg-input);
+  color: var(--text-light);
+  border: none;
+  box-shadow: none;
+  width: auto;
+  margin-bottom: 0;
+}
+
+.sticky-toolbar .btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary);
+}
+
+.sticky-toolbar .btn-danger {
+  color: var(--danger);
+}
+.sticky-toolbar .btn-warning {
+  color: var(--warning);
+}
+
+.sticky-toolbar .btn-danger:hover {
+  background-color: var(--danger);
+  color: var(--text-white);
+}
+.sticky-toolbar .btn-warning:hover {
+  background-color: var(--warning);
+  color: var(--bg-body);
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   12. Miscellaneous (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+.logout {
+  margin-top: auto;
+  background-color: var(--danger);
+  color: var(--text-white);
+  padding: clamp(0.65rem, 2.8vw, 0.85rem) clamp(1rem, 4vw, 1.5rem);
+  border: none;
+  border-radius: 0.3rem;
+  font-weight: 600;
+  width: calc(100% - clamp(1.5rem, 6vw, 2rem));
+  margin-left: clamp(0.75rem, 3vw, 1rem);
+  margin-right: clamp(0.75rem, 3vw, 1rem);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+  letter-spacing: 0.01em;
+}
+
+.logout:hover {
+  background-color: var(--danger);
+  transform: translateY(-0.08rem);
+  box-shadow: 0 0.25rem 0.6rem rgba(220, 53, 69, 0.3);
+}
+
+.card-box {
+  background: var(--bg-panel);
+  padding: clamp(1.25rem, 4.5vw, 1.75rem);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  border: 1px solid var(--border-strong);
+  color: var(--text-light);
+
+  &, h1, h2, h3, h4, h5, h6, p, span, div, a {
+    color: var(--text-light);
+  }
+  & a {
+    color: var(--primary);
+  }
+  & .text-muted {
+    color: var(--text-muted);
+  }
+  & .text-secondary {
+    color: var(--text-muted);
+  }
+}
+
+.card-box h4 {
+  font-size: clamp(1.2rem, 5vw, 1.6rem);
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: var(--text-light);
+}
+
+.card-box p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
+.broker-icon-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 clamp(0.25rem, 1.2vw, 0.4rem);
+  flex-shrink: 0;
+  min-width: 0;
+  flex-basis: clamp(3.2rem, 12vw, 4.2rem);
+}
+
+.broker-icon {
+  width: clamp(2.8rem, 10vw, 3.8rem);
+  height: clamp(2.8rem, 10vw, 3.8rem);
+  border-radius: 50%;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-strong);
+  object-fit: contain;
+  padding: clamp(0.25rem, 1vw, 0.35rem);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.broker-icon:hover,
+.broker-icon.selected,
+.broker-icon.border-primary {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  background: var(--bg-hover);
+  transform: translateY(-0.05rem);
+}
+
+.broker-scroll {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 0.6rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-input);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.broker-scroll::-webkit-scrollbar {
+  height: 0.4rem;
+}
+
+.broker-scroll::-webkit-scrollbar-track {
+  background: var(--bg-input);
+  border-radius: 0.2rem;
+}
+
+.broker-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted);
+  border-radius: 0.2rem;
+  border: 1px solid var(--bg-input);
+}
+
+.broker-scroll > div {
+  flex: 0 0 auto;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+   13. Responsive Design (Redesigned)
+──────────────────────────────────────────────────────────────────────────*/
+
+/* Base styles are for mobile (320px) and scale up fluidly */
+
+/* Mobile table layout: Desktop-like with horizontal scroll (RETAINED - NO CHANGE IN FUNCTIONALITY) */
+@media (max-width: 767.98px) {
+  .table-responsive {
+    padding: 0;
+  }
+  .table {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    margin-top: 0;
+  }
+
+  .table th, .table td {
+    padding-left: clamp(0.4rem, 2vw, 0.6rem);
+    padding-right: clamp(0.4rem, 2vw, 0.6rem);
+  }
+
+  .table td > * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .table td .media-body {
+    min-width: 0;
+  }
+}
+
+/* Medium devices (min-width: 576px) */
+@media (min-width: 576px) {
+  .btn {
+    width: auto;
+    margin-bottom: 0;
+  }
+  .sticky-toolbar .btn {
+    width: auto;
+  }
+  .profile-card {
+    max-width: 32rem; /* Adjusted for overall density */
+  }
+  .container {
+    max-width: 540px;
+  }
+}
+
+/* Medium devices (min-width: 768px) - Desktop layout begins */
+@media (min-width: 768px) {
+  .sidebar, .sidebar.show {
+    transform: translateX(0);
+    position: fixed;
+    left: 0;
+    width: 15rem; /* Desktop width */
+    padding: 1.25rem 0;
+  }
+
+  .sidebar-overlay, .toggle-sidebar {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 15rem; /* Space for sidebar */
+    padding: 1.5rem;
+    padding-top: calc(4.2rem + 1.5rem);
+    min-height: calc(100vh - 4.2rem);
+  }
+  .navbar {
+    height: 4.2rem;
+    padding: 0 1.5rem;
+    /* FIXED: No border change here - universal styling for navbar border */
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .navbar-brand img {
+    height: 2.5rem;
+  }
+  .navbar-icons {
+    gap: 1.25rem;
+  }
+  /* Removed media query specific navbar-icons i style to ensure consistency */
+  .profile-img {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .container {
+    max-width: 720px;
+    padding: 0 1.5rem;
+  }
+  .profile-card {
+    max-width: 48rem;
+  }
+  .hero-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2.25rem 1.5rem;
+    min-height: 8rem;
+    text-align: left;
+  }
+  .hero-image {
+    max-width: 200px;
+    margin-top: 0;
+    align-self: auto;
+  }
+  .section-box {
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .sticky-toolbar {
+    top: 4.2rem;
+    flex-wrap: nowrap;
+  }
+  .card-box {
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .broker-icon {
+    width: 4rem;
+    height: 4rem;
+    padding: 0.35rem;
+  }
+  .broker-icon-wrap {
+    margin: 0 0.4rem;
+  }
+
+  /* Tables (RETAINED - NO CHANGE IN FUNCTIONALITY) */
+  .table {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    margin-top: 0;
+  }
+  .table th, .table td {
+    padding: clamp(0.5rem, 2.5vw, 0.7rem) clamp(0.6rem, 2.5vw, 0.8rem);
+  }
+}
+
+/* Large devices (min-width: 992px) */
+@media (min-width: 992px) {
+  .container {
+    max-width: 960px;
+    padding: 0 1.5rem;
+  }
+  .profile-card {
+    max-width: 55rem;
+  }
+}
+
+/* Extra large devices (min-width: 1200px) */
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1140px;
+    padding: 0;
+  }
+}
+
+/* Very large screens (min-width: 1440px) */
+@media (min-width: 1440px) {
+  html {
+    font-size: 1rem; /* Cap base font size at 16px */
+  }
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Global Layout Protection & Overrides */
+.main-content,
+.container {
+  padding-top: calc(clamp(3.5rem, 11vw, 4.2rem) + clamp(1rem, 4vw, 1.5rem)) !important;
+}
+
+.card, .section-box, .profile-card, .main-content {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+  max-width: 100%;
+}
+
+h1, h2, h3, h4, h5, h6, p, .email, .username {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Dropdown visibility management */
+.dropdown-menu {
+    position: absolute;
+    z-index: 3000;
+}
+.dropdown {
+    overflow: visible; /* Ensure dropdown trigger container allows menu to escape */
+}
+.section-box,
+.card-box {
+  overflow: hidden; /* Standard for a card to contain its content */
+}
+
+/* Sidebar nav-title always as block and full width */
+.sidebar .nav {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar .nav-title {
+  display: block;
+  width: 100%;
+  margin: clamp(1.2rem, 4.5vw, 1.6rem) 0 0.6rem;
+}
+
+@media (min-width: 768px) {
+  .dropdown-menu {
+    position: absolute !important;
+    z-index: 3000 !important;
+  }
+  .dropdown {
+    position: relative !important;
+    overflow: visible !important;
+  }
+}
+/* Tabs under master accounts (Redesigned) */
+.master-tab-links .nav-link {
+  border: none;
+  color: var(--text-muted);
+  padding: 0.7rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  border-radius: 0.3rem 0.3rem 0 0; /* Match standard card radius top */
+  background-color: var(--bg-panel);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: bottom center;
+    transition: transform 0.2s ease-out;
+  }
+}
+.master-tab-links .nav-link.active {
+  color: var(--primary);
+  background-color: var(--bg-panel);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-strong);
+  border-bottom-color: transparent;
+
+  &::after {
+    transform: scaleX(1);
+  }
+}
+.master-tab-links .nav-link:hover {
+  color: var(--primary);
+  background-color: var(--bg-hover);
+}
+
+
+/* General Flex/Grid fixes to prevent overflow */
+.d-flex, .broker-scroll, .broker-icons-grid {
+  min-width: 0;
+}
