@@ -3,11 +3,13 @@ import uuid
 from brokers.zerodha import ZerodhaBroker, KiteConnect
 from brokers.fyers import FyersBroker
 try:
-    from brokers.symbol_map import get_symbol_for_broker
+    from brokers.symbol_map import get_symbol_for_broker, get_symbol_by_token
 except Exception:  # pragma: no cover - fallback if import fails
     def get_symbol_for_broker(symbol: str, broker: str) -> dict:
         """Fallback stub returning empty mapping."""
         return {}
+    def get_symbol_by_token(token: str, broker: str) -> str:
+        return None
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from flask_migrate import Migrate
 from dhanhq import dhanhq
@@ -1154,10 +1156,17 @@ def poll_and_copy_trades():
                             or order.get("symbol")
                             or order.get("stock")
                             or order.get("scripCode")
-                            or order.get("instrumentToken")
                             or order.get("Tsym")  # AliceBlue trade book
                             or order.get("tsym")
                         )
+                        if not symbol:
+                            token_val = (
+                                order.get("instrument_token")
+                                or order.get("instrumentToken")
+                                or order.get("token")
+                            )
+                            if token_val:
+                                symbol = get_symbol_by_token(token_val, master_broker)
                         if not symbol:
                             continue
 
@@ -1626,6 +1635,16 @@ def get_order_book(client_id):
                     or order.get("Trsym")
                     or "—"
                 )
+                if symbol == "—":
+                    token_val = (
+                        order.get("instrument_token")
+                        or order.get("instrumentToken")
+                        or order.get("token")
+                    )
+                    if token_val:
+                        sym_by_token = get_symbol_by_token(token_val, broker_name)
+                        if sym_by_token:
+                            symbol = sym_by_token
 
                 # Extract product type
                 product_type = (
@@ -2160,6 +2179,7 @@ def master_squareoff():
                 continue
 
             try:
+                child_broker = child_account.broker.lower()
                 # ✅ STEP 5: Convert account to dict for broker_api compatibility
                 child_dict = _account_to_dict(child_account)
                 broker_api_instance = broker_api(child_dict)
@@ -2211,6 +2231,21 @@ def master_squareoff():
                             or position.get("Tsym")
                             or ""
                         ).upper()
+
+                        if not pos_symbol and (
+                            position.get("instrument_token")
+                            or position.get("instrumentToken")
+                            or position.get("token")
+                        ):
+                            pos_symbol = (
+                                get_symbol_by_token(
+                                    position.get("instrument_token")
+                                    or position.get("instrumentToken")
+                                    or position.get("token"),
+                                    child_broker,
+                                )
+                                or ""
+                            ).upper()    
                         
                         if pos_symbol == symbol.upper():
                             # Check if there's a net position
@@ -2766,18 +2801,26 @@ def square_off():
                 master_api = broker_api(_account_to_dict(master_account))
                 positions_resp = master_api.get_positions()
                 positions = positions_resp.get("data", [])
-                match = next(
-                    (
-                        p
-                        for p in positions
-                        if (
-                            p.get("tradingSymbol", "")
-                            or p.get("tradingsymbol", "")  # Zerodha lowercase
-                        ).upper()
-                        == symbol.upper()
-                    ),
-                    None,
-                )
+                match = None
+                for p in positions:
+                    p_symbol = (
+                        p.get("tradingSymbol", "")
+                        or p.get("tradingsymbol", "")
+                    )
+                    if not p_symbol and (
+                        p.get("instrument_token")
+                        or p.get("instrumentToken")
+                        or p.get("token")
+                    ):
+                        p_symbol = get_symbol_by_token(
+                            p.get("instrument_token")
+                            or p.get("instrumentToken")
+                            or p.get("token"),
+                            master_account.broker,
+                        )
+                    if p_symbol and str(p_symbol).upper() == symbol.upper():
+                        match = p
+                        break
                 
                 if not match or int(match.get("netQty", 0)) == 0:
                     return jsonify({"message": f"Master → No active position in {symbol} (already squared off)"}), 200
@@ -2832,18 +2875,26 @@ def square_off():
                     child_api = broker_api(_account_to_dict(child))
                     positions_resp = child_api.get_positions()
                     positions = positions_resp.get('data', [])
-                    match = next(
-                        (
-                            p
-                            for p in positions
-                            if (
-                                p.get('tradingSymbol', '')
-                                or p.get('tradingsymbol', '')  # Zerodha lowercase
-                            ).upper()
-                            == symbol.upper()
-                        ),
-                        None,
-                    )
+                    match = None
+                    for p in positions:
+                        p_symbol = (
+                            p.get('tradingSymbol', '')
+                            or p.get('tradingsymbol', '')
+                        )
+                        if not p_symbol and (
+                            p.get('instrument_token')
+                            or p.get('instrumentToken')
+                            or p.get('token')
+                        ):
+                            p_symbol = get_symbol_by_token(
+                                p.get('instrument_token')
+                                or p.get('instrumentToken')
+                                or p.get('token'),
+                                child.broker,
+                            )
+                        if p_symbol and str(p_symbol).upper() == symbol.upper():
+                            match = p
+                            break
 
                     if not match or int(match.get('netQty', 0)) == 0:
                         results.append(f"Child {child.client_id} → Skipped (no active position in {symbol})")
