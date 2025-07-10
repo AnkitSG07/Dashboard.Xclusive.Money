@@ -32,6 +32,7 @@ from werkzeug.utils import secure_filename
 import random
 import string
 from urllib.parse import quote
+from time import time
 from models import (
     db,
     User,
@@ -114,6 +115,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 _scheduler = None
+
+# Cache for broker opening balances
+OPENING_BALANCE_CACHE = {}
+# Seconds to keep a cached balance before refreshing
+CACHE_TTL = 300
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
@@ -555,20 +561,30 @@ def broker_api(obj):
     
 
 def get_opening_balance_for_account(acc):
-    """Instantiate broker and try to fetch opening balance."""
+    """Instantiate broker and try to fetch opening balance with caching."""
+    client_id = acc.get("client_id")
+    now = time()
+
+    cached = OPENING_BALANCE_CACHE.get(client_id)
+    if cached:
+        ts, bal = cached
+        if now - ts < CACHE_TTL:
+            return bal
+
+    bal = None
     try:
         api = broker_api(acc)
         if hasattr(api, "get_opening_balance"):
             bal = api.get_opening_balance()
-            if bal is not None:
-                return bal
-        if hasattr(api, "get_profile"):
+        elif hasattr(api, "get_profile"):
             resp = api.get_profile()
             data = resp.get("data", resp) if isinstance(resp, dict) else resp
-            return extract_balance(data)
+            bal = extract_balance(data)
     except Exception as e:
-        print(f"Failed to fetch balance for {acc.get('client_id')}: {e}")
-    return None
+        print(f"Failed to fetch balance for {client_id}: {e}")
+
+    OPENING_BALANCE_CACHE[client_id] = (now, bal)
+    return bal
 
 # Utility loaders for admin dashboard
 def load_users():
