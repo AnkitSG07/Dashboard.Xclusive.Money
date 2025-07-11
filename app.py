@@ -295,7 +295,7 @@ def ensure_setting_schema():
             except Exception as exc:
                 logger.warning(f'Failed to add column "value" to "{table_name}": {exc}.')
 
-
+ensure_setting_schema()
 
 def ensure_trade_log_schema():
     """Ensure the trade_log table has required columns."""
