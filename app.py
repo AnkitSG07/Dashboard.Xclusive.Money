@@ -56,6 +56,7 @@ from helpers import (
     order_mappings_for_user,
     active_children_for_master,
 )
+from symbols import get_symbols
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -4646,6 +4647,65 @@ def remove_account_from_group(group_name):
         logger.error(f"Failed to remove account from group: {str(e)}")
         return jsonify({"error": f"Failed to remove account from group: {str(e)}"}), 500
     return jsonify({"message": f"Removed {client_id} from {group_name}"})
+
+
+@app.route('/api/groups/<group_name>/rename', methods=['POST'])
+@login_required
+def rename_group(group_name):
+    """Rename an existing group."""
+    new_name = request.json.get('new_name')
+    if not new_name:
+        return jsonify({'error': 'Missing new_name'}), 400
+
+    user_obj = current_user()
+    if not user_obj:
+        return jsonify({'error': 'User not found'}), 400
+
+    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not group:
+        return jsonify({'error': 'Group not found'}), 404
+
+    if Group.query.filter_by(user_id=user_obj.id, name=new_name).first():
+        return jsonify({'error': 'Group name already exists'}), 400
+
+    group.name = new_name
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to rename group: {str(e)}")
+        return jsonify({'error': f"Failed to rename group: {str(e)}"}), 500
+    return jsonify({'message': f"Group renamed to {new_name}"})
+
+
+@app.route('/api/groups/<group_name>', methods=['DELETE'])
+@login_required
+def delete_group(group_name):
+    """Delete a group."""
+    user_obj = current_user()
+    if not user_obj:
+        return jsonify({'error': 'User not found'}), 400
+
+    group = Group.query.filter_by(user_id=user_obj.id, name=group_name).first()
+    if not group:
+        return jsonify({'error': 'Group not found'}), 404
+
+    try:
+        db.session.delete(group)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to delete group: {str(e)}")
+        return jsonify({'error': f"Failed to delete group: {str(e)}"}), 500
+
+    return jsonify({'message': f"Group {group_name} deleted"})
+
+
+@app.route('/api/symbols')
+@login_required
+def symbols_list():
+    """Return list of symbols with their security IDs."""
+    return jsonify(get_symbols())
 
 
 @app.route('/api/group-order', methods=['POST'])
