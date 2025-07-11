@@ -55,7 +55,7 @@
 
 <div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
   <h5 class="mb-3 text-primary"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
-  <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
+  <p class="text-muted">Accounts where all trades from the Master will be copied.</p>
   <div class="table-responsive">
     <table class="table table-hover table-striped table-bordered align-middle">
       <thead class="table-light">
@@ -186,6 +186,8 @@
 {% block scripts %}
 <script>
 window.pageScripts = window.pageScripts || {};
+
+// Define the main page script function
 window.pageScripts["copy-trading"] = function () {
   // Centralized data store (consider using a state management library for larger apps)
   let allAccountsData = {
@@ -359,8 +361,6 @@ window.pageScripts["copy-trading"] = function () {
       loadMasterOrders(); // Also reload master orders
     } catch (err) {
       console.error("Failed to load accounts:", err);
-      // Removed retry logic as it can lead to infinite loops.
-      // A more robust solution involves proper UI feedback and user-initiated retries.
       showMessage("Failed to load accounts. Please try refreshing the page.", 'danger');
     }
   };
@@ -1025,16 +1025,14 @@ window.pageScripts["copy-trading"] = function () {
       // Error handled by fetchData
     }
   };
+}; // End of window.pageScripts["copy-trading"] function
 
-  // --- INIT ON LOAD ---
-  // Ensure DOM is fully loaded before trying to attach listeners or load data
-  document.addEventListener('DOMContentLoaded', () => {
-    loadAccounts();
-  });
-};
-
-// Ensure this script is executed when the page is loaded, typically by
-// calling `window.pageScripts["copy-trading"]()` in your main layout script
-// after all page-specific scripts are loaded.
+// This is the crucial part: Call the function when the DOM is fully loaded.
+document.addEventListener('DOMContentLoaded', () => {
+  // Check if the page-specific script exists and execute it
+  if (window.pageScripts && typeof window.pageScripts["copy-trading"] === 'function') {
+    window.pageScripts["copy-trading"]();
+  }
+});
 </script>
 {% endblock %}
