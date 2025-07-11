@@ -261,6 +261,42 @@ def ensure_trade_schema():
 ensure_system_log_schema()
 ensure_trade_schema()
 
+def ensure_setting_schema():
+    """Ensure the setting table exists and has a TEXT value column."""
+    logger.info("Ensuring setting table schema is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'setting'
+
+        if table_name not in insp.get_table_names():
+            try:
+                db.metadata.create_all(bind=db.engine, tables=[Setting.__table__])
+                logger.info(f'Created {table_name} table as it was missing.')
+            except Exception as exc:
+                logger.error(f'Failed to create {table_name} table: {exc}')
+                return
+
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+        if 'value' in existing_columns:
+            value_col = next(col for col in insp.get_columns(table_name) if col['name'] == 'value')
+            current_type = str(value_col['type']).upper()
+            if 'VARCHAR' in current_type and '255' in current_type:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "value" TYPE TEXT'))
+                    logger.info(f'Altered column "value" to TEXT in "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(f'Failed to alter column "value" to TEXT in "{table_name}": {exc}.')
+        else:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "value" TEXT'))
+                logger.info(f'Added missing column "value" to "{table_name}" table.')
+            except Exception as exc:
+                logger.warning(f'Failed to add column "value" to "{table_name}": {exc}.')
+
+
+
 def ensure_trade_log_schema():
     """Ensure the trade_log table has required columns."""
     logger.info("Ensuring trade_log table schema is up-to-date...")
