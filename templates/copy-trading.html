@@ -55,7 +55,7 @@
 
 <div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
   <h5 class="mb-3 text-primary"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
-  <p class="text-muted">Accounts where all trades from the Master will be copied.</p>
+  <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
   <div class="table-responsive">
     <table class="table table-hover table-striped table-bordered align-middle">
       <thead class="table-light">
@@ -339,31 +339,31 @@ window.pageScripts["copy-trading"] = function () {
     }
   };
 
-  window.loadAccounts = async function() {
-    try {
-      const data = await fetchData("/api/accounts");
-      allAccountsData.masters = (data.masters || []).map(m => ({ ...m, role: "master" }));
-      allAccountsData.unassigned = (data.accounts || []).filter(acc => !acc.role);
+ window.loadAccounts = async function() {
+  try {
+    const data = await fetchData("/api/accounts");
+    allAccountsData.masters = (data.masters || []).map(m => ({ ...m, role: "master" }));
+    allAccountsData.unassigned = (data.accounts || []).filter(acc => !acc.role);
 
-      // Flatten children and link to master
-      allAccountsData.children = [];
-      for (const master of allAccountsData.masters) {
-        if (master.children && Array.isArray(master.children)) {
-          for (const child of master.children) {
-            allAccountsData.children.push({ ...child, linked_master_id: master.client_id });
-          }
+    // Flatten children and link to master
+    allAccountsData.children = [];
+    for (const master of allAccountsData.masters) {
+      if (master.children && Array.isArray(master.children)) {
+        for (const child of master.children) {
+          allAccountsData.children.push({ ...child, linked_master_id: master.client_id });
         }
       }
-
-      renderUnassignedAccounts();
-      renderMasterAccounts();
-      renderChildAccounts();
-      loadMasterOrders(); // Also reload master orders
-    } catch (err) {
-      console.error("Failed to load accounts:", err);
-      showMessage("Failed to load accounts. Please try refreshing the page.", 'danger');
     }
-  };
+
+    renderUnassignedAccounts();
+    renderMasterAccounts();
+    renderChildAccounts();
+    loadMasterOrders(); // Also reload master orders
+  } catch (err) {
+    console.error("Failed to load accounts:", err);
+    showMessage("Failed to load accounts. Please try refreshing the page.", 'danger');
+  }
+};
 
   function renderUnassignedAccounts() {
     const tbody = document.getElementById("unassigned-table-body");
@@ -604,7 +604,16 @@ window.pageScripts["copy-trading"] = function () {
     const tabPanes = document.querySelectorAll(`#master-positions-${clientId}, #master-orders-book-${clientId}, #master-children-${clientId}`);
     tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
 
-    // Activate the selected tab
+    // Deactivate all tab links
+    const tabLinks = document.querySelectorAll(`#tabs-${clientId} .nav-link`);
+    tabLinks.forEach(link => link.classList.remove('active'));
+
+    // Activate the selected tab link
+    const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}`);
+    if (activeTabLink) activeTabLink.classList.add('active');
+
+
+    // Activate the selected tab pane
     const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${clientId}`);
     if (selectedTabPane) {
         selectedTabPane.classList.add('show', 'active');
@@ -616,14 +625,15 @@ window.pageScripts["copy-trading"] = function () {
     } else if (tabName === 'orders') {
       await loadMasterOrderBook(clientId);
     } else if (tabName === 'children') {
-        // Children table is rendered with initial loadAccounts, just ensure it's shown
-        renderMasterChildrenTable(clientId);
+        renderMasterChildrenTable(clientId); // Re-render in case child data changed
     }
   };
 
   async function loadMasterOrderBook(clientId) {
     const tbody = document.getElementById(`orders-body-${clientId}`);
     const emptyState = document.getElementById(`orders-empty-${clientId}`);
+    if (!tbody || !emptyState) return;
+
     tbody.innerHTML = `<tr><td colspan="10" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading orders...</td></tr>`;
     emptyState.style.display = 'none';
 
@@ -660,6 +670,8 @@ window.pageScripts["copy-trading"] = function () {
   async function loadMasterPositions(clientId) {
     const tbody = document.getElementById(`positions-body-${clientId}`);
     const emptyState = document.getElementById(`positions-empty-${clientId}`);
+    if (!tbody || !emptyState) return;
+
     tbody.innerHTML = `<tr><td colspan="9" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading positions...</td></tr>`;
     emptyState.style.display = 'none';
 
@@ -701,9 +713,10 @@ window.pageScripts["copy-trading"] = function () {
     try {
       const data = await fetchData('/api/master-orders');
       const tbody = document.getElementById("master-orders-body");
+      const emptyState = document.getElementById("master-orders-empty-state");
       tbody.innerHTML = "";
       if (Array.isArray(data) && data.length > 0) {
-        document.getElementById("master-orders-empty-state").style.display = 'none';
+        emptyState.style.display = 'none';
         data.forEach(order => {
           tbody.innerHTML += `
             <tr>
@@ -716,11 +729,12 @@ window.pageScripts["copy-trading"] = function () {
             </tr>`;
         });
       } else {
-        document.getElementById("master-orders-empty-state").style.display = 'block';
+        emptyState.style.display = 'block';
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No master orders found.</td></tr>`;
       }
       // Reset select all checkbox
       document.getElementById("toggleAllMasterOrdersCheckbox").checked = false;
+      document.getElementById("master-orders-select-all").checked = false;
     } catch (error) {
       // Error handled by fetchData
       document.getElementById("master-orders-body").innerHTML = `<tr><td colspan="6" class="text-center text-danger">Failed to load master orders.</td></tr>`;
@@ -731,6 +745,7 @@ window.pageScripts["copy-trading"] = function () {
   window.toggleAllMasterOrders = function(isChecked) {
     document.querySelectorAll(".master-order-checkbox").forEach(cb => cb.checked = isChecked);
     document.getElementById("master-orders-select-all").checked = isChecked;
+    document.getElementById("toggleAllMasterOrdersCheckbox").checked = isChecked;
   };
 
   // --- Cancel/Square Off Actions ---
