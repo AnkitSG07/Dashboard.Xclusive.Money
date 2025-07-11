@@ -34,7 +34,14 @@ def portfolio(client_id=None):
     try:
         resp = api.get_positions()
         if isinstance(resp, dict):
-            data = resp.get('data') or resp.get('positions') or resp.get('net') or []
+            data = (
+                resp.get('data')
+                or resp.get('positions')
+                or resp.get('net')
+                or resp.get('netPositions')
+                or resp.get('net_positions')
+                or []
+            )
         else:
             data = resp or []
         return jsonify(data)
