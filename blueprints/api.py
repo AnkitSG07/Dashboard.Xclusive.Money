@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, session, request
 from helpers import current_user, get_primary_account, order_mappings_for_user
+from models import Account
 from dhanhq import dhanhq
 from functools import wraps
 
@@ -15,40 +16,85 @@ def login_required_api(fn):
     return wrapper
 
 
-@api_bp.route('/portfolio')
+@api_bp.route('/portfolio', defaults={'client_id': None})
+@api_bp.route('/portfolio/<client_id>')
 @login_required_api
-def portfolio():
+def portfolio(client_id=None):
+    """Return positions for the requested account."""
     user = current_user()
-    account = get_primary_account(user)
+    if client_id:
+        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    else:
+        account = get_primary_account(user)
     if not account or not account.credentials:
         return jsonify({'error': 'Account not configured'}), 400
 
-    client_id = account.client_id
-    access_token = account.credentials.get('access_token')
-    dhan = dhanhq(client_id, access_token)
+    from app import broker_api, _account_to_dict
+    api = broker_api(_account_to_dict(account))
     try:
-        resp = dhan.get_positions()
-        data = resp.get('data') or resp.get('positions') or []
+        resp = api.get_positions()
+        if isinstance(resp, dict):
+            data = resp.get('data') or resp.get('positions') or resp.get('net') or []
+        else:
+            data = resp or []
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-@api_bp.route('/orders')
+@api_bp.route('/orders', defaults={'client_id': None})
+@api_bp.route('/orders/<client_id>')
 @login_required_api
-def orders():
+def orders(client_id=None):
+    """Return order list for the requested account."""
     user = current_user()
-    account = get_primary_account(user)
+    if client_id:
+        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    else:
+        account = get_primary_account(user)
     if not account or not account.credentials:
         return jsonify({'error': 'Account not configured'}), 400
 
-    dhan = dhanhq(account.client_id, account.credentials.get('access_token'))
+    from app import broker_api, _account_to_dict
+    api = broker_api(_account_to_dict(account))
     try:
-        resp = dhan.get_order_list()
-        if not isinstance(resp, dict) or 'data' not in resp:
-            return jsonify({'error': 'Unexpected response format', 'details': resp}), 500
-        orders = resp['data']
+        resp = api.get_order_list()
+        orders = []
+        if isinstance(resp, dict):
+            orders = resp.get('data') or resp.get('orders') or []
+        elif isinstance(resp, list):
+            orders = resp
         return jsonify(orders)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/holdings', defaults={'client_id': None})
+@api_bp.route('/holdings/<client_id>')
+@login_required_api
+def holdings(client_id=None):
+    """Return holdings for the requested account if supported."""
+    user = current_user()
+    if client_id:
+        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    else:
+        account = get_primary_account(user)
+    if not account or not account.credentials:
+        return jsonify({'error': 'Account not configured'}), 400
+
+    from app import broker_api, _account_to_dict
+    api = broker_api(_account_to_dict(account))
+
+    if not hasattr(api, 'get_holdings'):
+        return jsonify({'error': 'Holdings not supported for this broker'}), 400
+
+    try:
+        resp = api.get_holdings()
+        if isinstance(resp, dict):
+            data = resp.get('data') or resp.get('holdings') or []
+        else:
+            data = resp or []
+        return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
