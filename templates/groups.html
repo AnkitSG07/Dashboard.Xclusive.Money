@@ -17,7 +17,29 @@
       <tbody></tbody>
     </table>
   </div>
-</div>
+  <!-- Rename Group -->
+  <form id="renameGroupForm" class="row g-2 mt-3">
+    <div class="col-auto">
+      <select class="form-select" id="renameGroupSelect"></select>
+    </div>
+    <div class="col-auto">
+      <input type="text" class="form-control" id="newGroupName" placeholder="New name">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-secondary" type="submit">Rename</button>
+    </div>
+  </form>
+
+  <!-- Delete Group -->
+  <form id="deleteGroupForm" class="row g-2 mt-2">
+    <div class="col-auto">
+      <select class="form-select" id="deleteGroupSelect"></select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-danger" type="submit">Delete</button>
+    </div>
+  </form>
+  </div>
 
 <div class="section-box mt-4">
   <h5 class="mb-3">Add Account to Group</h5>
@@ -35,13 +57,29 @@
 </div>
 
 <div class="section-box mt-4">
+  <h5 class="mb-3">Remove Account From Group</h5>
+  <form id="removeMemberForm" class="row g-2">
+    <div class="col-auto">
+      <select class="form-select" id="removeGroupSelect"></select>
+    </div>
+    <div class="col-auto">
+      <select class="form-select" id="removeAccountSelect"></select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-danger" type="submit">Remove</button>
+    </div>
+  </form>
+</div>
+
+<div class="section-box mt-4">
   <h5 class="mb-3">Place Group Order</h5>
   <form id="groupOrderForm" class="row gy-2 gx-2 align-items-end">
     <div class="col-auto">
       <select class="form-select" id="orderGroupSelect"></select>
     </div>
     <div class="col-auto">
-      <input type="text" class="form-control" id="orderSymbol" placeholder="Symbol">
+      <input type="text" class="form-control" id="orderSymbol" list="symbolList" placeholder="Symbol">
+      <datalist id="symbolList"></datalist>
     </div>
     <div class="col-auto">
       <select class="form-select" id="orderAction">
@@ -62,10 +100,12 @@
 <script>
 window.pageScripts = window.pageScripts || {};
 window.pageScripts["groups"] = function() {
+  let groupsCache = [];
   function loadGroups() {
     fetch('/api/groups')
       .then(r => r.json())
       .then(groups => {
+        groupsCache = groups || [];
         const tbody = document.querySelector('#groupsTable tbody');
         tbody.innerHTML = '';
         groups.forEach(g => {
@@ -76,8 +116,19 @@ window.pageScripts["groups"] = function() {
         const opts = groups.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
         document.getElementById('addGroupSelect').innerHTML = opts;
         document.getElementById('orderGroupSelect').innerHTML = opts;
+        document.getElementById('renameGroupSelect').innerHTML = opts;
+        document.getElementById('deleteGroupSelect').innerHTML = opts;
+        document.getElementById('removeGroupSelect').innerHTML = opts;
+        updateRemoveAccountOptions();
       });
   }
+  function updateRemoveAccountOptions() {
+    const gname = document.getElementById('removeGroupSelect').value;
+    const group = groupsCache.find(x => x.name === gname) || {members: []};
+    const opts = (group.members || []).map(m => `<option value="${m}">${m}</option>`).join('');
+    document.getElementById('removeAccountSelect').innerHTML = opts;
+  }
+  
 
   function loadAccounts() {
     fetch('/api/accounts')
@@ -128,8 +179,58 @@ window.pageScripts["groups"] = function() {
     .catch(err=>alert('Error: '+err));
   });
 
+  document.getElementById('removeGroupSelect').addEventListener('change', updateRemoveAccountOptions);
+
+  document.getElementById('removeMemberForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const group = document.getElementById('removeGroupSelect').value;
+    const client_id = document.getElementById('removeAccountSelect').value;
+    if(!group || !client_id) return;
+    fetch(`/api/groups/${encodeURIComponent(group)}/remove`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_id})
+    })
+    .then(r=>r.json())
+    .then(resp=>{ alert(resp.message || resp.error || 'Done'); loadGroups(); });
+  });
+
+  document.getElementById('renameGroupForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const oldName = document.getElementById('renameGroupSelect').value;
+    const newName = document.getElementById('newGroupName').value.trim();
+    if(!oldName || !newName) return;
+    fetch(`/api/groups/${encodeURIComponent(oldName)}/rename`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({new_name:newName})
+    })
+    .then(r=>r.json())
+    .then(resp=>{ alert(resp.message || resp.error || 'Done'); loadGroups(); document.getElementById('newGroupName').value=''; });
+  });
+
+  document.getElementById('deleteGroupForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const name = document.getElementById('deleteGroupSelect').value;
+    if(!name) return;
+    if(!confirm('Delete group '+name+'?')) return;
+    fetch(`/api/groups/${encodeURIComponent(name)}`, { method:'DELETE' })
+      .then(r=>r.json())
+      .then(resp=>{ alert(resp.message || resp.error || 'Done'); loadGroups(); });
+  });
+
+  function loadSymbols(){
+    fetch('/api/symbols')
+      .then(r=>r.json())
+      .then(data => {
+        const opts = data.map(s => `<option value="${s.symbol}">${s.symbol} (${s.security_id})</option>`).join('');
+        document.getElementById('symbolList').innerHTML = opts;
+      });
+  }
+
   loadGroups();
   loadAccounts();
+  loadSymbols();
 };
 </script>
 {% endblock %}
