@@ -1553,14 +1553,13 @@ h1, h2, h3, h4, h5, h6, p, .email, .username {
 .dropdown-menu {
   /* Attempt the most aggressive positioning to force visibility */
   position: fixed !important; /* Force it out of any overflow context */
-  top: 50% !important;        /* Attempt to center it on screen */
-  left: 50% !important;       /* Attempt to center it on screen */
-  transform: translate(-50%, -50%) !important; /* Visually center fixed element */
+        /* Attempt to center it on screen */
+       /* Attempt to center it on screen */
 
   /* Ensure maximum visibility */
   z-index: 999999 !important; /* Extremely high z-index to be on top of everything */
 
-  display: none; /* This MUST be toggled by JS to 'block' or 'flex' */
+  d/* This MUST be toggled by JS to 'block' or 'flex' */
 
   /* Retain other existing styles for appearance */
   min-width: 10rem;
