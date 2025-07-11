@@ -4036,7 +4036,8 @@ def delete_account():
 @app.route('/api/reconnect-account', methods=['POST'])
 @login_required
 def reconnect_account():
-    data = request.json
+    """Reconnect an account using stored or provided credentials."""
+    data = request.json or {}
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
@@ -4049,9 +4050,19 @@ def reconnect_account():
     acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
     if not acc_db:
         return jsonify({"error": "Account not found"}), 404
+    # Merge any credentials provided in the request with stored ones
+    new_creds = dict(acc_db.credentials or {})
+    for k, v in data.items():
+        if k not in ("client_id", "broker", "username") and v is not None:
+            new_creds[k] = v
+
+    acc_db.username = data.get("username", acc_db.username)
+    acc_db.credentials = new_creds
+
 
     try:
         acc_dict = _account_to_dict(acc_db)
+        acc_dict["credentials"] = new_creds
         api = broker_api(acc_dict)
         valid = True
         if hasattr(api, 'check_token_valid'):
@@ -4063,9 +4074,8 @@ def reconnect_account():
 
         # Update stored access token if broker object exposes it
         if getattr(api, 'access_token', None):
-            creds = acc_db.credentials or {}
-            creds['access_token'] = api.access_token
-            acc_db.credentials = creds
+            new_creds['access_token'] = api.access_token
+            acc_db.credentials = new_creds
 
         acc_db.status = 'Connected'
         acc_db.last_login_time = datetime.utcnow()
