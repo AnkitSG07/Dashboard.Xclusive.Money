@@ -1,521 +1,472 @@
 {% extends "layout.html" %}
 {% block title %}Account Configuration - DhanBot{% endblock %}
 {% block content %}
-        
-<div class="section-box hero-section d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h4>Account Configuration</h4>
-    <p>Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
-  </div>
-  <button id="add-account-btn" class="btn btn-primary">
-    <i class="bi bi-plus-circle"></i> Add New Account
-  </button>
-</div>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-5 pb-3 border-bottom">
+        <div>
+            <h2 class="mb-2 fw-bold text-dark">Account Configuration</h2>
+            <p class="lead text-muted">Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
+        </div>
+        <button id="add-account-btn" class="btn btn-primary btn-lg shadow-sm">
+            <i class="bi bi-plus-circle me-2"></i> Add New Account
+        </button>
+    </div>
 
-<!-- Account Stats Cards (static for now, dynamic optional) -->
-<div class="row g-4 mb-4">
-  <div class="col-md-3">
-    <div class="card-box text-center">
-      <p>Total capacity</p>
-      <h4>10</h4>
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+                <div class="card-body">
+                    <p class="card-text text-muted mb-1 small">Total Capacity</p>
+                    <h4 class="card-title fw-bold text-primary">10</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+                <div class="card-body">
+                    <p class="card-text text-muted mb-1 small">Master Accounts</p>
+                    <h4 class="card-title fw-bold text-info">1</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+                <div class="card-body">
+                    <p class="card-text text-muted mb-1 small">Child Accounts</p>
+                    <h4 class="card-title fw-bold text-secondary">9</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+                <div class="card-body">
+                    <p class="card-text text-muted mb-1 small">Current Plan</p>
+                    <h4 class="card-title fw-bold text-success">Professional</h4>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card-box text-center">
-      <p>Master capacity</p>
-      <h4>1</h4>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card-box text-center">
-      <p>Children capacity</p>
-      <h4>9</h4>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card-box text-center">
-      <p>Plan name</p>
-      <h4>Professional</h4>
-    </div>
-  </div>
-</div>
 
-<!-- Inline Add Account Section (hidden by default) -->
-<div id="add-account-section" class="card p-4 mb-4" style="display:none;">
-  <h5 class="mb-3">Add New Account</h5>
-  <!-- Broker Icons -->
-<!-- Scrollable Broker Tab Strip -->
-  <div class="broker-carousel overflow-auto">             
-  <div class="broker-scroll d-flex align-items-center gap-4 mb-4 px-2">
-    <div class="text-center">
-      <img src="/static/images/logo.svg" class="broker-icon" data-broker="broker1" title="Broker 1" />
-      <div>Broker 1</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/zerodha.png" class="broker-icon" data-broker="zerodha" title="Zerodha" />
-      <div>Zerodha</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/aliceblue.jpg" class="broker-icon" data-broker="aliceblue" title="Alice Blue" />
-      <div>Alice Blue</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/groww.png" class="broker-icon" data-broker="groww" title="Groww" />
-      <div>Groww</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/fyers.png" class="broker-icon" data-broker="fyers" title="Fyers" />
-      <div>Fyers</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/finvasia.jpg" class="broker-icon" data-broker="finvasia" title="Finvasia" />
-      <div>Finvasia</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/dhan.jpg" class="broker-icon" data-broker="dhan" title="Dhan" />
-      <div>Dhan</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/flattrade.jpg" class="broker-icon" data-broker="flattrade" title="Flattrade" />
-      <div>Flattrade</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/acagarwal.jpg" class="broker-icon" data-broker="acagarwal" title="AC Agarwal" />
-      <div>AC Agarwal</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/motilaloswal.png" class="broker-icon" data-broker="motilaloswal" title="Motilal Oswal" />
-      <div>Motilal Oswal</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/kotakneo.png" class="broker-icon" data-broker="kotakneo" title="Kotak Neo" />
-      <div>Kotak Neo</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/tradejini.png" class="broker-icon" data-broker="tradejini" title="Tradejini" />
-      <div>Tradejini</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/zebu.jpg" class="broker-icon" data-broker="zebu" title="Zebu" />
-      <div>Zebu</div>
-    </div>
-    <div class="text-center">
-      <img src="/static/images/enrichmoney.jpg" class="broker-icon" data-broker="enrichmoney" title="Enrich Money" />
-      <div>Enrich Money</div>
-    </div>
-  </div>
-  </div>
-  
+    <div id="add-account-section" class="card shadow-lg border-0 rounded-3 mb-5" style="display:none;">
+        <div class="card-body p-4">
+            <h5 class="card-title mb-4 text-primary d-flex align-items-center">
+                <i class="bi bi-person-add me-2"></i> Add/Edit Account Details
+            </h5>
 
+            <p class="text-muted small mb-3">Select your broker to configure account credentials.</p>
+            <div class="broker-carousel overflow-auto mb-4 pb-2">
+                <div class="broker-scroll d-flex align-items-center gap-4 px-2">
+                    <div class="text-center broker-selection-item" data-broker="broker1" title="Broker 1">
+                        <img src="/static/images/logo.svg" class="broker-icon border-0 rounded" alt="Broker 1" />
+                        <div class="small text-muted mt-1">Broker 1</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="zerodha" title="Zerodha">
+                        <img src="/static/images/zerodha.png" class="broker-icon border-0 rounded" alt="Zerodha" />
+                        <div class="small text-muted mt-1">Zerodha</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="aliceblue" title="Alice Blue">
+                        <img src="/static/images/aliceblue.jpg" class="broker-icon border-0 rounded" alt="Alice Blue" />
+                        <div class="small text-muted mt-1">Alice Blue</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="groww" title="Groww">
+                        <img src="/static/images/groww.png" class="broker-icon border-0 rounded" alt="Groww" />
+                        <div class="small text-muted mt-1">Groww</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="fyers" title="Fyers">
+                        <img src="/static/images/fyers.png" class="broker-icon border-0 rounded" alt="Fyers" />
+                        <div class="small text-muted mt-1">Fyers</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="finvasia" title="Finvasia">
+                        <img src="/static/images/finvasia.jpg" class="broker-icon border-0 rounded" alt="Finvasia" />
+                        <div class="small text-muted mt-1">Finvasia</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="dhan" title="Dhan">
+                        <img src="/static/images/dhan.jpg" class="broker-icon border-0 rounded" alt="Dhan" />
+                        <div class="small text-muted mt-1">Dhan</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="flattrade" title="Flattrade">
+                        <img src="/static/images/flattrade.jpg" class="broker-icon border-0 rounded" alt="Flattrade" />
+                        <div class="small text-muted mt-1">Flattrade</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="acagarwal" title="AC Agarwal">
+                        <img src="/static/images/acagarwal.jpg" class="broker-icon border-0 rounded" alt="AC Agarwal" />
+                        <div class="small text-muted mt-1">AC Agarwal</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="motilaloswal" title="Motilal Oswal">
+                        <img src="/static/images/motilaloswal.png" class="broker-icon border-0 rounded" alt="Motilal Oswal" />
+                        <div class="small text-muted mt-1">Motilal Oswal</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="kotakneo" title="Kotak Neo">
+                        <img src="/static/images/kotakneo.png" class="broker-icon border-0 rounded" alt="Kotak Neo" />
+                        <div class="small text-muted mt-1">Kotak Neo</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="tradejini" title="Tradejini">
+                        <img src="/static/images/tradejini.png" class="broker-icon border-0 rounded" alt="Tradejini" />
+                        <div class="small text-muted mt-1">Tradejini</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="zebu" title="Zebu">
+                        <img src="/static/images/zebu.jpg" class="broker-icon border-0 rounded" alt="Zebu" />
+                        <div class="small text-muted mt-1">Zebu</div>
+                    </div>
+                    <div class="text-center broker-selection-item" data-broker="enrichmoney" title="Enrich Money">
+                        <img src="/static/images/enrichmoney.jpg" class="broker-icon border-0 rounded" alt="Enrich Money" />
+                        <div class="small text-muted mt-1">Enrich Money</div>
+                    </div>
+                </div>
+            </div>
 
-  <!-- Dynamic Broker Fields -->
-  <form id="broker-credentials-form">
-    <div id="broker-fields"></div>
-    <div id="cred-check-result" class="mt-2"></div>
-    <button type="submit" class="btn btn-success mt-3" style="display:none;" id="submit-account-btn">Add Account</button>
-    <button type="button" class="btn btn-link mt-3" onclick="document.getElementById('add-account-section').style.display='none'">Cancel</button>
-  </form>
-</div>
+            <form id="broker-credentials-form" class="row g-3">
+                <div id="broker-fields" class="col-12">
+                    <p class="text-center text-muted py-3">Please select a broker above to view configuration fields.</p>
+                </div>
+                <div id="cred-check-result" class="col-12 mt-2"></div>
+                <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="cancel-add-account-btn">Cancel</button>
+                    <button type="submit" class="btn btn-success" style="display:none;" id="submit-account-btn">Add Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-<!-- Accounts Table (sample, you should load with AJAX for real data) -->
-<div class="card-box">
-  <!-- Status Tabs -->
-  <ul class="nav nav-tabs mb-3" id="status-tabs">
-    <li class="nav-item">
-      <a class="nav-link active" href="#" data-status="all">All
-        <span class="badge bg-secondary ms-1" id="tab-count-all">0</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="#" data-status="success">Success
-        <span class="badge bg-secondary ms-1" id="tab-count-success">0</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="#" data-status="failed">Failed
-        <span class="badge bg-secondary ms-1" id="tab-count-failed">0</span>
-      </a>
-    </li>
-  </ul>
+    <div class="card shadow-lg border-0 rounded-3">
+        <div class="card-body p-4">
+            <h5 class="card-title mb-4 text-dark d-flex align-items-center">
+                <i class="bi bi-list-columns-reverse me-2"></i> Your Connected Accounts
+            </h5>
 
-  <!-- Filters -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <select class="form-select" id="broker-filter" style="max-width:200px"></select>
-    <input type="search" class="form-control" id="account-search" placeholder="Search" style="max-width:250px">
-  </div>
-        
-  <div class="table-responsive">
-    <table class="table align-middle">
-      <thead>
-        <tr>
-          <th>Broker</th>
-          <th class="hide-xs">Opening Balance</th>
-          <th>Client ID</th>
-          <th>Username</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="accounts-table-body">
-        <!-- Filled dynamically with JS (optional: can use Jinja loop if rendering server-side) -->
-      </tbody>
-    </table>
-  </div>
+            <ul class="nav nav-tabs nav-tabs-alt mb-3" id="status-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#" data-status="all">All
+                        <span class="badge rounded-pill bg-secondary ms-1" id="tab-count-all">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-status="success">Connected
+                        <span class="badge rounded-pill bg-success ms-1" id="tab-count-success">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-status="failed">Failed
+                        <span class="badge rounded-pill bg-danger ms-1" id="tab-count-failed">0</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <div class="flex-grow-1" style="max-width: 200px;">
+                    <label for="broker-filter" class="visually-hidden">Filter by Broker</label>
+                    <select class="form-select" id="broker-filter" aria-label="Filter by Broker"></select>
+                </div>
+                <div class="flex-grow-1" style="max-width: 280px;">
+                    <label for="account-search" class="visually-hidden">Search Accounts</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" class="form-control" id="account-search" placeholder="Search by Client ID or Username" aria-label="Search Accounts">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle caption-top" id="accounts-table">
+                    <caption>List of your trading accounts</caption>
+                    <thead class="table-light">
+                        <tr>
+                            <th>Broker</th>
+                            <th>Client ID</th>
+                            <th>Username</th>
+                            <th class="text-end">Opening Balance</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
-{% block scripts %}  
+{% block scripts %}
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 
 window.pageScripts["Add-Account"] = function() {
   // Broker field definitions
   const brokerFields = {
-  flattrade: [
-    { label: "Flattrade Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  acagarwal: [
-    { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  motilaloswal: [
-    { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "PAN", name: "pan", type: "text" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  kotakneo: [
-    { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "MPIN", name: "mpin", type: "password" },
-    { label: "Client Name", name: "client_name", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  tradejini: [
-    { label: "Tradejini Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "MPIN", name: "mpin", type: "password" },
-    { label: "Client Name", name: "client_name", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  zebu: [
-    { label: "Zebu Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "MPIN", name: "mpin", type: "password" },
-    { label: "Client Name", name: "client_name", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  enrichmoney: [
-    { label: "Enrich Money Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "password" },
-    { label: "MPIN", name: "mpin", type: "password" },
-    { label: "Client Name", name: "client_name", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  dhan: [
-    { label: "Dhan Client ID", name: "client_id", type: "text" },
-    { label: "Access Token", name: "access_token", type: "password" },
-    { label: "Client Name", name: "client_name", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  finvasia: [
-    { label: "Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya \u2192 Profile \u2192 Security \u2192 TOTP. Do not enter the 6-digit code." },
-    { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
-    { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
-    { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  fyers: [
-    { label: "Fyers App ID", name: "client_id", type: "text" },
-    { label: "Secret Key", name: "secret_key", type: "password" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-
-  groww: [
-    { label: "Groww Client ID", name: "client_id", type: "text" },
-    { label: "Access Token", name: "access_token", type: "password" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-          
-  aliceblue: [
-    { label: "Alice Blue Client ID", name: "client_id", type: "text" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  zerodha: [
-    { label: "Zerodha Client ID", name: "client_id", type: "text" },
-    { label: "Password", name: "password", type: "password" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "API Secret", name: "api_secret", type: "text" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ],
-  broker1: [
-    { label: "Broker 1 Client ID", name: "client_id", type: "text" },
-    { label: "API Key", name: "api_key", type: "text" },
-    { label: "Secret Key", name: "secret_key", type: "password" },
-    { label: "TOTP Key", name: "totp_secret", type: "text" },
-    { label: "Email Id (optional)", name: "email", type: "text" },
-    { label: "Mobile no (optional)", name: "mobile", type: "text" }
-  ]
-    // Add more brokers here as needed
+    flattrade: [
+      { label: "Flattrade Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "TOTP Key", name: "totp_secret", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    acagarwal: [
+      { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    motilaloswal: [
+      { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "PAN", name: "pan", type: "text" },
+      { label: "TOTP Key", name: "totp_secret", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    kotakneo: [
+      { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "MPIN", name: "mpin", type: "password" },
+      { label: "Client Name", name: "client_name", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    tradejini: [
+      { label: "Tradejini Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "MPIN", name: "mpin", type: "password" },
+      { label: "Client Name", name: "client_name", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    zebu: [
+      { label: "Zebu Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "MPIN", name: "mpin", type: "password" },
+      { label: "Client Name", name: "client_name", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    enrichmoney: [
+      { label: "Enrich Money Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "MPIN", name: "mpin", type: "password" },
+      { label: "Client Name", name: "client_name", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    dhan: [
+      { label: "Dhan Client ID", name: "client_id", type: "text" },
+      { label: "Access Token", name: "access_token", type: "password" },
+      { label: "Client Name", name: "client_name", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    finvasia: [
+      { label: "Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya \u2192 Profile \u2192 Security \u2192 TOTP. Do not enter the 6-digit code." },
+      { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
+      { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
+      { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    fyers: [
+      { label: "Fyers App ID", name: "client_id", type: "text" },
+      { label: "Secret Key", name: "secret_key", type: "password" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    groww: [
+      { label: "Groww Client ID", name: "client_id", type: "text" },
+      { label: "Access Token", name: "access_token", type: "password" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    aliceblue: [
+      { label: "Alice Blue Client ID", name: "client_id", type: "text" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    zerodha: [
+      { label: "Zerodha Client ID", name: "client_id", type: "text" },
+      { label: "Password", name: "password", type: "password" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "API Secret", name: "api_secret", type: "text" },
+      { label: "TOTP Key", name: "totp_secret", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ],
+    broker1: [
+      { label: "Broker 1 Client ID", name: "client_id", type: "text" },
+      { label: "API Key", name: "api_key", type: "text" },
+      { label: "Secret Key", name: "secret_key", type: "password" },
+      { label: "TOTP Key", name: "totp_secret", type: "text" },
+      { label: "Email Id (optional)", name: "email", type: "text" },
+      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+    ]
   };
 
-  function showBrokerFields(broker) {
-    const fields = brokerFields[broker];
-    const container = document.getElementById("broker-fields");
-    const submitBtn = document.getElementById("submit-account-btn");
-    const resultDiv = document.getElementById("cred-check-result");      
-    container.innerHTML = "";
-    if (resultDiv) resultDiv.textContent = "";
-    const form = document.getElementById("broker-credentials-form");
-    if (form) form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
-    if (!fields) {
-      submitBtn.style.display = "none";
-      return;
-    }
-    container.innerHTML += `<div class="mb-3"><label class="form-label">Username (for your reference)</label><input class="form-control" name="username" type="text" required></div>`;
-    fields.forEach(f => {
-      const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
-      const val = f.value ? ` value="${f.value}"` : '';
-      let inputEl = '';
-      if (f.type === 'password') {
-        inputEl = `<div class="input-group"><input class="form-control" name="${f.name}" type="password"${ph}${val} required>` +
-          `<button type="button" class="btn btn-outline-secondary toggle-pass"><i class="bi bi-eye"></i></button></div>`;
-      } else {
-        inputEl = `<input class="form-control" name="${f.name}" type="${f.type}"${ph}${val} required>`;
-      }
-      let html = `<div class="mb-3"><label class="form-label">${f.label}</label>${inputEl}`;
-      if (f.tip) html += `<div class="form-text">${f.tip}</div>`;
-      html += `</div>`;
-      container.innerHTML += html;
-    });
-    if (broker === 'zerodha') {
-      container.innerHTML += `<div class="mb-3"><button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">Open Zerodha Login Page</button></div>`;
-    }
-    submitBtn.style.display = "inline-block";
-    submitBtn.disabled = false;
-    attachPasswordToggles();
-    attachValidation();
-    if (broker === 'zerodha') {
-      const btn = document.getElementById('zerodha-login-btn');
-      btn.onclick = function() {
-        const apiKey = container.querySelector('input[name="api_key"]').value.trim();
-        if (!apiKey) return alert('Enter API Key first');
-        fetch(`/api/zerodha-login-url?api_key=${encodeURIComponent(apiKey)}`)
-          .then(r => r.json())
-          .then(resp => {
-            if (resp.login_url) window.open(resp.login_url, '_blank');
-            else alert(resp.error || 'Failed to get login URL');
-          })
-          .catch(() => alert('Failed to get login URL'));
-      };
-    }
-  }
-
-  function attachValidation() {
-    document.querySelectorAll('#broker-credentials-form input').forEach(inp => {
-      inp.onblur = validateCredentials;
-    });
-  }
-
-  function attachPasswordToggles() {
-    document.querySelectorAll('#broker-fields .toggle-pass').forEach(btn => {
-      btn.onclick = function() {
-        const inp = btn.parentElement.querySelector('input');
-        if (!inp) return;
-        const isPass = inp.type === 'password';
-        inp.type = isPass ? 'text' : 'password';
-        const icon = btn.querySelector('i');
-        if (icon) {
-          icon.classList.toggle('bi-eye');
-          icon.classList.toggle('bi-eye-slash');
-        }
-      };
-    });
-  }
-
-  function validateCredentials() {
-    const resultDiv = document.getElementById('cred-check-result');
-    const submitBtn = document.getElementById('submit-account-btn');
-    if (!resultDiv) return;
-    const form = document.getElementById('broker-credentials-form');
-    const selected = document.querySelector('.broker-icon.border-primary');
-    if (!selected) return;
-    const broker = selected.dataset.broker;
-    const fields = brokerFields[broker] || [];
-
-    // Only run validation when all required fields are filled
-    const optionalNames = ['email', 'mobile', 'access_token'];
-    let allFilled = form.querySelector('input[name="username"]').value.trim() !== '';
-    fields.forEach(f => {
-      if (!optionalNames.includes(f.name)) {
-        const v = form.querySelector(`input[name="${f.name}"]`).value.trim();
-        if (!v) allFilled = false;
-      }
-    });
-    if (!allFilled) {
-      resultDiv.textContent = '';
-      return;
-    }
-    // show spinner while validating
-    resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Checking...';
-    submitBtn.disabled = false;
-    // clear previous invalid highlighting
-    form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
-    const data = {};
-    new FormData(form).forEach((v,k) => data[k] = v);
-    data['broker'] = broker;
-    fetch('/api/check-credentials', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    })
-    .then(r => r.json())
-    .then(resp => {
-      if (resp.valid) {
-        resultDiv.innerHTML = '<span class="text-success">Credentials valid \u2713</span>';
-        submitBtn.disabled = false;
-        form.querySelectorAll('input').forEach(i => i.classList.remove('is-invalid'));
-      } else {
-        resultDiv.innerHTML = `<span class="text-danger">${resp.error || 'Invalid credentials'}</span>`;
-        submitBtn.disabled = false;
-        form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid'));
-      }
-    })
-    .catch(() => {
-      resultDiv.innerHTML = '<span class="text-danger">Validation failed</span>';
-    });
-  }
-
-  // Bind Add Account button
-  const addAccountBtn = document.getElementById('add-account-btn');
-  if (addAccountBtn) {
-    addAccountBtn.onclick = function() {
-      document.getElementById('add-account-section').style.display = 'block';
-      editingAccountId = null;
-      document.getElementById('submit-account-btn').textContent = 'Add Account';
-    };
-  }
-
-  // Bind broker icons
-  document.querySelectorAll('.broker-icon').forEach(icon => {
-    icon.onclick = function() {
-      document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
-      icon.classList.add('border-primary');
-      showBrokerFields(icon.dataset.broker);
-    };
-  });
-
-  // AJAX submit form (NO role/multiplier)
-  const brokerForm = document.getElementById('broker-credentials-form');
-  if (brokerForm) {
-    brokerForm.onsubmit = function(e) {
-      e.preventDefault();
-      const formData = new FormData(brokerForm);   
-      const data = {};
-      for (const [key, value] of formData.entries()) data[key] = value;
-      // Get broker type from selected icon
-      const selected = document.querySelector('.broker-icon.border-primary');
-      if (selected) data['broker'] = selected.dataset.broker;
-      else return alert('Please select a broker');
-      
-      if (data['broker'] === 'zerodha') {
-        fetch('/api/init-zerodha-login', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(data)
-        })
-          .then(r => r.json())
-          .then(resp => {
-            if (resp.login_url) {
-              window.location.href = resp.login_url;
-            } else {
-              alert(resp.error || 'Failed to get login URL');
-            }
-          })
-          .catch(() => alert('Failed to get login URL'));
-        return;
-      }
-            
-      if (data['broker'] === 'fyers') {
-        fetch('/api/init-fyers-login', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(data)
-        })
-          .then(r => r.json())
-          .then(resp => {
-            if (resp.login_url) {
-              window.location.href = resp.login_url;
-            } else {
-              alert(resp.error || 'Failed to get login URL');
-            }
-          })
-          .catch(() => alert('Failed to get login URL'));
-        return;
-      }
-
-      const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
-      if (editingAccountId) data['client_id'] = editingAccountId;
-
-      fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-      })
-      .then(r => r.json())
-      .then(resp => {
-        if (resp.message) {
-          alert(resp.message);
-          editingAccountId = null;
-          location.reload();
-        } else {
-          alert(resp.error || 'Unknown error');
-        }
-      });
-    };
-  }
-
-  // (Optional) Load accounts dynamically for table:
-  // === Accounts Table & Filters ===
+  // === Global Variables ===
   let allAccounts = [];
   let statusFilter = 'all';
   let brokerFilter = '';
   let searchFilter = '';
   let editingAccountId = null;
+  let currentBrokerSelected = null; // Track the currently selected broker in the form
+
+  // === Utility Functions ===
+  function fetchJson(url, options = {}) {
+    return fetch(url, options).then(response => {
+      if (!response.ok) {
+        return response.json().then(errorData => {
+          throw new Error(errorData.error || 'An unknown error occurred.');
+        });
+      }
+      return response.json();
+    });
+  }
+
+  // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
+  function showToast(message, type = 'success') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    alert(message); // Using alert for immediate demo purposes
+  }
+
+  // === UI Rendering Functions ===
+  function showBrokerFields(broker) {
+    currentBrokerSelected = broker;
+    const fields = brokerFields[broker];
+    const container = document.getElementById("broker-fields");
+    const submitBtn = document.getElementById("submit-account-btn");
+    const resultDiv = document.getElementById("cred-check-result");
+    
+    container.innerHTML = "";
+    resultDiv.textContent = ""; // Clear previous validation messages
+    submitBtn.style.display = "none"; // Hide submit until fields are rendered
+
+    if (!fields) {
+      container.innerHTML = '<p class="text-center text-muted py-3">No configuration fields defined for this broker.</p>';
+      return;
+    }
+
+    let formHtml = `
+      <div class="col-md-6">
+          <label for="username" class="form-label">Username (for your reference)</label>
+          <input class="form-control" name="username" type="text" id="username" required>
+      </div>`;
+    
+    fields.forEach(f => {
+      const isRequired = !['email', 'mobile'].includes(f.name) ? 'required' : '';
+      const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
+      const val = f.value ? ` value="${f.value}"` : '';
+      let inputEl;
+
+      if (f.type === 'password') {
+        inputEl = `
+          <div class="input-group">
+            <input class="form-control" name="${f.name}" type="password" ${ph} ${val} ${isRequired}>
+            <button type="button" class="btn btn-outline-secondary toggle-pass" aria-label="Toggle password visibility">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>`;
+      } else {
+        inputEl = `<input class="form-control" name="${f.name}" type="${f.type}" ${ph} ${val} ${isRequired}>`;
+      }
+
+      formHtml += `
+        <div class="col-md-6">
+            <label for="${f.name}" class="form-label">${f.label}</label>
+            ${inputEl}
+            ${f.tip ? `<div class="form-text text-muted">${f.tip}</div>` : ''}
+        </div>`;
+    });
+
+    if (broker === 'zerodha') {
+      formHtml += `
+        <div class="col-12 mt-3">
+            <button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">
+                <i class="bi bi-box-arrow-up-right me-2"></i> Open Zerodha Login Page
+            </button>
+        </div>`;
+    }
+
+    container.innerHTML = formHtml;
+    submitBtn.style.display = "inline-block"; // Show submit button after fields are loaded
+    submitBtn.disabled = false;
+
+    attachPasswordToggles();
+    attachValidation();
+    if (broker === 'zerodha') {
+      document.getElementById('zerodha-login-btn').onclick = function() {
+        const apiKeyInput = container.querySelector('input[name="api_key"]');
+        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+        if (!apiKey) { showToast('Please enter your API Key first.', 'warning'); return; }
+        fetchJson(`/api/zerodha-login-url?api_key=${encodeURIComponent(apiKey)}`)
+          .then(resp => {
+            if (resp.login_url) window.open(resp.login_url, '_blank');
+            else showToast(resp.error || 'Failed to get login URL.', 'error');
+          })
+          .catch(error => showToast(`Failed to get login URL: ${error.message}`, 'error'));
+      };
+    }
+  }
+
+  function renderTable(rows) {
+    const body = document.getElementById('accounts-table-body');
+    if (!body) return;
+    const imgExtensions = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
+
+    if (rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(acc => {
+      const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
+      const pictureHTML = `
+        <picture>
+          ${imgExtensions.map(ext => `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('\n')}
+          <img src="/static/images/${acc.broker}.png" class="me-2 rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
+        </picture>
+        <span class="align-middle">${brokerName}</span>`;
+      
+      const statusText = acc.error ? 'Failed' : (acc.status || 'Connected');
+      const statusClass = acc.error ? 'bg-danger' : (statusText === 'Connected' ? 'bg-success' : 'bg-warning'); // Use warning for other statuses
+      const tooltip = acc.error ? `data-bs-toggle="tooltip" data-bs-placement="top" title="${acc.error}"` : '';
+
+      return `
+        <tr>
+          <td>${pictureHTML}</td>
+          <td class="font-monospace">${acc.client_id}</td>
+          <td>${acc.username || '-'}</td>
+          <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
+          <td><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
+          <td class="text-center">
+            <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-success btn-sm me-1" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
+                <i class="bi bi-arrow-repeat"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
+                <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Initialize tooltips after rendering table
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+  }
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
@@ -524,42 +475,11 @@ window.pageScripts["Add-Account"] = function() {
 
   function isFailed(acc) {
     const st = (acc.status || '').toLowerCase();
-    return acc.error || (st && st !== 'connected');
-  }
-
-  function renderTable(rows) {
-    const body = document.getElementById('accounts-table-body');
-    if (!body) return;
-    const imgExtensions = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
-
-    body.innerHTML = rows.map(acc => {
-      const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
-      const pictureHTML = `
-        <picture>
-          ${imgExtensions.map(ext => `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('\n')}
-          <img src="/static/images/${acc.broker}.png" style="width:24px;" alt="${brokerName}" onerror="this.onerror=null;this.src='/static/images/logo.png';">
-        </picture>
-        ${brokerName}`;
-      const statusText = acc.error || acc.status || 'Connected';
-      const statusClass = isFailed(acc) ? 'bg-danger' : 'bg-success';
-      return `
-        <tr>
-          <td>${pictureHTML}</td>
-          <td>${acc.opening_balance ?? '-'}</td>
-          <td>${acc.client_id}</td>
-          <td>${acc.username || '-'}</td>
-          <td><span class="badge ${statusClass}">${statusText}</span></td>
-          <td>
-            <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')">Edit</button>
-            <button class="btn btn-outline-success btn-sm" onclick="window.reconnectAccount('${acc.client_id}')">Reconnect</button>
-            <button class="btn btn-outline-danger btn-sm ms-1" onclick="window.deleteAccount('${acc.client_id}')">Delete</button>
-          </td>
-        </tr>`;
-    }).join('');
+    return acc.error || (st && st !== 'connected' && st !== 'pending'); // Consider 'pending' as not fully successful
   }
 
   function applyFilters() {
-    let rows = allAccounts.slice();
+    let rows = allAccounts.slice(); // Create a shallow copy to filter
     if (statusFilter === 'success') rows = rows.filter(isSuccess);
     else if (statusFilter === 'failed') rows = rows.filter(isFailed);
     if (brokerFilter) rows = rows.filter(a => a.broker === brokerFilter);
@@ -591,17 +511,180 @@ window.pageScripts["Add-Account"] = function() {
       brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
   }
 
-  // Load accounts data
-  fetch('/api/accounts')
-    .then(res => res.json())
-    .then(data => {
-      allAccounts = data.accounts || [];
-      populateBrokerFilter();
-      updateCounts();
-      applyFilters();
+  // === Event Attachments ===
+  function attachPasswordToggles() {
+    document.querySelectorAll('#broker-fields .toggle-pass').forEach(btn => {
+      btn.onclick = function() {
+        const inp = btn.parentElement.querySelector('input');
+        if (!inp) return;
+        const isPass = inp.type === 'password';
+        inp.type = isPass ? 'text' : 'password';
+        const icon = btn.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('bi-eye');
+          icon.classList.toggle('bi-eye-slash');
+        }
+      };
+    });
+  }
+
+  function attachValidation() {
+    const form = document.getElementById('broker-credentials-form');
+    form.querySelectorAll('input').forEach(inp => {
+      if (inp.name !== 'username') { // Username validation can be done separately or is less critical
+        inp.onblur = validateCredentials;
+      }
+    });
+  }
+
+  function validateCredentials() {
+    const resultDiv = document.getElementById('cred-check-result');
+    const submitBtn = document.getElementById('submit-account-btn');
+    const form = document.getElementById('broker-credentials-form');
+    
+    // Clear previous feedback
+    resultDiv.innerHTML = '';
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid'));
+
+    if (!currentBrokerSelected) { return; }
+
+    const fields = brokerFields[currentBrokerSelected] || [];
+    const optionalNames = ['email', 'mobile', 'access_token']; // Define optional fields for validation logic
+
+    let allRequiredFieldsFilled = true;
+    fields.forEach(f => {
+      if (!optionalNames.includes(f.name)) {
+        const inputElement = form.querySelector(`input[name="${f.name}"]`);
+        if (inputElement && inputElement.value.trim() === '') {
+          allRequiredFieldsFilled = false;
+          inputElement.classList.add('is-invalid'); // Mark missing required fields
+        }
+      }
     });
 
-  // Bind filter controls
+    if (!allRequiredFieldsFilled || form.querySelector('input[name="username"]').value.trim() === '') {
+      resultDiv.innerHTML = '<span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Please fill all required fields.</span>';
+      submitBtn.disabled = true; // Disable submit if not all required fields are filled
+      return;
+    }
+
+    // Show spinner while validating
+    resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1 text-info" role="status"></span> <span class="text-info small">Checking credentials...</span>';
+    submitBtn.disabled = true; // Disable during check
+
+    const data = {};
+    new FormData(form).forEach((v, k) => data[k] = v);
+    data['broker'] = currentBrokerSelected;
+
+    fetchJson('/api/check-credentials', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    })
+    .then(resp => {
+      if (resp.valid) {
+        resultDiv.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Credentials valid!</span>';
+        form.querySelectorAll('input').forEach(i => i.classList.add('is-valid')); // Mark all as valid
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')); // Remove any invalid
+        submitBtn.disabled = false;
+      } else {
+        resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> ${resp.error || 'Invalid credentials'}</span>`;
+        form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid')); // Mark all as invalid
+        form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid')); // Remove any valid
+        submitBtn.disabled = true; // Keep disabled if validation fails
+      }
+    })
+    .catch(error => {
+      resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> Validation failed: ${error.message}</span>`;
+      submitBtn.disabled = true; // Keep disabled on network/server error
+    });
+  }
+
+  // === Event Listeners ===
+
+  // Add Account button click
+  document.getElementById('add-account-btn').addEventListener('click', function() {
+    document.getElementById('add-account-section').style.display = 'block';
+    document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' }); // Scroll into view
+    editingAccountId = null;
+    document.getElementById('submit-account-btn').textContent = 'Add Account';
+    document.getElementById('broker-credentials-form').reset(); // Clear form
+    document.getElementById('broker-fields').innerHTML = '<p class="text-center text-muted py-3">Please select a broker above to view configuration fields.</p>'; // Reset dynamic fields
+    document.getElementById('cred-check-result').innerHTML = ''; // Clear result
+    document.getElementById('submit-account-btn').style.display = 'none'; // Hide submit button initially
+    document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker')); // Remove active broker highlight
+    currentBrokerSelected = null;
+  });
+
+  // Cancel Add Account button click
+  document.getElementById('cancel-add-account-btn').addEventListener('click', function() {
+    document.getElementById('add-account-section').style.display = 'none';
+  });
+
+  // Broker icon selection
+  document.querySelectorAll('.broker-selection-item').forEach(item => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
+      this.classList.add('active-broker');
+      showBrokerFields(this.dataset.broker);
+    });
+  });
+
+  // Broker credentials form submission
+  document.getElementById('broker-credentials-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = {};
+    for (const [key, value] of formData.entries()) data[key] = value;
+    
+    if (!currentBrokerSelected) { showToast('Please select a broker.', 'warning'); return; }
+    data['broker'] = currentBrokerSelected;
+
+    // Specific login flows for Zerodha/Fyers
+    if (data['broker'] === 'zerodha') {
+      fetchJson('/api/init-zerodha-login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      })
+      .then(resp => {
+        if (resp.login_url) { window.location.href = resp.login_url; }
+        else { showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); }
+      })
+      .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
+      return;
+    }
+            
+    if (data['broker'] === 'fyers') {
+      fetchJson('/api/init-fyers-login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      })
+      .then(resp => {
+        if (resp.login_url) { window.location.href = resp.login_url; }
+        else { showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); }
+      })
+      .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
+      return;
+    }
+
+    // Standard Add/Update Account flow
+    const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
+    if (editingAccountId) data['client_id'] = editingAccountId; // Use original client_id for update
+
+    fetchJson(endpoint, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    })
+    .then(resp => {
+      showToast(resp.message || resp.error || 'Operation completed.');
+      if (resp.message) { // Only reload on success
+        location.reload();
+      }
+    })
+    .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
+  });
+
+  // Table Filters & Actions
   document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
@@ -622,55 +705,126 @@ window.pageScripts["Add-Account"] = function() {
     applyFilters();
   });
 
+  // Global functions for table actions (can be called directly from onclick in HTML)
   window.deleteAccount = function(cid) {
-    if (!confirm('Delete account ' + cid + '?')) return;
-    fetch('/api/delete-account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: cid })
+    if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
+    fetchJson('/api/delete-account', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
     })
-    .then(r => r.json())
     .then(resp => {
-      alert(resp.message || resp.error || 'Unknown error');
-      location.reload();
-    });
+      showToast(resp.message || resp.error || 'Unknown error during deletion.');
+      if (resp.message) location.reload();
+    })
+    .catch(error => showToast(`Failed to delete account: ${error.message}`, 'error'));
   };
+
   window.editAccount = function(cid) {
     const acc = allAccounts.find(a => a.client_id === cid);
-    if (!acc) return;
-    editingAccountId = cid;
+    if (!acc) { showToast('Account not found for editing.', 'error'); return; }
+
+    editingAccountId = cid; // Set the account ID being edited
     document.getElementById('add-account-section').style.display = 'block';
-    document.querySelectorAll('.broker-icon').forEach(i => i.classList.remove('border-primary'));
-    const icon = document.querySelector(`.broker-icon[data-broker="${acc.broker}"]`);
-    if (icon) icon.classList.add('border-primary');
-    showBrokerFields(acc.broker);
-    setTimeout(() => {
+    document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' });
+
+    // Highlight the correct broker icon
+    document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
+    const iconItem = document.querySelector(`.broker-selection-item[data-broker="${acc.broker}"]`);
+    if (iconItem) iconItem.classList.add('active-broker');
+    
+    // Show broker-specific fields and populate them
+    showBrokerFields(acc.broker); // This also sets currentBrokerSelected
+
+    // Populate the form fields with existing data
+    setTimeout(() => { // Timeout ensures fields are rendered by showBrokerFields first
       const form = document.getElementById('broker-credentials-form');
       if (!form) return;
       form.querySelector('input[name="username"]').value = acc.username || '';
-      Object.entries(acc.credentials || {}).forEach(([k,v]) => {
+      
+      Object.entries(acc.credentials || {}).forEach(([k, v]) => {
         const inp = form.querySelector(`input[name="${k}"]`);
         if (inp) {
           inp.value = v;
-          if (k === 'client_id') inp.readOnly = true;
+          if (k === 'client_id' || k === 'api_key' || k === 'access_token') { // Prevent editing key identifiers
+             inp.readOnly = true;
+             inp.classList.add('bg-light'); // Visually indicate read-only
+          }
         }
       });
       document.getElementById('submit-account-btn').textContent = 'Update Account';
-    }, 50);
+      document.getElementById('submit-account-btn').disabled = false; // Enable update button
+      document.getElementById('cred-check-result').innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
+    }, 100); // Small delay to ensure DOM updates from showBrokerFields
   };
 
   window.reconnectAccount = function(cid) {
-    fetch('/api/reconnect-account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: cid })
+    if (!confirm('Attempt to reconnect account ' + cid + '?')) return;
+    fetchJson('/api/reconnect-account', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
     })
-    .then(r => r.json())
     .then(resp => {
-      alert(resp.message || resp.error || 'Unknown error');
-      location.reload();
-    });
+      showToast(resp.message || resp.error || 'Unknown error during reconnection.');
+      if (resp.message) location.reload(); // Reload to see updated status
+    })
+    .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
   };
+
+  // === Initial Load ===
+  fetchJson('/api/accounts')
+    .then(data => {
+      allAccounts = data.accounts || [];
+      populateBrokerFilter();
+      updateCounts();
+      applyFilters();
+    })
+    .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
 </script>
+
+<style>
+.broker-selection-item {
+  cursor: pointer;
+  padding: 10px;
+  transition: all 0.2s ease-in-out;
+  border: 2px solid transparent;
+  border-radius: 8px; /* Match card roundedness */
+}
+.broker-selection-item:hover {
+  background-color: var(--bs-light);
+  border-color: var(--bs-gray-300);
+}
+.broker-selection-item.active-broker {
+  background-color: var(--bs-primary-bg-subtle); /* Light primary background */
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus ring effect */
+}
+.broker-icon {
+  width: 60px; /* Larger icons */
+  height: 60px;
+  object-fit: contain; /* Ensure images fit without distortion */
+  border: 1px solid var(--bs-border-color); /* Subtle border for images */
+  border-radius: 4px;
+}
+
+/* Custom styling for status tabs to look more modern */
+.nav-tabs-alt .nav-link {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--bs-dark);
+    font-weight: 500;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+.nav-tabs-alt .nav-link.active {
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    background-color: transparent;
+}
+.nav-tabs-alt .nav-link:hover {
+    border-color: var(--bs-gray-300);
+}
+.nav-tabs-alt {
+    border-bottom: 1px solid var(--bs-border-color);
+}
+</style>
 {% endblock %}
