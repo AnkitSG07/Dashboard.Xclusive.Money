@@ -65,6 +65,39 @@ def test_portfolio_endpoint_requires_auth(client):
     assert resp.status_code in (200, 400, 500)
 
 
+def test_holdings_endpoint_requires_auth(client):
+    resp = client.get('/api/holdings')
+    assert resp.status_code == 401
+    login(client)
+    resp = client.get('/api/holdings')
+    assert resp.status_code in (200, 400, 500)
+
+def test_portfolio_parses_net_positions(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            pass
+        def get_positions(self):
+            return {"netPositions": [{"symbol": "ABC"}]}
+
+    monkeypatch.setattr(app_module, 'broker_api', lambda acc: DummyBroker())
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account(user_id=user.id, broker='fyers', client_id='F1', credentials={'access_token': 'x'})
+        db.session.add(acc)
+        db.session.commit()
+
+    resp = client.get('/api/portfolio/F1')
+    assert resp.status_code == 200
+    assert resp.get_json() == [{"symbol": "ABC"}]
+
+
 def test_active_children_scoped_to_user(client):
     app = app_module.app
     db = app_module.db
