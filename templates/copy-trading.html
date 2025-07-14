@@ -173,19 +173,17 @@
 window.pageScripts = window.pageScripts || {};
 
 window.pageScripts["copy-trading"] = function () {
+  const brokerIcons = {{ broker_icons|tojson }};
+  window.brokerIcons = brokerIcons;
   // Centralized data store (matches copy-trading (7).html structure for window properties)
   window.masterAccounts = [];
   window.childAccounts = [];
   window.exitedChildren = window.exitedChildren || {};
 
-  const imgExtensions = ['svg','png','jpg','jpeg','webp'];
   function brokerIconHTML(broker) {
     const name = broker ? broker.charAt(0).toUpperCase() + broker.slice(1) : '';
-    return `
-      <picture>
-        ${imgExtensions.map(ext => `<source srcset="/static/images/${broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('')}
-        <img src="/static/images/${broker}.png" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
-      </picture>`;
+    const url = brokerIcons[broker] || '/static/images/logo.png';
+    return `<img src="${url}" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo">`;
   }
 
 
