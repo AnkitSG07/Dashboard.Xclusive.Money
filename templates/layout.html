@@ -77,7 +77,11 @@
           <i class="bi bi-bell"></i>
           <i class="bi bi-gear"></i>
           <a href="{{ url_for('user_profile') }}">
-            <img src="{{ url_for('static', filename=(logged_in_user.profile_image if logged_in_user and logged_in_user.profile_image else 'user.png')) }}" alt="User" class="profile-img"></a>
+            {% if logged_in_user and logged_in_user.profile_image %}
+            <img src="{{ url_for('profile_image_file', filename=logged_in_user.profile_image.split('/')[-1]) }}" alt="User" class="profile-img">
+            {% else %}
+            <img src="{{ url_for('static', filename='user.png') }}" alt="User" class="profile-img">
+            {% endif %}</a>
         </div>
       </nav>
       
