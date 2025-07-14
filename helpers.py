@@ -39,3 +39,82 @@ def active_children_for_master(master):
         db.func.lower(Account.copy_status) == 'on'
     ).all()
 
+def normalize_position(position: dict, broker: str) -> dict:
+    """Return a standardized position dict for the front-end."""
+    b = (broker or "").lower()
+
+    def f(key, default=0.0):
+        try:
+            return float(position.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def i(key, default=0):
+        try:
+            return int(float(position.get(key, default)))
+        except (TypeError, ValueError):
+            return default
+
+    if b == "finvasia" and any(k in position for k in ("buyqty", "sellqty", "netQty")):
+        new = position.copy()
+        new.setdefault("tradingSymbol", position.get("tsym"))
+        new.setdefault("buyQty", i("buyqty"))
+        new.setdefault("sellQty", i("sellqty"))
+        new.setdefault("netQty", i("netQty"))
+        new.setdefault("buyAvg", f("avgprc"))
+        new.setdefault("sellAvg", f("avgprc"))
+        new.setdefault("ltp", f("ltp"))
+        new.setdefault("profitAndLoss", f("urmtm"))
+        return new
+
+    if b == "aliceblue" and any(k in position for k in ("buyqty", "sellqty", "netqty")):
+        new = position.copy()
+        new.setdefault("tradingSymbol", position.get("symbol"))
+        new.setdefault("buyQty", i("buyqty"))
+        new.setdefault("sellQty", i("sellqty"))
+        new.setdefault("netQty", i("netqty"))
+        new.setdefault("buyAvg", f("buyavgprc"))
+        new.setdefault("sellAvg", f("sellavgprc"))
+        new.setdefault("ltp", f("ltp"))
+        new.setdefault("profitAndLoss", f("unrealisedprofit", position.get("urpl", 0)))
+        return new
+
+    if b == "zerodha" and any(k in position for k in ("quantity", "buy_quantity", "sell_quantity")):
+        new = position.copy()
+        net_qty = i("quantity")
+        avg_price = f("average_price")
+        new.setdefault("tradingSymbol", position.get("tradingsymbol"))
+        new.setdefault("buyQty", i("buy_quantity"))
+        new.setdefault("sellQty", i("sell_quantity"))
+        new.setdefault("netQty", net_qty)
+        new.setdefault("buyAvg", avg_price if net_qty > 0 else 0.0)
+        new.setdefault("sellAvg", avg_price if net_qty < 0 else 0.0)
+        new.setdefault("ltp", f("last_price"))
+        new.setdefault("profitAndLoss", f("pnl"))
+        return new
+
+    if b == "fyers" and any(k in position for k in ("netQty", "buyQty", "sellQty")):
+        new = position.copy()
+        new.setdefault("tradingSymbol", position.get("symbol"))
+        new.setdefault("buyQty", i("buyQty"))
+        new.setdefault("sellQty", i("sellQty"))
+        new.setdefault("netQty", i("netQty"))
+        new.setdefault("buyAvg", f("buyAvg"))
+        new.setdefault("sellAvg", f("sellAvg"))
+        new.setdefault("ltp", f("ltp"))
+        new.setdefault("profitAndLoss", f("pl"))
+        return new
+
+    if b == "dhan" and any(k in position for k in ("netQty", "buyQty", "sellQty")):
+        new = position.copy()
+        new.setdefault("tradingSymbol", position.get("tradingSymbol"))
+        new.setdefault("buyQty", i("buyQty"))
+        new.setdefault("sellQty", i("sellQty"))
+        new.setdefault("netQty", i("netQty"))
+        new.setdefault("buyAvg", f("buyAvg"))
+        new.setdefault("sellAvg", f("sellAvg"))
+        new.setdefault("ltp", f("lastTradedPrice", position.get("ltp", 0)))
+        new.setdefault("profitAndLoss", f("unrealizedProfit"))
+        return new
+    # Default: return as-is
+    return position
