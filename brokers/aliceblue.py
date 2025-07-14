@@ -271,13 +271,33 @@ class AliceBlueBroker(BrokerBase):
 
     def get_opening_balance(self):
         self.ensure_session()
-        url = self.BASE_URL + "positionAndHoldings/holdings"
+       url = self.BASE_URL + "limits/getRmsLimits"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
             data = r.json()
-            for key in ["available_balance", "cash", "opening_balance"]:
-                if key in data:
-                    return float(data[key])
+            if isinstance(data, dict):
+                keys = [
+                    "cash",
+                    "available_balance",
+                    "opening_balance",
+                    "availablecash",
+                    "net",
+                    "netCash",
+                ]
+                for key in keys:
+                    if key in data:
+                        try:
+                            return float(data[key])
+                        except (TypeError, ValueError):
+                            pass
+                nested = data.get("result") or data.get("data")
+                if isinstance(nested, dict):
+                    for key in keys:
+                        if key in nested:
+                            try:
+                                return float(nested[key])
+                            except (TypeError, ValueError):
+                                pass
             return None
         except Exception:
             return None
