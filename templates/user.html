@@ -18,7 +18,7 @@
       <!-- Profile Image Section -->
       <div class="col-md-4 d-flex flex-column align-items-center justify-content-center p-3 border-end">
         {% if user.profile_image %}
-          <img src="{{ url_for('static', filename=user.profile_image) }}" alt="Profile" class="profile-photo">
+          <img src="{{ url_for('profile_image_file', filename=user.profile_image.split('/')[-1]) }}" alt="Profile" class="profile-photo">
         {% else %}
           <div class="mb-3 text-muted">No Profile Image</div>
         {% endif %}
