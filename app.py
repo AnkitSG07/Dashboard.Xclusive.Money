@@ -4460,7 +4460,7 @@ def add_account():
             credentials=credentials,  # Store as JSON
             status='Connected',
             auto_login=True,
-            last_login_time=datetime.utcnow().isoformat(),
+            last_login_time=datetime.utcnow(),
             role=None,  # Initially unassigned
             linked_master_id=None,
             multiplier=1.0,
@@ -4484,10 +4484,10 @@ def add_account():
         # ✅ STEP 9: Log the action for audit trail
         try:
             log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.utcnow(),
                 level="INFO",
                 message=f"Account added: {client_id} ({broker}) by {user_email}",
-                user_id=str(user.id),
+                user_id=user.id,
                 details=json.dumps({
                     "action": "add_account",
                     "client_id": client_id,
