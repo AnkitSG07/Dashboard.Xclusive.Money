@@ -888,6 +888,12 @@ def exit_all_positions_for_account(account):
     api = broker_api(_account_to_dict(account))
     try:
         pos_resp = api.get_positions()
+        if isinstance(pos_resp, str):
+            logger.error(
+                "get_positions returned string for %s: %s", account.client_id, pos_resp
+            )
+            return [{"symbol": None, "status": "ERROR", "message": pos_resp}]
+            
         positions = (
             pos_resp.get("data")
             or pos_resp.get("positions")
@@ -895,6 +901,10 @@ def exit_all_positions_for_account(account):
             or pos_resp
             or []
         )
+        if isinstance(positions, dict):
+            positions = [positions]
+        elif not isinstance(positions, list):
+            positions = []
     except Exception as e:
         logger.error(f"Failed to fetch positions for {account.client_id}: {e}")
         return [{"symbol": None, "status": "ERROR", "message": str(e)}]
