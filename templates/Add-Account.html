@@ -407,34 +407,12 @@ window.pageScripts["Add-Account"] = function() {
         </div>`;
     });
 
-    if (broker === 'zerodha') {
-      formHtml += `
-        <div class="col-12 mt-3">
-            <button type="button" id="zerodha-login-btn" class="btn btn-outline-primary">
-                <i class="bi bi-box-arrow-up-right me-2"></i> Open Zerodha Login Page
-            </button>
-        </div>`;
-    }
-
     container.innerHTML = formHtml;
     submitBtn.style.display = "inline-block"; // Show submit button after fields are loaded
     submitBtn.disabled = false;
 
     attachPasswordToggles();
     attachValidation();
-    if (broker === 'zerodha') {
-      document.getElementById('zerodha-login-btn').onclick = function() {
-        const apiKeyInput = container.querySelector('input[name="api_key"]');
-        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
-        if (!apiKey) { showToast('Please enter your API Key first.', 'warning'); return; }
-        fetchJson(`/api/zerodha-login-url?api_key=${encodeURIComponent(apiKey)}`)
-          .then(resp => {
-            if (resp.login_url) window.open(resp.login_url, '_blank');
-            else showToast(resp.error || 'Failed to get login URL.', 'error');
-          })
-          .catch(error => showToast(`Failed to get login URL: ${error.message}`, 'error'));
-      };
-    }
   }
 
   function renderTable(rows) {
@@ -589,6 +567,13 @@ window.pageScripts["Add-Account"] = function() {
     if (!allRequiredFieldsFilled) {
       resultDiv.innerHTML = '<span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Please fill all required fields.</span>';
       submitBtn.disabled = true; // Disable submit if not all required fields are filled
+      return;
+    }
+      
+    if (currentBrokerSelected === 'zerodha') {
+      // Skip credential validation for Zerodha as it uses OAuth login
+      submitBtn.disabled = false;
+      resultDiv.innerHTML = '';
       return;
     }
 
