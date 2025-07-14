@@ -156,6 +156,21 @@ def broker_icon_url(broker: str) -> str:
             return url_for('static', filename=f'images/{broker}.{ext}')
     return url_for('static', filename='images/logo.png')
 
+def get_broker_icon_map() -> dict:
+    """Return mapping of broker name to icon URL for templates."""
+    img_dir = os.path.join(app.static_folder, 'images')
+    icons = {}
+    for filename in os.listdir(img_dir):
+        name, ext = os.path.splitext(filename)
+        if ext.lstrip('.').lower() in ['png', 'jpg', 'jpeg', 'svg', 'webp']:
+            icons[name] = url_for('static', filename=f'images/{filename}')
+    return icons
+
+
+@app.context_processor
+def inject_broker_icons():
+    return {'broker_icons': get_broker_icon_map()}
+
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
     "zerodha": "https://api.kite.trade",
