@@ -6,23 +6,11 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        identifier = request.form.get('identifier')
+        email = request.form.get('email')
         password = request.form.get('password')
-        user = None
-        if identifier:
-            if '@' in identifier:
-                user = User.query.filter_by(email=identifier).first()
-            else:
-                user = User.query.filter_by(phone=identifier).first()
+        user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
-            session['user'] = user.email or user.phone
-            username = user.name
-            if not username:
-                if user.email:
-                    username = user.email.split('@')[0]
-                else:
-                    username = user.phone
-            session['username'] = username
+            session['user'] = user.email
             return redirect(url_for('summary'))
         return render_template('log-in.html', error='Invalid credentials')
     return render_template('log-in.html')
@@ -30,34 +18,15 @@ def login():
 @auth_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        name = request.form.get('username')
+        email = request.form.get('email') or request.form.get('username')
         password = request.form.get('password')
-
-        if not (email or phone):
-            return render_template('sign-up.html', error='Email or mobile required')
-
-        existing = None
-        if email:
-            existing = User.query.filter_by(email=email).first()
-        if existing is None and phone:
-            existing = User.query.filter_by(phone=phone).first()
-        if existing:
+        if User.query.filter_by(email=email).first():
             return render_template('sign-up.html', error='User already exists')
-
-        user = User(email=email, phone=phone, name=name)
+        user = User(email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        session['user'] = user.email or user.phone
-        username = user.name
-        if not username:
-            if user.email:
-                username = user.email.split('@')[0]
-            else:
-                username = user.phone
-        session['username'] = username
+        session['user'] = user.email
         return redirect(url_for('summary'))
     return render_template('sign-up.html')
 
