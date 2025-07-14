@@ -4463,7 +4463,7 @@ def add_account():
                 broker_obj = BrokerClass(client_id, access_token, **other_creds)
                 
             # Test connection if validation method exists
-            if hasattr(broker_obj, 'check_token_valid'):
+            if broker != 'zerodha' and hasattr(broker_obj, 'check_token_valid'):
                 logger.info(f"Validating credentials for {broker} account {client_id}")
                 is_valid = broker_obj.check_token_valid()
                 
