@@ -450,9 +450,8 @@ window.pageScripts["Add-Account"] = function() {
       const pictureHTML = `
         <picture>
           ${imgExtensions.map(ext => `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('\n')}
-          <img src="/static/images/${acc.broker}.png" class="me-2 rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
-        </picture>
-        <span class="align-middle">${brokerName}</span>`;
+          <img src="/static/images/${acc.broker}.png" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
+        </picture>`;
       
       const statusText = acc.error ? 'Failed' : (acc.status || 'Connected');
       const statusClass = acc.error ? 'bg-danger' : (statusText === 'Connected' ? 'bg-success' : 'bg-warning'); // Use warning for other statuses
