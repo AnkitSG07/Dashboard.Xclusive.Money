@@ -17,7 +17,7 @@
     {% for acc in accounts %}
     <tr>
       <td>{{ acc.user_id }}</td>
-      <td>{{ acc.broker }}</td>
+      <td><img src="{{ acc.broker|broker_icon_url }}" alt="{{ acc.broker }}" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;"></td>
       <td>{{ acc.client_id }}</td>
       <td>{{ acc.token_expiry }}</td>
       <td>{{ acc.status }}</td>
