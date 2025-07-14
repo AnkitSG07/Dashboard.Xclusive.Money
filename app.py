@@ -143,6 +143,19 @@ app.register_blueprint(api_bp)
 start_time = datetime.utcnow()
 device_number = None
 
+# Jinja filter to return broker icon URL for different possible image extensions
+@app.template_filter('broker_icon_url')
+def broker_icon_url(broker: str) -> str:
+    """Return the URL for the broker icon if available."""
+    if not broker:
+        return url_for('static', filename='images/logo.png')
+    extensions = ['png', 'jpg', 'jpeg', 'svg', 'webp']
+    for ext in extensions:
+        path = os.path.join(app.static_folder, 'images', f'{broker}.{ext}')
+        if os.path.exists(path):
+            return url_for('static', filename=f'images/{broker}.{ext}')
+    return url_for('static', filename='images/logo.png')
+
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
     "zerodha": "https://api.kite.trade",
