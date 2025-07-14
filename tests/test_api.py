@@ -320,3 +320,100 @@ def test_opening_balance_cache(monkeypatch):
     assert bal1 == 42
     assert bal2 == 42
     assert len(calls) == 1
+
+def test_add_account_stores_all_credentials(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            self.access_token = 'dummy_token'
+        def check_token_valid(self):
+            return True
+
+    monkeypatch.setattr(app_module, 'get_broker_class', lambda name: DummyBroker)
+
+    data = {
+        'broker': 'finvasia',
+        'client_id': 'FIN123',
+        'username': 'finuser',
+        'password': 'p',
+        'totp_secret': 't',
+        'vendor_code': 'v',
+        'api_key': 'a',
+        'imei': 'i'
+    }
+
+    resp = client.post('/api/add-account', json=data)
+    assert resp.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account.query.filter_by(user_id=user.id, client_id='FIN123').first()
+        assert acc is not None
+        expected = {
+            'password': 'p',
+            'totp_secret': 't',
+            'vendor_code': 'v',
+            'api_key': 'a',
+            'imei': 'i'
+        }
+        assert acc.credentials == expected
+
+
+def test_reconnect_uses_stored_credentials(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    captured = {}
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            captured['args'] = a
+            captured['kwargs'] = k
+            self.access_token = 'newtoken'
+        def check_token_valid(self):
+            return True
+
+    monkeypatch.setattr(app_module, 'get_broker_class', lambda name: DummyBroker)
+
+    data = {
+        'broker': 'finvasia',
+        'client_id': 'FIN124',
+        'username': 'finuser',
+        'password': 'p',
+        'totp_secret': 't',
+        'vendor_code': 'v',
+        'api_key': 'a',
+        'imei': 'i'
+    }
+
+    resp = client.post('/api/add-account', json=data)
+    assert resp.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account.query.filter_by(user_id=user.id, client_id='FIN124').first()
+        acc.status = 'Failed'
+        db.session.commit()
+
+    resp = client.post('/api/reconnect-account', json={'client_id': 'FIN124'})
+    assert resp.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account.query.filter_by(user_id=user.id, client_id='FIN124').first()
+        assert acc.status == 'Connected'
+        assert acc.credentials['access_token'] == 'newtoken'
+        assert captured['kwargs']['password'] == 'p'
+        assert captured['kwargs']['totp_secret'] == 't'
+        assert captured['kwargs']['vendor_code'] == 'v'
+        assert captured['kwargs']['api_key'] == 'a'
+        assert captured['kwargs']['imei'] == 'i'
+        count = Account.query.filter_by(user_id=user.id, client_id='FIN124').count()
+        assert count == 1
