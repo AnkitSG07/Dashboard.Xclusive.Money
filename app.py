@@ -171,6 +171,12 @@ def get_broker_icon_map() -> dict:
 def inject_broker_icons():
     return {'broker_icons': get_broker_icon_map()}
 
+
+@app.context_processor
+def inject_logged_in_user():
+    """Make the currently logged in user available to all templates."""
+    return {'logged_in_user': current_user()}
+
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
     "zerodha": "https://api.kite.trade",
@@ -5879,6 +5885,7 @@ def user_profile():
         "first_name": (user.name or "").split(" ")[0] if user.name else "",
         "last_name": (user.name or "").split(" ")[1] if user.name and len(user.name.split(" ")) > 1 else "",
         "plan": user.plan,
+        "profile_image": user.profile_image or "user.png",
     }
 
     return render_template("user.html", user=profile_data, message=message)
