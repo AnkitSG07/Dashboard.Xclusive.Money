@@ -1,0 +1,619 @@
+Standard Position Book Format (for reference)
+Python
+
+def format_position(symbol, position_type, buy_qty, sell_qty, net_qty, avg_buy_price, avg_sell_price, ltp=0, unrealized_pl=0, broker_name=""):
+    """
+    Standardizes position data into a common format.
+    """
+    return {
+        "Broker": broker_name,
+        "Symbol": symbol,
+        "Type": position_type,  # LONG, SHORT, FLAT
+        "Buy Qty": buy_qty,
+        "Sell Qty": sell_qty,
+        "Net Qty": net_qty,
+        "Avg Buy Price": avg_buy_price,
+        "Avg Sell Price": avg_sell_price,
+        "LTP": ltp,
+        "P/L": unrealized_pl
+    }
+1. Dhan
+Dhan's dhanhq SDK is generally straightforward.
+
+Installation:
+pip install dhanhq
+
+How to Retrieve Positions:
+
+Python
+
+from dhanhq import DhanContext, dhanhq
+import os
+
+def get_dhan_positions():
+    """
+    Fetches positions from Dhan.
+    Ensure DHAN_CLIENT_ID and DHAN_ACCESS_TOKEN are set as environment variables.
+    """
+    CLIENT_ID = os.environ.get("DHAN_CLIENT_ID")
+    ACCESS_TOKEN = os.environ.get("DHAN_ACCESS_TOKEN")
+
+    if not CLIENT_ID or not ACCESS_TOKEN:
+        print("Dhan API credentials (DHAN_CLIENT_ID, DHAN_ACCESS_TOKEN) not found in environment variables.")
+        return []
+
+    try:
+        # Initialize DhanContext
+        dhan_context = DhanContext(CLIENT_ID, ACCESS_TOKEN)
+        dhan = dhanhq(dhan_context)
+
+        # Make the API call to get positions
+        positions_response = dhan.get_positions()
+        
+        # --- Debugging: Print full response if not correct ---
+        # print("Dhan Positions Raw Response:", positions_response)
+
+        dhan_positions = []
+        if positions_response and isinstance(positions_response, list):
+            for pos in positions_response:
+                symbol = pos.get('tradingSymbol')
+                position_type_raw = pos.get('positionType') # e.g., 'LONG', 'SHORT', 'CLOSED'
+                exchange_segment = pos.get('exchangeSegment')
+                product_type = pos.get('productType')
+
+                buy_qty = int(pos.get('buyQty', 0))
+                sell_qty = int(pos.get('sellQty', 0))
+                net_qty = buy_qty - sell_qty
+                
+                avg_buy_price = float(pos.get('buyAvg', 0.0))
+                avg_sell_price = float(pos.get('sellAvg', 0.0))
+                unrealized_profit = float(pos.get('unrealizedProfit', 0.0)) # This is usually the MTM P/L
+
+                # Determine standard position type
+                position_type = "FLAT"
+                if net_qty > 0:
+                    position_type = "LONG"
+                elif net_qty < 0:
+                    position_type = "SHORT"
+
+                # Dhan's get_positions returns ALL positions (open and closed).
+                # Filter for only open positions (net_qty != 0)
+                if net_qty != 0:
+                    dhan_positions.append(
+                        format_position(
+                            broker_name="Dhan",
+                            symbol=f"{symbol} ({exchange_segment}/{product_type})",
+                            position_type=position_type,
+                            buy_qty=buy_qty,
+                            sell_qty=sell_qty,
+                            net_qty=net_qty,
+                            avg_buy_price=avg_buy_price,
+                            avg_sell_price=avg_sell_price,
+                            unrealized_pl=unrealized_profit,
+                            ltp=pos.get('lastTradedPrice', 0.0) # Dhan might provide LTP in position data
+                        )
+                    )
+        elif positions_response and positions_response.get('status') == 'error':
+            print(f"Dhan API Error: {positions_response.get('error_code')} - {positions_response.get('message')}")
+        else:
+            print("Dhan: No positions or unexpected response format.")
+        
+        return dhan_positions
+    except Exception as e:
+        print(f"An error occurred while fetching Dhan positions: {e}")
+        return []
+
+# Example Usage:
+# dhan_positions = get_dhan_positions()
+# for pos in dhan_positions:
+#     print(pos)
+2. Finvasia (Shoonya)
+Finvasia's API setup is a bit more manual as their SDK (ShoonyaApiPy) isn't typically installed via pip. You usually download api_helper.py and place it in your project.
+
+Prerequisites:
+
+Download api_helper.py from the official Shoonya API documentation/GitHub.
+
+pip install websocket-client
+
+pip install requests (usually already installed)
+
+How to Retrieve Positions:
+
+Python
+
+# Assuming api_helper.py is in your Python path or current directory
+from api_helper import ShoonyaApiPy
+import os
+import json
+
+def get_finvasia_positions():
+    """
+    Fetches positions from Finvasia (Shoonya).
+    Ensure SHOO_USER_ID, SHOO_PASSWORD, SHOO_FACTOR2, SHOO_VENDOR_CODE,
+    SHOO_API_KEY, SHOO_IMEI are set as environment variables.
+    """
+    USER_ID = os.environ.get("SHOO_USER_ID")
+    PASSWORD = os.environ.get("SHOO_PASSWORD")
+    FACTOR2 = os.environ.get("SHOO_FACTOR2") # TOTP or 2FA answer
+    VC = os.environ.get("SHOO_VENDOR_CODE")
+    APP_KEY = os.environ.get("SHOO_API_KEY") # This is your API Secret / App Key
+    IMEI = os.environ.get("SHOO_IMEI") # A unique identifier, e.g., 'your_device_id'
+
+    if not all([USER_ID, PASSWORD, FACTOR2, VC, APP_KEY, IMEI]):
+        print("Finvasia API credentials not fully set as environment variables.")
+        return []
+
+    try:
+        api = ShoonyaApiPy()
+        # Login to get the session token
+        ret = api.login(
+            userid=USER_ID, 
+            password=PASSWORD, 
+            twoFA=FACTOR2, 
+            vendor_code=VC, 
+            api_secret=APP_KEY, 
+            imei=IMEI
+        )
+        
+        if ret and ret.get('stat') == 'Ok':
+            print("Finvasia login successful.")
+            # Retrieve positions
+            positions_response = api.get_positions() 
+            
+            # --- Debugging: Print full response if not correct ---
+            # print("Finvasia Positions Raw Response:", positions_response)
+
+            finvasia_positions = []
+            if positions_response and isinstance(positions_response, list):
+                for pos in positions_response:
+                    # Shoonya position structure might be slightly different.
+                    # Verify these keys with their latest API documentation or by printing `pos`
+                    symbol = pos.get('tsym') # Trading Symbol
+                    exchange = pos.get('exch')
+                    product_type = pos.get('prd', 'UNKNOWN') # e.g., 'M' for MIS, 'C' for CNC/NRML
+
+                    buy_qty = int(pos.get('buyqty', 0))
+                    sell_qty = int(pos.get('sellqty', 0))
+                    net_qty = int(pos.get('netQty', 0)) # Net quantity is often directly available
+
+                    avg_buy_price = float(pos.get('avgprc', 0.0)) if buy_qty > 0 else 0.0
+                    avg_sell_price = float(pos.get('avgprc', 0.0)) if sell_qty > 0 else 0.0 # Shoonya might give one avg_prc
+
+                    # If 'avgprc' is overall average, you might need more sophisticated logic
+                    # to split into buy/sell average if individual averages aren't provided.
+                    # For simplicity, assuming avgprc is relevant to the net position.
+                    
+                    unrealized_pl = float(pos.get('urmtm', 0.0)) # Unrealized MTM P&L
+                    # You might also find 'rpnl' for realized P&L
+
+                    position_type = "FLAT"
+                    if net_qty > 0:
+                        position_type = "LONG"
+                    elif net_qty < 0:
+                        position_type = "SHORT"
+                    
+                    # Finvasia's 'get_positions' usually returns only open positions.
+                    if net_qty != 0:
+                        finvasia_positions.append(
+                            format_position(
+                                broker_name="Finvasia",
+                                symbol=f"{symbol} ({exchange}/{product_type})",
+                                position_type=position_type,
+                                buy_qty=buy_qty,
+                                sell_qty=sell_qty,
+                                net_qty=net_qty,
+                                avg_buy_price=avg_buy_price,
+                                avg_sell_price=avg_sell_price,
+                                unrealized_pl=unrealized_pl,
+                                ltp=float(pos.get('ltp', 0.0)) # LTP might be present
+                            )
+                        )
+            elif positions_response and positions_response.get('stat') == 'Not_Ok':
+                print(f"Finvasia API Error: {positions_response.get('emsg')}")
+            else:
+                print("Finvasia: No positions or unexpected response format.")
+            return finvasia_positions
+        else:
+            print(f"Finvasia login failed: {ret.get('emsg', 'Unknown error')}")
+            return []
+    except Exception as e:
+        print(f"An error occurred while fetching Finvasia positions: {e}")
+        return []
+
+# Example Usage:
+# finvasia_positions = get_finvasia_positions()
+# for pos in finvasia_positions:
+#     print(pos)
+3. Zerodha (Kite Connect)
+Zerodha's Kite Connect API is widely used and well-documented.
+
+Installation:
+pip install kiteconnect
+
+How to Retrieve Positions:
+
+Python
+
+from kiteconnect import KiteConnect
+import os
+
+def get_zerodha_positions():
+    """
+    Fetches positions from Zerodha.
+    Ensure ZERODHA_API_KEY and ZERODHA_ACCESS_TOKEN are set as environment variables.
+    Note: ACCESS_TOKEN needs to be generated via their OAuth flow initially.
+    """
+    API_KEY = os.environ.get("ZERODHA_API_KEY")
+    ACCESS_TOKEN = os.environ.get("ZERODHA_ACCESS_TOKEN") 
+
+    if not API_KEY or not ACCESS_TOKEN:
+        print("Zerodha API credentials (ZERODHA_API_KEY, ZERODHA_ACCESS_TOKEN) not found in environment variables.")
+        print("Remember to obtain ACCESS_TOKEN via Zerodha's OAuth web-based login flow.")
+        return []
+
+    try:
+        kite = KiteConnect(api_key=API_KEY)
+        kite.set_access_token(ACCESS_TOKEN)
+
+        positions_data = kite.positions()
+        
+        # --- Debugging: Print full response if not correct ---
+        # print("Zerodha Positions Raw Response:", positions_data)
+
+        zerodha_positions = []
+        if positions_data and 'net' in positions_data: # 'net' for overall, 'day' for intraday
+            for pos in positions_data['net']:
+                symbol = pos.get('tradingsymbol')
+                exchange = pos.get('exchange')
+                product_type = pos.get('product') # e.g., 'CNC', 'MIS', 'NRML'
+
+                buy_qty = int(pos.get('buy_quantity', 0))
+                sell_qty = int(pos.get('sell_quantity', 0))
+                net_qty = int(pos.get('quantity', 0)) # Net quantity (positive for long, negative for short)
+                
+                # Zerodha provides 'average_price' which is weighted average across all trades for that scrip.
+                # It's not directly avg_buy_price and avg_sell_price if there are both buy and sell trades.
+                # You might need to infer or keep it as overall average.
+                # For our format, we'll assign it based on net_qty.
+                average_price = float(pos.get('average_price', 0.0))
+                
+                avg_buy_price = average_price if net_qty > 0 else 0.0
+                avg_sell_price = average_price if net_qty < 0 else 0.0
+
+                unrealized_pnl = float(pos.get('pnl', 0.0))
+                last_price = float(pos.get('last_price', 0.0)) # LTP is available in positions API
+
+                position_type = "FLAT"
+                if net_qty > 0:
+                    position_type = "LONG"
+                elif net_qty < 0:
+                    position_type = "SHORT"
+
+                if net_qty != 0: # Only include open positions
+                    zerodha_positions.append(
+                        format_position(
+                            broker_name="Zerodha",
+                            symbol=f"{symbol} ({exchange}/{product_type})",
+                            position_type=position_type,
+                            buy_qty=buy_qty,
+                            sell_qty=sell_qty,
+                            net_qty=net_qty,
+                            avg_buy_price=avg_buy_price,
+                            avg_sell_price=avg_sell_price,
+                            ltp=last_price,
+                            unrealized_pl=unrealized_pnl
+                        )
+                    )
+        elif positions_data and positions_data.get('status') == 'error':
+            print(f"Zerodha API Error: {positions_data.get('error_type')} - {positions_data.get('message')}")
+        else:
+            print("Zerodha: No positions or unexpected response format.")
+        
+        return zerodha_positions
+    except Exception as e:
+        print(f"An error occurred while fetching Zerodha positions: {e}")
+        return []
+
+# Example Usage:
+# zerodha_positions = get_zerodha_positions()
+# for pos in zerodha_positions:
+#     print(pos)
+4. Alice Blue
+Alice Blue's SDK is aliceblue. The 2FA handling often requires specific input.
+
+Installation:
+pip install aliceblue
+
+How to Retrieve Positions:
+
+Python
+
+from aliceblue import AliceBlue
+import os
+
+def get_aliceblue_positions():
+    """
+    Fetches positions from Alice Blue.
+    Ensure ALICEBLUE_USERNAME, ALICEBLUE_PASSWORD, ALICEBLUE_TWO_FA,
+    ALICEBLUE_API_SECRET, ALICEBLUE_APP_ID, ALICEBLUE_REDIRECT_URL are set as environment variables.
+    Note: 2FA might be your Year of Birth or a specific answer.
+    """
+    USERNAME = os.environ.get("ALICEBLUE_USERNAME")
+    PASSWORD = os.environ.get("ALICEBLUE_PASSWORD")
+    TWO_FA = os.environ.get("ALICEBLUE_TWO_FA") # Often Year of Birth or a predefined answer
+    API_SECRET = os.environ.get("ALICEBLUE_API_SECRET") # Client Secret
+    APP_ID = os.environ.get("ALICEBLUE_APP_ID") # Client ID
+    REDIRECT_URL = os.environ.get("ALICEBLUE_REDIRECT_URL", "http://localhost:5000/callback") # Default or your set URL
+
+    if not all([USERNAME, PASSWORD, TWO_FA, API_SECRET, APP_ID, REDIRECT_URL]):
+        print("Alice Blue API credentials not fully set as environment variables.")
+        return []
+
+    try:
+        # Access token needs to be generated. It's usually valid for 24 hours.
+        # This function might require you to complete an OTP flow if not already handled.
+        access_token = AliceBlue.login_and_get_access_token(
+            username=USERNAME, 
+            password=PASSWORD, 
+            twoFA=TWO_FA, 
+            api_secret=API_SECRET,
+            app_id=APP_ID, # Important for OAuth clients
+            redirect_url=REDIRECT_URL # Important for OAuth clients
+        )
+
+        if not access_token:
+            print("Alice Blue login failed: Could not obtain access token.")
+            return []
+
+        alice = AliceBlue(username=USERNAME, password=PASSWORD, access_token=access_token)
+
+        # Alice Blue has get_daywise_positions() and get_netwise_positions()
+        # get_netwise_positions() is usually what you want for current open positions
+        positions_response = alice.get_netwise_positions() 
+        
+        # --- Debugging: Print full response if not correct ---
+        # print("Alice Blue Positions Raw Response:", positions_response)
+
+        aliceblue_positions = []
+        if positions_response and isinstance(positions_response, list):
+            for pos in positions_response:
+                symbol = pos.get('symbol')
+                exchange = pos.get('exch')
+                product_type = pos.get('prctyp') # e.g., 'I' for Intraday, 'D' for Delivery/Normal
+                
+                buy_qty = int(pos.get('buyqty', 0))
+                sell_qty = int(pos.get('sellqty', 0))
+                net_qty = int(pos.get('netqty', 0))
+                
+                # Alice Blue provides buyavgprc and sellavgprc directly
+                avg_buy_price = float(pos.get('buyavgprc', 0.0))
+                avg_sell_price = float(pos.get('sellavgprc', 0.0))
+                
+                ltp = float(pos.get('ltp', 0.0)) # LTP might be available
+                unrealized_pnl = float(pos.get('unrealisedprofit', 0.0)) # Check actual key name, often 'unrealizedprofit' or 'urpl'
+
+                position_type = "FLAT"
+                if net_qty > 0:
+                    position_type = "LONG"
+                elif net_qty < 0:
+                    position_type = "SHORT"
+                
+                if net_qty != 0: # Only include open positions
+                    aliceblue_positions.append(
+                        format_position(
+                            broker_name="Alice Blue",
+                            symbol=f"{symbol} ({exchange}/{product_type})",
+                            position_type=position_type,
+                            buy_qty=buy_qty,
+                            sell_qty=sell_qty,
+                            net_qty=net_qty,
+                            avg_buy_price=avg_buy_price,
+                            avg_sell_price=avg_sell_price,
+                            ltp=ltp,
+                            unrealized_pl=unrealized_pnl
+                        )
+                    )
+        elif positions_response and positions_response.get('stat') == 'Not_Ok':
+            print(f"Alice Blue API Error: {positions_response.get('emsg')}")
+        else:
+            print("Alice Blue: No positions or unexpected response format.")
+        
+        return aliceblue_positions
+    except Exception as e:
+        print(f"An error occurred while fetching Alice Blue positions: {e}")
+        return []
+
+# Example Usage:
+# aliceblue_positions = get_aliceblue_positions()
+# for pos in aliceblue_positions:
+#     print(pos)
+5. Fyers
+Fyers uses fyers-apiv3. Their authentication is OAuth-based and requires an initial web login to get the auth_code which then generates the access_token.
+
+Installation:
+pip install fyers-apiv3
+
+How to Retrieve Positions:
+
+Python
+
+from fyers_apiv3 import fyersModel
+import os
+
+def get_fyers_positions():
+    """
+    Fetches positions from Fyers.
+    Ensure FYERS_CLIENT_ID, FYERS_SECRET_KEY, FYERS_REDIRECT_URI,
+    and FYERS_ACCESS_TOKEN are set as environment variables.
+    Note: ACCESS_TOKEN needs to be generated via their OAuth flow.
+    """
+    CLIENT_ID = os.environ.get("FYERS_CLIENT_ID")
+    SECRET_KEY = os.environ.get("FYERS_SECRET_KEY") # This is your App Secret
+    REDIRECT_URI = os.environ.get("FYERS_REDIRECT_URI") # Must match what you set in Fyers app
+    ACCESS_TOKEN = os.environ.get("FYERS_ACCESS_TOKEN") 
+
+    if not all([CLIENT_ID, SECRET_KEY, REDIRECT_URI, ACCESS_TOKEN]):
+        print("Fyers API credentials (CLIENT_ID, SECRET_KEY, REDIRECT_URI, ACCESS_TOKEN) not found in environment variables.")
+        print("Remember to obtain ACCESS_TOKEN via Fyers' OAuth web-based login flow.")
+        return []
+
+    try:
+        # Initialize FyersModel with your access token and client ID
+        fyers = fyersModel.FyersModel(
+            token=ACCESS_TOKEN,
+            is_async=False, # Set to True for async operations if needed
+            client_id=CLIENT_ID,
+            log_path="" # Optional: specify a log path for SDK logs
+        )
+
+        positions_response = fyers.positions()
+        
+        # --- Debugging: Print full response if not correct ---
+        # print("Fyers Positions Raw Response:", positions_response)
+
+        fyers_positions = []
+        if positions_response and positions_response.get('code') == 200:
+            for pos in positions_response.get('netPositions', []): # 'netPositions' for overall open positions
+                symbol = pos.get('symbol')
+                exchange = pos.get('exchange') # Fyers includes exchange in symbol string often
+                product_type = pos.get('productType') # e.g., 'INTRADAY', 'CNC'
+
+                qty = int(pos.get('netQty', 0)) # Net quantity
+                buy_qty = int(pos.get('buyQty', 0))
+                sell_qty = int(pos.get('sellQty', 0))
+                
+                avg_buy_price = float(pos.get('buyAvg', 0.0))
+                avg_sell_price = float(pos.get('sellAvg', 0.0))
+                
+                ltp = float(pos.get('ltp', 0.0)) # LTP might be available
+                unrealized_pnl = float(pos.get('pl', 0.0)) # P&L (usually unrealized)
+
+                position_type = "FLAT"
+                if qty > 0:
+                    position_type = "LONG"
+                elif qty < 0:
+                    position_type = "SHORT"
+                
+                if qty != 0: # Only include open positions
+                    fyers_positions.append(
+                        format_position(
+                            broker_name="Fyers",
+                            symbol=f"{symbol} ({product_type})", # Fyers symbol includes exchange prefix
+                            position_type=position_type,
+                            buy_qty=buy_qty,
+                            sell_qty=sell_qty,
+                            net_qty=qty,
+                            avg_buy_price=avg_buy_price,
+                            avg_sell_price=avg_sell_price,
+                            ltp=ltp,
+                            unrealized_pl=unrealized_pnl
+                        )
+                    )
+        elif positions_response and positions_response.get('code') != 200:
+            print(f"Fyers API Error: {positions_response.get('message', 'Unknown error')}")
+        else:
+            print("Fyers: No positions or unexpected response format.")
+        
+        return fyers_positions
+    except Exception as e:
+        print(f"An error occurred while fetching Fyers positions: {e}")
+        return []
+
+# Example Usage:
+# fyers_positions = get_fyers_positions()
+# for pos in fyers_positions:
+#     print(pos)
+Consolidated Execution and Display
+To use these functions, ensure you have set up your environment variables correctly for each broker you intend to query.
+
+Python
+
+import pandas as pd
+from tabulate import tabulate
+
+# Include all the `format_position` function and `get_dhan_positions`, 
+# `get_finvasia_positions`, `get_zerodha_positions`, 
+# `get_aliceblue_positions`, `get_fyers_positions` functions here.
+
+def get_all_broker_positions():
+    """
+    Fetches positions from all configured brokers and consolidates them.
+    """
+    all_positions = []
+
+    print("--- Attempting to fetch positions ---")
+    
+    dhan_pos = get_dhan_positions()
+    if dhan_pos:
+        all_positions.extend(dhan_pos)
+        print(f"Successfully fetched {len(dhan_pos)} positions from Dhan.")
+    else:
+        print("No positions or error from Dhan.")
+
+    finvasia_pos = get_finvasia_positions()
+    if finvasia_pos:
+        all_positions.extend(finvasia_pos)
+        print(f"Successfully fetched {len(finvasia_pos)} positions from Finvasia.")
+    else:
+        print("No positions or error from Finvasia.")
+    
+    zerodha_pos = get_zerodha_positions()
+    if zerodha_pos:
+        all_positions.extend(zerodha_pos)
+        print(f"Successfully fetched {len(zerodha_pos)} positions from Zerodha.")
+    else:
+        print("No positions or error from Zerodha.")
+    
+    aliceblue_pos = get_aliceblue_positions()
+    if aliceblue_pos:
+        all_positions.extend(aliceblue_pos)
+        print(f"Successfully fetched {len(aliceblue_pos)} positions from Alice Blue.")
+    else:
+        print("No positions or error from Alice Blue.")
+    
+    fyers_pos = get_fyers_positions()
+    if fyers_pos:
+        all_positions.extend(fyers_pos)
+        print(f"Successfully fetched {len(fyers_pos)} positions from Fyers.")
+    else:
+        print("No positions or error from Fyers.")
+
+    # Create a DataFrame for better display
+    df = pd.DataFrame(all_positions)
+    
+    return df
+
+if __name__ == "__main__":
+    # IMPORTANT: Set your API credentials as environment variables BEFORE running this script.
+    # For example, in your terminal before running:
+    # export DHAN_CLIENT_ID="your_dhan_client_id"
+    # export DHAN_ACCESS_TOKEN="your_dhan_access_token"
+    # export SHOO_USER_ID="..."
+    # export ZERODHA_API_KEY="..."
+    # etc.
+
+    position_book_df = get_all_broker_positions()
+
+    if not position_book_df.empty:
+        print("\n--- Consolidated Position Book ---")
+        # Format for display
+        # Handle potential non-numeric values if API returns 'N/A' or similar
+        for col in ['Avg Buy Price', 'Avg Sell Price', 'LTP', 'P/L']:
+            position_book_df[col] = pd.to_numeric(position_book_df[col], errors='coerce').fillna(0.0)
+            position_book_df[col] = position_book_df[col].apply(lambda x: f"{x:.2f}")
+
+        # Reorder columns to match your desired format (Symbol Type Buy Qty Sell Qty Net Qty Avg Buy Price Avg Sell Price LTP P/L)
+        display_columns = [
+            "Broker", "Symbol", "Type", "Buy Qty", "Sell Qty", "Net Qty", 
+            "Avg Buy Price", "Avg Sell Price", "LTP", "P/L"
+        ]
+        
+        # Ensure all display_columns exist in the DataFrame before selecting
+        existing_columns = [col for col in display_columns if col in position_book_df.columns]
+
+        print(tabulate(position_book_df[existing_columns], headers='keys', tablefmt='psql'))
+    else:
+        print("\nNo positions found across all brokers, or all attempts failed.")
+
+By adding the explicit print statements for raw responses and error messages, you should be able to pinpoint where the issue lies if positions are not fetching correctly. Good luck!
