@@ -76,7 +76,7 @@ def normalize_position(position: dict, broker: str) -> dict | None:
                     break
         return default
 
-    if b == "finvasia" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+    if b == "finvasia" and any(k in lower for k in ("buyqty", "sellqty", "netqty", "netQty")):
         new = {
             "tradingSymbol": lower.get("tsym"),
             "buyQty": i("buyqty"),
