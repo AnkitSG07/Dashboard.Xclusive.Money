@@ -178,6 +178,17 @@ window.pageScripts["copy-trading"] = function () {
   window.childAccounts = [];
   window.exitedChildren = window.exitedChildren || {};
 
+  const imgExtensions = ['svg','png','jpg','jpeg','webp'];
+  function brokerIconHTML(broker) {
+    const name = broker ? broker.charAt(0).toUpperCase() + broker.slice(1) : '';
+    return `
+      <picture>
+        ${imgExtensions.map(ext => `<source srcset="/static/images/${broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('')}
+        <img src="/static/images/${broker}.png" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
+      </picture>`;
+  }
+
+
   // Utility for showing messages (kept alert to match original behavior)
   function showMessage(message, type = 'info') {
     alert(message);
@@ -235,7 +246,7 @@ window.pageScripts["copy-trading"] = function () {
                 <td>${row.child_client_id}</td>
                 <td>${row.child_order_id}</td>
                 <td>${row.status}</td>
-                <td>${row.child_broker}</td>
+                <td>${brokerIconHTML(row.child_broker)}</td>
               </tr>`;
           });
           emptyState.style.display = 'none';
@@ -364,7 +375,7 @@ window.pageScripts["copy-trading"] = function () {
             masters.forEach(master => {
               masterBody.innerHTML += `
                 <tr>
-                  <td><i class="bi bi-bank me-1"></i> ${master.broker}</td>
+                  <td>${brokerIconHTML(master.broker)}</td>
                   <td>${master.client_id}</td>
                   <td class="d-none d-md-table-cell">${master.username || "-"}</td>
                   <td><span class="badge bg-success">${master.status || "Connected"}</span></td>
@@ -485,7 +496,7 @@ window.pageScripts["copy-trading"] = function () {
               const exited = window.exitedChildren[child.client_id];
               childrenBody.innerHTML += `
                 <tr>
-                  <td><i class="bi bi-bank me-1"></i> ${child.broker}</td>
+                 <td>${brokerIconHTML(child.broker)}</td>
                   <td class="d-none d-sm-table-cell">${master.client_id || "-"}</td>
                   <td>${child.client_id}</td>
                   <td class="d-none d-md-table-cell">${child.username || "-"}</td>
@@ -538,7 +549,7 @@ window.pageScripts["copy-trading"] = function () {
             unassignedAccounts.forEach(acc => {
               unassignedBody.innerHTML += `
                 <tr>
-                  <td><i class="bi bi-bank me-1"></i> ${acc.broker}</td>
+                  <td>${brokerIconHTML(acc.broker)}</td>
                   <td>${acc.client_id}</td>
                   <td class="d-none d-md-table-cell">${acc.username || "-"}</td>
                   <td><span class="badge bg-secondary">Not Assigned</span></td>
