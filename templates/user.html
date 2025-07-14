@@ -1,20 +1,28 @@
 {% extends "layout.html" %}
+
 {% block title %}User Profile - DhanBot{% endblock %}
 
 {% block content %}
-<div class="section-box hero-section profile-card">
-  <h3 class="mb-4"><i class="bi bi-person-fill"></i> User Profile</h3>
+
+<div class="section-box profile-section container py-4">
+  <h3><i class="bi bi-person-fill"></i> User Profile</h3>
+
   {% if message %}
-  <div class="alert alert-info">{{ message }}</div>
+    <div class="alert alert-info">{{ message }}</div>
   {% endif %}
-  <form method="post" enctype="multipart/form-data" class="mb-4">
+
+  <form method="post" enctype="multipart/form-data" class="card p-4 mb-4">
     <input type="hidden" name="action" value="save_profile">
-    <div class="row g-4 align-items-center">
-      <div class="col-md-3 text-center">
-        <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-photo mb-3" alt="Profile">
+
+    <div class="row g-0">
+      <!-- Profile Image -->
+      <div class="col-md-4 d-flex flex-column align-items-center justify-content-center p-3 border-end">
+        <img src="{{ url_for('static', filename=user.profile_image) }}" alt="Profile" class="mb-3 profile-avatar">
         <input type="file" name="profile_image" class="form-control">
       </div>
-      <div class="col-md-9">
+
+      <!-- Profile Details -->
+      <div class="col-md-8 p-4">
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">First Name</label>
@@ -33,15 +41,15 @@
             <input type="text" class="form-control" value="{{ user.plan }}" readonly>
           </div>
         </div>
-        <div class="mt-4">
-          <button type="submit" class="btn btn-primary">Save Profile</button>
+        <div class="mt-4 text-end">
+          <button type="submit" class="btn btn-primary px-4">Save Profile</button>
         </div>
       </div>
     </div>
   </form>
 
   {% if not user.mobile %}
-  <form method="post" class="mb-3">
+  <form method="post" class="mt-4">
     <input type="hidden" name="action" value="send_otp">
     <div class="row g-3 align-items-end">
       <div class="col-md-8">
@@ -53,8 +61,9 @@
       </div>
     </div>
   </form>
+
   {% elif not user.mobile_verified %}
-  <form method="post" class="mb-3">
+  <form method="post" class="mt-4">
     <input type="hidden" name="action" value="verify_otp">
     <p class="mb-2">OTP sent to {{ user.pending_mobile }}</p>
     <div class="row g-3 align-items-end">
@@ -67,8 +76,11 @@
       </div>
     </div>
   </form>
+
   {% else %}
-  <p><strong>Mobile:</strong> {{ user.mobile }}</p>
+  <p class="mt-4"><strong>Mobile:</strong> {{ user.mobile }}</p>
   {% endif %}
+
 </div>
+
 {% endblock %}
