@@ -1,95 +1,75 @@
-Got it. You already have the CSS, so I'll focus purely on the HTML structure and class usage to achieve a professional SaaS platform look, assuming your existing CSS file provides the styling for classes like `card`, `shadow-sm`, `text-primary`, `form-label`, `form-control`, `btn`, etc., in a modern and clean way.
-
-Here's the refined HTML, emphasizing structure, semantic elements, and common SaaS UI patterns, without adding any inline styles or new `<style>` tags:
-
-```html
 {% extends "layout.html" %}
 {% block title %}User Profile - DhanBot{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-white border-bottom">
-    <h3 class="card-title mb-0 text-primary"><i class="bi bi-person-fill me-2"></i>User Profile</h3>
-  </div>
-  <div class="card-body">
-    {% if message %}
-    <div class="alert alert-info alert-dismissible fade show" role="alert">
-      {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<div class="section-box hero-section profile-card">
+  <h3 class="mb-4"><i class="bi bi-person-fill"></i> User Profile</h3>
+  {% if message %}
+  <div class="alert alert-info">{{ message }}</div>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data" class="mb-4">
+    <input type="hidden" name="action" value="save_profile">
+    <div class="row g-4 align-items-center">
+      <div class="col-md-3 text-center">
+        <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-photo mb-3" alt="Profile">
+        <input type="file" name="profile_image" class="form-control">
+      </div>
+      <div class="col-md-9">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Last Name</label>
+            <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" value="{{ user.email }}" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Plan</label>
+            <input type="text" class="form-control" value="{{ user.plan }}" readonly>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">Save Profile</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% if not user.mobile %}
+  <form method="post" class="mb-3">
+    <input type="hidden" name="action" value="send_otp">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-8">
+        <label class="form-label">Mobile Number</label>
+        <input type="text" name="mobile" class="form-control" placeholder="Enter mobile number">
+      </div>
+      <div class="col-md-4">
+        <button type="submit" class="btn btn-primary w-100">Send OTP</button>
+      </div>
+    </div>
+  </form>
+  {% elif not user.mobile_verified %}
+  <form method="post" class="mb-3">
+    <input type="hidden" name="action" value="verify_otp">
+    <p class="mb-2">OTP sent to {{ user.pending_mobile }}</p>
+    <div class="row g-3 align-items-end">
+      <div class="col-md-8">
+        <label class="form-label">Enter OTP</label>
+        <input type="text" name="otp" class="form-control">
+      </div>
+      <div class="col-md-4">
+        <button type="submit" class="btn btn-primary w-100">Verify OTP</button>
+      </div>
     </div>
     {% endif %}
-
-    <form method="post" enctype="multipart/form-data" class="mb-4 pb-4 border-bottom">
-      <input type="hidden" name="action" value="save_profile">
-      <div class="row g-4 align-items-center">
-        <div class="col-md-3 text-center">
-          <div class="profile-photo-wrapper mb-3 position-relative">
-            <img src="{{ url_for('static', filename=user.profile_image) }}" class="profile-photo img-thumbnail rounded-circle" alt="Profile">
-            <label for="profileImageUpload" class="btn btn-sm btn-light position-absolute bottom-0 end-0 translate-middle-y rounded-circle shadow-sm" style="cursor: pointer;">
-              <i class="bi bi-camera-fill"></i>
-            </label>
-            <input type="file" name="profile_image" id="profileImageUpload" class="form-control d-none">
-          </div>
-        </div>
-        <div class="col-md-9">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="firstName" class="form-label fw-semibold">First Name</label>
-              <input type="text" name="first_name" id="firstName" class="form-control" value="{{ user.first_name }}">
-            </div>
-            <div class="col-md-6">
-              <label for="lastName" class="form-label fw-semibold">Last Name</label>
-              <input type="text" name="last_name" id="lastName" class="form-control" value="{{ user.last_name }}">
-            </div>
-            <div class="col-md-6">
-              <label for="email" class="form-label fw-semibold">Email</label>
-              <input type="email" id="email" class="form-control bg-light" value="{{ user.email }}" readonly>
-            </div>
-            <div class="col-md-6">
-              <label for="plan" class="form-label fw-semibold">Plan</label>
-              <input type="text" id="plan" class="form-control bg-light" value="{{ user.plan }}" readonly>
-            </div>
-          </div>
-          <div class="mt-4">
-            <button type="submit" class="btn btn-primary px-4">Save Profile</button>
-          </div>
-        </div>
-      </div>
-    </form>
-
-    {% if not user.mobile %}
-    <form method="post" class="mb-3">
-      <input type="hidden" name="action" value="send_otp">
-      <div class="row g-3 align-items-end">
-        <div class="col-md-8">
-          <label for="mobileNumber" class="form-label fw-semibold">Mobile Number</label>
-          <input type="text" name="mobile" id="mobileNumber" class="form-control" placeholder="Enter mobile number">
-        </div>
-        <div class="col-md-4">
-          <button type="submit" class="btn btn-outline-primary w-100">Send OTP</button>
-        </div>
-      </div>
-    </form>
-    {% elif not user.mobile_verified %}
-    <form method="post" class="mb-3">
-      <input type="hidden" name="action" value="verify_otp">
-      <p class="mb-2 text-muted">An OTP has been sent to <strong class="text-dark">{{ user.pending_mobile }}</strong>. Please enter it below to verify your mobile number.</p>
-      <div class="row g-3 align-items-end">
-        <div class="col-md-8">
-          <label for="otp" class="form-label fw-semibold">Enter OTP</label>
-          <input type="text" name="otp" id="otp" class="form-control" placeholder="******">
-        </div>
-        <div class="col-md-4">
-          <button type="submit" class="btn btn-success w-100">Verify OTP</button>
-        </div>
-      </div>
-    </form>
-    {% else %}
-    <div class="py-2">
-      <p class="mb-0"><strong>Mobile:</strong> <span class="text-success">{{ user.mobile }} <i class="bi bi-check-circle-fill ms-1"></i></span></p>
-    </div>
-    {% endif %}
-  </div>
+  </form>
+  {% else %}
+  <p><strong>Mobile:</strong> {{ user.mobile }}</p>
+  {% endif %}
 </div>
 {% endblock %}
-```
