@@ -269,47 +269,47 @@ class AliceBlueBroker(BrokerBase):
             positions = []
         return {"status": "success", "positions": positions}
 
-def get_opening_balance(self):
-    self.ensure_session()
-    url = self.BASE_URL + "limits/getRmsLimits"
-
-    def _find_balance(obj):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if str(k).lower() in [
-                    "balance",
-                    "cash",
-                    "netbalance",
-                    "openingbalance",
-                    "availablebalance",
-                    "available_cash",
-                    "availablecash",
-                    "availabelbalance",  # Note: Possible typo, should it be "availablebalance"?
-                    "withdrawablebalance",
-                    "equityamount",
-                    "netcash",
-                ]:
-                    try:
-                        return float(str(v).replace(",", ""))
-                    except (TypeError, ValueError):
-                        pass
-                val = _find_balance(v)
-                if val is not None:
-                    return val
-        elif isinstance(obj, list):
-            for item in obj:
-                val = _find_balance(item)
-                if val is not None:
-                    return val
-        return None
-
-    try:
-        # This block was incorrectly indented
-        r = requests.get(url, headers=self.headers, timeout=10)
-        data = r.json()
-        return _find_balance(data)
-    except Exception:
-        return None
+    def get_opening_balance(self):
+        self.ensure_session()
+        url = self.BASE_URL + "limits/getRmsLimits"
+    
+        def _find_balance(obj):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if str(k).lower() in [
+                        "balance",
+                        "cash",
+                        "netbalance",
+                        "openingbalance",
+                        "availablebalance",
+                        "available_cash",
+                        "availablecash",
+                        "availabelbalance",  # Note: Possible typo, should it be "availablebalance"?
+                        "withdrawablebalance",
+                        "equityamount",
+                        "netcash",
+                    ]:
+                        try:
+                            return float(str(v).replace(",", ""))
+                        except (TypeError, ValueError):
+                            pass
+                    val = _find_balance(v)
+                    if val is not None:
+                        return val
+            elif isinstance(obj, list):
+                for item in obj:
+                    val = _find_balance(item)
+                    if val is not None:
+                        return val
+            return None
+    
+        try:
+            # This block was incorrectly indented
+            r = requests.get(url, headers=self.headers, timeout=10)
+            data = r.json()
+            return _find_balance(data)
+        except Exception:
+            return None
 
     def check_token_valid(self):
         try:
