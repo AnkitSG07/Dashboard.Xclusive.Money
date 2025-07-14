@@ -1,5 +1,10 @@
 from flask import Blueprint, jsonify, session, request
-from helpers import current_user, get_primary_account, order_mappings_for_user
+from helpers import (
+    current_user,
+    get_primary_account,
+    order_mappings_for_user,
+    normalize_position,
+)
 from models import Account
 from dhanhq import dhanhq
 from functools import wraps
@@ -44,7 +49,22 @@ def portfolio(client_id=None):
             )
         else:
             data = resp or []
-        return jsonify(data)
+
+        if isinstance(data, dict):
+            data = (
+                data.get('data')
+                or data.get('positions')
+                or data.get('net')
+                or data.get('netPositions')
+                or data.get('net_positions')
+                or []
+            )
+
+        if not isinstance(data, list):
+            data = []
+
+        standardized = [normalize_position(p, account.broker) for p in data]
+        return jsonify(standardized)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
