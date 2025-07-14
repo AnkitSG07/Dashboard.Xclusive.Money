@@ -39,82 +39,127 @@ def active_children_for_master(master):
         db.func.lower(Account.copy_status) == 'on'
     ).all()
 
-def normalize_position(position: dict, broker: str) -> dict:
-    """Return a standardized position dict for the front-end."""
+def normalize_position(position: dict, broker: str) -> dict | None:
+    """Return a standardized position dict for the front-end.
+
+    All keys are normalized to the style used by the copy trading page:
+    ``tradingSymbol``, ``buyQty``, ``sellQty``, ``netQty``, ``buyAvg``,
+    ``sellAvg``, ``ltp`` and ``profitAndLoss``.  If a position cannot be
+    interpreted or represents a closed position (net quantity zero) the
+    function returns ``None`` so callers can easily filter it out.
+    """
+
     b = (broker or "").lower()
+    lower = {k.lower(): v for k, v in position.items()}
 
-    def f(key, default=0.0):
-        try:
-            return float(position.get(key, default))
-        except (TypeError, ValueError):
-            return default
+    def f(keys, default=0.0):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    break
+        return default
 
-    def i(key, default=0):
-        try:
-            return int(float(position.get(key, default)))
-        except (TypeError, ValueError):
-            return default
+    def i(keys, default=0):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                try:
+                    return int(float(val))
+                except (TypeError, ValueError):
+                    break
+        return default
 
-    if b == "finvasia" and any(k in position for k in ("buyqty", "sellqty", "netQty")):
-        new = position.copy()
-        new.setdefault("tradingSymbol", position.get("tsym"))
-        new.setdefault("buyQty", i("buyqty"))
-        new.setdefault("sellQty", i("sellqty"))
-        new.setdefault("netQty", i("netQty"))
-        new.setdefault("buyAvg", f("avgprc"))
-        new.setdefault("sellAvg", f("avgprc"))
-        new.setdefault("ltp", f("ltp"))
-        new.setdefault("profitAndLoss", f("urmtm"))
-        return new
+    if b == "finvasia" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+        new = {
+            "tradingSymbol": lower.get("tsym"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("avgprc"),
+            "sellAvg": f("avgprc"),
+            "ltp": f(["ltp", "lp"]),
+            "profitAndLoss": f("urmtm"),
+        }
+        return new if new["netQty"] != 0 else None
 
-    if b == "aliceblue" and any(k in position for k in ("buyqty", "sellqty", "netqty")):
-        new = position.copy()
-        new.setdefault("tradingSymbol", position.get("symbol"))
-        new.setdefault("buyQty", i("buyqty"))
-        new.setdefault("sellQty", i("sellqty"))
-        new.setdefault("netQty", i("netqty"))
-        new.setdefault("buyAvg", f("buyavgprc"))
-        new.setdefault("sellAvg", f("sellavgprc"))
-        new.setdefault("ltp", f("ltp"))
-        new.setdefault("profitAndLoss", f("unrealisedprofit", position.get("urpl", 0)))
-        return new
+    if b == "aliceblue" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+        new = {
+            "tradingSymbol": lower.get("symbol"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("buyavgprc"),
+            "sellAvg": f("sellavgprc"),
+            "ltp": f("ltp"),
+            "profitAndLoss": f(["unrealisedprofit", "urpl"]),
+        }
+        return new if new["netQty"] != 0 else None
 
-    if b == "zerodha" and any(k in position for k in ("quantity", "buy_quantity", "sell_quantity")):
-        new = position.copy()
+    if b == "zerodha" and any(k in lower for k in ("quantity", "buy_quantity", "sell_quantity")):
         net_qty = i("quantity")
         avg_price = f("average_price")
-        new.setdefault("tradingSymbol", position.get("tradingsymbol"))
-        new.setdefault("buyQty", i("buy_quantity"))
-        new.setdefault("sellQty", i("sell_quantity"))
-        new.setdefault("netQty", net_qty)
-        new.setdefault("buyAvg", avg_price if net_qty > 0 else 0.0)
-        new.setdefault("sellAvg", avg_price if net_qty < 0 else 0.0)
-        new.setdefault("ltp", f("last_price"))
-        new.setdefault("profitAndLoss", f("pnl"))
-        return new
+        new = {
+            "tradingSymbol": lower.get("tradingsymbol"),
+            "buyQty": i("buy_quantity"),
+            "sellQty": i("sell_quantity"),
+            "netQty": net_qty,
+            "buyAvg": avg_price if net_qty > 0 else 0.0,
+            "sellAvg": avg_price if net_qty < 0 else 0.0,
+            "ltp": f("last_price"),
+            "profitAndLoss": f("pnl"),
+        }
+        return new if new["netQty"] != 0 else None
 
-    if b == "fyers" and any(k in position for k in ("netQty", "buyQty", "sellQty")):
-        new = position.copy()
-        new.setdefault("tradingSymbol", position.get("symbol"))
-        new.setdefault("buyQty", i("buyQty"))
-        new.setdefault("sellQty", i("sellQty"))
-        new.setdefault("netQty", i("netQty"))
-        new.setdefault("buyAvg", f("buyAvg"))
-        new.setdefault("sellAvg", f("sellAvg"))
-        new.setdefault("ltp", f("ltp"))
-        new.setdefault("profitAndLoss", f("pl"))
-        return new
+    if b == "fyers" and any(k in lower for k in ("netqty", "buyqty", "sellqty")):
+        new = {
+            "tradingSymbol": lower.get("symbol"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("buyavg"),
+            "sellAvg": f("sellavg"),
+            "ltp": f("ltp"),
+            "profitAndLoss": f("pl"),
+        }
+        return new if new["netQty"] != 0 else None
 
-    if b == "dhan" and any(k in position for k in ("netQty", "buyQty", "sellQty")):
-        new = position.copy()
-        new.setdefault("tradingSymbol", position.get("tradingSymbol"))
-        new.setdefault("buyQty", i("buyQty"))
-        new.setdefault("sellQty", i("sellQty"))
-        new.setdefault("netQty", i("netQty"))
-        new.setdefault("buyAvg", f("buyAvg"))
-        new.setdefault("sellAvg", f("sellAvg"))
-        new.setdefault("ltp", f("lastTradedPrice", position.get("ltp", 0)))
-        new.setdefault("profitAndLoss", f("unrealizedProfit"))
-        return new
-    # Default: return as-is
-    return position
+    if b == "dhan" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+        buy_qty = i("buyqty")
+        sell_qty = i("sellqty")
+        net_qty = i("netqty", buy_qty - sell_qty)
+        new = {
+            "tradingSymbol": lower.get("tradingsymbol") or lower.get("tradingSymbol"),
+            "buyQty": buy_qty,
+            "sellQty": sell_qty,
+            "netQty": net_qty,
+            "buyAvg": f("buyavg"),
+            "sellAvg": f("sellavg"),
+            "ltp": f(["lasttradedprice", "ltp"]),
+            "profitAndLoss": f("unrealizedprofit"),
+        }
+        return new if new["netQty"] != 0 else None
+    # Default path: attempt generic keys
+    new = {
+        "tradingSymbol": lower.get("tradingsymbol") or lower.get("symbol"),
+        "buyQty": i(["buyqty", "buy_quantity"]),
+        "sellQty": i(["sellqty", "sell_quantity"]),
+        "netQty": i(["netqty", "quantity", "net_quantity"]),
+        "buyAvg": f(["buyavg", "buyavgprc", "average_price"]),
+        "sellAvg": f(["sellavg", "sellavgprc"]),
+        "ltp": f(["ltp", "last_price"]),
+        "profitAndLoss": f(["pnl", "pl", "unrealizedprofit"]),
+    }
+    has_qty = any(k in lower for k in [
+        "netqty", "quantity", "net_quantity", "buyqty", "buy_quantity",
+        "sellqty", "sell_quantity"
+    ])
+    if not has_qty:
+        return position
+    return new if new["netQty"] != 0 else None
