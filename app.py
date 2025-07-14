@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover - fallback if import fails
         return {}
     def get_symbol_by_token(token: str, broker: str) -> str:
         return None
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory
 from flask_migrate import Migrate
 from dhanhq import dhanhq
 import os
@@ -108,6 +108,9 @@ limiter = Limiter(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
+PROFILE_IMAGE_DIR = os.path.join(DATA_DIR, "profile_images")
+os.makedirs(PROFILE_IMAGE_DIR, exist_ok=True)
+app.config["PROFILE_IMAGE_DIR"] = PROFILE_IMAGE_DIR
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -5865,11 +5868,11 @@ def user_profile():
 
             file = request.files.get("profile_image")
             if file and file.filename:
-                image_dir = os.path.join("static", "profile_images")
+                image_dir = app.config["PROFILE_IMAGE_DIR"]
                 os.makedirs(image_dir, exist_ok=True)
                 filename = secure_filename(username + "_" + file.filename)
                 file.save(os.path.join(image_dir, filename))
-                user.profile_image = os.path.join("profile_images", filename)
+                user.profile_image = filename
             message = "Profile updated"
 
             try:
@@ -5889,6 +5892,11 @@ def user_profile():
     }
 
     return render_template("user.html", user=profile_data, message=message)
+
+@app.route('/profile-images/<path:filename>')
+def profile_image_file(filename):
+    """Serve uploaded profile images from the persistent directory."""
+    return send_from_directory(app.config["PROFILE_IMAGE_DIR"], filename)
 
 # === Page routes ===
 @app.route('/')
