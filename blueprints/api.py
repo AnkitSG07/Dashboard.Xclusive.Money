@@ -64,6 +64,7 @@ def portfolio(client_id=None):
             data = []
 
         standardized = [normalize_position(p, account.broker) for p in data]
+        standardized = [p for p in standardized if p]
         return jsonify(standardized)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
