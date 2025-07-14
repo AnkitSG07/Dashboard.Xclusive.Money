@@ -5875,6 +5875,10 @@ def dhan_dashboard():
 @app.route("/Summary")
 @login_required
 def summary():
+    if 'username' not in session:
+        user = User.query.filter_by(email=session.get('user')).first()
+        if user:
+            session['username'] = user.name or (user.email.split('@')[0] if user.email else user.phone)
     return render_template("Summary.html")  # or "Summary.html" if that's your file name
 
 @app.route("/copy-trading")
