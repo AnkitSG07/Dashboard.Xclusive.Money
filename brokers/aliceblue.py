@@ -271,7 +271,7 @@ class AliceBlueBroker(BrokerBase):
 
     def get_opening_balance(self):
         self.ensure_session()
-       url = self.BASE_URL + "limits/getRmsLimits"
+        url = self.BASE_URL + "limits/getRmsLimits"
         try:
             r = requests.get(url, headers=self.headers, timeout=10)
             data = r.json()
