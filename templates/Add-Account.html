@@ -193,6 +193,8 @@
 if (!window.pageScripts) window.pageScripts = {};
 
 window.pageScripts["Add-Account"] = function() {
+  const brokerIcons = {{ broker_icons|tojson }};
+  window.brokerIcons = brokerIcons;
   // Broker field definitions
   const brokerFields = {
     flattrade: [
@@ -438,7 +440,6 @@ window.pageScripts["Add-Account"] = function() {
   function renderTable(rows) {
     const body = document.getElementById('accounts-table-body');
     if (!body) return;
-    const imgExtensions = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
 
     if (rows.length === 0) {
       body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
@@ -447,11 +448,8 @@ window.pageScripts["Add-Account"] = function() {
 
     body.innerHTML = rows.map(acc => {
       const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
-      const pictureHTML = `
-        <picture>
-          ${imgExtensions.map(ext => `<source srcset="/static/images/${acc.broker}.${ext}" type="image/${ext === 'jpg' ? 'jpeg' : ext}">`).join('\n')}
-          <img src="/static/images/${acc.broker}.png" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo" onerror="this.onerror=null;this.src='/static/images/logo.png';">
-        </picture>`;
+      const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
+      const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
       
       const statusText = acc.error ? 'Failed' : (acc.status || 'Connected');
       const statusClass = acc.error ? 'bg-danger' : (statusText === 'Connected' ? 'bg-success' : 'bg-warning'); // Use warning for other statuses
