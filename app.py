@@ -1782,15 +1782,20 @@ def get_order_book(client_id):
         # ✅ STEP 4: Fetch orders from broker
         try:
             broker_name = master.get('broker', '').lower()
-            
+
             # Use appropriate method based on broker
             if broker_name == "aliceblue" and hasattr(api, "get_trade_book"):
                 logger.debug("Using AliceBlue trade book")
                 orders_resp = api.get_trade_book()
+                if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
+                    logger.warning(
+                        "Trade book failed for AliceBlue, falling back to order list"
+                    )
+                    orders_resp = api.get_order_list()
             else:
                 logger.debug("Using standard order list")
                 orders_resp = api.get_order_list()
-                
+
             # Check for API errors
             if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
                 error_msg = orders_resp.get("error", "Failed to fetch orders")
