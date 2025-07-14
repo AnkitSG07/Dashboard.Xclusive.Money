@@ -5656,9 +5656,12 @@ def exit_child_positions():
         data = request.get_json(silent=True)
         if isinstance(data, str):
             try:
-                data = json.loads(data)
+                parsed = json.loads(data)
+                data = parsed if isinstance(parsed, dict) else {}
             except Exception:
                 data = {}
+        elif not isinstance(data, dict):
+            data = {}
         if data is None:
             data = {}
         child_id = data.get('child_id')
@@ -5692,9 +5695,12 @@ def exit_all_children():
         data = request.get_json(silent=True)
         if isinstance(data, str):
             try:
-                data = json.loads(data)
+                parsed = json.loads(data)
+                data = parsed if isinstance(parsed, dict) else {}
             except Exception:
                 data = {}
+        elif not isinstance(data, dict):
+            data = {}
         if data is None:
             data = {}
         master_id = data.get('master_id')
