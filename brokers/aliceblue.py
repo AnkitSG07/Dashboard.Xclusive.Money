@@ -1,5 +1,6 @@
 import requests
 import hashlib
+import re
 import json
 import logging
 from .base import BrokerBase
@@ -272,27 +273,40 @@ class AliceBlueBroker(BrokerBase):
     def get_opening_balance(self):
         self.ensure_session()
         url = self.BASE_URL + "limits/getRmsLimits"
+
+        SEARCH_KEYS = {
+            "balance",
+            "cash",
+            "netbalance",
+            "openingbalance",
+            "availablebalance",
+            "available_cash",
+            "availablecash",
+            "availabelbalance",
+            "withdrawablebalance",
+            "equityamount",
+            "netcash",
+            "cashmarginavailable",
+            "cash_margin_available",
+            "cashMarginAvailable",
+        }
+
+        def _to_float(value):
+            try:
+                cleaned = re.sub(r"[^0-9.+-]", "", str(value))
+                return float(cleaned)
+            except (TypeError, ValueError):
+                return None
+
     
         def _find_balance(obj):
             if isinstance(obj, dict):
                 for k, v in obj.items():
-                    if str(k).lower() in [
-                        "balance",
-                        "cash",
-                        "netbalance",
-                        "openingbalance",
-                        "availablebalance",
-                        "available_cash",
-                        "availablecash",
-                        "availabelbalance",  # Note: Possible typo, should it be "availablebalance"?
-                        "withdrawablebalance",
-                        "equityamount",
-                        "netcash",
-                    ]:
-                        try:
-                            return float(str(v).replace(",", ""))
-                        except (TypeError, ValueError):
-                            pass
+                    key = str(k).lower()
+                    if key in SEARCH_KEYS:
+                        val = _to_float(v)
+                        if val is not None:
+                            return val
                     val = _find_balance(v)
                     if val is not None:
                         return val
