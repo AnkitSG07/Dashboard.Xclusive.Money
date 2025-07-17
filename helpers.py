@@ -64,7 +64,7 @@ def log_connection_error(account: Account, message: str, *, disable_children: bo
             timestamp=datetime.utcnow().isoformat(),
             level="ERROR",
             message=message,
-            user_id=account.user_id,
+            user_id=str(account.user_id),
             module="copy_trading",
             details=json.dumps({
                 "client_id": account.client_id,
