@@ -409,9 +409,12 @@ def _account_to_dict(acc: Account) -> dict:
             if isinstance(log.details, dict) and str(log.details.get("client_id")) == acc.client_id:
                 last_error = log.message
                 break
-    except Exception:
+    except Exception as e:
         # On any failure just ignore - logging should not break API
         last_error = None
+        logger.error(f"Failed to fetch logs for {acc.client_id}: {e}")
+        # Ensure the session is usable for subsequent queries
+        db.session.rollback()
         
     return {
         "id": acc.id,
