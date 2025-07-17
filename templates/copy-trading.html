@@ -192,6 +192,16 @@ window.pageScripts["copy-trading"] = function () {
     alert(message);
   }
 
+  // Generate a status badge with optional tooltip for error messages
+  function statusBadge(status, error) {
+    const s = (status || '').toLowerCase();
+    let cls = 'bg-success';
+    if (s === 'error') cls = 'bg-danger';
+    else if (s === 'pending') cls = 'bg-warning text-dark';
+    const tooltip = error ? ` title="${error}"` : '';
+    return `<span class="badge ${cls}"${tooltip}>${status || '-'}</span>`;
+  }
+
   // ============ Helper Modal Functions (Using Bootstrap API where applicable) ============
 
   window.openChangeMaster = function(childId) {
@@ -376,7 +386,7 @@ window.pageScripts["copy-trading"] = function () {
                   <td>${brokerIconHTML(master.broker)}</td>
                   <td>${master.client_id}</td>
                   <td class="d-none d-md-table-cell">${master.username || "-"}</td>
-                  <td><span class="badge bg-success">${master.status || "Connected"}</span></td>
+                  <td>${statusBadge(master.status, master.last_error)}</td>
                   <td>
                     <div class="dropdown">
                       <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -498,7 +508,7 @@ window.pageScripts["copy-trading"] = function () {
                   <td class="d-none d-sm-table-cell">${master.client_id || "-"}</td>
                   <td>${child.client_id}</td>
                   <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                  <td><span class="badge bg-success">${child.status || "Connected"}</span></td>
+                  <td>${statusBadge(child.status, child.last_error)}</td>
                   <td>
                     <div class="d-flex align-items-center gap-2">
                       <div class="form-check form-switch m-0">
@@ -579,7 +589,7 @@ window.pageScripts["copy-trading"] = function () {
               <tr>
                 <td>${child.client_id}</td>
                 <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                <td><span class="badge bg-success">${child.status || "Connected"}</span></td>
+                <td>${statusBadge(child.status, child.last_error)}</td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <div class="form-check form-switch m-0">
