@@ -460,7 +460,8 @@ window.pageScripts["Add-Account"] = function() {
   function renderStatusBadge(acc) {
     const auto = autoLoginResults[acc.client_id];
     const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
-
+    const st = (acc.status || '').toLowerCase();
+      
     if (auto) {
       if (auto.status === 'error') {
         const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
@@ -471,16 +472,18 @@ window.pageScripts["Add-Account"] = function() {
       }
     }
 
-    if (lastErr) {
-      const msg = String(lastErr).replace(/"/g, '&quot;');
-      return `<span class="badge bg-danger" title="${msg}">Error</span>`;
-    }
-    const st = (acc.status || '').toLowerCase();
     if (st && st !== 'connected') {
       if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
+      // treat any non-connected status as error when lastErr exists or status is failed
+      if (st === 'failed' || lastErr) {
+        const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
+        return `<span class="badge bg-danger" title="${msg}">Error</span>`;
+      }
       const label = acc.status ? acc.status : 'Unknown';
       return `<span class="badge bg-warning text-dark">${label}</span>`;
     }
+
+    // ignore non-login errors when status shows connected      
     return '<span class="badge bg-success">Connected</span>';
   }
 
@@ -537,17 +540,22 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   function accountHasError(acc) {
-    return !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
+    const st = (acc.status || '').toLowerCase();
+    if (st && st !== 'connected' && st !== 'pending') return true;
+    if (st === 'failed') return true;
+    // only consider error logs if status itself indicates failure
+    return st === 'failed' && !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
   }
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
-    return !accountHasError(acc) && (!st || st === 'connected');
+    return st === 'connected' || st === '';
   }
 
   function isFailed(acc) {
     const st = (acc.status || '').toLowerCase();
-    return accountHasError(acc) || (st && st !== 'connected' && st !== 'pending');
+    if (autoLoginResults[acc.client_id] && autoLoginResults[acc.client_id].status === 'error') return true;
+    return st === 'failed' || (st && st !== 'connected' && st !== 'pending');
   }
 
   function applyFilters() {
