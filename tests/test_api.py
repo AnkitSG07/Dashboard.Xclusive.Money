@@ -418,6 +418,57 @@ def test_reconnect_uses_stored_credentials(client, monkeypatch):
         count = Account.query.filter_by(user_id=user.id, client_id='FIN124').count()
         assert count == 1
 
+
+def test_check_auto_logins_reconnects_all(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            self.access_token = 'tok'
+        def check_token_valid(self):
+            return True
+
+    monkeypatch.setattr(app_module, 'get_broker_class', lambda name: DummyBroker)
+
+    data1 = {
+        'broker': 'finvasia', 'client_id': 'A1', 'username': 'u',
+        'password': 'p', 'totp_secret': 't', 'vendor_code': 'v',
+        'api_key': 'a', 'imei': 'i'
+    }
+    data2 = {
+        'broker': 'finvasia', 'client_id': 'A2', 'username': 'u',
+        'password': 'p', 'totp_secret': 't', 'vendor_code': 'v',
+        'api_key': 'a', 'imei': 'i'
+    }
+
+    assert client.post('/api/add-account', json=data1).status_code == 200
+    assert client.post('/api/add-account', json=data2).status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        Account.query.filter_by(user_id=user.id, client_id='A1').first().status = 'Failed'
+        Account.query.filter_by(user_id=user.id, client_id='A2').first().status = 'Failed'
+        db.session.commit()
+
+    resp = client.post('/api/check-auto-logins')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data['results']) == 2
+    statuses = {r['client_id']: r['status'] for r in data['results']}
+    assert statuses['A1'] == 'Connected'
+    assert statuses['A2'] == 'Connected'
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        a1 = Account.query.filter_by(user_id=user.id, client_id='A1').first()
+        a2 = Account.query.filter_by(user_id=user.id, client_id='A2').first()
+        assert a1.status == 'Connected'
+        assert a2.status == 'Connected'
+
 def test_exit_all_positions_uses_position_product(client, monkeypatch):
     login(client)
     app = app_module.app
