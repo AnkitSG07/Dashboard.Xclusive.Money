@@ -417,3 +417,41 @@ def test_reconnect_uses_stored_credentials(client, monkeypatch):
         assert captured['kwargs']['imei'] == 'i'
         count = Account.query.filter_by(user_id=user.id, client_id='FIN124').count()
         assert count == 1
+
+def test_exit_all_positions_uses_position_product(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    placed = {}
+
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        def __init__(self, *a, **k):
+            pass
+        def get_positions(self):
+            return {"positions": [{"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}]}
+        def place_order(self, **kwargs):
+            placed.update(kwargs)
+            return {"status": "success"}
+        def get_order_list(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, 'broker_api', lambda acc: DummyBroker("c", "t"))
+    monkeypatch.setattr(app_module, 'save_log', lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account(user_id=user.id, role='child', broker='dhan', client_id='C1', credentials={'access_token': 'x'})
+        db.session.add(acc)
+        db.session.commit()
+
+        results = app_module.exit_all_positions_for_account(acc)
+
+    assert placed.get('product_type') == 'CNC'
+    assert results[0]['status'] == 'SUCCESS'
