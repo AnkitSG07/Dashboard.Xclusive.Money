@@ -5729,12 +5729,20 @@ def exit_child_positions():
             return jsonify({'error': 'Child account not found'}), 404
 
         results = exit_all_positions_for_account(child)
-        exited = any(r.get('status') == 'SUCCESS' for r in results)
+        successes = [r for r in results if r.get('status') == 'SUCCESS']
+        failures = [r for r in results if r.get('status') != 'SUCCESS']
+        exited = bool(successes)
+        message = (
+            f"Exited {len(successes)} of {len(results)} positions for {child_id}"
+            if results and successes
+            else f"No positions exited for {child_id}"
+        )
         return jsonify({
-            'message': f'Exit process completed for {child_id}',
+            'message': message,
             'child_id': child_id,
             'results': results,
-            'exited': exited
+            'exited': exited,
+            'failed_count': len(failures)
         }), 200
     except Exception as e:
         logger.error(f"Unexpected error in exit_child_positions: {str(e)}")
@@ -5777,17 +5785,27 @@ def exit_all_children():
 
         all_results = {}
         exited = []
+        failed = []
         for child in children:
             res = exit_all_positions_for_account(child)
             all_results[child.client_id] = res
             if any(r.get('status') == 'SUCCESS' for r in res):
                 exited.append(child.client_id)
+            else:
+                failed.append(child.client_id)
+
+        message = (
+            f"Exited positions for {len(exited)} of {len(children)} children"
+            if exited else
+            "No positions exited for any child"
+        )
 
         return jsonify({
-            'message': f'Exit completed for {len(children)} children',
+            'message': message,
             'master_id': master_id,
             'results': all_results,
-            'exited_children': exited
+            'exited_children': exited,
+            'failed_children': failed
         }), 200
     except Exception as e:
         logger.error(f"Unexpected error in exit_all_children: {str(e)}")
