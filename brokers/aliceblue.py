@@ -242,10 +242,23 @@ class AliceBlueBroker(BrokerBase):
             return {"status": "success", **resp}
         return {"status": "failure", **resp}
 
-    def get_positions(self):
+    def get_positions(self, retention="DAY"):
+        """Fetch net positions from Alice Blue.
+
+        Alice Blue's API requires a POST request to
+        ``positionAndHoldings/positionBook`` with a JSON body specifying
+        the desired retention type (``DAY`` by default).  Previously this
+        method used ``GET`` which resulted in an empty response for some
+        users.  The API documentation example is:
+
+        ``{"ret": "DAY"}``
+        """
         self.ensure_session()
         url = self.BASE_URL + "positionAndHoldings/positionBook"
-        r = requests.get(url, headers=self.headers, timeout=10)
+        payload = {"ret": retention}
+        r = requests.post(
+            url, headers=self.headers, json=payload, timeout=10
+        )
         try:
             resp = r.json()
         except Exception:
