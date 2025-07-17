@@ -6041,11 +6041,13 @@ def user_profile():
 
             file = request.files.get("profile_image")
             if file and file.filename:
-                image_dir = app.config["PROFILE_IMAGE_DIR"]
-                os.makedirs(image_dir, exist_ok=True)
-                filename = secure_filename(username + "_" + file.filename)
-                file.save(os.path.join(image_dir, filename))
-                user.profile_image = filename
+                # Read the file data and store as a data URL so it persists in the
+                # database even if the filesystem is wiped during redeploys.
+                import base64
+                data = file.read()
+                encoded = base64.b64encode(data).decode("utf-8")
+                mime_type = file.mimetype or "application/octet-stream"
+                user.profile_image = f"data:{mime_type};base64,{encoded}"
             message = "Profile updated"
 
             try:
