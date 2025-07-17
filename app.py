@@ -5809,8 +5809,14 @@ def exit_child_positions():
             return jsonify({'error': 'Child account not found'}), 404
 
         results = exit_all_positions_for_account(child)
-        successes = [r for r in results if r.get('status') == 'SUCCESS']
-        failures = [r for r in results if r.get('status') != 'SUCCESS']
+        successes = [
+            r for r in results
+            if str(r.get('status', '')).upper() == 'SUCCESS'
+        ]
+        failures = [
+            r for r in results
+            if str(r.get('status', '')).upper() != 'SUCCESS'
+        ]
         exited = bool(successes)
         message = (
             f"Exited {len(successes)} of {len(results)} positions for {child_id}"
@@ -5869,7 +5875,7 @@ def exit_all_children():
         for child in children:
             res = exit_all_positions_for_account(child)
             all_results[child.client_id] = res
-            if any(r.get('status') == 'SUCCESS' for r in res):
+            if any(str(r.get('status', '')).upper() == 'SUCCESS' for r in res):
                 exited.append(child.client_id)
             else:
                 failed.append(child.client_id)
