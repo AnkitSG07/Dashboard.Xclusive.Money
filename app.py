@@ -399,6 +399,7 @@ def _resolve_data_path(path: str) -> str:
 
 def _account_to_dict(acc: Account) -> dict:
     last_error = None
+    error_list: list[str] = []
     try:
         logs = (
             SystemLog.query.filter_by(
@@ -411,12 +412,20 @@ def _account_to_dict(acc: Account) -> dict:
             .all()
         )
         for log in logs:
-            if isinstance(log.details, dict) and str(log.details.get("client_id")) == acc.client_id:
-                last_error = log.message
-                break
-    except Exception as e:
+            details = log.details
+            if isinstance(details, str):
+                try:
+                    details = json.loads(details)
+                except Exception:
+                    details = {}
+            if isinstance(details, dict) and str(details.get("client_id")) == acc.client_id:
+                if not last_error:
+                    last_error = log.message
+                error_list.append(log.message)
+    except Exception as e:  # pragma: no cover - logging failures shouldn't break
         # On any failure just ignore - logging should not break API
         last_error = None
+        error_list = []
         logger.error(f"Failed to fetch logs for {acc.client_id}: {e}")
         # Ensure the session is usable for subsequent queries
         db.session.rollback()
@@ -438,7 +447,8 @@ def _account_to_dict(acc: Account) -> dict:
         "auto_login": acc.auto_login,
         "last_login": acc.last_login_time,
         "device_number": acc.device_number,
-        "last_error": last_error,        
+        "last_error": last_error,
+        "errors": error_list,        
     }
 
 def get_user_by_token(token: str):
