@@ -337,6 +337,38 @@ def ensure_setting_schema():
 
 ensure_setting_schema()
 
+
+def ensure_user_profile_schema():
+    """Ensure the user.profile_image column uses TEXT type."""
+    logger.info("Ensuring user.profile_image column is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'user'
+
+        if table_name not in insp.get_table_names():
+            logger.warning(f'{table_name} table missing; skipping profile_image check.')
+            return
+
+        columns = {c['name']: c for c in insp.get_columns(table_name)}
+        if 'profile_image' in columns:
+            current_type = str(columns['profile_image']['type']).upper()
+            if 'VARCHAR' in current_type:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text('ALTER TABLE "user" ALTER COLUMN "profile_image" TYPE TEXT'))
+                    logger.info('Altered column "profile_image" to TEXT in "user" table.')
+                except Exception as exc:
+                    logger.warning(f'Failed to alter "profile_image" to TEXT: {exc}.')
+        else:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN "profile_image" TEXT'))
+                logger.info('Added column "profile_image" to "user" table.')
+            except Exception as exc:
+                logger.warning(f'Failed to add "profile_image" column: {exc}.')
+
+ensure_user_profile_schema()
+
 def ensure_trade_log_schema():
     """Ensure the trade_log table has required columns."""
     logger.info("Ensuring trade_log table schema is up-to-date...")
