@@ -4285,6 +4285,44 @@ def account_balance():
     return jsonify({"balance": bal})
 
 
+# Check auto-login status for all accounts that have auto_login enabled
+@app.route('/api/check-auto-logins', methods=['POST'])
+@login_required
+def check_auto_logins():
+    """Attempt to reconnect all accounts with auto_login enabled."""
+    user = current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    results = []
+    for acc_db in user.accounts:
+        if not acc_db.auto_login:
+            continue
+        try:
+            acc_dict = _account_to_dict(acc_db)
+            acc_dict["credentials"] = acc_db.credentials
+            api = broker_api(acc_dict)
+            valid = True
+            if hasattr(api, "check_token_valid"):
+                valid = api.check_token_valid()
+            if not valid:
+                acc_db.status = "Failed"
+            else:
+                acc_db.status = "Connected"
+                acc_db.last_login_time = datetime.utcnow()
+                if getattr(api, "access_token", None):
+                    creds = dict(acc_db.credentials or {})
+                    creds["access_token"] = api.access_token
+                    acc_db.credentials = creds
+            db.session.commit()
+            results.append({"client_id": acc_db.client_id, "status": acc_db.status})
+        except Exception as e:
+            db.session.rollback()
+            results.append({"client_id": acc_db.client_id, "error": str(e)})
+
+    return jsonify({"results": results})
+
+
 # Update credentials for an existing account
 @app.route('/api/update-account', methods=['POST'])
 @login_required
