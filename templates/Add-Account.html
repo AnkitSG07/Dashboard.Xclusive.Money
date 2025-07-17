@@ -488,7 +488,9 @@ window.pageScripts["Add-Account"] = function() {
     const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
     const cell = document.getElementById(`status-${sanitized}`);
     if (!cell) return;
-    cell.innerHTML = renderAutoLoginBadge(autoLoginResults[cid], cid);
+    const acc = allAccounts.find(a => a.client_id === cid);
+    if (!acc) return;
+    cell.innerHTML = renderStatusBadge(acc);
   }
 
   function attemptAutoLogin() {
