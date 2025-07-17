@@ -931,6 +931,13 @@ def record_trade(user_email, symbol, action, qty, price, status):
 
 def _find_position_list(obj):
     """Recursively search *obj* for a list of position dicts."""
+    def looks_like_position_list(lst):
+        if not lst or not all(isinstance(i, dict) for i in lst):
+            return False
+        keys = {k.lower() for k in lst[0]}
+        return any(
+            k in keys for k in ("netqty", "net_quantity", "quantity", "tradingsymbol", "symbol")
+        )
     visited = set()
     stack = [obj]
     while stack:
@@ -938,19 +945,18 @@ def _find_position_list(obj):
         if id(item) in visited:
             continue
         visited.add(id(item))
-        if isinstance(item, list):
-            if item and all(isinstance(i, dict) for i in item):
-                return item
-            stack.extend(item)
-        elif isinstance(item, dict):
-            # keys like "positions" or "netPositions"
+        if isinstance(item, dict):
             for key, val in item.items():
-                if "position" in key.lower():
-                    if isinstance(val, list) and all(isinstance(x, dict) for x in val):
+                if isinstance(val, list):
+                    if "position" in key.lower() and looks_like_position_list(val):
                         return val
                     stack.append(val)
-                elif isinstance(val, (list, dict)):
+                elif isinstance(val, dict):
                     stack.append(val)
+        elif isinstance(item, list):
+            if looks_like_position_list(item):
+                return item
+            stack.extend(item)    
     return []
 
 
