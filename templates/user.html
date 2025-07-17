@@ -18,7 +18,11 @@
       <!-- Profile Image Section -->
       <div class="col-md-4 d-flex flex-column align-items-center justify-content-center p-3 border-end">
         {% if user.profile_image %}
+          {% if user.profile_image.startswith('data:') %}
+          <img src="{{ user.profile_image }}" alt="Profile" class="profile-photo">
+          {% else %}
           <img src="{{ url_for('profile_image_file', filename=user.profile_image.split('/')[-1]) }}" alt="Profile" class="profile-photo">
+          {% endif %}  
         {% else %}
           <div class="mb-3 text-muted">No Profile Image</div>
         {% endif %}
