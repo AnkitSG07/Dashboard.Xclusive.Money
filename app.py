@@ -685,8 +685,10 @@ def get_opening_balance_for_account(acc):
     cached = OPENING_BALANCE_CACHE.get(client_id)
     if cached:
         ts, bal = cached
-        if now - ts < CACHE_TTL:
+        if cache_only or now - ts < CACHE_TTL:
             return bal
+    if cache_only:
+        return cached[1] if cached else None
 
     bal = None
     try:
@@ -4246,6 +4248,28 @@ def reconnect_account():
 
     return jsonify({"message": f"Account {client_id} reconnected."})
 
+# Fetch the latest opening balance for a specific account
+@app.route('/api/account-balance', methods=['POST'])
+@login_required
+def account_balance():
+    data = request.json or {}
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    user_email = session.get("user")
+    db_user = User.query.filter_by(email=user_email).first()
+    if not db_user:
+        return jsonify({"error": "Account not found"}), 404
+
+    acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
+    if not acc_db:
+        return jsonify({"error": "Account not found"}), 404
+
+    bal = get_opening_balance_for_account(_account_to_dict(acc_db))
+    return jsonify({"balance": bal})
+
+
 # Update credentials for an existing account
 @app.route('/api/update-account', methods=['POST'])
 @login_required
@@ -4670,15 +4694,17 @@ def add_account():
 def get_accounts():
     try:
         user_email = session.get("user")
-        user = current_user() # Use current_user() helper
+        user = current_user()  # Use current_user() helper
         if not user:
             return jsonify({"error": "User not found"}), 404
-
+            
+        cache_only = request.args.get("cache_only") in ("1", "true", "True")
+        
         accounts = [_account_to_dict(acc) for acc in user.accounts]
 
         # Add opening balances
         for acc in accounts:
-            bal = get_opening_balance_for_account(acc)
+            bal = get_opening_balance_for_account(acc, cache_only=cache_only)
             if bal is not None:
                 acc["opening_balance"] = bal
 
