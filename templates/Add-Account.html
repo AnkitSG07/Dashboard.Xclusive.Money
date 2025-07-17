@@ -175,7 +175,7 @@
                             <th>Client ID</th>
                             <th>Username</th>
                             <th class="text-end">Opening Balance</th>
-                            <th>Status</th>
+                            <th>Auto-Login Status</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -324,7 +324,8 @@ window.pageScripts["Add-Account"] = function() {
   let searchFilter = '';
   let editingAccountId = null;
   let currentBrokerSelected = null; // Track the currently selected broker in the form
-
+  let autoLoginResults = {}; // Track auto-login results per account
+    
   // === Utility Functions ===
   function fetchJson(url, options = {}) {
     return fetch(url, options).then(response => {
@@ -424,14 +425,12 @@ window.pageScripts["Add-Account"] = function() {
       return;
     }
 
-    body.innerHTML = rows.map(acc => {
+  body.innerHTML = rows.map(acc => {
       const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
       const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
       const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
-      
-      const statusText = acc.error ? 'Failed' : (acc.status || 'Connected');
-      const statusClass = acc.error ? 'bg-danger' : (statusText === 'Connected' ? 'bg-success' : 'bg-warning'); // Use warning for other statuses
-      const tooltip = acc.error ? `data-bs-toggle="tooltip" data-bs-placement="top" title="${acc.error}"` : '';
+      const autoResult = autoLoginResults[acc.client_id];
+      const autoHtml = renderAutoLoginBadge(autoResult, acc.client_id);
 
       return `
         <tr>
@@ -439,7 +438,7 @@ window.pageScripts["Add-Account"] = function() {
           <td class="font-monospace">${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
           <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
-          <td><span class="badge ${statusClass}" ${tooltip}>${statusText}</span></td>
+          <td id="auto-login-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${autoHtml}</td>
           <td class="text-center">
             <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
                 <i class="bi bi-pencil"></i>
@@ -458,6 +457,51 @@ window.pageScripts["Add-Account"] = function() {
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
   }
+
+  function renderAutoLoginBadge(result, cid) {
+    if (!result) return '<span class="badge bg-secondary">Pending</span>';
+    if (result.status === 'success') {
+      return '<span class="badge bg-success">Success</span>';
+    }
+    if (result.status === 'error') {
+      const msg = result.error ? result.error.replace(/"/g, '&quot;') : 'Error';
+      return `<span class="badge bg-danger" title="${msg}">${msg}</span>`;
+    }
+    // pending or connecting
+    return '<span class="badge bg-info">Connecting...</span>';
+  }
+
+  function updateAutoLoginCell(cid) {
+    const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
+    const cell = document.getElementById(`auto-login-${sanitized}`);
+    if (!cell) return;
+    cell.innerHTML = renderAutoLoginBadge(autoLoginResults[cid], cid);
+  }
+
+  function attemptAutoLogin() {
+    allAccounts.forEach(acc => {
+      autoLoginResults[acc.client_id] = {status: 'checking'};
+      updateAutoLoginCell(acc.client_id);
+      fetchJson('/api/reconnect-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: acc.client_id })
+      })
+      .then(resp => {
+        if (resp.message) {
+          autoLoginResults[acc.client_id] = {status: 'success'};
+        } else {
+          autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
+        }
+        updateAutoLoginCell(acc.client_id);
+      })
+      .catch(err => {
+        autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
+        updateAutoLoginCell(acc.client_id);
+      });
+    });
+  }
+
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
@@ -788,6 +832,7 @@ window.pageScripts["Add-Account"] = function() {
       populateBrokerFilter();
       updateCounts();
       applyFilters();
+      attemptAutoLogin();
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
