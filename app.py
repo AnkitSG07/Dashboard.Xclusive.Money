@@ -400,7 +400,11 @@ def _account_to_dict(acc: Account) -> dict:
     last_error = None
     try:
         logs = (
-            SystemLog.query.filter_by(user_id=acc.user_id, module="copy_trading", level="ERROR")
+            SystemLog.query.filter_by(
+                user_id=str(acc.user_id),
+                module="copy_trading",
+                level="ERROR",
+            )
             .order_by(SystemLog.timestamp.desc())
             .limit(5)
             .all()
@@ -4570,7 +4574,7 @@ def add_account():
                 timestamp=datetime.utcnow(),
                 level="INFO",
                 message=f"Account added: {client_id} ({broker}) by {user_email}",
-                user_id=user.id,
+                user_id=str(user.id),
                 details=json.dumps({
                     "action": "add_account",
                     "client_id": client_id,
