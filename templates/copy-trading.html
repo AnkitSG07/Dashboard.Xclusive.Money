@@ -1065,8 +1065,9 @@ window.pageScripts["copy-trading"] = function () {
     })
     .then(res => res.json())
     .then(data => {
-      showMessage(data.message);
-      if (Array.isArray(data.results) && data.results.some(r => r.status === 'SUCCESS')) {
+      const err = data.failed_count && data.failed_count > 0;
+      showMessage(data.message, err ? 'danger' : 'success');
+      if (data.exited) {
         window.exitedChildren[childId] = true;
       }
       window.loadAccounts();
@@ -1094,7 +1095,8 @@ window.pageScripts["copy-trading"] = function () {
     })
     .then(res => res.json())
     .then(data => {
-      showMessage(data.message);
+      const failed = Array.isArray(data.failed_children) && data.failed_children.length > 0;
+      showMessage(data.message, failed ? 'danger' : 'success');
       if (Array.isArray(data.exited_children)) {
         data.exited_children.forEach(id => { window.exitedChildren[id] = true; });
       }
