@@ -1,3 +1,4 @@
+
 from flask import session
 from sqlalchemy import or_
 from models import User, OrderMapping, Account, db
@@ -38,6 +39,32 @@ def active_children_for_master(master):
         Account.linked_master_id == master.client_id,
         db.func.lower(Account.copy_status) == 'on'
     ).all()
+
+def extract_product_type(position: dict) -> str | None:
+    """Attempt to extract a product type from a raw position dict."""
+    lower = {k.lower(): v for k, v in position.items()}
+    for key in (
+        "producttype",
+        "product_type",
+        "product",
+        "pcode",
+        "prd",
+        "prdt",
+        "prctyp",
+    ):
+        if key in lower and lower[key] is not None:
+            prod = str(lower[key]).strip()
+            if not prod:
+                continue
+            if key in {"pcode", "prd", "prdt"} and len(prod) == 1:
+                mapping = {"c": "CNC", "m": "MIS", "h": "NRML"}
+                prod = mapping.get(prod.lower(), prod)
+            if key == "prctyp" and len(prod) == 1:
+                mapping = {"i": "MIS", "d": "CNC"}
+                prod = mapping.get(prod.lower(), prod)
+            return prod.upper()
+    return None
+
 
 def normalize_position(position: dict, broker: str) -> dict | None:
     """Return a standardized position dict for the front-end.
