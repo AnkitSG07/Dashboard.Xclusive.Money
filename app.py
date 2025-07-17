@@ -677,8 +677,17 @@ def broker_api(obj):
     
     
 
-def get_opening_balance_for_account(acc):
-    """Instantiate broker and try to fetch opening balance with caching."""
+def get_opening_balance_for_account(acc, cache_only=False):
+    """Instantiate broker and try to fetch opening balance with caching.
+
+    Parameters
+    ----------
+    acc : dict
+        Account details containing client_id, broker, etc.
+    cache_only : bool, optional
+        When True, return the cached value without refreshing it. Defaults
+        to ``False``.
+    """
     client_id = acc.get("client_id")
     now = time()
 
