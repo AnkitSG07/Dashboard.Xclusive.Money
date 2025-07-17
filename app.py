@@ -55,6 +55,7 @@ from helpers import (
     user_account_ids,
     order_mappings_for_user,
     active_children_for_master,
+    extract_product_type,
 )
 from symbols import get_symbols
 
