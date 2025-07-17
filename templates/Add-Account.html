@@ -502,6 +502,22 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
+  function refreshBalances() {
+    allAccounts.forEach(acc => {
+      fetchJson('/api/account-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: acc.client_id })
+      })
+      .then(resp => {
+        if (typeof resp.balance === 'number') {
+          acc.opening_balance = resp.balance;
+          applyFilters();
+        }
+      })
+      .catch(err => console.error('Balance refresh failed', err));
+    });
+  }
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
@@ -826,13 +842,14 @@ window.pageScripts["Add-Account"] = function() {
   };
 
   // === Initial Load ===
-  fetchJson('/api/accounts')
+  fetchJson('/api/accounts?cache_only=1')
     .then(data => {
       allAccounts = data.accounts || [];
       populateBrokerFilter();
       updateCounts();
       applyFilters();
       attemptAutoLogin();
+      refreshBalances();
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
