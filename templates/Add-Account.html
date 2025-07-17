@@ -175,7 +175,7 @@
                             <th>Client ID</th>
                             <th>Username</th>
                             <th class="text-end">Opening Balance</th>
-                            <th>Auto-Login Status</th>
+                            <th>Status</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -429,8 +429,7 @@ window.pageScripts["Add-Account"] = function() {
       const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
       const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
       const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
-      const autoResult = autoLoginResults[acc.client_id];
-      const autoHtml = renderAutoLoginBadge(autoResult, acc.client_id);
+      const statusHtml = renderStatusBadge(acc);
 
       return `
         <tr>
@@ -438,7 +437,7 @@ window.pageScripts["Add-Account"] = function() {
           <td class="font-monospace">${acc.client_id}</td>
           <td>${acc.username || '-'}</td>
           <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
-          <td id="auto-login-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${autoHtml}</td>
+          <td id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</td>
           <td class="text-center">
             <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
                 <i class="bi bi-pencil"></i>
@@ -458,22 +457,36 @@ window.pageScripts["Add-Account"] = function() {
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
   }
 
-  function renderAutoLoginBadge(result, cid) {
-    if (!result) return '<span class="badge bg-secondary">Pending</span>';
-    if (result.status === 'success') {
-      return '<span class="badge bg-success">Success</span>';
+  function renderStatusBadge(acc) {
+    const auto = autoLoginResults[acc.client_id];
+    const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
+
+    if (auto) {
+      if (auto.status === 'error') {
+        const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
+        return `<span class="badge bg-danger" title="${msg}">Error</span>`;
+      }
+      if (auto.status === 'checking') {
+        return '<span class="badge bg-info">Connecting...</span>';
+      }
     }
-    if (result.status === 'error') {
-      const msg = result.error ? result.error.replace(/"/g, '&quot;') : 'Error';
-      return `<span class="badge bg-danger" title="${msg}">${msg}</span>`;
+
+    if (lastErr) {
+      const msg = String(lastErr).replace(/"/g, '&quot;');
+      return `<span class="badge bg-danger" title="${msg}">Error</span>`;
     }
-    // pending or connecting
-    return '<span class="badge bg-info">Connecting...</span>';
+    const st = (acc.status || '').toLowerCase();
+    if (st && st !== 'connected') {
+      if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
+      const label = acc.status ? acc.status : 'Unknown';
+      return `<span class="badge bg-warning text-dark">${label}</span>`;
+    }
+    return '<span class="badge bg-success">Connected</span>';
   }
 
-  function updateAutoLoginCell(cid) {
+  function updateStatusCell(cid) {
     const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
-    const cell = document.getElementById(`auto-login-${sanitized}`);
+    const cell = document.getElementById(`status-${sanitized}`);
     if (!cell) return;
     cell.innerHTML = renderAutoLoginBadge(autoLoginResults[cid], cid);
   }
@@ -493,11 +506,13 @@ window.pageScripts["Add-Account"] = function() {
         } else {
           autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
         }
-        updateAutoLoginCell(acc.client_id);
+        updateStatusCell(acc.client_id);
+        updateCounts();
       })
       .catch(err => {
         autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
-        updateAutoLoginCell(acc.client_id);
+        updateStatusCell(acc.client_id);
+        updateCounts();
       });
     });
   }
@@ -519,14 +534,18 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
+  function accountHasError(acc) {
+    return !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
+  }
+
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
-    return !acc.error && (!st || st === 'connected');
+    return !accountHasError(acc) && (!st || st === 'connected');
   }
 
   function isFailed(acc) {
     const st = (acc.status || '').toLowerCase();
-    return acc.error || (st && st !== 'connected' && st !== 'pending'); // Consider 'pending' as not fully successful
+    return accountHasError(acc) || (st && st !== 'connected' && st !== 'pending');
   }
 
   function applyFilters() {
@@ -539,7 +558,7 @@ window.pageScripts["Add-Account"] = function() {
       rows = rows.filter(a =>
         String(a.client_id).toLowerCase().includes(term) ||
         (a.username || '').toLowerCase().includes(term) ||
-        (a.error || a.status || '').toLowerCase().includes(term)
+        (a.last_error || (Array.isArray(a.errors) ? a.errors.join(' ') : a.errors) || a.status || '').toLowerCase().includes(term)
       );
     }
     renderTable(rows);
