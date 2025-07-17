@@ -955,6 +955,7 @@ def exit_all_positions_for_account(account):
         direction = "SELL" if net_qty > 0 else "BUY"
         qty = abs(net_qty)
         broker_name = (account.broker or "").lower()
+        product = extract_product_type(pos) or None
 
         if broker_name == "dhan":
             order_params = {
@@ -966,7 +967,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product_type": "INTRADAY",
+                "product_type": product or "INTRADAY",
                 "price": 0,
             }
         elif broker_name == "aliceblue":
@@ -977,7 +978,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MKT",
-                "product": "MIS",
+                "product": product or "MIS",
                 "price": 0,
             }
         elif broker_name == "finvasia":
@@ -987,7 +988,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MKT",
-                "product": "MIS",
+                "product": product or "MIS",
                 "price": 0,
                 "token": pos.get("token", ""),
             }
@@ -998,7 +999,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product": "MIS",
+                "product": product or "MIS",
                 "price": 0,
             }
         else:
@@ -1008,7 +1009,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product": "MIS",
+                "product": product or "MIS",
                 "price": 0,
             }
 
