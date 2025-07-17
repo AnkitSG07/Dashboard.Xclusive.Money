@@ -2,6 +2,7 @@ import os
 import sys
 import pytest
 import tempfile
+import io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -320,6 +321,29 @@ def test_opening_balance_cache(monkeypatch):
     assert bal1 == 42
     assert bal2 == 42
     assert len(calls) == 1
+
+def test_profile_image_stored_in_db(client):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+
+    img_data = b"imgdata"
+    resp = client.post(
+        "/users",
+        data={
+            "action": "save_profile",
+            "first_name": "A",
+            "last_name": "B",
+            "profile_image": (io.BytesIO(img_data), "profile.png"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        assert user.profile_image.startswith("data:")
 
 def test_add_account_stores_all_credentials(client, monkeypatch):
     login(client)
