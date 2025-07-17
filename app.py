@@ -918,6 +918,30 @@ def record_trade(user_email, symbol, action, qty, price, status):
     db.session.add(trade)
     db.session.commit()
 
+def _find_position_list(obj):
+    """Recursively search *obj* for a list of position dicts."""
+    visited = set()
+    stack = [obj]
+    while stack:
+        item = stack.pop()
+        if id(item) in visited:
+            continue
+        visited.add(id(item))
+        if isinstance(item, list):
+            if item and all(isinstance(i, dict) for i in item):
+                return item
+            stack.extend(item)
+        elif isinstance(item, dict):
+            # keys like "positions" or "netPositions"
+            for key, val in item.items():
+                if "position" in key.lower():
+                    if isinstance(val, list) and all(isinstance(x, dict) for x in val):
+                        return val
+                    stack.append(val)
+                elif isinstance(val, (list, dict)):
+                    stack.append(val)
+    return []
+
 
 def exit_all_positions_for_account(account):
     """Square off all open positions for the given account."""
@@ -930,13 +954,7 @@ def exit_all_positions_for_account(account):
             )
             return [{"symbol": None, "status": "ERROR", "message": pos_resp}]
             
-        positions = (
-            pos_resp.get("data")
-            or pos_resp.get("positions")
-            or pos_resp.get("net")
-            or pos_resp
-            or []
-        )
+        positions = _find_position_list(pos_resp)
         if isinstance(positions, dict):
             positions = [positions]
         elif not isinstance(positions, list):
