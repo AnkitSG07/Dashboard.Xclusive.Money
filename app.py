@@ -57,6 +57,7 @@ from helpers import (
     active_children_for_master,
     extract_product_type,
     log_connection_error,
+    normalize_position,
 )
 from symbols import get_symbols
 
@@ -946,13 +947,20 @@ def exit_all_positions_for_account(account):
 
     results = []
     for pos in positions:
-        net_qty = int(
-            pos.get("netQty")
-            or pos.get("net_quantity")
-            or pos.get("netQuantity")
-            or pos.get("Netqty")
-            or 0
-        )
+        normalized = normalize_position(pos, account.broker)
+        if normalized:
+            pos = {**pos, **normalized}
+            net_qty = int(normalized.get("netQty", 0))
+        else:
+            lower = {k.lower(): v for k, v in pos.items()}
+            net_qty = 0
+            for key in ("netqty", "net_quantity", "netquantity", "quantity"):
+                if key in lower and lower[key] is not None:
+                    try:
+                        net_qty = int(float(lower[key]))
+                        break
+                    except (TypeError, ValueError):
+                        continue
         if net_qty == 0:
             continue
 
