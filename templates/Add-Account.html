@@ -494,7 +494,7 @@ window.pageScripts["Add-Account"] = function() {
   function attemptAutoLogin() {
     allAccounts.forEach(acc => {
       autoLoginResults[acc.client_id] = {status: 'checking'};
-      updateAutoLoginCell(acc.client_id);
+      updateStatusCell(acc.client_id);
       fetchJson('/api/reconnect-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
