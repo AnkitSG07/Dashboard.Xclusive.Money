@@ -15,7 +15,10 @@ class User(db.Model):
     name = db.Column(db.String(120))
     phone = db.Column(db.String(20))
     webhook_token = db.Column(db.String(64), unique=True, index=True)
-    profile_image = db.Column(db.String(120))
+    # Store the profile image as a data URL so it persists in the database
+    # rather than relying on the local filesystem which may be wiped on
+    # redeploy. Existing deployments with filenames will continue to work.
+    profile_image = db.Column(db.Text)
     plan = db.Column(db.String(20), default='Free')
     
     last_login = db.Column(db.DateTime)
