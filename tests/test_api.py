@@ -545,3 +545,28 @@ def test_exit_all_children_endpoint(client, monkeypatch, broker):
         assert placed_orders[0].get('product_type') == 'CNC'
     else:
         assert placed_orders[0].get('product') == 'CNC'
+
+
+def test_account_to_dict_rolls_back_on_log_error(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account(user_id=user.id, role='child', broker='dhan', client_id='X1')
+        db.session.add(acc)
+        db.session.commit()
+
+        class FailingQuery:
+            def filter_by(self, **kwargs):
+                raise Exception('boom')
+
+        monkeypatch.setattr(app_module.SystemLog, 'query', FailingQuery())
+
+        result = app_module._account_to_dict(acc)
+        assert result['id'] == acc.id
+        # Session should still be usable after failure
+        assert Account.query.count() >= 1
