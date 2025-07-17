@@ -1,7 +1,10 @@
 
 from flask import session
 from sqlalchemy import or_
-from models import User, OrderMapping, Account, db
+from models import User, OrderMapping, Account, SystemLog, db
+from datetime import datetime
+import json
+import logging
 
 
 def current_user():
@@ -39,6 +42,41 @@ def active_children_for_master(master):
         Account.linked_master_id == master.client_id,
         db.func.lower(Account.copy_status) == 'on'
     ).all()
+
+def log_connection_error(account: Account, message: str, *, disable_children: bool = False) -> None:
+    """Persist a connection/order error and mark accounts inactive."""
+    logger = logging.getLogger(__name__)
+    try:
+        account.status = "Error"
+        account.copy_status = "Off"
+
+        if disable_children and account.role == "master":
+            children = Account.query.filter_by(
+                user_id=account.user_id,
+                role="child",
+                linked_master_id=account.client_id,
+            ).all()
+            for child in children:
+                child.copy_status = "Off"
+                child.status = "Error"
+
+        log_entry = SystemLog(
+            timestamp=datetime.utcnow().isoformat(),
+            level="ERROR",
+            message=message,
+            user_id=account.user_id,
+            module="copy_trading",
+            details=json.dumps({
+                "client_id": account.client_id,
+                "broker": account.broker,
+            })
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+    except Exception as e:  # pragma: no cover - logging failures shouldn't crash
+        db.session.rollback()
+        logger.error(f"Failed to log connection error: {e}")
+
 
 def extract_product_type(position: dict) -> str | None:
     """Attempt to extract a product type from a raw position dict."""
