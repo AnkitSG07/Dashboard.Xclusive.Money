@@ -56,6 +56,7 @@ from helpers import (
     order_mappings_for_user,
     active_children_for_master,
     extract_product_type,
+    log_connection_error,
 )
 from symbols import get_symbols
 
@@ -396,6 +397,22 @@ def _resolve_data_path(path: str) -> str:
 
 
 def _account_to_dict(acc: Account) -> dict:
+    last_error = None
+    try:
+        logs = (
+            SystemLog.query.filter_by(user_id=acc.user_id, module="copy_trading", level="ERROR")
+            .order_by(SystemLog.timestamp.desc())
+            .limit(5)
+            .all()
+        )
+        for log in logs:
+            if isinstance(log.details, dict) and str(log.details.get("client_id")) == acc.client_id:
+                last_error = log.message
+                break
+    except Exception:
+        # On any failure just ignore - logging should not break API
+        last_error = None
+        
     return {
         "id": acc.id,
         "owner": acc.user.email if acc.user else None,
@@ -413,6 +430,7 @@ def _account_to_dict(acc: Account) -> dict:
         "auto_login": acc.auto_login,
         "last_login": acc.last_login_time,
         "device_number": acc.device_number,
+        "last_error": last_error,        
     }
 
 def get_user_by_token(token: str):
@@ -1156,9 +1174,9 @@ def poll_and_copy_trades():
                             **rest
                         )
                 except Exception as e:
-                    logger.error(
-                        f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
-                    )
+                    err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
+                    logger.error(err)
+                    log_connection_error(master, err, disable_children=True)
                     continue
 
                 # Fetch orders from master account
@@ -1178,7 +1196,9 @@ def poll_and_copy_trades():
                         orders_resp = master_api.get_order_list()
                         order_list = parse_order_list(orders_resp)
                 except Exception as e:
-                    logger.error(f"Failed to fetch orders for master {master_id}: {str(e)}")
+                    err = f"Failed to fetch orders for master {master_id}: {str(e)}"
+                    logger.error(err)
+                    log_connection_error(master, err, disable_children=True)
                     continue
 
                 order_list = strip_emojis_from_obj(order_list or [])
@@ -1469,7 +1489,9 @@ def poll_and_copy_trades():
                                     **rest_child
                                 )
                         except Exception as e:
-                            logger.error(f"Failed to initialize child API for {child_id}: {e}")
+                            err = f"Failed to initialize child API for {child_id}: {e}"
+                            logger.error(err)
+                            log_connection_error(child, err)
                             continue
 
                         # Get symbol mapping for child broker
@@ -1548,7 +1570,9 @@ def poll_and_copy_trades():
                             response = child_api.place_order(**order_params)
 
                         except Exception as e:
-                            logger.error(f"Failed to place order for child {child_id}: {e}")
+                            err = f"Failed to place order for child {child_id}: {e}"
+                            logger.error(err)
+                            log_connection_error(child, err)
                             continue
 
                         # Handle order response and record trade
@@ -1565,6 +1589,7 @@ def poll_and_copy_trades():
                                     )
                                     logger.warning(f"Order failed for child {child_id}: {error_msg}")
                                     
+                                    
                                     # Log the failure
                                     save_log(
                                         child_id,
@@ -1574,6 +1599,7 @@ def poll_and_copy_trades():
                                         "FAILED",
                                         error_msg
                                     )
+                                    log_connection_error(child, f"Order failed: {error_msg}")    
                                     record_trade(
                                         user_email,
                                         symbol,
@@ -4148,7 +4174,7 @@ def reconnect_account():
             new_creds[k] = v
 
     acc_db.username = data.get("username", acc_db.username)
-    acc_db.credentials = new_creds
+    acc_db.credentials = dict(new_creds)
 
 
     try:
@@ -4166,7 +4192,7 @@ def reconnect_account():
         # Update stored access token if broker object exposes it
         if getattr(api, 'access_token', None):
             new_creds['access_token'] = api.access_token
-            acc_db.credentials = new_creds
+            acc_db.credentials = dict(new_creds)
 
         acc_db.status = 'Connected'
         acc_db.last_login_time = datetime.utcnow()
