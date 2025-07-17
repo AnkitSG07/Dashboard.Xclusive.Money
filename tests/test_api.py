@@ -458,6 +458,52 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
 
 
 @pytest.mark.parametrize('broker', ['dhan', 'aliceblue', 'zerodha', 'fyers', 'finvasia'])
+def test_exit_all_positions_handles_netqty_and_quantity(client, monkeypatch, broker):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    placed = {}
+
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        def __init__(self, *a, **k):
+            pass
+        def get_positions(self):
+            return {
+                "positions": [
+                    {"tradingSymbol": "SBIN", "netqty": 1},
+                    {"tradingSymbol": "TATAMOTORS", "quantity": 2},
+                ]
+            }
+        def place_order(self, **kwargs):
+            placed.setdefault('orders', []).append(kwargs)
+            return {"status": "success"}
+        def get_order_list(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, 'broker_api', lambda acc: DummyBroker('c', 't'))
+    monkeypatch.setattr(app_module, 'save_log', lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email='test@example.com').first()
+        acc = Account(user_id=user.id, role='child', broker=broker, client_id='CX', credentials={'access_token': 'x'})
+        db.session.add(acc)
+        db.session.commit()
+
+        results = app_module.exit_all_positions_for_account(acc)
+
+    assert placed.get('orders')
+    statuses = [r['status'] for r in results]
+    assert statuses and all(s == 'SUCCESS' for s in statuses)
+
+
+@pytest.mark.parametrize('broker', ['dhan', 'aliceblue', 'zerodha', 'fyers', 'finvasia'])
 def test_exit_child_positions_endpoint(client, monkeypatch, broker):
     login(client)
     app = app_module.app
