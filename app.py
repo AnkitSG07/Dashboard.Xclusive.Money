@@ -404,7 +404,6 @@ def _account_to_dict(acc: Account) -> dict:
         logs = (
             SystemLog.query.filter_by(
                 user_id=str(acc.user_id),
-                module="copy_trading",
                 level="ERROR",
             )
             .order_by(SystemLog.timestamp.desc())
