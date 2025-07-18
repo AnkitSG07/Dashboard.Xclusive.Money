@@ -6123,6 +6123,11 @@ def home():
 def dhan_dashboard():
     return render_template("dhan-dashboard.html")
 
+@app.route('/demat-dashboard')
+@login_required
+def demat_dashboard():
+    return render_template("demat-dashboard.html")
+
 @app.route("/Summary")
 @login_required
 def summary():
