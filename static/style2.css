@@ -691,3 +691,59 @@ body {
   min-width: 0;
   max-width: 100%;
 }
+/* Hero section for page headers (Redesigned) */
+.hero-section {
+  background-color: var(--bg-panel); /* White background */
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-md);
+  padding: clamp(1.5rem, 5.5vw, 2.25rem) clamp(1rem, 4vw, 1.5rem);
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: clamp(6rem, 22vw, 8rem);
+  color: var(--text-light); /* Dark text */
+  text-align: left;
+  border: 1px solid var(--border-light); /* Light border */
+}
+
+.hero-section h3,
+.hero-section h4 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.hero-section p {
+  color: var(--text-muted); /* Muted dark text */
+  margin-bottom: 0;
+  font-size: clamp(0.875rem, 3.5vw, 1rem);
+}
+
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 60%;
+  margin-top: 1rem;
+  align-self: center;
+}
+
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: none; /* No filter for natural image appearance */
+}
+  .hero-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2.25rem 1.5rem;
+    min-height: 8rem;
+    text-align: left;
+  }
+  .hero-image {
+    max-width: 200px;
+    margin-top: 0;
+    align-self: auto;
+  }
