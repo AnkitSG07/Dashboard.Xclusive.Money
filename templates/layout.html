@@ -158,6 +158,7 @@
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
           if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
+          if (this.getAttribute('target') === '_blank') return; // open in new tab  
           e.preventDefault();
           fetch(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
