@@ -468,6 +468,8 @@ window.pageScripts["demat-dashboard"] = function() {
     
   // === Utility Functions ===
   function fetchJson(url, options = {}) {
+    // Ensure cookies/session data are sent with each request
+    options.credentials = options.credentials || 'include';
     return fetch(url, options).then(response => {
       if (!response.ok) {
         return response.json().then(errorData => {
