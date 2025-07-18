@@ -89,7 +89,7 @@
                 </div>
             </nav>
 
-            <div class="container-fluid py-4" id="page-container">
+            <div class="container-fluid py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
                 {% block content %}{% endblock %}
             </div>
         </div>
