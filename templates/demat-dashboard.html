@@ -51,7 +51,7 @@
                                 </div>
                                 <h3>Get Started with TradersPost</h3>
                                 <p>Connect your first broker account to start automated trading with TradingView strategies.</p>
-                                <button id="connect-first-broker-btn" class="btn btn-primary">
+                                <button class="btn btn-primary connect-first-broker-btn">
                                     <i class="fas fa-plus"></i>
                                     Connect Your First Broker
                                 </button>
@@ -231,7 +231,7 @@
                         </div>
                         <h3>No Strategies</h3>
                         <p>Create your first trading strategy to get started.</p>
-                        <button id="connect-first-broker-btn" class="btn btn-primary">
+                        <button class="btn btn-primary connect-first-broker-btn">
                             <i class="fas fa-plus"></i>
                             Create Strategy
                         </button>
@@ -269,7 +269,7 @@
                         </div>
                         <h3>No Webhooks</h3>
                         <p>Set up webhooks to receive trading signals.</p>
-                        <button class="btn btn-primary">
+                        <button class="btn btn-primary connect-first-broker-btn">
                             <i class="fas fa-plus"></i>
                             Create Webhook
                         </button>
@@ -290,7 +290,7 @@
                         </div>
                         <h3>No Connected Brokers</h3>
                         <p>Connect your broker accounts to start trading.</p>
-                        <button id="connect-first-broker-btn" class="btn btn-primary">
+                        <button class="btn btn-primary connect-first-broker-btn">
                             <i class="fas fa-plus"></i>
                             Connect Broker
                         </button>
@@ -854,6 +854,13 @@ window.pageScripts["demat-dashboard"] = function() {
     currentBrokerSelected = null;
   });
 
+  // "Connect Your First Broker" buttons
+  document.querySelectorAll('.connect-first-broker-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('add-account-btn').click();
+    });
+  });
+  
   // Cancel Add Account button click
   document.getElementById('cancel-add-account-btn').addEventListener('click', function() {
     document.getElementById('add-account-section').style.display = 'none';
