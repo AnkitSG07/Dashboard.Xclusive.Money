@@ -2191,17 +2191,24 @@ def zerodha_redirect_handler(client_id):
                 raise ValueError("Failed to generate valid session")
                 
             access_token = session_data["access_token"]
-            
-            # Prepare account data
+
+            cred_fields = {
+                k: v
+                for k, v in cred.items()
+                if k not in {"owner", "username"}
+            }
+            cred_fields.update(
+                {
+                    "access_token": access_token,
+                    "api_key": api_key,
+                    "api_secret": api_secret,
+                }
+            )
             account = {
                 "broker": "zerodha",
                 "client_id": client_id,
                 "username": username,
-                "credentials": {
-                    "access_token": access_token,
-                    "api_key": api_key,
-                    "api_secret": api_secret,
-                },
+                "credentials": cred_fields,
                 "status": "Connected",
                 "auto_login": True,
                 "last_login": datetime.now().isoformat(),
@@ -2999,12 +3006,9 @@ def init_zerodha_login():
 
     pending = get_pending_zerodha()
 
-    pending[client_id] = {
-        'api_key': api_key,
-        'api_secret': api_secret,
-        'username': username,
-        'owner': session.get('user')
-    }
+    cred_data = {k: v for k, v in data.items() if k != 'broker'}
+    cred_data['owner'] = session.get('user')
+    pending[client_id] = cred_data
     set_pending_zerodha(pending)
 
     redirect_uri = f"https://dhan-trading.onrender.com/zerodha_redirects/{client_id}"
@@ -3028,13 +3032,10 @@ def init_fyers_login():
     state = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     redirect_uri = f"https://dhan-trading.onrender.com/fyers_redirects/{client_id}"
 
-    pending[client_id] = {
-        'secret_key': secret_key,
-        'redirect_uri': redirect_uri,
-        'state': state,
-        'username': username,
-        'owner': session.get('user')
-    }
+    cred_data = {k: v for k, v in data.items() if k != 'broker'}
+    cred_data.update({'redirect_uri': redirect_uri, 'state': state, 'owner': session.get('user')})
+
+    pending[client_id] = cred_data
     set_pending_fyers(pending)
 
     login_url = FyersBroker.login_url(client_id, redirect_uri, state)
@@ -3067,15 +3068,22 @@ def fyers_redirect_handler(client_id):
     access_token = token_resp.get('access_token')
     refresh_token = token_resp.get('refresh_token')
 
+    cred_fields = {
+        k: v
+        for k, v in cred.items()
+        if k not in {'owner', 'username', 'redirect_uri', 'state'}
+    }
+    cred_fields.update({
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'secret_key': secret_key,
+    })
+
     account = {
         'broker': 'fyers',
         'client_id': client_id,
         'username': username,
-        'credentials': {
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'secret_key': secret_key,
-        },
+        'credentials': cred_fields,
         'status': 'Connected',
         'auto_login': True,
         'last_login': datetime.now().isoformat(),
