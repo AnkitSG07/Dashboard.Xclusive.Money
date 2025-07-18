@@ -1,19 +1,44 @@
 /* TradersPost Dashboard Styles */
 
 :root {
-    --primary-color: #1e90ff;
+    --primary-color: #1e90ff; /* Existing primary blue */
     --primary-dark: #0066cc;
-    --sidebar-bg: #1a1a1a;
-    --sidebar-text: #e0e0e0;
-    --sidebar-hover: #2a2a2a;
+
+    /* Sidebar Colors (Matching Image 1) */
+    --sidebar-bg: #1a1a1a; /* Very dark gray, almost black */
+    --sidebar-text: #e0e0e0; /* Light gray for general links */
+    --sidebar-hover: #2a2a2a; /* Slightly lighter dark gray for hover */
+    --sidebar-active-bg: #2a2a2a; /* Active background matches hover */
+    --sidebar-active-text: #1e90ff; /* Primary blue for active text */
+    --sidebar-border: #333; /* Darker border for internal divisions */
+
+    /* User Profile Card in Sidebar (Matching Image 1) */
+    --user-profile-bg: #1a1a1a; /* Same as sidebar background */
+    --user-profile-text: #e0e0e0; /* Light text */
+    --user-profile-border: #333; /* Darker border */
+    --plan-days-left-color: #ffc107; /* Orange/Yellow for "6 days left" */
+    --plan-buy-now-color: #1e90ff; /* Primary blue for "Buy Now" */
+
+
+    /* Main Content Colors (Retaining original light theme) */
     --main-bg: #f8f9fa;
     --card-bg: #ffffff;
     --border-color: #dee2e6;
     --text-color: #333333;
     --text-muted: #6c757d;
     --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
+    --danger-color: #dc3545; /* Red for alerts */
+    --warning-color: #ffc107; /* Yellow/Orange for warnings */
+
+    /* Shadows, etc. */
+    --shadow-sm: 0 .125rem .25rem rgba(0,0,0,.075);
+    --shadow-md: 0 .5rem 1rem rgba(0,0,0,.15);
+    --bg-panel: #ffffff;
+    --border-light: #e0e0e0;
+    --text-light: #343a40;
+    --bg-input: #f8f9fa;
+    --bg-hover: #f0f0f0;
+    --bg-light-gray: #f2f2f2;
 }
 
 * {
@@ -31,79 +56,110 @@ body {
 /* Wrapper */
 #wrapper {
     min-height: 100vh;
+    display: flex;
 }
 
-/* Sidebar Styles */
+/* Sidebar Styles - CRITICAL CHANGES HERE */
 .sidebar-wrapper,
 .sidebar {
     width: 260px;
-    background-color: var(--sidebar-bg);
-    color: var(--sidebar-text);
+    background-color: var(--sidebar-bg); /* Dark background */
+    color: var(--sidebar-text); /* Light text */
     transition: all 0.3s ease;
     position: fixed;
     height: 100vh;
     overflow-y: auto;
     z-index: 1000;
+    box-shadow: none; /* No distinct shadow on the sidebar in image 1 */
 }
 
+/* Main Content Wrapper */
+#page-content-wrapper {
+    margin-left: 260px; /* Offset for fixed sidebar */
+    flex-grow: 1;
+    min-height: 100vh;
+    background-color: var(--main-bg);
+}
+
+/* Sidebar Header (Logo Area) */
 .sidebar-header {
     padding: 20px 24px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--sidebar-border); /* Darker border */
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-between; /* Space between logo and close icon */
+    position: relative;
+    min-height: 70px;
 }
 
-.logo {
+.sidebar-logo {
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    flex-grow: 1;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-.logo i {
-    font-size: 24px;
-    color: var(--primary-color);
+.sidebar-logo img {
+    max-width: 86px; /* Size as in your original HTML (and similar to image 1) */
+    height: auto;
+    filter: none; /* Assume original logo is already white or fits dark background */
+    /* If your logo is initially dark and you want it white on dark bg, use: filter: invert(1); */
 }
 
-.brand-name {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--sidebar-text);
-}
-
+/* Close icon for mobile sidebar */
 .sidebar-toggle {
-    display: none;
+    display: none; /* Will be shown on mobile */
     cursor: pointer;
     font-size: 20px;
-    color: var(--sidebar-text);
+    color: var(--sidebar-text); /* Light color */
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
 }
 
-.sidebar-content {
-    padding: 0;
-}
-
-/* User Info */
+/* User Info Section - Match Image 1 */
 .user-info {
     padding: 20px 24px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--sidebar-border); /* Darker border */
+    display: flex;
+    flex-direction: column; /* Stack elements vertically */
+    align-items: flex-start; /* Align left as in image 1 */
+    text-align: left; /* Text aligns left */
+    margin-top: 10px;
+    margin-bottom: 20px;
 }
 
 .user-avatar {
-    font-size: 32px;
-    color: var(--primary-color);
-    margin-bottom: 8px;
+    font-size: 32px; /* Smaller avatar icon as in image 1 */
+    color: var(--primary-color); /* Blue color */
+    margin-bottom: 8px; /* Space below avatar */
+    background-color: transparent; /* No background circle */
+    border-radius: 0;
+    padding: 0;
+    width: auto; /* Auto width/height */
+    height: auto;
+    display: block; /* To be block element */
 }
 
 .username {
-    font-size: 16px;
-    font-weight: 500;
-    display: block;
+    font-size: 16px; /* Smaller font size */
+    font-weight: 500; /* Lighter font weight */
+    color: var(--user-profile-text); /* Light text */
     margin-bottom: 4px;
 }
 
 .plan-info {
-    font-size: 12px;
-    color: var(--text-muted);
+    font-size: 12px; /* Smaller font size */
+    color: var(--user-profile-text); /* Light text for "Your Free Plan" */
+    opacity: 0.8;
 }
 
 .plan-type {
@@ -114,81 +170,121 @@ body {
 .plan-status {
     display: flex;
     align-items: center;
+    justify-content: flex-start; /* Align left */
     gap: 8px;
+    margin-top: 4px; /* Space above buy now */
 }
 
 .days-left {
-    color: var(--warning-color);
+    color: var(--plan-days-left-color); /* Orange/Yellow */
+    font-weight: 500;
 }
 
 .buy-now {
-    color: var(--primary-color);
+    color: var(--plan-buy-now-color); /* Primary blue */
     text-decoration: none;
     font-weight: 500;
 }
 
 .buy-now:hover {
-    color: var(--primary-dark);
+    text-decoration: underline;
 }
 
-/* Sidebar Navigation */
+/* Sidebar Navigation - Match Image 1 */
 .sidebar-nav {
-    padding: 20px 0;
+    padding: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .nav-list {
     list-style: none;
     padding: 0;
     margin: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .nav-item {
-    margin-bottom: 4px;
+    margin-bottom: 4px; /* Small margin between items */
 }
 
 .nav-link {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 24px;
-    color: var(--sidebar-text);
+    gap: 12px; /* Smaller gap */
+    padding: 12px 24px; /* Original padding */
+    color: var(--sidebar-text); /* Light text for inactive links */
     text-decoration: none;
     transition: all 0.2s ease;
-    border-left: 3px solid transparent;
+    border-left: 3px solid transparent; /* Original transparent border */
+    font-weight: 500; /* Original font weight */
+    font-size: 14px; /* Original font size */
 }
 
 .nav-link:hover {
-    background-color: var(--sidebar-hover);
-    color: var(--primary-color);
+    background-color: var(--sidebar-hover); /* Lighter dark gray */
+    color: var(--primary-color); /* Primary blue on hover */
 }
 
 .nav-link.active {
-    background-color: var(--sidebar-hover);
-    color: var(--primary-color);
-    border-left-color: var(--primary-color);
+    background-color: var(--sidebar-hover); /* Active background matches hover */
+    color: var(--primary-color); /* Primary blue for active text */
+    font-weight: 600; /* Bolder for active link */
+    border-left-color: var(--primary-color); /* Blue left border for active */
+    padding-left: 24px; /* Maintain original padding */
+}
+
+.nav-link.active i {
+    color: var(--primary-color); /* Active icon color */
 }
 
 .nav-link i {
-    font-size: 16px;
+    font-size: 16px; /* Original icon size */
     width: 20px;
     text-align: center;
+    color: var(--sidebar-text); /* Light icons for inactive links */
+    opacity: 1; /* Not dimmed */
 }
 
-/* Main Content */
-.main-content {
-    margin-left: 260px;
-    min-height: 100vh;
-    transition: margin-left 0.3s ease;
+/* Logout Button */
+.logout {
+    background-color: transparent; /* Transparent background */
+    color: var(--sidebar-text); /* Light text */
+    border: 1px solid var(--sidebar-border); /* Subtle dark border */
+    padding: 10px 20px;
+    border-radius: 6px; /* Slightly rounded */
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    margin: 20px 24px; /* Margin around the button */
 }
 
+.logout:hover {
+    background-color: var(--sidebar-hover); /* Hover background */
+    border-color: var(--primary-color); /* Blue border on hover */
+    color: var(--primary-color); /* Blue text on hover */
+}
+
+/* Pushing logout to bottom */
+.nav-list .nav-item:last-child {
+    margin-top: auto;
+}
+
+
+/* Main Content and Top Navigation - Mostly unchanged from your initial setup */
 /* Top Navigation */
 .top-navbar {
-    background-color: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg); /* Use card background for top nav */
+    border-bottom: 1px solid var(--border-color); /* Standard border */
     padding: 16px 24px;
     position: sticky;
     top: 0;
     z-index: 999;
+    box-shadow: none; /* No shadow on top nav in image 1 */
 }
 
 .navbar-content {
@@ -219,6 +315,7 @@ body {
 
 .connect-broker-btn {
     background-color: var(--primary-color);
+    color: white;
     border: none;
     padding: 8px 16px;
     font-size: 14px;
@@ -226,11 +323,15 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    text-decoration: none;
 }
 
 .connect-broker-btn:hover {
     background-color: var(--primary-dark);
+    color: white;
 }
+
+/* Rest of your CSS (content cards, forms, responsive media queries, etc.) remains as provided. */
 
 /* Content Wrapper */
 .content-wrapper {
@@ -433,29 +534,30 @@ body {
     .sidebar-wrapper,
     .sidebar {
         margin-left: -260px;
+        position: fixed;
     }
     .sidebar-wrapper.show,
     .sidebar.show {
         margin-left: 0;
     }
-    
-    .main-content {
+
+    #page-content-wrapper {
         margin-left: 0;
     }
-    
+
     .sidebar-toggle {
         display: block;
     }
-    
+
     .mobile-menu-toggle {
         display: block;
     }
-    
+
     .breadcrumb {
         flex: 1;
         justify-content: center;
     }
-    
+
     .top-nav-actions {
         position: absolute;
         right: 24px;
@@ -466,29 +568,29 @@ body {
     .content-wrapper {
         padding: 16px;
     }
-    
+
     .page-header h2 {
         font-size: 24px;
     }
-    
+
     .account-card,
     .learning-card {
         margin-bottom: 20px;
     }
-    
+
     .learning-card {
         padding: 20px;
     }
-    
+
     .learning-content h4 {
         font-size: 18px;
     }
-    
+
     .connect-broker-btn {
         padding: 6px 12px;
         font-size: 12px;
     }
-    
+
     .connect-broker-btn span {
         display: none;
     }
@@ -498,28 +600,28 @@ body {
     .navbar-content {
         position: relative;
     }
-    
+
     .top-nav-actions {
         position: static;
         margin-top: 8px;
     }
-    
+
     .breadcrumb {
         justify-content: flex-start;
     }
-    
+
     .empty-state {
         padding: 40px 20px;
     }
-    
+
     .empty-state-icon {
         font-size: 36px;
     }
-    
+
     .empty-state h3 {
         font-size: 20px;
     }
-    
+
     .empty-state p {
         font-size: 14px;
     }
@@ -602,11 +704,11 @@ body {
     .top-navbar {
         display: none !important;
     }
-    
+
     .main-content {
         margin-left: 0 !important;
     }
-    
+
     .content-wrapper {
         padding: 0 !important;
     }
@@ -639,7 +741,7 @@ body {
 .broker-icon:hover,
 .broker-icon.selected,
 .broker-icon.border-primary {
-  border-color: var(--primary); /* Primary blue border */
+  border-color: var(--primary-color); /* Primary blue border */
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
   background: var(--bg-hover); /* Light gray hover */
   transform: translateY(-0.05rem);
