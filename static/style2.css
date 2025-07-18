@@ -34,7 +34,8 @@ body {
 }
 
 /* Sidebar Styles */
-.sidebar-wrapper {
+.sidebar-wrapper,
+.sidebar {
     width: 260px;
     background-color: var(--sidebar-bg);
     color: var(--sidebar-text);
@@ -429,11 +430,12 @@ body {
 
 /* Responsive Design */
 @media (max-width: 991.98px) {
-    .sidebar-wrapper {
+    .sidebar-wrapper,
+    .sidebar {
         margin-left: -260px;
     }
-    
-    .sidebar-wrapper.show {
+    .sidebar-wrapper.show,
+    .sidebar.show {
         margin-left: 0;
     }
     
@@ -596,6 +598,7 @@ body {
 /* Print styles */
 @media print {
     .sidebar-wrapper,
+    .sidebar,  
     .top-navbar {
         display: none !important;
     }
