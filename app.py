@@ -6133,6 +6133,36 @@ def dhan_dashboard():
 def demat_dashboard():
     return render_template("demat-dashboard.html")
 
+@app.route('/demat-notifications')
+@login_required
+def demat_notifications():
+    return render_template("demat-notifications.html")
+
+@app.route('/demat-strategies')
+@login_required
+def demat_strategies():
+    return render_template("demat-strategies.html")
+
+@app.route('/demat-subscriptions')
+@login_required
+def demat_subscriptions():
+    return render_template("demat-subscriptions.html")
+
+@app.route('/demat-webhooks')
+@login_required
+def demat_webhooks():
+    return render_template("demat-webhooks.html")
+
+@app.route('/demat-brokers')
+@login_required
+def demat_brokers():
+    return render_template("demat-brokers.html")
+
+@app.route('/demat-account')
+@login_required
+def demat_account():
+    return render_template("demat-account.html")
+
 @app.route('/api/account-info')
 def account_info():
     """API endpoint for account information"""
