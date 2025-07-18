@@ -6133,6 +6133,27 @@ def dhan_dashboard():
 def demat_dashboard():
     return render_template("demat-dashboard.html")
 
+@app.route('/api/account-info')
+def account_info():
+    """API endpoint for account information"""
+    # In a real application, this would fetch from a database or external API
+    # For now, returning empty data structure
+    return jsonify({
+        'accounts': [],
+        'balance': 0.00,
+        'status': 'No account data available'
+    })
+
+@app.route('/api/dashboard-data')
+def dashboard_data():
+    """API endpoint for dashboard data"""
+    return jsonify({
+        'notifications': [],
+        'strategies': [],
+        'recent_activity': [],
+        'status': 'No data available'
+    })
+
 @app.route("/Summary")
 @login_required
 def summary():
