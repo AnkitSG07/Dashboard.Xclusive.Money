@@ -678,7 +678,12 @@ def broker_api(obj):
 
     access_token = credentials.get("access_token")
     BrokerClass = get_broker_class(broker)
-    rest = {k: v for k, v in credentials.items() if k != "access_token"}
+    # Avoid passing duplicate client_id if stored inside credentials
+    rest = {
+        k: v
+        for k, v in credentials.items()
+        if k not in ("access_token", "client_id")
+    }
 
     if broker == "aliceblue":
         api_key = rest.pop("api_key", None)
