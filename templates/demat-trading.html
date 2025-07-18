@@ -105,10 +105,23 @@
       const page = document.querySelector('#page-container')?.dataset.page;
       const btn = document.getElementById('add-account-btn');
       if (btn) btn.style.display = page === 'demat-dashboard' ? '' : 'none';
-      if (page !== 'demat-dashboard') {
+      if (page === 'demat-dashboard') {
+        attachConnectBrokerHandler();
+      } else {
         const addSec = document.getElementById('add-account-section');
         if (addSec) addSec.style.display = 'none';
       }
+    }
+    function attachConnectBrokerHandler() {
+      const btn = document.getElementById('add-account-btn');
+      if (!btn) return;
+      btn.onclick = () => {
+        const addSec = document.getElementById('add-account-section');
+        if (addSec) {
+          addSec.style.display = 'block';
+          addSec.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
     }
 
     // Open or close the sidebar drawer on mobile
@@ -186,6 +199,7 @@
       if (window.pageScripts && typeof window.pageScripts[page] === "function") {
         window.pageScripts[page]();
       }
+      attachConnectBrokerHandler();
     }
 
     // Handle browser navigation (back/forward)
@@ -197,6 +211,7 @@
       setupSidebarSubmenus();
       highlightActivePage();
       updateConnectBrokerVisibility();
+      attachConnectBrokerHandler();      
       setupSidebarSPALinks();
       setTimeout(reinitializePageScripts, 50);
       const toggleBtn = document.getElementById('sidebarToggleBtn');
