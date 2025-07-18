@@ -769,3 +769,52 @@ def test_account_to_dict_rolls_back_on_log_error(client, monkeypatch):
         assert result['id'] == acc.id
         # Session should still be usable after failure
         assert Account.query.count() >= 1
+
+def test_broker_api_does_not_pass_duplicate_client_id(monkeypatch):
+    app = app_module.app
+
+    captured = {}
+
+    class DummyBroker:
+        def __init__(self, client_id, access_token=None, **kwargs):
+            captured['client_id'] = client_id
+            captured['kwargs'] = kwargs
+
+    monkeypatch.setattr(app_module, 'get_broker_class', lambda name: DummyBroker)
+
+    acc = {
+        'broker': 'zerodha',
+        'client_id': 'Z1',
+        'credentials': {
+            'client_id': 'Z1',
+            'access_token': 'tok',
+            'api_key': 'k',
+            'api_secret': 's',
+        },
+    }
+
+    broker = app_module.broker_api(acc)
+    assert isinstance(broker, DummyBroker)
+    assert captured['client_id'] == 'Z1'
+    assert 'client_id' not in captured['kwargs']
+
+
+def test_get_opening_balance_with_client_id_in_credentials(monkeypatch):
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_opening_balance(self):
+            return 99.0
+
+    monkeypatch.setattr(app_module, 'get_broker_class', lambda name: DummyBroker)
+    app_module.OPENING_BALANCE_CACHE.clear()
+
+    acc = {
+        'broker': 'fyers',
+        'client_id': 'F1',
+        'credentials': {'client_id': 'F1', 'access_token': 'tok'},
+    }
+
+    bal = app_module.get_opening_balance_for_account(acc)
+    assert bal == 99.0
