@@ -137,17 +137,6 @@ class TradersPostDashboard {
             newSectionEl.classList.add('active');
         }
 
-        // Toggle Connect Broker visibility
-        const connectBtn = document.getElementById('add-account-btn');
-        if (connectBtn) {
-            connectBtn.style.display = section === 'dashboard' ? '' : 'none';
-        }
-        if (section !== 'dashboard') {
-            const addSection = document.getElementById('add-account-section');
-            if (addSection) addSection.style.display = 'none';
-        }
-
-
         // Update navigation
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
