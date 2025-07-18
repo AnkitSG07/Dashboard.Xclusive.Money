@@ -1,0 +1,24 @@
+{% extends "demat-trading.html" %}
+{% block title %}Brokers - DhanBot{% endblock %}
+{% block content %}
+<div class="content-section">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h2>Brokers</h2>
+            </div>
+        </div>
+    </div>
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="fas fa-building"></i>
+        </div>
+        <h3>No Connected Brokers</h3>
+        <p>Connect your broker accounts to start trading.</p>
+        <button id="connect-first-broker-btn" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Connect Broker
+        </button>
+    </div>
+</div>
+{% endblock %}
