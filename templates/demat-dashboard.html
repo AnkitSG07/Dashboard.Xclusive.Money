@@ -2,23 +2,35 @@
 {% block title %}Dashboard - DhanBot{% endblock %}
 {% block content %}
 <div class="content-wrapper">
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <h3>Get Started with TradersPost</h3>
-                                <p>Connect your first broker account to start automated trading with TradingView strategies.</p>
-                                <button class="btn btn-primary connect-first-broker-btn">
-                                    <i class="fas fa-plus"></i>
-                                    Connect Your First Broker
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+    <div class="section-box hero-section">
+        <div class="hero-text">
+            <h4>Welcome back {{ session['user'] }} <span>👋</span></h4>
+            <p>Execute trades effortlessly across top brokers</p>
+            <button id="add-account-btn" class="btn btn-primary connect-broker-btn">
+                <i class="fas fa-plus"></i>
+                Connect Broker
+            </button>
+        </div>
+        <div class="hero-image">
+            <img src="/static/images/dashboard-illustration.png" alt="Illustration">
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-chart-line"></i>
                 </div>
-                
+                <h3>Get Started with TradersPost</h3>
+                <p>Connect your first broker account to start automated trading with TradingView strategies.</p>
+                <button class="btn btn-primary connect-first-broker-btn">
+                    <i class="fas fa-plus"></i>
+                    Connect Your First Broker
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="add-account-section" class="card shadow-lg border-0 rounded-3 mb-5" style="display:none;">
         <div class="card-body p-4">
             <h5 class="card-title mb-4 text-primary d-flex align-items-center">
@@ -152,711 +164,712 @@
                         </tr>
                     </thead>
                     <tbody id="accounts-table-body">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
+</div>
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts["demat-dashboard"] = function() {
-  const brokerIcons = {{ broker_icons|tojson }};
-  window.brokerIcons = brokerIcons;
-  // Broker field definitions
-  const brokerFields = {
-    flattrade: [
-      { label: "Flattrade Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    acagarwal: [
-      { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    motilaloswal: [
-      { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "PAN", name: "pan", type: "text" },
-      { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    kotakneo: [
-      { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "MPIN", name: "mpin", type: "password" },
-      { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    tradejini: [
-      { label: "Tradejini Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "MPIN", name: "mpin", type: "password" },
-      { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    zebu: [
-      { label: "Zebu Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "MPIN", name: "mpin", type: "password" },
-      { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    enrichmoney: [
-      { label: "Enrich Money Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "MPIN", name: "mpin", type: "password" },
-      { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    dhan: [
-      { label: "Dhan Client ID", name: "client_id", type: "text" },
-      { label: "Access Token", name: "access_token", type: "password" },
-      { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    finvasia: [
-      { label: "Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya \u2192 Profile \u2192 Security \u2192 TOTP. Do not enter the 6-digit code." },
-      { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
-      { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
-      { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    fyers: [
-      { label: "Fyers App ID", name: "client_id", type: "text" },
-      { label: "Secret Key", name: "secret_key", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    groww: [
-      { label: "Groww Client ID", name: "client_id", type: "text" },
-      { label: "Access Token", name: "access_token", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    aliceblue: [
-      { label: "Alice Blue Client ID", name: "client_id", type: "text" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    zerodha: [
-      { label: "Zerodha Client ID", name: "client_id", type: "text" },
-      { label: "Password", name: "password", type: "password" },
-      { label: "API Key", name: "api_key", type: "text" },
-      { label: "API Secret", name: "api_secret", type: "text" },
-      { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
-    ],
-    broker1: [
-      { label: "Broker 1 Client ID", name: "client_id", type: "text", placeholder: "Broker 1 Client ID" },
-      { label: "MPIN", name: "mpin", type: "password", placeholder: "MPIN" },
-      { label: "API Key", name: "api_key", type: "text", placeholder: "API Key" },
-      { label: "Secret Key", name: "secret_key", type: "password", placeholder: "Secret Key" },
-      { label: "TOTP Key", name: "totp_secret", type: "text", placeholder: "TOTP Key" },
-      { label: "Email Id (optional)", name: "email", type: "text", optional: true, placeholder: "Email Id (optional)" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true, placeholder: "Mobile no (optional)" }
-    ]
-  };
+    const brokerIcons = {{ broker_icons|tojson }};
+    window.brokerIcons = brokerIcons;
+    // Broker field definitions
+    const brokerFields = {
+        flattrade: [
+            { label: "Flattrade Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "TOTP Key", name: "totp_secret", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        acagarwal: [
+            { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        motilaloswal: [
+            { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "PAN", name: "pan", type: "text" },
+            { label: "TOTP Key", name: "totp_secret", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        kotakneo: [
+            { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "MPIN", name: "mpin", type: "password" },
+            { label: "Client Name", name: "client_name", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        tradejini: [
+            { label: "Tradejini Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "MPIN", name: "mpin", type: "password" },
+            { label: "Client Name", name: "client_name", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        zebu: [
+            { label: "Zebu Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "MPIN", name: "mpin", type: "password" },
+            { label: "Client Name", name: "client_name", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        enrichmoney: [
+            { label: "Enrich Money Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "password" },
+            { label: "MPIN", name: "mpin", type: "password" },
+            { label: "Client Name", name: "client_name", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        dhan: [
+            { label: "Dhan Client ID", name: "client_id", type: "text" },
+            { label: "Access Token", name: "access_token", type: "password" },
+            { label: "Client Name", name: "client_name", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        finvasia: [
+            { label: "Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya → Profile → Security → TOTP. Do not enter the 6-digit code." },
+            { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office → Profile → API Key." },
+            { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
+            { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        fyers: [
+            { label: "Fyers App ID", name: "client_id", type: "text" },
+            { label: "Secret Key", name: "secret_key", type: "password" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        groww: [
+            { label: "Groww Client ID", name: "client_id", type: "text" },
+            { label: "Access Token", name: "access_token", type: "password" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        aliceblue: [
+            { label: "Alice Blue Client ID", name: "client_id", type: "text" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        zerodha: [
+            { label: "Zerodha Client ID", name: "client_id", type: "text" },
+            { label: "Password", name: "password", type: "password" },
+            { label: "API Key", name: "api_key", type: "text" },
+            { label: "API Secret", name: "api_secret", type: "text" },
+            { label: "TOTP Key", name: "totp_secret", type: "text" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+        ],
+        broker1: [
+            { label: "Broker 1 Client ID", name: "client_id", type: "text", placeholder: "Broker 1 Client ID" },
+            { label: "MPIN", name: "mpin", type: "password", placeholder: "MPIN" },
+            { label: "API Key", name: "api_key", type: "text", placeholder: "API Key" },
+            { label: "Secret Key", name: "secret_key", type: "password", placeholder: "Secret Key" },
+            { label: "TOTP Key", name: "totp_secret", type: "text", placeholder: "TOTP Key" },
+            { label: "Email Id (optional)", name: "email", type: "text", optional: true, placeholder: "Email Id (optional)" },
+            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true, placeholder: "Mobile no (optional)" }
+        ]
+    };
 
-  // === Global Variables ===
-  let allAccounts = [];
-  let statusFilter = 'all';
-  let brokerFilter = '';
-  let searchFilter = '';
-  let editingAccountId = null;
-  let currentBrokerSelected = null; // Track the currently selected broker in the form
-  let autoLoginResults = {}; // Track auto-login results per account
-    
-  // === Utility Functions ===
-  function fetchJson(url, options = {}) {
-    // Ensure cookies/session data are sent with each request
-    options.credentials = options.credentials || 'include';
-    return fetch(url, options).then(response => {
-      if (!response.ok) {
-        return response.json().then(errorData => {
-          throw new Error(errorData.error || 'An unknown error occurred.');
+    // === Global Variables ===
+    let allAccounts = [];
+    let statusFilter = 'all';
+    let brokerFilter = '';
+    let searchFilter = '';
+    let editingAccountId = null;
+    let currentBrokerSelected = null; // Track the currently selected broker in the form
+    let autoLoginResults = {}; // Track auto-login results per account
+
+    // === Utility Functions ===
+    function fetchJson(url, options = {}) {
+        // Ensure cookies/session data are sent with each request
+        options.credentials = options.credentials || 'include';
+        return fetch(url, options).then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || 'An unknown error occurred.');
+                });
+            }
+            return response.json();
         });
-      }
-      return response.json();
-    });
-  }
-
-  // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
-  function showToast(message, type = 'success') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    alert(message); // Using alert for immediate demo purposes
-  }
-
-  // === UI Rendering Functions ===
-  function showBrokerFields(broker) {
-    currentBrokerSelected = broker;
-    const fields = brokerFields[broker];
-    const container = document.getElementById("broker-fields");
-    const submitBtn = document.getElementById("submit-account-btn");
-    const resultDiv = document.getElementById("cred-check-result");
-    const cancelBtn = document.getElementById("cancel-add-account-btn"); // Get the close button
-
-    container.innerHTML = "";
-    resultDiv.textContent = ""; // Clear previous validation messages
-    submitBtn.style.display = "none"; // Hide submit until fields are rendered
-    cancelBtn.textContent = "Close"; // Ensure the button text is "Close"
-
-    if (!fields) {
-      container.innerHTML = '<p class="text-center text-muted py-3">No configuration fields defined for this broker.</p>';
-      return;
     }
 
-    let formHtml = '';
-
-    // Only add Username field if the broker is NOT 'broker1' as per image requirement
-    if (broker !== 'broker1') {
-      formHtml += `
-        <div class="col-md-6">
-            <label for="username" class="form-label">Username (for your reference)</label>
-            <input class="form-control" name="username" type="text" id="username" required>
-        </div>`;
-    }
-    
-    // Sort fields based on the provided image for 'broker1'
-    const broker1FieldOrder = ["client_id", "mpin", "api_key", "secret_key", "totp_secret", "email", "mobile"];
-    const sortedFields = broker === 'broker1' ? 
-                         [...fields].sort((a, b) => broker1FieldOrder.indexOf(a.name) - broker1FieldOrder.indexOf(b.name)) : 
-                         fields;
-
-    sortedFields.forEach(f => {
-      const isRequired = f.optional ? '' : 'required'; // Use optional property
-      const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
-      const val = f.value ? ` value="${f.value}"` : '';
-      let inputEl;
-
-      if (f.type === 'password') {
-        inputEl = `
-          <div class="input-group">
-            <input class="form-control" name="${f.name}" type="password" ${ph} ${val} ${isRequired}>
-            <button type="button" class="btn btn-outline-secondary toggle-pass" aria-label="Toggle password visibility">
-              <i class="bi bi-eye"></i>
-            </button>
-          </div>`;
-      } else {
-        inputEl = `<input class="form-control" name="${f.name}" type="${f.type}" ${ph} ${val} ${isRequired}>`;
-      }
-      
-      // Removed <label> element and replaced with placeholder in Broker 1 fields as per image
-      // For other brokers, labels remain as they were not specified in the image.
-      formHtml += `
-        <div class="col-md-6">
-            ${broker !== 'broker1' || !f.placeholder ? `<label for="${f.name}" class="form-label">${f.label}</label>` : ''}
-            ${inputEl}
-            ${f.tip ? `<div class="form-text text-muted">${f.tip}</div>` : ''}
-        </div>`;
-    });
-
-    container.innerHTML = formHtml;
-    submitBtn.style.display = "inline-block"; // Show submit button after fields are loaded
-    submitBtn.disabled = false;
-
-    attachPasswordToggles();
-    attachValidation();
-  }
-
-  function renderTable(rows) {
-    const body = document.getElementById('accounts-table-body');
-    if (!body) return;
-
-    if (rows.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
-      return;
+    // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
+    function showToast(message, type = 'success') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        alert(message); // Using alert for immediate demo purposes
     }
 
-  body.innerHTML = rows.map(acc => {
-      const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
-      const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
-      const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
-      const statusHtml = renderStatusBadge(acc);
+    // === UI Rendering Functions ===
+    function showBrokerFields(broker) {
+        currentBrokerSelected = broker;
+        const fields = brokerFields[broker];
+        const container = document.getElementById("broker-fields");
+        const submitBtn = document.getElementById("submit-account-btn");
+        const resultDiv = document.getElementById("cred-check-result");
+        const cancelBtn = document.getElementById("cancel-add-account-btn"); // Get the close button
 
-      return `
-        <tr>
-          <td>${pictureHTML}</td>
-          <td class="font-monospace">${acc.client_id}</td>
-          <td>${acc.username || '-'}</td>
-          <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
-          <td id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</td>
-          <td class="text-center">
-            <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
-                <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-outline-success btn-sm me-1" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
-                <i class="bi bi-arrow-repeat"></i>
-            </button>
-            <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
-                <i class="bi bi-trash"></i>
-            </button>
-          </td>
-        </tr>`;
-    }).join('');
+        container.innerHTML = "";
+        resultDiv.textContent = ""; // Clear previous validation messages
+        submitBtn.style.display = "none"; // Hide submit until fields are rendered
+        cancelBtn.textContent = "Close"; // Ensure the button text is "Close"
 
-    // Initialize tooltips after rendering table
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
-  }
-
-  function renderStatusBadge(acc) {
-    const auto = autoLoginResults[acc.client_id];
-    const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
-    const st = (acc.status || '').toLowerCase();
-      
-    if (auto) {
-      if (auto.status === 'error') {
-        const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
-        return `<span class="badge bg-danger" title="${msg}">Error</span>`;
-      }
-      if (auto.status === 'checking') {
-        return '<span class="badge bg-info">Connecting...</span>';
-      }
-    }
-
-    if (st && st !== 'connected') {
-      if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
-      // treat any non-connected status as error when lastErr exists or status is failed
-      if (st === 'failed' || lastErr) {
-        const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
-        return `<span class="badge bg-danger" title="${msg}">Error</span>`;
-      }
-      const label = acc.status ? acc.status : 'Unknown';
-      return `<span class="badge bg-warning text-dark">${label}</span>`;
-    }
-
-    // ignore non-login errors when status shows connected      
-    return '<span class="badge bg-success">Connected</span>';
-  }
-
-  function updateStatusCell(cid) {
-    const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
-    const cell = document.getElementById(`status-${sanitized}`);
-    if (!cell) return;
-    const acc = allAccounts.find(a => a.client_id === cid);
-    if (!acc) return;
-    cell.innerHTML = renderStatusBadge(acc);
-  }
-
-  function attemptAutoLogin() {
-    allAccounts.forEach(acc => {
-      autoLoginResults[acc.client_id] = {status: 'checking'};
-      updateStatusCell(acc.client_id);
-      fetchJson('/api/reconnect-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: acc.client_id })
-      })
-      .then(resp => {
-        if (resp.message) {
-          autoLoginResults[acc.client_id] = {status: 'success'};
-        } else {
-          autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
+        if (!fields) {
+            container.innerHTML = '<p class="text-center text-muted py-3">No configuration fields defined for this broker.</p>';
+            return;
         }
-        updateStatusCell(acc.client_id);
-        updateCounts();
-      })
-      .catch(err => {
-        autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
-        updateStatusCell(acc.client_id);
-        updateCounts();
-      });
-    });
-  }
 
-  function refreshBalances() {
-    allAccounts.forEach(acc => {
-      fetchJson('/api/account-balance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: acc.client_id })
-      })
-      .then(resp => {
-        if (typeof resp.balance === 'number') {
-          acc.opening_balance = resp.balance;
-          applyFilters();
+        let formHtml = '';
+
+        // Only add Username field if the broker is NOT 'broker1' as per image requirement
+        if (broker !== 'broker1') {
+            formHtml += `
+                <div class="col-md-6">
+                    <label for="username" class="form-label">Username (for your reference)</label>
+                    <input class="form-control" name="username" type="text" id="username" required>
+                </div>`;
         }
-      })
-      .catch(err => console.error('Balance refresh failed', err));
-    });
-  }
 
-  function accountHasError(acc) {
-    const st = (acc.status || '').toLowerCase();
-    if (st && st !== 'connected' && st !== 'pending') return true;
-    if (st === 'failed') return true;
-    // only consider error logs if status itself indicates failure
-    return st === 'failed' && !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
-  }
+        // Sort fields based on the provided image for 'broker1'
+        const broker1FieldOrder = ["client_id", "mpin", "api_key", "secret_key", "totp_secret", "email", "mobile"];
+        const sortedFields = broker === 'broker1' ?
+                            [...fields].sort((a, b) => broker1FieldOrder.indexOf(a.name) - broker1FieldOrder.indexOf(b.name)) :
+                            fields;
 
-  function isSuccess(acc) {
-    const st = (acc.status || '').toLowerCase();
-    return st === 'connected' || st === '';
-  }
+        sortedFields.forEach(f => {
+            const isRequired = f.optional ? '' : 'required'; // Use optional property
+            const ph = f.placeholder ? ` placeholder="${f.placeholder}"` : '';
+            const val = f.value ? ` value="${f.value}"` : '';
+            let inputEl;
 
-  function isFailed(acc) {
-    const st = (acc.status || '').toLowerCase();
-    if (autoLoginResults[acc.client_id] && autoLoginResults[acc.client_id].status === 'error') return true;
-    return st === 'failed' || (st && st !== 'connected' && st !== 'pending');
-  }
+            if (f.type === 'password') {
+                inputEl = `
+                    <div class="input-group">
+                        <input class="form-control" name="${f.name}" type="password" ${ph} ${val} ${isRequired}>
+                        <button type="button" class="btn btn-outline-secondary toggle-pass" aria-label="Toggle password visibility">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>`;
+            } else {
+                inputEl = `<input class="form-control" name="${f.name}" type="${f.type}" ${ph} ${val} ${isRequired}>`;
+            }
 
-  function applyFilters() {
-    let rows = allAccounts.slice(); // Create a shallow copy to filter
-    if (statusFilter === 'success') rows = rows.filter(isSuccess);
-    else if (statusFilter === 'failed') rows = rows.filter(isFailed);
-    if (brokerFilter) rows = rows.filter(a => a.broker === brokerFilter);
-    if (searchFilter) {
-      const term = searchFilter.toLowerCase();
-      rows = rows.filter(a =>
-        String(a.client_id).toLowerCase().includes(term) ||
-        (a.username || '').toLowerCase().includes(term) ||
-        (a.last_error || (Array.isArray(a.errors) ? a.errors.join(' ') : a.errors) || a.status || '').toLowerCase().includes(term)
-      );
-    }
-    renderTable(rows);
-  }
+            // Removed <label> element and replaced with placeholder in Broker 1 fields as per image
+            // For other brokers, labels remain as they were not specified in the image.
+            formHtml += `
+                <div class="col-md-6">
+                    ${broker !== 'broker1' || !f.placeholder ? `<label for="${f.name}" class="form-label">${f.label}</label>` : ''}
+                    ${inputEl}
+                    ${f.tip ? `<div class="form-text text-muted">${f.tip}</div>` : ''}
+                </div>`;
+        });
 
-  function updateCounts() {
-    const total = allAccounts.length;
-    const success = allAccounts.filter(isSuccess).length;
-    const failed = allAccounts.filter(isFailed).length;
-    document.getElementById('tab-count-all').textContent = total;
-    document.getElementById('tab-count-success').textContent = success;
-    document.getElementById('tab-count-failed').textContent = failed;
-  }
-
-  function populateBrokerFilter() {
-    const select = document.getElementById('broker-filter');
-    if (!select) return;
-    const brokers = [...new Set(allAccounts.map(a => a.broker))].sort();
-    select.innerHTML = '<option value="">All Brokers</option>' +
-      brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
-  }
-
-  // === Event Attachments ===
-  function attachPasswordToggles() {
-    document.querySelectorAll('#broker-fields .toggle-pass').forEach(btn => {
-      btn.onclick = function() {
-        const inp = btn.parentElement.querySelector('input');
-        if (!inp) return;
-        const isPass = inp.type === 'password';
-        inp.type = isPass ? 'text' : 'password';
-        const icon = btn.querySelector('i');
-        if (icon) {
-          icon.classList.toggle('bi-eye');
-          icon.classList.toggle('bi-eye-slash');
-        }
-      };
-    });
-  }
-
-  function attachValidation() {
-    const form = document.getElementById('broker-credentials-form');
-    form.querySelectorAll('input').forEach(inp => {
-      // Exclude username validation if it's not present for a broker (like broker1)
-      if (currentBrokerSelected === 'broker1' && inp.name === 'username') return; 
-
-      inp.onblur = validateCredentials;
-    });
-  }
-
-  function validateCredentials() {
-    const resultDiv = document.getElementById('cred-check-result');
-    const submitBtn = document.getElementById('submit-account-btn');
-    const form = document.getElementById('broker-credentials-form');
-    
-    // Clear previous feedback
-    resultDiv.innerHTML = '';
-    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-    form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid'));
-
-    if (!currentBrokerSelected) { return; }
-
-    const fields = brokerFields[currentBrokerSelected] || [];
-    // The optional status is now directly in the brokerFields definition
-    
-    let allRequiredFieldsFilled = true;
-
-    // Check username field if applicable
-    const usernameInput = form.querySelector('input[name="username"]');
-    if (usernameInput && usernameInput.value.trim() === '') {
-        allRequiredFieldsFilled = false;
-        usernameInput.classList.add('is-invalid');
-    }
-
-    fields.forEach(f => {
-      // Check if field is required and its input is empty
-      if (!f.optional) { // Use the 'optional' property to determine requirement
-        const inputElement = form.querySelector(`input[name="${f.name}"]`);
-        if (inputElement && inputElement.value.trim() === '') {
-          allRequiredFieldsFilled = false;
-          inputElement.classList.add('is-invalid'); // Mark missing required fields
-        }
-      }
-    });
-
-    if (!allRequiredFieldsFilled) {
-      resultDiv.innerHTML = '<span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Please fill all required fields.</span>';
-      submitBtn.disabled = true; // Disable submit if not all required fields are filled
-      return;
-    }
-      
-    if (currentBrokerSelected === 'zerodha') {
-      // Skip credential validation for Zerodha as it uses OAuth login
-      submitBtn.disabled = false;
-      resultDiv.innerHTML = '';
-      return;
-    }
-
-    // Show spinner while validating
-    resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1 text-info" role="status"></span> <span class="text-info small">Checking credentials...</span>';
-    submitBtn.disabled = true; // Disable during check
-
-    const data = {};
-    new FormData(form).forEach((v, k) => data[k] = v);
-    data['broker'] = currentBrokerSelected;
-
-    fetchJson('/api/check-credentials', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    })
-    .then(resp => {
-      if (resp.valid) {
-        resultDiv.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Credentials valid!</span>';
-        form.querySelectorAll('input').forEach(i => i.classList.add('is-valid')); // Mark all as valid
-        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')); // Remove any invalid
+        container.innerHTML = formHtml;
+        submitBtn.style.display = "inline-block"; // Show submit button after fields are loaded
         submitBtn.disabled = false;
-      } else {
-        resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> ${resp.error || 'Invalid credentials'}</span>`;
-        form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid')); // Mark all as invalid
-        form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid')); // Remove any valid
-        submitBtn.disabled = true; // Keep disabled if validation fails
-      }
-    })
-    .catch(error => {
-      resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> Validation failed: ${error.message}</span>`;
-      submitBtn.disabled = true; // Keep disabled on network/server error
-    });
-  }
 
-  // === Event Listeners ===
-
-  // Add Account button click
-  document.getElementById('add-account-btn').addEventListener('click', function() {
-    document.getElementById('add-account-section').style.display = 'block';
-    document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' }); // Scroll into view
-    editingAccountId = null;
-    document.getElementById('submit-account-btn').textContent = 'Add Account';
-    document.getElementById('broker-credentials-form').reset(); // Clear form
-    document.getElementById('broker-fields').innerHTML = '<p class="text-center text-muted py-3">Please select a broker above to view configuration fields.</p>'; // Reset dynamic fields
-    document.getElementById('cred-check-result').innerHTML = ''; // Clear result
-    document.getElementById('submit-account-btn').style.display = 'none'; // Hide submit button initially
-    document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker')); // Remove active broker highlight
-    currentBrokerSelected = null;
-  });
-
-  // "Connect Your First Broker" buttons
-  document.querySelectorAll('.connect-first-broker-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('add-account-btn').click();
-    });
-  });
-  
-  // Cancel Add Account button click
-  document.getElementById('cancel-add-account-btn').addEventListener('click', function() {
-    document.getElementById('add-account-section').style.display = 'none';
-  });
-
-  // Broker icon selection
-  document.querySelectorAll('.broker-selection-item').forEach(item => {
-    item.addEventListener('click', function() {
-      document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
-      this.classList.add('active-broker');
-      showBrokerFields(this.dataset.broker);
-    });
-  });
-
-  // Broker credentials form submission
-  document.getElementById('broker-credentials-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const data = {};
-    for (const [key, value] of formData.entries()) data[key] = value;
-    
-    if (!currentBrokerSelected) { showToast('Please select a broker.', 'warning'); return; }
-    data['broker'] = currentBrokerSelected;
-
-    // Specific login flows for Zerodha/Fyers
-    if (data['broker'] === 'zerodha') {
-      fetchJson('/api/init-zerodha-login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
-      })
-      .then(resp => {
-        if (resp.login_url) { window.location.href = resp.login_url; }
-        else { showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); }
-      })
-      .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
-      return;
-    }
-            
-    if (data['broker'] === 'fyers') {
-      fetchJson('/api/init-fyers-login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
-      })
-      .then(resp => {
-        if (resp.login_url) { window.location.href = resp.login_url; }
-        else { showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); }
-      })
-      .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
-      return;
+        attachPasswordToggles();
+        attachValidation();
     }
 
-    // Standard Add/Update Account flow
-    const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
-    if (editingAccountId) data['client_id'] = editingAccountId; // Use original client_id for update
+    function renderTable(rows) {
+        const body = document.getElementById('accounts-table-body');
+        if (!body) return;
 
-    fetchJson(endpoint, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    })
-    .then(resp => {
-      showToast(resp.message || resp.error || 'Operation completed.');
-      if (resp.message) { // Only reload on success
-        location.reload();
-      }
-    })
-    .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
-  });
-
-  // Table Filters & Actions
-  document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      document.querySelectorAll('#status-tabs .nav-link').forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-      statusFilter = link.dataset.status || 'all';
-      applyFilters();
-    });
-  });
-
-  document.getElementById('broker-filter').addEventListener('change', e => {
-    brokerFilter = e.target.value;
-    applyFilters();
-  });
-
-  document.getElementById('account-search').addEventListener('input', e => {
-    searchFilter = e.target.value;
-    applyFilters();
-  });
-
-  // Global functions for table actions (can be called directly from onclick in HTML)
-  window.deleteAccount = function(cid) {
-    if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
-    fetchJson('/api/delete-account', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
-    })
-    .then(resp => {
-      showToast(resp.message || resp.error || 'Unknown error during deletion.');
-      if (resp.message) location.reload();
-    })
-    .catch(error => showToast(`Failed to delete account: ${error.message}`, 'error'));
-  };
-
-  window.editAccount = function(cid) {
-    const acc = allAccounts.find(a => a.client_id === cid);
-    if (!acc) { showToast('Account not found for editing.', 'error'); return; }
-
-    editingAccountId = cid; // Set the account ID being edited
-    document.getElementById('add-account-section').style.display = 'block';
-    document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' });
-
-    // Highlight the correct broker icon
-    document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
-    const iconItem = document.querySelector(`.broker-selection-item[data-broker="${acc.broker}"]`);
-    if (iconItem) iconItem.classList.add('active-broker');
-    
-    // Show broker-specific fields and populate them
-    showBrokerFields(acc.broker); // This also sets currentBrokerSelected
-
-    // Populate the form fields with existing data
-    setTimeout(() => { // Timeout ensures fields are rendered by showBrokerFields first
-      const form = document.getElementById('broker-credentials-form');
-      if (!form) return;
-
-      // Populate username only if the field exists for this broker
-      const usernameInput = form.querySelector('input[name="username"]');
-      if (usernameInput) {
-          usernameInput.value = acc.username || '';
-      }
-      
-      Object.entries(acc.credentials || {}).forEach(([k, v]) => {
-        const inp = form.querySelector(`input[name="${k}"]`);
-        if (inp) {
-          inp.value = v;
-          if (k === 'client_id' || k === 'api_key' || k === 'access_token') { // Prevent editing key identifiers
-             inp.readOnly = true;
-             inp.classList.add('bg-light'); // Visually indicate read-only
-          }
+        if (rows.length === 0) {
+            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
+            return;
         }
-      });
-      document.getElementById('submit-account-btn').textContent = 'Update Account';
-      document.getElementById('submit-account-btn').disabled = false; // Enable update button
-      document.getElementById('cred-check-result').innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
-    }, 100); // Small delay to ensure DOM updates from showBrokerFields
-  };
 
-  window.reconnectAccount = function(cid) {
-    if (!confirm('Attempt to reconnect account ' + cid + '?')) return;
-    fetchJson('/api/reconnect-account', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
-    })
-    .then(resp => {
-      showToast(resp.message || resp.error || 'Unknown error during reconnection.');
-      if (resp.message) location.reload(); // Reload to see updated status
-    })
-    .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
-  };
+        body.innerHTML = rows.map(acc => {
+            const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
+            const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
+            const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
+            const statusHtml = renderStatusBadge(acc);
 
-  // === Initial Load ===
-  fetchJson('/api/accounts?cache_only=1')
-    .then(data => {
-      allAccounts = data.accounts || [];
-      populateBrokerFilter();
-      updateCounts();
-      applyFilters();
-      attemptAutoLogin();
-      refreshBalances();
-    })
-    .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
+            return `
+                <tr>
+                    <td>${pictureHTML}</td>
+                    <td class="font-monospace">${acc.client_id}</td>
+                    <td>${acc.username || '-'}</td>
+                    <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
+                    <td id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</td>
+                    <td class="text-center">
+                        <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm me-1" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        // Initialize tooltips after rendering table
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+    }
+
+    function renderStatusBadge(acc) {
+        const auto = autoLoginResults[acc.client_id];
+        const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
+        const st = (acc.status || '').toLowerCase();
+
+        if (auto) {
+            if (auto.status === 'error') {
+                const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
+                return `<span class="badge bg-danger" title="${msg}">Error</span>`;
+            }
+            if (auto.status === 'checking') {
+                return '<span class="badge bg-info">Connecting...</span>';
+            }
+        }
+
+        if (st && st !== 'connected') {
+            if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
+            // treat any non-connected status as error when lastErr exists or status is failed
+            if (st === 'failed' || lastErr) {
+                const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
+                return `<span class="badge bg-danger" title="${msg}">Error</span>`;
+            }
+            const label = acc.status ? acc.status : 'Unknown';
+            return `<span class="badge bg-warning text-dark">${label}</span>`;
+        }
+
+        // ignore non-login errors when status shows connected
+        return '<span class="badge bg-success">Connected</span>';
+    }
+
+    function updateStatusCell(cid) {
+        const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
+        const cell = document.getElementById(`status-${sanitized}`);
+        if (!cell) return;
+        const acc = allAccounts.find(a => a.client_id === cid);
+        if (!acc) return;
+        cell.innerHTML = renderStatusBadge(acc);
+    }
+
+    function attemptAutoLogin() {
+        allAccounts.forEach(acc => {
+            autoLoginResults[acc.client_id] = {status: 'checking'};
+            updateStatusCell(acc.client_id);
+            fetchJson('/api/reconnect-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: acc.client_id })
+            })
+            .then(resp => {
+                if (resp.message) {
+                    autoLoginResults[acc.client_id] = {status: 'success'};
+                } else {
+                    autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
+                }
+                updateStatusCell(acc.client_id);
+                updateCounts();
+            })
+            .catch(err => {
+                autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
+                updateStatusCell(acc.client_id);
+                updateCounts();
+            });
+        });
+    }
+
+    function refreshBalances() {
+        allAccounts.forEach(acc => {
+            fetchJson('/api/account-balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: acc.client_id })
+            })
+            .then(resp => {
+                if (typeof resp.balance === 'number') {
+                    acc.opening_balance = resp.balance;
+                    applyFilters();
+                }
+            })
+            .catch(err => console.error('Balance refresh failed', err));
+        });
+    }
+
+    function accountHasError(acc) {
+        const st = (acc.status || '').toLowerCase();
+        if (st && st !== 'connected' && st !== 'pending') return true;
+        if (st === 'failed') return true;
+        // only consider error logs if status itself indicates failure
+        return st === 'failed' && !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
+    }
+
+    function isSuccess(acc) {
+        const st = (acc.status || '').toLowerCase();
+        return st === 'connected' || st === '';
+    }
+
+    function isFailed(acc) {
+        const st = (acc.status || '').toLowerCase();
+        if (autoLoginResults[acc.client_id] && autoLoginResults[acc.client_id].status === 'error') return true;
+        return st === 'failed' || (st && st !== 'connected' && st !== 'pending');
+    }
+
+    function applyFilters() {
+        let rows = allAccounts.slice(); // Create a shallow copy to filter
+        if (statusFilter === 'success') rows = rows.filter(isSuccess);
+        else if (statusFilter === 'failed') rows = rows.filter(isFailed);
+        if (brokerFilter) rows = rows.filter(a => a.broker === brokerFilter);
+        if (searchFilter) {
+            const term = searchFilter.toLowerCase();
+            rows = rows.filter(a =>
+                String(a.client_id).toLowerCase().includes(term) ||
+                (a.username || '').toLowerCase().includes(term) ||
+                (a.last_error || (Array.isArray(a.errors) ? a.errors.join(' ') : a.errors) || a.status || '').toLowerCase().includes(term)
+            );
+        }
+        renderTable(rows);
+    }
+
+    function updateCounts() {
+        const total = allAccounts.length;
+        const success = allAccounts.filter(isSuccess).length;
+        const failed = allAccounts.filter(isFailed).length;
+        document.getElementById('tab-count-all').textContent = total;
+        document.getElementById('tab-count-success').textContent = success;
+        document.getElementById('tab-count-failed').textContent = failed;
+    }
+
+    function populateBrokerFilter() {
+        const select = document.getElementById('broker-filter');
+        if (!select) return;
+        const brokers = [...new Set(allAccounts.map(a => a.broker))].sort();
+        select.innerHTML = '<option value="">All Brokers</option>' +
+            brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
+    }
+
+    // === Event Attachments ===
+    function attachPasswordToggles() {
+        document.querySelectorAll('#broker-fields .toggle-pass').forEach(btn => {
+            btn.onclick = function() {
+                const inp = btn.parentElement.querySelector('input');
+                if (!inp) return;
+                const isPass = inp.type === 'password';
+                inp.type = isPass ? 'text' : 'password';
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('bi-eye');
+                    icon.classList.toggle('bi-eye-slash');
+                }
+            };
+        });
+    }
+
+    function attachValidation() {
+        const form = document.getElementById('broker-credentials-form');
+        form.querySelectorAll('input').forEach(inp => {
+            // Exclude username validation if it's not present for a broker (like broker1)
+            if (currentBrokerSelected === 'broker1' && inp.name === 'username') return;
+
+            inp.onblur = validateCredentials;
+        });
+    }
+
+    function validateCredentials() {
+        const resultDiv = document.getElementById('cred-check-result');
+        const submitBtn = document.getElementById('submit-account-btn');
+        const form = document.getElementById('broker-credentials-form');
+
+        // Clear previous feedback
+        resultDiv.innerHTML = '';
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid'));
+
+        if (!currentBrokerSelected) { return; }
+
+        const fields = brokerFields[currentBrokerSelected] || [];
+        // The optional status is now directly in the brokerFields definition
+
+        let allRequiredFieldsFilled = true;
+
+        // Check username field if applicable
+        const usernameInput = form.querySelector('input[name="username"]');
+        if (usernameInput && usernameInput.value.trim() === '') {
+            allRequiredFieldsFilled = false;
+            usernameInput.classList.add('is-invalid');
+        }
+
+        fields.forEach(f => {
+            // Check if field is required and its input is empty
+            if (!f.optional) { // Use the 'optional' property to determine requirement
+                const inputElement = form.querySelector(`input[name="${f.name}"]`);
+                if (inputElement && inputElement.value.trim() === '') {
+                    allRequiredFieldsFilled = false;
+                    inputElement.classList.add('is-invalid'); // Mark missing required fields
+                }
+            }
+        });
+
+        if (!allRequiredFieldsFilled) {
+            resultDiv.innerHTML = '<span class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Please fill all required fields.</span>';
+            submitBtn.disabled = true; // Disable submit if not all required fields are filled
+            return;
+        }
+
+        if (currentBrokerSelected === 'zerodha') {
+            // Skip credential validation for Zerodha as it uses OAuth login
+            submitBtn.disabled = false;
+            resultDiv.innerHTML = '';
+            return;
+        }
+
+        // Show spinner while validating
+        resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1 text-info" role="status"></span> <span class="text-info small">Checking credentials...</span>';
+        submitBtn.disabled = true; // Disable during check
+
+        const data = {};
+        new FormData(form).forEach((v, k) => data[k] = v);
+        data['broker'] = currentBrokerSelected;
+
+        fetchJson('/api/check-credentials', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(resp => {
+            if (resp.valid) {
+                resultDiv.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i> Credentials valid!</span>';
+                form.querySelectorAll('input').forEach(i => i.classList.add('is-valid')); // Mark all as valid
+                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid')); // Remove any invalid
+                submitBtn.disabled = false;
+            } else {
+                resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> ${resp.error || 'Invalid credentials'}</span>`;
+                form.querySelectorAll('input').forEach(i => i.classList.add('is-invalid')); // Mark all as invalid
+                form.querySelectorAll('.is-valid').forEach(el => el.classList.remove('is-valid')); // Remove any valid
+                submitBtn.disabled = true; // Keep disabled if validation fails
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i> Validation failed: ${error.message}</span>`;
+            submitBtn.disabled = true; // Keep disabled on network/server error
+        });
+    }
+
+    // === Event Listeners ===
+
+    // Add Account button click
+    document.getElementById('add-account-btn').addEventListener('click', function() {
+        document.getElementById('add-account-section').style.display = 'block';
+        document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' }); // Scroll into view
+        editingAccountId = null;
+        document.getElementById('submit-account-btn').textContent = 'Add Account';
+        document.getElementById('broker-credentials-form').reset(); // Clear form
+        document.getElementById('broker-fields').innerHTML = '<p class="text-center text-muted py-3">Please select a broker above to view configuration fields.</p>'; // Reset dynamic fields
+        document.getElementById('cred-check-result').innerHTML = ''; // Clear result
+        document.getElementById('submit-account-btn').style.display = 'none'; // Hide submit button initially
+        document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker')); // Remove active broker highlight
+        currentBrokerSelected = null;
+    });
+
+    // "Connect Your First Broker" buttons
+    document.querySelectorAll('.connect-first-broker-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('add-account-btn').click();
+        });
+    });
+
+    // Cancel Add Account button click
+    document.getElementById('cancel-add-account-btn').addEventListener('click', function() {
+        document.getElementById('add-account-section').style.display = 'none';
+    });
+
+    // Broker icon selection
+    document.querySelectorAll('.broker-selection-item').forEach(item => {
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
+            this.classList.add('active-broker');
+            showBrokerFields(this.dataset.broker);
+        });
+    });
+
+    // Broker credentials form submission
+    document.getElementById('broker-credentials-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = {};
+        for (const [key, value] of formData.entries()) data[key] = value;
+
+        if (!currentBrokerSelected) { showToast('Please select a broker.', 'warning'); return; }
+        data['broker'] = currentBrokerSelected;
+
+        // Specific login flows for Zerodha/Fyers
+        if (data['broker'] === 'zerodha') {
+            fetchJson('/api/init-zerodha-login', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+            })
+            .then(resp => {
+                if (resp.login_url) { window.location.href = resp.login_url; }
+                else { showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); }
+            })
+            .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
+            return;
+        }
+
+        if (data['broker'] === 'fyers') {
+            fetchJson('/api/init-fyers-login', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+            })
+            .then(resp => {
+                if (resp.login_url) { window.location.href = resp.login_url; }
+                else { showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); }
+            })
+            .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
+            return;
+        }
+
+        // Standard Add/Update Account flow
+        const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
+        if (editingAccountId) data['client_id'] = editingAccountId; // Use original client_id for update
+
+        fetchJson(endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(resp => {
+            showToast(resp.message || resp.error || 'Operation completed.');
+            if (resp.message) { // Only reload on success
+                location.reload();
+            }
+        })
+        .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
+    });
+
+    // Table Filters & Actions
+    document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            document.querySelectorAll('#status-tabs .nav-link').forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            statusFilter = link.dataset.status || 'all';
+            applyFilters();
+        });
+    });
+
+    document.getElementById('broker-filter').addEventListener('change', e => {
+        brokerFilter = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('account-search').addEventListener('input', e => {
+        searchFilter = e.target.value;
+        applyFilters();
+    });
+
+    // Global functions for table actions (can be called directly from onclick in HTML)
+    window.deleteAccount = function(cid) {
+        if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
+        fetchJson('/api/delete-account', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
+        })
+        .then(resp => {
+            showToast(resp.message || resp.error || 'Unknown error during deletion.');
+            if (resp.message) location.reload();
+        })
+        .catch(error => showToast(`Failed to delete account: ${error.message}`, 'error'));
+    };
+
+    window.editAccount = function(cid) {
+        const acc = allAccounts.find(a => a.client_id === cid);
+        if (!acc) { showToast('Account not found for editing.', 'error'); return; }
+
+        editingAccountId = cid; // Set the account ID being edited
+        document.getElementById('add-account-section').style.display = 'block';
+        document.getElementById('add-account-section').scrollIntoView({ behavior: 'smooth' });
+
+        // Highlight the correct broker icon
+        document.querySelectorAll('.broker-selection-item').forEach(i => i.classList.remove('active-broker'));
+        const iconItem = document.querySelector(`.broker-selection-item[data-broker="${acc.broker}"]`);
+        if (iconItem) iconItem.classList.add('active-broker');
+
+        // Show broker-specific fields and populate them
+        showBrokerFields(acc.broker); // This also sets currentBrokerSelected
+
+        // Populate the form fields with existing data
+        setTimeout(() => { // Timeout ensures fields are rendered by showBrokerFields first
+            const form = document.getElementById('broker-credentials-form');
+            if (!form) return;
+
+            // Populate username only if the field exists for this broker
+            const usernameInput = form.querySelector('input[name="username"]');
+            if (usernameInput) {
+                usernameInput.value = acc.username || '';
+            }
+
+            Object.entries(acc.credentials || {}).forEach(([k, v]) => {
+                const inp = form.querySelector(`input[name="${k}"]`);
+                if (inp) {
+                    inp.value = v;
+                    if (k === 'client_id' || k === 'api_key' || k === 'access_token') { // Prevent editing key identifiers
+                        inp.readOnly = true;
+                        inp.classList.add('bg-light'); // Visually indicate read-only
+                    }
+                }
+            });
+            document.getElementById('submit-account-btn').textContent = 'Update Account';
+            document.getElementById('submit-account-btn').disabled = false; // Enable update button
+            document.getElementById('cred-check-result').innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
+        }, 100); // Small delay to ensure DOM updates from showBrokerFields
+    };
+
+    window.reconnectAccount = function(cid) {
+        if (!confirm('Attempt to reconnect account ' + cid + '?')) return;
+        fetchJson('/api/reconnect-account', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
+        })
+        .then(resp => {
+            showToast(resp.message || resp.error || 'Unknown error during reconnection.');
+            if (resp.message) location.reload(); // Reload to see updated status
+        })
+        .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
+    };
+
+    // === Initial Load ===
+    fetchJson('/api/accounts?cache_only=1')
+        .then(data => {
+            allAccounts = data.accounts || [];
+            populateBrokerFilter();
+            updateCounts();
+            applyFilters();
+            attemptAutoLogin();
+            refreshBalances();
+        })
+        .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
 </script>
 <style>
@@ -879,27 +892,27 @@ window.pageScripts["demat-dashboard"] = function() {
 
 /* Broker selection styling */
 .broker-selection-item {
-  cursor: pointer;
-  padding: 10px;
-  transition: all 0.2s ease-in-out;
-  border: 2px solid transparent;
-  border-radius: 8px; /* Match card roundedness */
+    cursor: pointer;
+    padding: 10px;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+    border-radius: 8px; /* Match card roundedness */
 }
 .broker-selection-item:hover {
-  background-color: var(--bs-light);
-  border-color: var(--bs-gray-300);
+    background-color: var(--bs-light);
+    border-color: var(--bs-gray-300);
 }
 .broker-selection-item.active-broker {
-  background-color: var(--bs-primary-bg-subtle); /* Light primary background */
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus ring effect */
+    background-color: var(--bs-primary-bg-subtle); /* Light primary background */
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus ring effect */
 }
 .broker-icon {
-  width: 60px; /* Larger icons */
-  height: 60px;
-  object-fit: contain; /* Ensure images fit without distortion */
-  border: 1px solid var(--bs-border-color); /* Subtle border for images */
-  border-radius: 4px;
+    width: 60px; /* Larger icons */
+    height: 60px;
+    object-fit: contain; /* Ensure images fit without distortion */
+    border: 1px solid var(--bs-border-color); /* Subtle border for images */
+    border-radius: 4px;
 }
 
 /* Custom styling for status tabs to look more modern */
