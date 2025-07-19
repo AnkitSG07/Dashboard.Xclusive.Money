@@ -9,16 +9,129 @@
             </div>
         </div>
     </div>
-    <div class="empty-state">
+
+    <div id="no-strategies-state" class="empty-state">
         <div class="empty-state-icon">
             <i class="fas fa-chart-bar"></i>
         </div>
         <h3>No Strategies</h3>
         <p>Create your first trading strategy to get started.</p>
-        <button id="connect-first-broker-btn" class="btn btn-primary">
+        <button id="create-strategy-btn" class="btn btn-primary">
             <i class="fas fa-plus"></i>
             Create Strategy
         </button>
     </div>
+
+    <div id="strategy-creation-form" style="display: none;">
+        <div class="page-header">
+            <h2>New Strategy</h2>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-cog"></i> STRATEGY DETAILS</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="strategy-name">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="strategy-name" placeholder="My new strategy">
+                    <small class="form-text text-muted">Give your strategy a name. It can be anything and will only be seen by you and your strategy subscribers. (e.g., Reversal Scalp)</small>
+                </div>
+                <div class="form-group">
+                    <label for="strategy-description">Description</label>
+                    <textarea class="form-control" id="strategy-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="asset-class">Asset class <span class="text-danger">*</span></label>
+                    <select class="form-control" id="asset-class">
+                        <option>Stocks</option>
+                        </select>
+                    <small class="form-text text-muted">Select the asset class that this strategy will use. This will determine the tickers that can be used with this strategy. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-group">
+                    <label for="strategy-style">Style <span class="text-danger">*</span></label>
+                    <select class="form-control" id="strategy-style">
+                        <option>Systematic</option>
+                        </select>
+                    <small class="form-text text-muted">Indicate whether your strategy is systematic or discretionary. This helps us understand your usage and may influence future platform features. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="allow-auto-submit" checked>
+                    <label class="form-check-label" for="allow-auto-submit">Allow auto submit</label>
+                    <small class="form-text text-muted">If enabled, strategy subscribers will be allowed to enable auto submit when subscribing to this strategy. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="allow-live-trading" checked>
+                    <label class="form-check-label" for="allow-live-trading">Allow live trading</label>
+                    <small class="form-text text-muted">If enabled, strategy subscribers will be allowed to connect live broker accounts to this strategy. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="allow-any-ticker" checked>
+                    <label class="form-check-label" for="allow-any-ticker">Allow any ticker</label>
+                    <small class="form-text text-muted">Allow any ticker on this strategy. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-group mt-3">
+                    <label for="allowed-tickers">Allowed tickers</label>
+                    <textarea class="form-control" id="allowed-tickers" rows="3" placeholder="Enter multiple tickers separated by commas to restrict this strategy to only these tickers. Checking &quot;Allow any ticker&quot; will override this setting."></textarea>
+                    <small class="form-text text-muted">Enter multiple tickers separated by commas to restrict this strategy to only these tickers. Checking "Allow any ticker" will override this setting. <a href="#">More Info</a></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-bell"></i> NOTIFICATIONS <span class="badge badge-secondary ml-2">Disabled</span></h4>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="notification-emails">Emails to notify</label>
+                    <textarea class="form-control" id="notification-emails" rows="3"></textarea>
+                    <small class="form-text text-muted">Comma-separated list of email addresses that will be notified of successful or failed signals sent to this webhook. <a href="#">More Info</a></small>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="notify-failures-only">
+                    <label class="form-check-label" for="notify-failures-only">Notify failures only</label>
+                    <small class="form-text text-muted">Check this if you only want to be notified of failed strategy webhook requests. <a href="#">More Info</a></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-lock"></i> SECURITY <span class="badge badge-secondary ml-2">No Security</span></h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Security settings will go here.</p>
+                </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-info-circle"></i> OPTIONAL DETAILS</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Optional details will go here.</p>
+                </div>
+        </div>
+
+        <div class="form-group text-center">
+            <button type="submit" class="btn btn-success">Save</button>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const createStrategyBtn = document.getElementById('create-strategy-btn');
+        const noStrategiesState = document.getElementById('no-strategies-state');
+        const strategyCreationForm = document.getElementById('strategy-creation-form');
+
+        if (createStrategyBtn) {
+            createStrategyBtn.addEventListener('click', function() {
+                noStrategiesState.style.display = 'none';
+                strategyCreationForm.style.display = 'block';
+            });
+        }
+    });
+</script>
 {% endblock %}
