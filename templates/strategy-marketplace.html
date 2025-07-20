@@ -1,0 +1,29 @@
+{% extends "demat-trading.html" %}
+{% block title %}Strategy Marketplace{% endblock %}
+{% block content %}
+<h2>Strategy Marketplace</h2>
+<table class="table" id="market-table">
+  <thead><tr><th>Icon</th><th>Name</th><th>Owner</th><th></th></tr></thead>
+  <tbody>
+    {% for s in strategies %}
+    <tr>
+      <td>{% if s.icon %}<img src="{{ s.icon }}" alt="icon" width="24">{% endif %}</td>
+      <td>{{ s.name }}</td>
+      <td>{{ s.user.name or s.user.email }}</td>
+      <td><button class="btn btn-sm btn-primary subscribe-btn" data-id="{{ s.id }}">Subscribe</button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<script>
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts['strategy-marketplace'] = function() {
+  document.querySelectorAll('.subscribe-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      fetch(`/api/strategies/${btn.dataset.id}/subscribe`, {method:'POST'})
+        .then(r=>r.json()).then(d=>alert(d.message));
+    });
+  });
+};
+</script>
+{% endblock %}
