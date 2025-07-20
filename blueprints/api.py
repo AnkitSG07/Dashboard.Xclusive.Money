@@ -451,7 +451,9 @@ def test_webhook(strategy_id):
         token = secrets.token_hex(16)
         user.webhook_token = token
         db.session.commit()
-    payload = {"symbol": "TEST", "action": "BUY", "quantity": 1}
+    from brokers.symbol_map import SYMBOL_MAP
+    symbol = next(iter(SYMBOL_MAP.keys()))
+    payload = {"symbol": symbol, "action": "BUY", "quantity": 1}
     if strategy.webhook_secret:
         payload["secret"] = strategy.webhook_secret
     from flask import current_app
