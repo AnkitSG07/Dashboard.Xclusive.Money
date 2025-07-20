@@ -826,6 +826,17 @@ def test_create_strategy_endpoint(client):
     resp = client.post("/api/strategies", json={"name": "S1"})
     assert resp.status_code == 400
 
+    app = app_module.app
+    db = app_module.db
+    Account = app_module.Account
+    User = app_module.User
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(user_id=user.id, broker="finvasia", client_id="FIN1")
+        db.session.add(acc)
+        db.session.commit()
+        acc_id = acc.id
+
     data = {
         "name": "S1",
         "asset_class": "Stocks",
@@ -836,6 +847,14 @@ def test_create_strategy_endpoint(client):
         "allowed_tickers": "AAPL,MSFT",
         "notification_emails": "a@example.com",
         "notify_failures_only": False
+        "account_id": acc_id,
+        "signal_source": "TradingView",
+        "schedule": "0 9 * * *",
+        "risk_max_positions": 3,
+        "risk_max_allocation": 10.5,
+        "webhook_secret": "secret",
+        "track_performance": True,
+        "log_retention_days": 7,
     }
     resp = client.post("/api/strategies", json=data)
     assert resp.status_code == 200
@@ -852,7 +871,24 @@ def test_create_strategy_endpoint(client):
         assert s.name == "S1"
         user = User.query.filter_by(email="test@example.com").first()
         assert s.user_id == user.id
+        assert s.account_id == acc_id
+        assert s.signal_source == "TradingView"
+        assert s.schedule == "0 9 * * *"
+        assert s.risk_max_positions == 3
+        assert s.risk_max_allocation == 10.5
+        assert s.webhook_secret == "secret"
+        assert s.track_performance is True
+        assert s.log_retention_days == 7
 
+
+def test_create_strategy_invalid_account(client):
+    login(client)
+    resp = client.post(
+        "/api/strategies",
+        json={"name": "Bad", "asset_class": "Stocks", "style": "Systematic", "account_id": 999},
+    )
+    assert resp.status_code == 400
+    
 
 def test_strategy_list_and_delete(client):
     login(client)
@@ -968,3 +1004,22 @@ def test_strategy_activation_scoped(client):
     client.post("/login", data={"email": "scoped@example.com", "password": "x"})
 
     assert client.post(f"/api/strategies/{sid}/activate").status_code == 404
+
+def test_strategy_logs_endpoint(client):
+    login(client)
+    sid = client.post(
+        "/api/strategies",
+        json={"name": "LogTest", "asset_class": "Stocks", "style": "Systematic"},
+    ).get_json()["id"]
+
+    resp = client.post(
+        f"/api/strategies/{sid}/logs",
+        json={"level": "INFO", "message": "Run completed", "performance": {"pnl": 5}},
+    )
+    assert resp.status_code == 200
+    lid = resp.get_json()["id"]
+
+    resp = client.get(f"/api/strategies/{sid}/logs")
+    assert resp.status_code == 200
+    logs = resp.get_json()
+    assert any(l["id"] == lid for l in logs)
