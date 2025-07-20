@@ -285,6 +285,8 @@ class Strategy(db.Model):
     webhook_secret = db.Column(db.String(120))
     track_performance = db.Column(db.Boolean, default=False)
     log_retention_days = db.Column(db.Integer, default=30)
+    is_public = db.Column(db.Boolean, default=False, index=True)
+    icon = db.Column(db.Text)
     
     user = db.relationship("User", backref=db.backref("strategies", lazy=True, cascade="all, delete-orphan"))
     account = db.relationship(
@@ -310,3 +312,28 @@ class StrategyLog(db.Model):
 
     def __repr__(self):
         return f"<StrategyLog {self.level}: {self.message[:30]}>"
+
+
+
+class StrategySubscription(db.Model):
+    __tablename__ = "strategy_subscription"
+
+    id = db.Column(db.Integer, primary_key=True)
+    strategy_id = db.Column(
+        db.Integer, db.ForeignKey("strategy.id"), nullable=False, index=True
+    )
+    subscriber_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    approved = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    strategy = db.relationship("Strategy", backref=db.backref("subscriptions", lazy=True, cascade="all, delete-orphan"))
+    subscriber = db.relationship("User", backref=db.backref("strategy_subscriptions", lazy=True, cascade="all, delete-orphan"))
+
+    __table_args__ = (
+        db.UniqueConstraint("strategy_id", "subscriber_id", name="uq_strategy_subscriber"),
+    )
+
+    def __repr__(self):
+        return f"<StrategySubscription {self.strategy_id} {self.subscriber_id}>"
