@@ -1023,3 +1023,158 @@ def test_strategy_logs_endpoint(client):
     assert resp.status_code == 200
     logs = resp.get_json()
     assert any(l["id"] == lid for l in logs)
+
+def test_webhook_secret_enforced(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "tok1"
+        acc = Account(user_id=user.id, broker="dhan", client_id="C1", credentials={"access_token": "x"})
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="S1",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="sec123",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+    import brokers
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    resp = client.post(f"/webhook/tok1", json={"symbol": "A", "action": "BUY", "quantity": 1})
+    assert resp.status_code == 403
+    resp = client.post(
+        f"/webhook/tok1",
+        json={"symbol": "A", "action": "BUY", "quantity": 1},
+        headers={"X-Webhook-Secret": "sec123"},
+    )
+    assert resp.status_code == 200
+
+
+def test_risk_limit_max_positions(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "tok2"
+        acc = Account(user_id=user.id, broker="dhan", client_id="C2", credentials={"access_token": "x"})
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="S2",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="sec2",
+            is_active=True,
+            risk_max_positions=1,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+    import brokers
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        def __init__(self, *a, **k):
+            pass
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return [{"tradingSymbol": "X", "netQty": 1, "ltp": 10}]
+        def cancel_order(self, order_id):
+            pass
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    resp = client.post(
+        "/webhook/tok2",
+        json={"symbol": "A", "action": "BUY", "quantity": 1},
+        headers={"X-Webhook-Secret": "sec2"},
+    )
+    assert resp.status_code == 403
+
+
+def test_schedule_enforced(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "tok3"
+        acc = Account(user_id=user.id, broker="dhan", client_id="C3", credentials={"access_token": "x"})
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="S3",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="sec3",
+            is_active=True,
+            schedule="00:00-00:01",
+        )
+        db.session.add(strategy)
+        db.session.commit()
+    import brokers
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    resp = client.post(
+        "/webhook/tok3",
+        json={"symbol": "A", "action": "BUY", "quantity": 1},
+        headers={"X-Webhook-Secret": "sec3"},
+    )
+    assert resp.status_code == 403
+
+
+def test_strategy_performance_page(client):
+    login(client)
+    sid = client.post(
+        "/api/strategies",
+        json={"name": "Perf", "asset_class": "Stocks", "style": "Systematic", "track_performance": True},
+    ).get_json()["id"]
+    client.post(
+        f"/api/strategies/{sid}/logs",
+        json={"level": "INFO", "message": "Run", "performance": {"pnl": 1}},
+    )
+    resp = client.get(f"/strategy-performance/{sid}")
+    assert resp.status_code == 200
+    assert "Run" in resp.get_data(as_text=True)
