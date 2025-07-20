@@ -2380,7 +2380,7 @@ def webhook(user_id):
         
     Expected POST data:
         {
-            "symbol": "string",
+            "symbol": "string" or "ticker": "string",
             "action": "BUY|SELL",
             "quantity": int,
             "message": "string" (optional, for alerts)
@@ -2440,7 +2440,7 @@ def webhook(user_id):
                 return jsonify({"error": "Webhook secret required"}), 403
 
         # Validate required fields
-        symbol = data.get("symbol")
+        symbol = data.get("symbol") or data.get("ticker")
         action = data.get("action")
         quantity = data.get("quantity")
 
@@ -2448,9 +2448,9 @@ def webhook(user_id):
             logger.error(f"Missing required fields: {data}")
             return jsonify({
                 "error": "Missing required fields",
-                "required": ["symbol", "action", "quantity"],
+                "required": ["symbol/ticker", "action", "quantity"],
                 "received": {
-                    "symbol": bool(symbol),
+                    "symbol_or_ticker": bool(symbol),
                     "action": bool(action),
                     "quantity": bool(quantity)
                 }
