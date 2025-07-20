@@ -34,16 +34,19 @@
             <table class="table table-hover align-middle" id="strategiesTable">
                 <thead class="table-light">
                     <tr>
+                        <th>Icon</th>
                         <th>Name</th>
                         <th>Asset Class</th>
                         <th>Style</th>
+                        <th>Public</th>
+                        <th>Webhook</th>
                         <th>Active</th>
                         <th>Last Run</th>
-                        <th></th>    
+                        <th></th>  
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td colspan="5" class="text-center text-muted py-4">Loading strategies...</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted py-4">Loading strategies...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -81,7 +84,11 @@
                     <select class="form-control" id="strategy-style">
                         <option>Systematic</option>
                         </select>
-                    <small class="form-text text-muted">Indicate whether your strategy is systematic or discretionary. This helps us understand your usage and may influence future platform features. <a href="#">More Info</a></small>
+                    <small class="form-text text-muted">Indicate whether your strategy is systematic or discretionary. This helps us understand your usage and may influence future platform features. <a href="https://docs.example.com/strategy-style" target="_blank">More Info</a></small>
+                </div>
+                <div class="form-group mt-2">
+                    <label for="strategy-icon">Icon</label>
+                    <input type="file" class="form-control" id="strategy-icon" accept="image/*">
                 </div>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="allow-auto-submit" checked>
@@ -101,7 +108,11 @@
                 <div class="form-group mt-3">
                     <label for="allowed-tickers">Allowed tickers</label>
                     <textarea class="form-control" id="allowed-tickers" rows="3" placeholder="Enter multiple tickers separated by commas to restrict this strategy to only these tickers. Checking &quot;Allow any ticker&quot; will override this setting."></textarea>
-                    <small class="form-text text-muted">Enter multiple tickers separated by commas to restrict this strategy to only these tickers. Checking "Allow any ticker" will override this setting. <a href="#">More Info</a></small>
+                    <small class="form-text text-muted">Enter multiple tickers separated by commas to restrict this strategy to only these tickers. Checking "Allow any ticker" will override this setting. <a href="https://docs.example.com/allowed-tickers" target="_blank">More Info</a></small>
+                </div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="is-public">
+                    <label class="form-check-label" for="is-public">Public</label>
                 </div>
             </div>
         </div>
@@ -187,7 +198,10 @@ window.pageScripts["demat-strategies"] = function() {
     const strategyCreationForm = document.getElementById('strategy-creation-form');
     const strategiesCard = document.getElementById('strategies-card');
     const strategiesTableBody = document.querySelector('#strategiesTable tbody');
-
+    const userToken = '{{ logged_in_user.webhook_token }}';
+    let editingId = null;
+    const iconInput = document.getElementById('strategy-icon');
+    
     const cardBodies = strategyCreationForm.querySelectorAll('.card.mb-4 .card-body');
     const optionalDetailsBody = cardBodies[3];
     let accountSelect;
@@ -253,7 +267,14 @@ window.pageScripts["demat-strategies"] = function() {
                 noStrategiesState.style.display = 'none';
                 list.forEach(s => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${s.name}</td><td>${s.asset_class}</td><td>${s.style}</td>`;
+                    const iconCell = `<td>${s.icon ? `<img src="${s.icon}" width="24">` : ''}</td>`;
+                    tr.innerHTML = `${iconCell}<td>${s.name}</td><td>${s.asset_class}</td><td>${s.style}</td><td>${s.is_public ? 'Yes' : 'No'}</td>`;
+
+                    const tdWebhook = document.createElement('td');
+                    const webhookUrl = `${location.origin}/webhook/${userToken}${s.webhook_secret ? `?secret=${encodeURIComponent(s.webhook_secret)}` : ''}`;
+                    tdWebhook.innerHTML = `<div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm" value="${webhookUrl}" readonly><button class="btn btn-outline-secondary copy-btn">Copy</button><button class="btn btn-outline-secondary regen-btn">Regen</button><button class="btn btn-outline-secondary test-btn">Test</button></div>`;
+                    tr.appendChild(tdWebhook);
+
                     const tdActive = document.createElement('td');
                     const toggleBtn = document.createElement('button');
                     toggleBtn.className = 'btn btn-sm ' + (s.is_active ? 'btn-warning' : 'btn-success');
@@ -272,6 +293,53 @@ window.pageScripts["demat-strategies"] = function() {
                     tr.appendChild(tdLast);
 
                     const tdAction = document.createElement('td');
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn btn-sm btn-secondary me-1';
+                    editBtn.textContent = 'Edit';
+                    editBtn.addEventListener('click', () => {
+                        editingId = s.id;
+                        strategyCreationForm.style.display = 'block';
+                        noStrategiesState.style.display = 'none';
+                        document.getElementById('strategy-name').value = s.name || '';
+                        document.getElementById('strategy-description').value = s.description || '';
+                        document.getElementById('asset-class').value = s.asset_class || '';
+                        document.getElementById('strategy-style').value = s.style || '';
+                        document.getElementById('allow-auto-submit').checked = !!s.allow_auto_submit;
+                        document.getElementById('allow-live-trading').checked = !!s.allow_live_trading;
+                        document.getElementById('allow-any-ticker').checked = !!s.allow_any_ticker;
+                        document.getElementById('allowed-tickers').value = s.allowed_tickers || '';
+                        document.getElementById('notification-emails').value = s.notification_emails || '';
+                        document.getElementById('notify-failures-only').checked = !!s.notify_failures_only;
+                        document.getElementById('webhook-secret').value = s.webhook_secret || '';
+                        document.getElementById('signal-source').value = s.signal_source || '';
+                        document.getElementById('schedule').value = s.schedule || '';
+                        document.getElementById('risk-max-positions').value = s.risk_max_positions || '';
+                        document.getElementById('risk-max-allocation').value = s.risk_max_allocation || '';
+                        document.getElementById('track-performance').checked = !!s.track_performance;
+                        document.getElementById('log-retention-days').value = s.log_retention_days || '';
+
+                        document.getElementById('is-public').checked = !!s.is_public;
+                        if (iconInput) iconInput.value = '';
+                        if (accountSelect) accountSelect.value = s.account_id || '';
+                    });
+                    tdAction.appendChild(editBtn);
+                    
+                    const cloneBtn = document.createElement('button');
+                    cloneBtn.className = 'btn btn-sm btn-info me-1';
+                    cloneBtn.textContent = 'Clone';
+                    cloneBtn.addEventListener('click', () => {
+                        fetchJson(`/api/strategies/${s.id}/clone`, {method:'POST'})
+                            .then(() => { showToast('Cloned'); loadStrategies(); });
+                    });
+                    tdAction.appendChild(cloneBtn);
+
+                    const logsBtn = document.createElement('a');
+                    logsBtn.className = 'btn btn-sm btn-outline-secondary me-1';
+                    logsBtn.textContent = 'View Logs';
+                    logsBtn.href = `/strategy-performance/${s.id}`;
+                    tdAction.appendChild(logsBtn);
+
+
                     const delBtn = document.createElement('button');
                     delBtn.className = 'btn btn-sm btn-danger';
                     delBtn.textContent = 'Delete';
@@ -286,6 +354,25 @@ window.pageScripts["demat-strategies"] = function() {
                     });
                     tdAction.appendChild(delBtn);
                     tr.appendChild(tdAction);
+
+                    const copyBtn = tdWebhook.querySelector('.copy-btn');
+                    const regenBtn = tdWebhook.querySelector('.regen-btn');
+                    const testBtn = tdWebhook.querySelector('.test-btn');
+                    copyBtn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(webhookUrl).then(() => showToast('Copied')); 
+                    });
+                    regenBtn.addEventListener('click', () => {
+                        if (!confirm('Regenerate secret?')) return;
+                        fetchJson(`/api/strategies/${s.id}/regenerate-secret`, {method: 'POST'})
+                            .then(out => { s.webhook_secret = out.webhook_secret; loadStrategies(); })
+                            .catch(err => showToast('Failed: ' + err.message, 'error'));
+                    });
+                    testBtn.addEventListener('click', () => {
+                        fetchJson(`/api/strategies/${s.id}/test-webhook`, {method: 'POST'})
+                            .then(out => showToast('Status: ' + out.status))
+                            .catch(err => showToast('Test failed: ' + err.message, 'error'));
+                    });
+
                     strategiesTableBody.appendChild(tr);
                 });
             })
@@ -313,27 +400,43 @@ window.pageScripts["demat-strategies"] = function() {
                 risk_max_allocation: parseFloat(document.getElementById('risk-max-allocation').value) || null,
                 track_performance: document.getElementById('track-performance').checked,
                 log_retention_days: parseInt(document.getElementById('log-retention-days').value) || null,
-                account_id: accountSelect && accountSelect.value ? parseInt(accountSelect.value) : null
+                account_id: accountSelect && accountSelect.value ? parseInt(accountSelect.value) : null,
+                is_public: document.getElementById('is-public').checked
             };
 
-            fetchJson('/api/strategies', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            })
-            .then(() => {
-                showToast('Strategy created successfully!');
-                strategyCreationForm.querySelectorAll('input, textarea').forEach(el => {
-                    if (el.type === 'checkbox') {
-                        el.checked = false;
-                    } else {
-                        el.value = '';
-                    }
-                });
-                strategyCreationForm.style.display = 'none';
-                loadStrategies();
-            })
-            .catch(err => showToast('Failed to create strategy: ' + err.message, 'error'));
+            const url = editingId ? `/api/strategies/${editingId}` : '/api/strategies';
+            const method = editingId ? 'PUT' : 'POST';
+            function submit(iconData) {
+                if (iconData) data.icon = iconData;
+                fetchJson(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                })
+                .then(() => {
+                    showToast(editingId ? 'Strategy updated successfully!' : 'Strategy created successfully!');
+                    strategyCreationForm.querySelectorAll('input, textarea').forEach(el => {
+                        if (el.type === 'checkbox') {
+                            el.checked = false;
+                        } else {
+                            el.value = '';
+                        }
+                    });
+                    if (iconInput) iconInput.value = '';
+                    document.getElementById('is-public').checked = false;
+                    strategyCreationForm.style.display = 'none';
+                    editingId = null;
+                    loadStrategies();
+                })
+                .catch(err => showToast('Failed to create strategy: ' + err.message, 'error'));
+            }
+            if (iconInput && iconInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => submit(e.target.result);
+                reader.readAsDataURL(iconInput.files[0]);
+            } else {
+                submit(null);
+            }
         });
     }
 
