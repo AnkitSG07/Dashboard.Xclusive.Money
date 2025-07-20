@@ -2470,14 +2470,10 @@ def webhook(user_id):
             return jsonify({"error": "Account not configured"}), 403
 
         broker_name = (account.broker or "dhan").lower()
-        client_id = account.client_id
-        access_token = (account.credentials or {}).get("access_token")
-
-
-        # Initialize broker API
+       # Initialize broker API using full credentials
         try:
-            BrokerClass = get_broker_class(broker_name)
-            broker_api_instance = BrokerClass(client_id, access_token) # Renamed to avoid conflict with broker_api helper
+            acc_dict = _account_to_dict(account)
+            broker_api_instance = broker_api(acc_dict)
         except Exception as e:
             logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
             return jsonify({
