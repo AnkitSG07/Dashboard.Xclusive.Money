@@ -2378,13 +2378,11 @@ def webhook(user_id):
     Args:
         user_id (str): User ID to identify the account
         
-    Expected POST data:
-        {
-            "symbol": "string" or "ticker": "string",
-            "action": "BUY|SELL",
-            "quantity": int,
-            "message": "string" (optional, for alerts)
-        }
+    Expected POST data examples:
+        # using "symbol"
+        {"symbol": "NSE:SBIN", "action": "BUY", "quantity": 10}
+        # using "ticker"
+        {"ticker": "NSE:SBIN", "action": "BUY", "quantity": 10}
         
     Returns:
         JSON response with order status or error message
