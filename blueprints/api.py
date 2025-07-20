@@ -5,7 +5,7 @@ from helpers import (
     order_mappings_for_user,
     normalize_position,
 )
-from models import Account, db, Strategy
+from models import Account, db, Strategy, StrategyLog
 from dhanhq import dhanhq
 from functools import wraps
 from datetime import datetime
@@ -228,6 +228,16 @@ def list_strategies():
             "allowed_tickers": s.allowed_tickers,
             "notification_emails": s.notification_emails,
             "notify_failures_only": s.notify_failures_only,
+            "account_id": s.account_id,
+            "is_active": s.is_active,
+            "last_run_at": s.last_run_at,
+            "signal_source": s.signal_source,
+            "risk_max_positions": s.risk_max_positions,
+            "risk_max_allocation": s.risk_max_allocation,
+            "schedule": s.schedule,
+            "webhook_secret": s.webhook_secret,
+            "track_performance": s.track_performance,
+            "log_retention_days": s.log_retention_days,
         }
         for s in strategies
     ]
@@ -246,8 +256,14 @@ def create_strategy():
             return jsonify({"error": f"{field} is required"}), 400
             
     user = current_user()
+    account_id = data.get("account_id")
+    if account_id:
+        acc = Account.query.filter_by(id=account_id, user_id=user.id).first()
+        if not acc:
+            return jsonify({"error": "Invalid account_id"}), 400    
     strategy = Strategy(
         user_id=user.id,
+        account_id=account_id,
         name=data.get("name"),
         description=data.get("description"),
         asset_class=data.get("asset_class"),
@@ -258,6 +274,14 @@ def create_strategy():
         allowed_tickers=data.get("allowed_tickers"),
         notification_emails=data.get("notification_emails"),
         notify_failures_only=bool(data.get("notify_failures_only", False)),
+        is_active=bool(data.get("is_active", False)),        
+        signal_source=data.get("signal_source"),
+        risk_max_positions=data.get("risk_max_positions"),
+        risk_max_allocation=data.get("risk_max_allocation"),
+        schedule=data.get("schedule"),
+        webhook_secret=data.get("webhook_secret"),
+        track_performance=bool(data.get("track_performance", False)),
+        log_retention_days=data.get("log_retention_days"),
     )
 
     db.session.add(strategy)
@@ -285,6 +309,16 @@ def strategy_detail(strategy_id):
             "allowed_tickers": strategy.allowed_tickers,
             "notification_emails": strategy.notification_emails,
             "notify_failures_only": strategy.notify_failures_only,
+            "account_id": strategy.account_id,
+            "is_active": strategy.is_active,
+            "last_run_at": strategy.last_run_at,
+            "signal_source": strategy.signal_source,
+            "risk_max_positions": strategy.risk_max_positions,
+            "risk_max_allocation": strategy.risk_max_allocation,
+            "schedule": strategy.schedule,
+            "webhook_secret": strategy.webhook_secret,
+            "track_performance": strategy.track_performance,
+            "log_retention_days": strategy.log_retention_days,
         })
 
     if request.method == "PUT":
@@ -301,9 +335,23 @@ def strategy_detail(strategy_id):
             "notification_emails",
             "notify_failures_only",
             "is_active",
+            "account_id",
+            "signal_source",
+            "risk_max_positions",
+            "risk_max_allocation",
+            "schedule",
+            "webhook_secret",
+            "track_performance",
+            "log_retention_days",
         ]:
             if field in data:
-                setattr(strategy, field, data[field])
+                if field == "account_id" and data[field] is not None:
+                    acc = Account.query.filter_by(id=data[field], user_id=user.id).first()
+                    if not acc:
+                        return jsonify({"error": "Invalid account_id"}), 400
+                    setattr(strategy, field, data[field])
+                else:
+                    setattr(strategy, field, data[field])
         db.session.commit()
         return jsonify({"message": "Strategy updated"})
 
@@ -343,3 +391,34 @@ def ping_strategy(strategy_id):
     strategy.last_run_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"message": "Strategy pinged"})
+
+@api_bp.route("/strategies/<int:strategy_id>/logs", methods=["GET", "POST"])
+@login_required_api
+def strategy_logs(strategy_id):
+    """Retrieve or add log entries for a strategy"""
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+
+    if request.method == "POST":
+        data = request.get_json() or {}
+        log = StrategyLog(
+            strategy_id=strategy.id,
+            level=data.get("level", "INFO"),
+            message=data.get("message"),
+            performance=data.get("performance"),
+        )
+        db.session.add(log)
+        db.session.commit()
+        return jsonify({"message": "Log added", "id": log.id})
+
+    logs = [
+        {
+            "id": l.id,
+            "timestamp": l.timestamp,
+            "level": l.level,
+            "message": l.message,
+            "performance": l.performance,
+        }
+        for l in StrategyLog.query.filter_by(strategy_id=strategy.id).order_by(StrategyLog.timestamp.desc()).all()
+    ]
+    return jsonify(logs)
