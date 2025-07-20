@@ -447,7 +447,10 @@ def test_webhook(strategy_id):
     strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
     token = user.webhook_token
     if not token:
-        return jsonify({"error": "Webhook token missing"}), 400
+        import secrets
+        token = secrets.token_hex(16)
+        user.webhook_token = token
+        db.session.commit()
     payload = {"symbol": "TEST", "action": "BUY", "quantity": 1}
     if strategy.webhook_secret:
         payload["secret"] = strategy.webhook_secret
