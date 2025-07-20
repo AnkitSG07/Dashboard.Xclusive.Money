@@ -10,17 +10,45 @@
         </div>
     </div>
 
-    <div id="no-strategies-state" class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-chart-bar"></i>
-        </div>
-        <h3>No Strategies</h3>
-        <p>Create your first trading strategy to get started.</p>
-        <button id="create-strategy-btn" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Create Strategy
-        </button>
+<div id="no-strategies-state" class="empty-state">
+    <div class="empty-state-icon">
+        <i class="fas fa-chart-bar"></i>
     </div>
+    <h3>No Strategies</h3>
+    <p>Create your first trading strategy to get started.</p>
+    <button id="create-strategy-btn" class="btn btn-primary">
+        <i class="fas fa-plus"></i>
+        Create Strategy
+    </button>
+</div>
+
+<div id="strategies-card" class="card shadow-lg border-0 rounded-3 my-5" style="display:none;">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="card-title mb-0">Current Strategies</h5>
+            <button id="create-strategy-btn-alt" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Create Strategy
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="strategiesTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Asset Class</th>
+                        <th>Style</th>
+                        <th>Active</th>
+                        <th>Last Run</th>
+                        <th></th>    
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="text-center text-muted py-4">Loading strategies...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
     <div id="strategy-creation-form" style="display: none;">
         <div class="page-header">
@@ -119,19 +147,136 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+
+{% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const createStrategyBtn = document.getElementById('create-strategy-btn');
-        const noStrategiesState = document.getElementById('no-strategies-state');
-        const strategyCreationForm = document.getElementById('strategy-creation-form');
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts["demat-strategies"] = function() {
+    const createStrategyBtn = document.getElementById('create-strategy-btn');
+    const createStrategyBtnAlt = document.getElementById('create-strategy-btn-alt');
+    const noStrategiesState = document.getElementById('no-strategies-state');
+    const strategyCreationForm = document.getElementById('strategy-creation-form');
+    const strategiesCard = document.getElementById('strategies-card');
+    const strategiesTableBody = document.querySelector('#strategiesTable tbody');
 
-        if (createStrategyBtn) {
-            createStrategyBtn.addEventListener('click', function() {
+    function fetchJson(url, options = {}) {
+        return fetch(url, options).then(resp => {
+            if (!resp.ok) {
+                return resp.json().then(err => { throw new Error(err.error || 'Request failed'); });
+            }
+            return resp.json();
+        });
+    }
+
+    function showToast(message, type='success') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        alert(message);
+    }
+    
+    if (createStrategyBtn) {
+        createStrategyBtn.addEventListener('click', () => {
+            noStrategiesState.style.display = 'none';
+            strategyCreationForm.style.display = 'block';
+        });
+    }
+    if (createStrategyBtnAlt) {
+        createStrategyBtnAlt.addEventListener('click', () => {
+            strategyCreationForm.style.display = 'block';
+        });
+    }
+
+    function loadStrategies() {
+        fetchJson('/api/strategies')
+            .then(list => {
+                strategiesTableBody.innerHTML = '';
+                if (!list || list.length === 0) {
+                    strategiesCard.style.display = 'none';
+                    noStrategiesState.style.display = 'block';
+                    return;
+                }
+                strategiesCard.style.display = 'block';
                 noStrategiesState.style.display = 'none';
-                strategyCreationForm.style.display = 'block';
-            });
-        }
-    });
+                list.forEach(s => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${s.name}</td><td>${s.asset_class}</td><td>${s.style}</td>`;
+                    const tdActive = document.createElement('td');
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'btn btn-sm ' + (s.is_active ? 'btn-warning' : 'btn-success');
+                    toggleBtn.textContent = s.is_active ? 'Deactivate' : 'Activate';
+                    toggleBtn.addEventListener('click', () => {
+                        const action = s.is_active ? 'deactivate' : 'activate';
+                        fetchJson(`/api/strategies/${s.id}/${action}`, { method: 'POST' })
+                            .then(() => loadStrategies())
+                            .catch(err => showToast('Update failed: ' + err.message, 'error'));
+                    });
+                    tdActive.appendChild(toggleBtn);
+                    tr.appendChild(tdActive);
+
+                    const tdLast = document.createElement('td');
+                    tdLast.textContent = s.last_run_at ? new Date(s.last_run_at).toLocaleString() : '-';
+                    tr.appendChild(tdLast);
+
+                    const tdAction = document.createElement('td');
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'btn btn-sm btn-danger';
+                    delBtn.textContent = 'Delete';
+                    delBtn.addEventListener('click', () => {
+                        if (!confirm('Delete this strategy?')) return;
+                        fetchJson(`/api/strategies/${s.id}`, { method: 'DELETE' })
+                            .then(() => {
+                                showToast('Strategy deleted');
+                                loadStrategies();
+                            })
+                            .catch(err => showToast('Delete failed: ' + err.message, 'error'));
+                    });
+                    tdAction.appendChild(delBtn);
+                    tr.appendChild(tdAction);
+                    strategiesTableBody.appendChild(tr);
+                });
+            })
+            .catch(err => showToast('Failed to load strategies: ' + err.message, 'error'));
+    }
+    const saveButton = strategyCreationForm.querySelector('button[type="submit"]');
+    if (saveButton) {
+        saveButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('strategy-name').value.trim(),
+                description: document.getElementById('strategy-description').value.trim(),
+                asset_class: document.getElementById('asset-class').value,
+                style: document.getElementById('strategy-style').value,
+                allow_auto_submit: document.getElementById('allow-auto-submit').checked,
+                allow_live_trading: document.getElementById('allow-live-trading').checked,
+                allow_any_ticker: document.getElementById('allow-any-ticker').checked,
+                allowed_tickers: document.getElementById('allowed-tickers').value.trim(),
+                notification_emails: document.getElementById('notification-emails').value.trim(),
+                notify_failures_only: document.getElementById('notify-failures-only').checked
+            };
+
+            fetchJson('/api/strategies', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                showToast('Strategy created successfully!');
+                strategyCreationForm.querySelectorAll('input, textarea').forEach(el => {
+                    if (el.type === 'checkbox') {
+                        el.checked = false;
+                    } else {
+                        el.value = '';
+                    }
+                });
+                strategyCreationForm.style.display = 'none';
+                loadStrategies();
+            })
+            .catch(err => showToast('Failed to create strategy: ' + err.message, 'error'));
+        });
+    }
+
+    loadStrategies();
+};
 </script>
 {% endblock %}
