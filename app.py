@@ -454,6 +454,8 @@ def ensure_strategy_schema():
             'webhook_secret': 'VARCHAR(120)',
             'track_performance': 'BOOLEAN',
             'log_retention_days': 'INTEGER',
+            'is_public': 'BOOLEAN',
+            'icon': 'TEXT',
         }
 
         for col_name, col_def in columns_to_add.items():
