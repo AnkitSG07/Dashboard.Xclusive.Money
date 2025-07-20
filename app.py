@@ -183,7 +183,15 @@ def inject_broker_icons():
 @app.context_processor
 def inject_logged_in_user():
     """Make the currently logged in user available to all templates."""
-    return {'logged_in_user': current_user()}
+    user = current_user()
+    if user and not user.webhook_token:
+        import secrets
+        user.webhook_token = secrets.token_hex(16)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    return {'logged_in_user': user}
 
 BROKER_STATUS_URLS = {
     "dhan": "https://api.dhan.co",
