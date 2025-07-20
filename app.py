@@ -45,6 +45,7 @@ from models import (
     OrderMapping,
     TradeLog,
     Strategy,
+    StrategySubscription,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
