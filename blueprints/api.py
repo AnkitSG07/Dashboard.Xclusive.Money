@@ -261,9 +261,20 @@ def create_strategy():
         acc = Account.query.filter_by(id=account_id, user_id=user.id).first()
         if not acc:
             return jsonify({"error": "Invalid account_id"}), 400    
+    def _to_int(val):
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
+    def _to_float(val):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
     strategy = Strategy(
         user_id=user.id,
-        account_id=account_id,
+        account_id=_to_int(account_id) if account_id else None,
         name=data.get("name"),
         description=data.get("description"),
         asset_class=data.get("asset_class"),
@@ -276,12 +287,12 @@ def create_strategy():
         notify_failures_only=bool(data.get("notify_failures_only", False)),
         is_active=bool(data.get("is_active", False)),        
         signal_source=data.get("signal_source"),
-        risk_max_positions=data.get("risk_max_positions"),
-        risk_max_allocation=data.get("risk_max_allocation"),
+        risk_max_positions=_to_int(data.get("risk_max_positions")),
+        risk_max_allocation=_to_float(data.get("risk_max_allocation")),
         schedule=data.get("schedule"),
         webhook_secret=data.get("webhook_secret"),
         track_performance=bool(data.get("track_performance", False)),
-        log_retention_days=data.get("log_retention_days"),
+        log_retention_days=_to_int(data.get("log_retention_days")),
     )
 
     db.session.add(strategy)
@@ -323,6 +334,18 @@ def strategy_detail(strategy_id):
 
     if request.method == "PUT":
         data = request.get_json() or {}
+        def _to_int(val):
+            try:
+                return int(val)
+            except (TypeError, ValueError):
+                return None
+
+        def _to_float(val):
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return None
+
         for field in [
             "name",
             "description",
@@ -349,7 +372,11 @@ def strategy_detail(strategy_id):
                     acc = Account.query.filter_by(id=data[field], user_id=user.id).first()
                     if not acc:
                         return jsonify({"error": "Invalid account_id"}), 400
-                    setattr(strategy, field, data[field])
+                    setattr(strategy, field, _to_int(data[field]))
+                elif field in ["risk_max_positions", "log_retention_days"]:
+                    setattr(strategy, field, _to_int(data[field]))
+                elif field == "risk_max_allocation":
+                    setattr(strategy, field, _to_float(data[field]))
                 else:
                     setattr(strategy, field, data[field])
         db.session.commit()
