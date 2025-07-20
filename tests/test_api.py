@@ -1273,3 +1273,19 @@ def test_strategy_subscription_and_clone(client):
     assert resp.status_code == 200
     subs = resp.get_json()
     assert any(s["subscriber_id"] for s in subs)
+
+
+def test_webhook_token_generated_on_page_load(client):
+    email = "tokgen@example.com"
+    client.post("/signup", data={"email": email, "password": "x"})
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        assert not user.webhook_token
+    resp = client.get("/demat-strategies")
+    assert resp.status_code == 200
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        assert user.webhook_token
