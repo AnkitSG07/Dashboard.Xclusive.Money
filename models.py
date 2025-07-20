@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from sqlalchemy.orm import backref
 
 db = SQLAlchemy()
 
@@ -260,7 +261,10 @@ class Strategy(db.Model):
     __tablename__ = "strategy"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    account_id = db.Column(db.Integer, db.ForeignKey("account.id"), index=True)
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)
     asset_class = db.Column(db.String(50), nullable=False)
@@ -274,8 +278,35 @@ class Strategy(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=False, index=True)
     last_run_at = db.Column(db.DateTime)
+    signal_source = db.Column(db.String(100))
+    risk_max_positions = db.Column(db.Integer)
+    risk_max_allocation = db.Column(db.Float)
+    schedule = db.Column(db.String(120))
+    webhook_secret = db.Column(db.String(120))
+    track_performance = db.Column(db.Boolean, default=False)
+    log_retention_days = db.Column(db.Integer, default=30)
     
     user = db.relationship("User", backref=db.backref("strategies", lazy=True, cascade="all, delete-orphan"))
+    account = db.relationship(
+        "Account",
+        backref=backref("strategies", lazy=True),
+    )
 
     def __repr__(self):
         return f"<Strategy {self.name}>"
+
+
+class StrategyLog(db.Model):
+    __tablename__ = "strategy_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    strategy_id = db.Column(db.Integer, db.ForeignKey("strategy.id"), nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    level = db.Column(db.String(20), default="INFO")
+    message = db.Column(db.Text)
+    performance = db.Column(db.JSON)
+
+    strategy = db.relationship("Strategy", backref=db.backref("logs", lazy=True, cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f"<StrategyLog {self.level}: {self.message[:30]}>"
