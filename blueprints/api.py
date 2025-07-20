@@ -5,7 +5,7 @@ from helpers import (
     order_mappings_for_user,
     normalize_position,
 )
-from models import Account, db, Strategy, StrategyLog
+from models import Account, db, Strategy, StrategyLog, StrategySubscription
 from dhanhq import dhanhq
 from functools import wraps
 from datetime import datetime
@@ -238,6 +238,8 @@ def list_strategies():
             "webhook_secret": s.webhook_secret,
             "track_performance": s.track_performance,
             "log_retention_days": s.log_retention_days,
+            "is_public": s.is_public,
+            "icon": s.icon,
         }
         for s in strategies
     ]
@@ -293,6 +295,8 @@ def create_strategy():
         webhook_secret=data.get("webhook_secret"),
         track_performance=bool(data.get("track_performance", False)),
         log_retention_days=_to_int(data.get("log_retention_days")),
+        is_public=bool(data.get("is_public", False)),
+        icon=data.get("icon"),
     )
 
     db.session.add(strategy)
@@ -330,6 +334,8 @@ def strategy_detail(strategy_id):
             "webhook_secret": strategy.webhook_secret,
             "track_performance": strategy.track_performance,
             "log_retention_days": strategy.log_retention_days,
+            "is_public": strategy.is_public,
+            "icon": strategy.icon,
         })
 
     if request.method == "PUT":
@@ -366,6 +372,8 @@ def strategy_detail(strategy_id):
             "webhook_secret",
             "track_performance",
             "log_retention_days",
+            "is_public",
+            "icon",
         ]:
             if field in data:
                 if field == "account_id" and data[field] is not None:
@@ -418,6 +426,103 @@ def ping_strategy(strategy_id):
     strategy.last_run_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"message": "Strategy pinged"})
+
+@api_bp.route("/strategies/<int:strategy_id>/regenerate-secret", methods=["POST"])
+@login_required_api
+def regenerate_webhook_secret(strategy_id):
+    """Generate a new webhook secret for the strategy."""
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+    import secrets
+    strategy.webhook_secret = secrets.token_hex(16)
+    db.session.commit()
+    return jsonify({"webhook_secret": strategy.webhook_secret})
+
+
+@api_bp.route("/strategies/<int:strategy_id>/test-webhook", methods=["POST"])
+@login_required_api
+def test_webhook(strategy_id):
+    """Send a test payload to the webhook endpoint."""
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+    token = user.webhook_token
+    if not token:
+        return jsonify({"error": "Webhook token missing"}), 400
+    payload = {"symbol": "TEST", "action": "BUY", "quantity": 1}
+    if strategy.webhook_secret:
+        payload["secret"] = strategy.webhook_secret
+    from flask import current_app
+    with current_app.test_client() as c:
+        resp = c.post(f"/webhook/{token}", json=payload)
+        try:
+            data = resp.get_json()
+        except Exception:
+            data = resp.data.decode()
+    return jsonify({"status": resp.status_code, "response": data})
+
+
+@api_bp.route("/strategies/<int:strategy_id>/subscribe", methods=["POST"])
+@login_required_api
+def subscribe_strategy(strategy_id):
+    """Subscribe the logged in user to a strategy."""
+    user = current_user()
+    strategy = Strategy.query.get_or_404(strategy_id)
+    if strategy.user_id == user.id:
+        return jsonify({"error": "Cannot subscribe to your own strategy"}), 400
+    sub = StrategySubscription.query.filter_by(strategy_id=strategy_id, subscriber_id=user.id).first()
+    if not sub:
+        sub = StrategySubscription(strategy_id=strategy_id, subscriber_id=user.id)
+        if strategy.is_public:
+            sub.approved = True
+        db.session.add(sub)
+        db.session.commit()
+    return jsonify({"message": "Subscription created", "approved": sub.approved})
+
+
+@api_bp.route("/strategies/<int:strategy_id>/subscribers", methods=["GET"])
+@login_required_api
+def list_subscribers(strategy_id):
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+    subs = [
+        {"id": s.id, "subscriber_id": s.subscriber_id, "approved": s.approved, "created_at": s.created_at}
+        for s in StrategySubscription.query.filter_by(strategy_id=strategy_id).all()
+    ]
+    return jsonify(subs)
+
+
+@api_bp.route("/strategies/<int:strategy_id>/clone", methods=["POST"])
+@login_required_api
+def clone_strategy(strategy_id):
+    """Clone an existing strategy."""
+    user = current_user()
+    src = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+    clone = Strategy(
+        user_id=user.id,
+        account_id=src.account_id,
+        name=f"{src.name} (Copy)",
+        description=src.description,
+        asset_class=src.asset_class,
+        style=src.style,
+        allow_auto_submit=src.allow_auto_submit,
+        allow_live_trading=src.allow_live_trading,
+        allow_any_ticker=src.allow_any_ticker,
+        allowed_tickers=src.allowed_tickers,
+        notification_emails=src.notification_emails,
+        notify_failures_only=src.notify_failures_only,
+        signal_source=src.signal_source,
+        risk_max_positions=src.risk_max_positions,
+        risk_max_allocation=src.risk_max_allocation,
+        schedule=src.schedule,
+        webhook_secret=src.webhook_secret,
+        track_performance=src.track_performance,
+        log_retention_days=src.log_retention_days,
+        is_public=src.is_public,
+        icon=src.icon,
+    )
+    db.session.add(clone)
+    db.session.commit()
+    return jsonify({"message": "Strategy cloned", "id": clone.id})
 
 @api_bp.route("/strategies/<int:strategy_id>/logs", methods=["GET", "POST"])
 @login_required_api
