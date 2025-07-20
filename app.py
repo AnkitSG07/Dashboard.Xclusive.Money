@@ -2300,6 +2300,34 @@ def webhook(user_id):
                 "message": message
             }), 200
 
+        secret = (
+            request.headers.get("X-Webhook-Secret")
+            or (data.get("secret") if isinstance(data, dict) else None)
+            or request.args.get("secret")
+        )
+        user_obj = get_user_by_token(user_id)
+        if not user_obj:
+            logger.error(f"Invalid webhook token: {user_id}")
+            return jsonify({"error": "Invalid webhook ID"}), 403
+        strategy = None
+        if secret:
+            strategy = Strategy.query.filter_by(
+                user_id=user_obj.id, webhook_secret=secret
+            ).first()
+            if not strategy:
+                logger.error("Webhook secret mismatch")
+                return jsonify({"error": "Invalid webhook secret"}), 403
+        else:
+            if (
+                Strategy.query.filter(
+                    Strategy.user_id == user_obj.id,
+                    Strategy.webhook_secret.isnot(None),
+                ).count()
+                > 0
+            ):
+                logger.error("Webhook secret required but missing")
+                return jsonify({"error": "Webhook secret required"}), 403
+
         # Validate required fields
         symbol = data.get("symbol")
         action = data.get("action")
@@ -2316,16 +2344,23 @@ def webhook(user_id):
                     "quantity": bool(quantity)
                 }
             }), 400
+            
 
-        # Load credentials from the database
-        user_creds = get_user_credentials(user_id) # Renamed to avoid conflict with `user` object
-        if not user_creds:
-            logger.error(f"Invalid webhook ID: {user_id}")
-            return jsonify({"error": "Invalid webhook ID"}), 403
+        # Determine account credentials
+        account = None
+        if strategy and strategy.account_id:
+            account = Account.query.filter_by(
+                id=strategy.account_id, user_id=user_obj.id
+            ).first()
+        if not account:
+            account = user_obj.accounts[0] if user_obj.accounts else None
+        if not account or not account.credentials:
+            logger.error("Account not configured")
+            return jsonify({"error": "Account not configured"}), 403
 
-        broker_name = user_creds.get("broker", "dhan").lower()
-        client_id = user_creds.get("client_id")
-        access_token = user_creds.get("access_token")
+        broker_name = (account.broker or "dhan").lower()
+        client_id = account.client_id
+        access_token = (account.credentials or {}).get("access_token")
 
 
         # Initialize broker API
@@ -2390,6 +2425,47 @@ def webhook(user_id):
                 "details": str(e)
             }), 500
 
+        # Enforce schedule and risk limits
+        if strategy:
+            if strategy.schedule:
+                try:
+                    start, end = strategy.schedule.split("-")
+                    now = datetime.utcnow().time()
+                    start_t = datetime.strptime(start.strip(), "%H:%M").time()
+                    end_t = datetime.strptime(end.strip(), "%H:%M").time()
+                    if not (start_t <= now <= end_t):
+                        logger.error("Outside allowed schedule")
+                        return jsonify({"error": "Outside allowed schedule"}), 403
+                except Exception as e:
+                    logger.error(f"Schedule parse error: {e}")
+
+            if strategy.risk_max_positions is not None or strategy.risk_max_allocation is not None:
+                try:
+                    pos_resp = broker_api_instance.get_positions()
+                    positions = _find_position_list(pos_resp)
+                    if isinstance(positions, dict):
+                        positions = [positions]
+                    elif not isinstance(positions, list):
+                        positions = []
+                    count = 0
+                    allocation = 0.0
+                    for p in positions:
+                        norm = normalize_position(p, account.broker)
+                        if not norm:
+                            continue
+                        count += 1
+                        qty = abs(norm.get("netQty", 0))
+                        price = norm.get("ltp") or norm.get("buyAvg") or 0
+                        allocation += qty * price
+                    if strategy.risk_max_positions is not None and count >= strategy.risk_max_positions:
+                        logger.error("Max positions exceeded")
+                        return jsonify({"error": "Max positions exceeded"}), 403
+                    if strategy.risk_max_allocation is not None and allocation >= strategy.risk_max_allocation:
+                        logger.error("Max allocation exceeded")
+                        return jsonify({"error": "Max allocation exceeded"}), 403
+                except Exception as e:
+                    logger.error(f"Risk check failed: {e}")
+        
         # Place order
         try:
             logger.info(
@@ -6144,6 +6220,13 @@ def demat_notifications():
 def demat_strategies():
     return render_template("demat-strategies.html")
 
+@app.route("/strategy-performance/<int:strategy_id>")
+@login_required
+def strategy_performance(strategy_id):
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+    return render_template("strategy-performance.html", strategy=strategy)
+    
 @app.route('/demat-subscriptions')
 @login_required
 def demat_subscriptions():
