@@ -2380,9 +2380,9 @@ def webhook(user_id):
         
     Expected POST data examples:
         # using "symbol"
-        {"symbol": "NSE:SBIN", "action": "BUY", "quantity": 10}
+        {"symbol": "NSE:SBIN", "action": "BUY", "quantity": 10, "secret": "..."}
         # using "ticker"
-        {"ticker": "NSE:SBIN", "action": "BUY", "quantity": 10}
+        {"ticker": "NSE:SBIN", "action": "BUY", "quantity": 10, "secret": "..."}
         
     Returns:
         JSON response with order status or error message
