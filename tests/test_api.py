@@ -1178,3 +1178,98 @@ def test_strategy_performance_page(client):
     resp = client.get(f"/strategy-performance/{sid}")
     assert resp.status_code == 200
     assert "Run" in resp.get_data(as_text=True)
+
+
+
+def test_regenerate_webhook_secret(client):
+    login(client)
+    sid = client.post(
+        "/api/strategies",
+        json={"name": "Sec", "asset_class": "Stocks", "style": "Systematic", "webhook_secret": "old"},
+    ).get_json()["id"]
+
+    resp = client.post(f"/api/strategies/{sid}/regenerate-secret")
+    assert resp.status_code == 200
+    new_secret = resp.get_json()["webhook_secret"]
+    assert new_secret and new_secret != "old"
+
+
+def test_test_webhook_endpoint(client, monkeypatch):
+    login(client)
+    sid = client.post(
+        "/api/strategies",
+        json={"name": "TestW", "asset_class": "Stocks", "style": "Systematic"},
+    ).get_json()["id"]
+
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "toktest"
+        acc = Account(user_id=user.id, broker="dhan", client_id="C4", credentials={"access_token": "x"})
+        db.session.add(acc)
+        db.session.commit()
+        strategy = db.session.get(app_module.Strategy, sid)
+        strategy.account_id = acc.id
+        strategy.webhook_secret = "secret"
+        strategy.is_active = True
+        db.session.commit()
+
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"; SELL = "SELL"; MARKET = "MARKET"; INTRA = "INTRADAY"; NSE = "NSE"
+
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    resp = client.post(f"/api/strategies/{sid}/test-webhook")
+    assert resp.status_code == 200
+    out = resp.get_json()
+    assert out["status"] == 200
+
+
+
+def test_strategy_subscription_and_clone(client):
+    login(client)
+    sid = client.post(
+        "/api/strategies",
+        json={"name": "Orig", "asset_class": "Stocks", "style": "Systematic", "is_public": True},
+    ).get_json()["id"]
+
+    client.get("/logout")
+    client.post("/signup", data={"email": "sub@example.com", "password": "x"})
+    client.post("/login", data={"email": "sub@example.com", "password": "x"})
+
+    resp = client.post(f"/api/strategies/{sid}/subscribe")
+    assert resp.status_code == 200
+    assert resp.get_json()["approved"]
+
+    resp = client.post(f"/api/strategies/{sid}/clone")
+    assert resp.status_code == 404  # not owner
+
+    client.get("/logout")
+    login(client)
+    resp = client.post(f"/api/strategies/{sid}/clone")
+    assert resp.status_code == 200
+    new_id = resp.get_json()["id"]
+    assert new_id != sid
+    resp = client.get(f"/api/strategies/{sid}/subscribers")
+    assert resp.status_code == 200
+    subs = resp.get_json()
+    assert any(s["subscriber_id"] for s in subs)
