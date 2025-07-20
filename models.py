@@ -5,7 +5,7 @@ from datetime import datetime
 db = SQLAlchemy()
 
 class User(db.Model):
-    __tablename__ = 'user'
+    __tablename__ = "user"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
 
@@ -19,7 +19,7 @@ class User(db.Model):
     # rather than relying on the local filesystem which may be wiped on
     # redeploy. Existing deployments with filenames will continue to work.
     profile_image = db.Column(db.Text)
-    plan = db.Column(db.String(20), default='Free')
+    plan = db.Column(db.String(20), default="Free")
     
     last_login = db.Column(db.DateTime)
     subscription_start = db.Column(db.DateTime)
@@ -39,13 +39,13 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f'<User {self.email}>'
+        return f"<User {self.email}>"
 
 class Account(db.Model):
-    __tablename__ = 'account'
+    __tablename__ = "account"
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     broker = db.Column(db.String(50), index=True)
     client_id = db.Column(db.String(50), nullable=False, index=True)
     
@@ -55,7 +55,7 @@ class Account(db.Model):
     device_number = db.Column(db.String(50))
     
     token_expiry = db.Column(db.DateTime)
-    status = db.Column(db.String(20), default='Pending')
+    status = db.Column(db.String(20), default="Pending")
     role = db.Column(db.String(20), index=True)
     linked_master_id = db.Column(db.String(50), index=True)
     copy_status = db.Column(db.String(10), default="Off", index=True)
@@ -66,25 +66,25 @@ class Account(db.Model):
     # created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = db.relationship('User', backref=db.backref('accounts', lazy=True, cascade='all, delete-orphan'))
+    user = db.relationship("User", backref=db.backref("accounts", lazy=True, cascade="all, delete-orphan"))
     
     __table_args__ = (
-        db.Index('idx_user_client', 'user_id', 'client_id'),
-        db.Index('idx_role_status', 'role', 'copy_status'),
-        db.Index('idx_master_children', 'linked_master_id', 'role'),
-        db.UniqueConstraint('user_id', 'client_id', name='uq_user_client'),
+        db.Index("idx_user_client", "user_id", "client_id"),
+        db.Index("idx_role_status", "role", "copy_status"),
+        db.Index("idx_master_children", "linked_master_id", "role"),
+        db.UniqueConstraint("user_id", "client_id", name="uq_user_client"),
     )
 
     def __repr__(self):
-        return f'<Account {self.client_id} - {self.broker}>'
+        return f"<Account {self.client_id} - {self.broker}>"
 
 class Trade(db.Model):
-    __tablename__ = 'trade'
+    __tablename__ = "trade"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     symbol = db.Column(db.String(50), index=True)
     action = db.Column(db.String(10))
     qty = db.Column(db.Integer)
@@ -97,18 +97,18 @@ class Trade(db.Model):
     order_id = db.Column(db.String(50))
     client_id = db.Column(db.String(50))
     
-    user = db.relationship('User', backref=db.backref('trades', lazy=True))
+    user = db.relationship("User", backref=db.backref("trades", lazy=True))
     
     __table_args__ = (
-        db.Index('idx_user_timestamp', 'user_id', 'timestamp'),
-        db.Index('idx_trade_symbol_action', 'symbol', 'action'),
+        db.Index("idx_user_timestamp", "user_id", "timestamp"),
+        db.Index("idx_trade_symbol_action", "symbol", "action"),
     )
 
     def __repr__(self):
-        return f'<Trade {self.symbol} {self.action} {self.qty}>'
+        return f"<Trade {self.symbol} {self.action} {self.qty}>"
 
 class WebhookLog(db.Model):
-    __tablename__ = 'webhook_log'
+    __tablename__ = "webhook_log"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
@@ -122,14 +122,14 @@ class WebhookLog(db.Model):
     response_data = db.Column(db.JSON)
 
     def __repr__(self):
-        return f'<WebhookLog {self.status} at {self.timestamp}>'
+        return f"<WebhookLog {self.status} at {self.timestamp}>"
 
 class SystemLog(db.Model):
-    __tablename__ = 'system_log'
+    __tablename__ = "system_log"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
-    level = db.Column(db.String(20), default='INFO')
+    level = db.Column(db.String(20), default="INFO")
     message = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     details = db.Column(db.JSON)
@@ -138,14 +138,14 @@ class SystemLog(db.Model):
     module = db.Column(db.String(50))
     
     __table_args__ = (
-        db.Index('idx_level_timestamp', 'level', 'timestamp'),
+        db.Index("idx_level_timestamp", "level", "timestamp"),
     )
 
     def __repr__(self):
-        return f'<SystemLog {self.level}: {self.message[:50]}>'
+        return f"<SystemLog {self.level}: {self.message[:50]}>"
 
 class Setting(db.Model):
-    __tablename__ = 'setting'
+    __tablename__ = "setting"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
@@ -157,7 +157,7 @@ class Setting(db.Model):
     # updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return f'<Setting {self.key}: {self.value}>'
+        return f"<Setting {self.key}: {self.value}>"
 
 # Association table for many-to-many relationship
 group_members = db.Table(
@@ -168,7 +168,7 @@ group_members = db.Table(
 )
 
 class Group(db.Model):
-    __tablename__ = 'group'
+    __tablename__ = "group"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
@@ -188,14 +188,14 @@ class Group(db.Model):
     )
     
     __table_args__ = (
-        db.UniqueConstraint('user_id', 'name', name='uq_user_group_name'),
+        db.UniqueConstraint("user_id", "name", name="uq_user_group_name"),
     )
 
     def __repr__(self):
-        return f'<Group {self.name}>'
+        return f"<Group {self.name}>"
 
 class OrderMapping(db.Model):
-    __tablename__ = 'order_mapping'
+    __tablename__ = "order_mapping"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
@@ -206,7 +206,7 @@ class OrderMapping(db.Model):
     child_client_id = db.Column(db.String(50), nullable=False, index=True)
     child_broker = db.Column(db.String(50))
     symbol = db.Column(db.String(50), index=True)
-    status = db.Column(db.String(20), default='ACTIVE', index=True)
+    status = db.Column(db.String(20), default="ACTIVE", index=True)
     
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     child_timestamp = db.Column(db.DateTime)
@@ -219,16 +219,16 @@ class OrderMapping(db.Model):
     price = db.Column(db.Float)
     
     __table_args__ = (
-        db.Index('idx_master_order_status', 'master_order_id', 'status'),
-        db.Index('idx_child_client_status', 'child_client_id', 'status'),
-        db.Index('idx_master_client_timestamp', 'master_client_id', 'timestamp'),
+        db.Index("idx_master_order_status", "master_order_id", "status"),
+        db.Index("idx_child_client_status", "child_client_id", "status"),
+        db.Index("idx_master_client_timestamp", "master_client_id", "timestamp"),
     )
 
     def __repr__(self):
-        return f'<OrderMapping {self.master_order_id} -> {self.child_order_id}>'
+        return f"<OrderMapping {self.master_order_id} -> {self.child_order_id}>"
 
 class TradeLog(db.Model):
-    __tablename__ = 'trade_log'
+    __tablename__ = "trade_log"
     
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
@@ -247,10 +247,35 @@ class TradeLog(db.Model):
     error_code = db.Column(db.String(50))
     
     __table_args__ = (
-        db.Index('idx_client_timestamp', 'client_id', 'timestamp'),
-        db.Index('idx_status_timestamp', 'status', 'timestamp'),
-        db.Index('idx_tradelog_symbol_action', 'symbol', 'action'),
+        db.Index("idx_client_timestamp", "client_id", "timestamp"),
+        db.Index("idx_status_timestamp", "status", "timestamp"),
+        db.Index("idx_tradelog_symbol_action", "symbol", "action"),
     )
 
     def __repr__(self):
-        return f'<TradeLog {self.symbol} {self.action} {self.status}>'
+        return f"<TradeLog {self.symbol} {self.action} {self.status}>"
+
+
+class Strategy(db.Model):
+    __tablename__ = "strategy"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    asset_class = db.Column(db.String(50), nullable=False)
+    style = db.Column(db.String(50), nullable=False)
+    allow_auto_submit = db.Column(db.Boolean, default=True)
+    allow_live_trading = db.Column(db.Boolean, default=True)
+    allow_any_ticker = db.Column(db.Boolean, default=True)
+    allowed_tickers = db.Column(db.Text)
+    notification_emails = db.Column(db.Text)
+    notify_failures_only = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=False, index=True)
+    last_run_at = db.Column(db.DateTime)
+    
+    user = db.relationship("User", backref=db.backref("strategies", lazy=True, cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f"<Strategy {self.name}>"
