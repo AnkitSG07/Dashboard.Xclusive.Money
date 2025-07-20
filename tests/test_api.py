@@ -846,7 +846,7 @@ def test_create_strategy_endpoint(client):
         "allow_any_ticker": True,
         "allowed_tickers": "AAPL,MSFT",
         "notification_emails": "a@example.com",
-        "notify_failures_only": False
+        "notify_failures_only": False,
         "account_id": acc_id,
         "signal_source": "TradingView",
         "schedule": "0 9 * * *",
