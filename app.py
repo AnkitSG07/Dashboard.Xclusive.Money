@@ -6283,6 +6283,12 @@ def strategy_performance(strategy_id):
     user = current_user()
     strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
     return render_template("strategy-performance.html", strategy=strategy)
+
+@app.route("/strategy-marketplace")
+@login_required
+def strategy_marketplace():
+    strategies = Strategy.query.filter_by(is_public=True, is_active=True).all()
+    return render_template("strategy-marketplace.html", strategies=strategies)
     
 @app.route('/demat-subscriptions')
 @login_required
