@@ -4786,7 +4786,7 @@ def add_account():
         broker = broker.lower().strip()
         
         # Validate broker is supported
-        supported_brokers = ['aliceblue', 'finvasia', 'dhan', 'zerodha', 'groww', 'upstox']
+        supported_brokers = ['aliceblue', 'finvasia', 'dhan', 'zerodha', 'groww', 'upstox', 'fyers']
         if broker not in supported_brokers:
             return jsonify({
                 "error": f"Unsupported broker: {broker}",
