@@ -414,6 +414,63 @@ def ensure_trade_log_schema():
 
 ensure_trade_log_schema()
 
+def ensure_strategy_schema():
+    """Ensure the strategy table exists with required columns."""
+    logger.info("Ensuring strategy table schema is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'strategy'
+
+        if table_name not in insp.get_table_names():
+            try:
+                db.metadata.create_all(bind=db.engine, tables=[Strategy.__table__])
+                logger.info(f'Created {table_name} table as it was missing.')
+            except Exception as exc:
+                logger.error(f'Failed to create {table_name} table: {exc}')
+                return
+
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+
+        columns_to_add = {
+            'user_id': 'INTEGER NOT NULL',
+            'account_id': 'INTEGER',
+            'name': 'VARCHAR(120) NOT NULL',
+            'description': 'TEXT',
+            'asset_class': 'VARCHAR(50) NOT NULL',
+            'style': 'VARCHAR(50) NOT NULL',
+            'allow_auto_submit': 'BOOLEAN',
+            'allow_live_trading': 'BOOLEAN',
+            'allow_any_ticker': 'BOOLEAN',
+            'allowed_tickers': 'TEXT',
+            'notification_emails': 'TEXT',
+            'notify_failures_only': 'BOOLEAN',
+            'created_at': 'TIMESTAMP WITHOUT TIME ZONE',
+            'is_active': 'BOOLEAN',
+            'last_run_at': 'TIMESTAMP WITHOUT TIME ZONE',
+            'signal_source': 'VARCHAR(100)',
+            'risk_max_positions': 'INTEGER',
+            'risk_max_allocation': 'FLOAT',
+            'schedule': 'VARCHAR(120)',
+            'webhook_secret': 'VARCHAR(120)',
+            'track_performance': 'BOOLEAN',
+            'log_retention_days': 'INTEGER',
+        }
+
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in existing_columns:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_def}'))
+                    logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(
+                        f'Failed to add column "{col_name}" to "{table_name}": {exc}.')
+            else:
+                logger.debug(f'Column "{col_name}" already exists in "{table_name}" table.')
+
+        logger.info(f"Schema check for {table_name} completed.")
+
+ensure_strategy_schema()
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
     if not order_type:
