@@ -309,11 +309,11 @@ window.pageScripts["demat-strategies"] = function() {
                 webhook_secret: document.getElementById('webhook-secret').value.trim(),
                 signal_source: document.getElementById('signal-source').value.trim(),
                 schedule: document.getElementById('schedule').value.trim(),
-                risk_max_positions: document.getElementById('risk-max-positions').value,
-                risk_max_allocation: document.getElementById('risk-max-allocation').value,
+                risk_max_positions: parseInt(document.getElementById('risk-max-positions').value) || null,
+                risk_max_allocation: parseFloat(document.getElementById('risk-max-allocation').value) || null,
                 track_performance: document.getElementById('track-performance').checked,
-                log_retention_days: document.getElementById('log-retention-days').value,
-                account_id: accountSelect ? accountSelect.value : null
+                log_retention_days: parseInt(document.getElementById('log-retention-days').value) || null,
+                account_id: accountSelect && accountSelect.value ? parseInt(accountSelect.value) : null
             };
 
             fetchJson('/api/strategies', {
