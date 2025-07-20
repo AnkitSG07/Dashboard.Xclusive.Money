@@ -1,0 +1,22 @@
+{% extends "demat-trading.html" %}
+{% block title %}Strategy Performance{% endblock %}
+{% block content %}
+<h2>{{ strategy.name }} Performance</h2>
+<table class="table" id="perf-table">
+    <thead>
+        <tr><th>Time</th><th>Level</th><th>Message</th><th>P&L</th></tr>
+    </thead>
+    <tbody id="perf-body"></tbody>
+</table>
+<script>
+fetch('/api/strategies/{{ strategy.id }}/logs').then(r=>r.json()).then(rows=>{
+  const body=document.getElementById('perf-body');
+  rows.forEach(l=>{
+    const tr=document.createElement('tr');
+    const pnl = l.performance && l.performance.pnl !== undefined ? l.performance.pnl : '';
+    tr.innerHTML = `<td>${l.timestamp}</td><td>${l.level}</td><td>${l.message||''}</td><td>${pnl}</td>`;
+    body.appendChild(tr);
+  });
+});
+</script>
+{% endblock %}
