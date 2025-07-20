@@ -129,8 +129,12 @@
                 <h4><i class="fas fa-lock"></i> SECURITY <span class="badge badge-secondary ml-2">No Security</span></h4>
             </div>
             <div class="card-body">
-                <p class="text-muted">Security settings will go here.</p>
+                <div class="form-group">
+                    <label for="webhook-secret">Webhook Secret</label>
+                    <input type="text" class="form-control" id="webhook-secret" placeholder="Enter secret for webhook validation">
+                    <small class="form-text text-muted">Incoming webhooks must include this secret token.</small>
                 </div>
+            </div>
         </div>
 
         <div class="card mb-4">
@@ -138,8 +142,31 @@
                 <h4><i class="fas fa-info-circle"></i> OPTIONAL DETAILS</h4>
             </div>
             <div class="card-body">
-                <p class="text-muted">Optional details will go here.</p>
+                <div class="form-group">
+                    <label for="signal-source">Signal Source</label>
+                    <input type="text" class="form-control" id="signal-source" placeholder="TradingView, TrendSpider, etc">
                 </div>
+                <div class="form-group mt-2">
+                    <label for="schedule">Schedule</label>
+                    <input type="text" class="form-control" id="schedule" placeholder="e.g. cron expression">
+                </div>
+                <div class="form-group mt-2">
+                    <label for="risk-max-positions">Max Positions</label>
+                    <input type="number" class="form-control" id="risk-max-positions" min="0">
+                </div>
+                <div class="form-group mt-2">
+                    <label for="risk-max-allocation">Max Allocation (%)</label>
+                    <input type="number" class="form-control" id="risk-max-allocation" min="0" max="100" step="0.01">
+                </div>
+                <div class="form-check mt-3">
+                    <input type="checkbox" class="form-check-input" id="track-performance">
+                    <label class="form-check-label" for="track-performance">Track performance</label>
+                </div>
+                <div class="form-group mt-2">
+                    <label for="log-retention-days">Log retention days</label>
+                    <input type="number" class="form-control" id="log-retention-days" value="30" min="1">
+                </div>
+            </div>
         </div>
 
         <div class="form-group text-center">
@@ -160,6 +187,32 @@ window.pageScripts["demat-strategies"] = function() {
     const strategyCreationForm = document.getElementById('strategy-creation-form');
     const strategiesCard = document.getElementById('strategies-card');
     const strategiesTableBody = document.querySelector('#strategiesTable tbody');
+
+    const cardBodies = strategyCreationForm.querySelectorAll('.card.mb-4 .card-body');
+    const optionalDetailsBody = cardBodies[3];
+    let accountSelect;
+
+    function loadAccounts() {
+        accountSelect = document.createElement('select');
+        accountSelect.id = 'strategy-account';
+        accountSelect.className = 'form-control';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-group';
+        const label = document.createElement('label');
+        label.textContent = 'Broker Account';
+        wrapper.appendChild(label);
+        wrapper.appendChild(accountSelect);
+        if (optionalDetailsBody) optionalDetailsBody.prepend(wrapper);
+
+        fetchJson('/api/accounts?cache_only=1')
+            .then(data => {
+                const accounts = data.accounts || [];
+                accountSelect.innerHTML = '<option value="">Select Account</option>' +
+                    accounts.map(a => `<option value="${a.id}">${a.client_id} (${a.broker})</option>`).join('');
+            })
+            .catch(err => console.error('Account load failed', err));
+    }
+
 
     function fetchJson(url, options = {}) {
         return fetch(url, options).then(resp => {
@@ -252,7 +305,15 @@ window.pageScripts["demat-strategies"] = function() {
                 allow_any_ticker: document.getElementById('allow-any-ticker').checked,
                 allowed_tickers: document.getElementById('allowed-tickers').value.trim(),
                 notification_emails: document.getElementById('notification-emails').value.trim(),
-                notify_failures_only: document.getElementById('notify-failures-only').checked
+                notify_failures_only: document.getElementById('notify-failures-only').checked,
+                webhook_secret: document.getElementById('webhook-secret').value.trim(),
+                signal_source: document.getElementById('signal-source').value.trim(),
+                schedule: document.getElementById('schedule').value.trim(),
+                risk_max_positions: document.getElementById('risk-max-positions').value,
+                risk_max_allocation: document.getElementById('risk-max-allocation').value,
+                track_performance: document.getElementById('track-performance').checked,
+                log_retention_days: document.getElementById('log-retention-days').value,
+                account_id: accountSelect ? accountSelect.value : null
             };
 
             fetchJson('/api/strategies', {
@@ -276,6 +337,7 @@ window.pageScripts["demat-strategies"] = function() {
         });
     }
 
+    loadAccounts();
     loadStrategies();
 };
 </script>
