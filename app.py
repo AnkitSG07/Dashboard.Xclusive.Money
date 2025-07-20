@@ -2522,12 +2522,66 @@ def webhook(user_id):
                     "product": "MIS",
                     "price": None
                 }
-                
+            
+            elif broker_name == "fyers":
+                fy_symbol = mapping.get("symbol") or symbol
+                exch = mapping.get("exchange", "NSE")
+                order_params = {
+                    "tradingsymbol": fy_symbol.split(":")[-1],
+                    "exchange": exch,
+                    "transaction_type": action.upper(),
+                    "quantity": int(quantity),
+                    "order_type": "MARKET",
+                    "product": "INTRADAY",
+                    "price": None,
+                }
+            elif broker_name == "aliceblue":
+                sym_id = mapping.get("symbol_id")
+                if not sym_id:
+                    logger.error(f"Symbol not found in mapping: {symbol}")
+                    return jsonify({"error": f"Symbol '{symbol}' not found in symbol map"}), 400
+                tradingsymbol = mapping.get("trading_symbol", symbol)
+                exch = mapping.get("exch", "NSE")
+                order_params = {
+                    "tradingsymbol": tradingsymbol,
+                    "symbol_id": sym_id,
+                    "exchange": exch,
+                    "transaction_type": action.upper(),
+                    "quantity": int(quantity),
+                    "order_type": map_order_type("MARKET", broker_name),
+                    "product": "MIS",
+                    "price": 0,
+                }
+
+            elif broker_name == "finvasia":
+                tradingsymbol = mapping.get("symbol") or mapping.get("trading_symbol") or symbol
+                exch = mapping.get("exchange", "NSE")
+                order_params = {
+                    "tradingsymbol": tradingsymbol,
+                    "exchange": exch,
+                    "transaction_type": action.upper(),
+                    "quantity": int(quantity),
+                    "order_type": map_order_type("MARKET", broker_name),
+                    "product": "MIS",
+                    "price": 0,
+                }
+
             else:
-                logger.error(f"Unsupported broker: {broker_name}")
-                return jsonify({
-                    "error": f"Broker '{broker_name}' not supported"
-                }), 400
+                tradingsymbol = (
+                    mapping.get("trading_symbol")
+                    or mapping.get("symbol")
+                    or symbol
+                )
+                exch = mapping.get("exchange", "NSE")
+                order_params = {
+                    "tradingsymbol": tradingsymbol,
+                    "exchange": exch,
+                    "transaction_type": action.upper(),
+                    "quantity": int(quantity),
+                    "order_type": "MARKET",
+                    "product": "MIS",
+                    "price": None,
+                }
                 
         except Exception as e:
             logger.error(f"Error building order parameters: {str(e)}")
