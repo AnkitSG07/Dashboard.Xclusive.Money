@@ -1,0 +1,232 @@
+The fundamental design principle behind TradersPost.io's Strategies and Subscriptions is the **separation of concerns**:
+
+* **Strategy:** Defines *what* to trade (the signal, the asset class, the allowable universe of tickers). It's the "brain" of the signal.
+* **Subscription:** Defines *how* and *where* to trade (the specific broker account, position sizing, risk management, execution style). It's the "hands" that execute the trade.
+
+This separation provides immense flexibility and power for traders.
+
+---
+
+### I. Strategies: The Signal Source and Universal Blueprint
+
+A "Strategy" in TradersPost.io is essentially a **blueprint or definition of a trading approach** that generates signals. It's the recipient of your external trading alerts.
+
+**Detailed Working of a Strategy:**
+
+1.  **Creation:**
+    * A user navigates to the "Strategies" section in the TradersPost dashboard and clicks "New Strategy."
+    * They provide a `Name` (e.g., "My RSI Breakout Strategy," "Options Swing Trader").
+    * They select an `Asset Class` (Stocks, Options, Futures, Crypto). This is a crucial filter; a stock strategy won't process a crypto signal, for example.
+    * They choose a `Trading Style` (Systematic or Discretionary). This might influence how certain order types or features are handled.
+    * **Crucially, TradersPost generates a unique `Webhook URL` for this strategy.** This URL includes a unique identifier and possibly an API key/password for security. This is the endpoint where all external trade signals for this strategy will be sent.
+    * **Security Controls & Allowed Tickers:** Users can define specific security rules or a list of `Allowed Tickers`. If an incoming signal is for a ticker not on the allowed list, it will be rejected. This prevents accidental trades on unintended symbols.
+    * **Subscription Defaults:** This is a set of default execution parameters that *any new Subscription created under this Strategy will inherit*. This includes:
+        * Default position sizing method (e.g., fixed quantity, percentage of equity, based on signal quantity).
+        * Default order type (Market, Limit, Stop Market, Stop Limit).
+        * Default Take Profit/Stop Loss settings (e.g., percentage, fixed amount).
+        * Auto-submit preference (whether trades should automatically go to the broker or be held for manual approval).
+
+2.  **Receiving Signals (The Webhook Listener):**
+    * When your external platform (TradingView, TrendSpider, custom Python script, etc.) generates a trade signal (e.g., "Buy TSLA 100 shares"), it constructs a JSON payload with this information.
+    * This JSON payload is then sent as an HTTP POST request to the Strategy's unique `Webhook URL`.
+    * **Backend Process:**
+        * TradersPost's **API Gateway/Webhook Listener** (a highly available, robust service) receives the incoming HTTP POST request.
+        * It immediately performs **validation**:
+            * Is the URL valid?
+            * Does the request contain the necessary authentication (if part of the URL)?
+            * Is the JSON payload well-formed and does it contain required fields (e.g., `ticker`, `action`)?
+            * Does the `ticker` match the `Allowed Tickers` for this strategy?
+            * Does the signal's implied asset class match the strategy's defined `Asset Class`?
+        * If validated, the incoming signal's data (the raw JSON payload) is placed into a **message queue** (e.g., Kafka, SQS). This ensures durability and asynchronous processing.
+
+3.  **Signal Storage and Auditing:**
+    * All incoming signals, whether successfully processed or rejected, are logged and stored in TradersPost's database.
+    * Users can view a "Signals" log for each strategy, showing:
+        * Timestamp of receipt.
+        * Raw JSON payload.
+        * Status (received, processed, rejected).
+        * Which subscriptions processed it and their individual outcomes. This is crucial for troubleshooting.
+
+**Key Characteristics of a Strategy:**
+
+* **Single Source of Truth for Signals:** One webhook URL for one logical trading approach.
+* **Asset Class and Ticker Filtering:** Ensures signals are relevant to the strategy's intended scope.
+* **Default Settings Provider:** Sets up initial parameters for connected broker accounts.
+* **No Direct Broker Connection:** A Strategy *never* directly talks to a broker. Its job is solely to receive, filter, and prepare signals for distribution.
+
+---
+
+### II. Subscriptions: The Broker Connection and Execution Parameters
+
+A "Subscription" (or "Strategy Subscription") is the **explicit link between a specific Strategy and one of your connected Broker Accounts**, along with all the rules for how signals from that strategy should be executed on that particular broker.
+
+**Detailed Working of a Subscription:**
+
+1.  **Creation:**
+    * A user first ensures they have connected their desired `Broker Account` to TradersPost. This involves providing API keys/credentials, which are securely encrypted and stored by TradersPost.
+    * The user then navigates to the "Subscriptions" section and clicks "New Subscription."
+    * They select an existing `Strategy` from a dropdown.
+    * They select one of their connected `Broker Accounts` from another dropdown.
+    * Upon selection, the new subscription *inherits all the `Subscription Defaults` from the chosen Strategy*. This provides a convenient starting point.
+    * **Customization/Overrides:** This is the most critical part. The user can *override* any of the inherited default settings for this specific subscription. This allows for fine-tuning based on the nuances of that particular broker account:
+        * **Position Sizing:**
+            * `Use Signal Quantity`: Uses the quantity specified in the incoming webhook JSON.
+            * `Fixed Quantity`: Always trades a specific number of shares/contracts/units, regardless of the signal.
+            * `Percentage of Equity`: Calculates quantity based on a percentage of the broker account's current equity.
+            * `Risk-Based Sizing`: (Potentially, if offered) Calculates quantity based on a defined risk per trade.
+        * **Order Types:** Override the default order type (e.g., always send Market orders to this broker, or try a Limit order with a specific offset).
+        * **Take Profit (TP) / Stop Loss (SL):** Define specific TP/SL percentages or amounts *for this account*.
+        * **Auto-Submit:** Enable or disable automatic trade submission to the broker. If disabled, trades appear in the TradersPost dashboard for manual review/approval/rejection.
+        * **Max Daily Loss/Profit:** (Potentially) Account-level risk limits.
+        * **Trade Multiple Tickers?**: This setting impacts how positions are managed if multiple signals for different tickers come in from the same strategy.
+        * **Asset Class:** Although inherited from the strategy, this is also confirmed at the subscription level to ensure compatibility with the selected broker.
+    * **Enabling:** A subscription must be explicitly "Enabled" by the user to become active.
+
+2.  **Connecting to a Strategy Signal (The Processing Engine):**
+    * When a new signal arrives for a Strategy (and is placed in the message queue, as described above), backend services pick it up.
+    * **Lookup:** These services identify all currently *active* Subscriptions linked to that specific Strategy.
+    * **Individual Processing:** For *each* active subscription, the system performs the following:
+        * **Apply Overrides:** The raw signal data from the webhook is combined with the specific, overridden settings defined in *this particular subscription*.
+        * **Order Construction:** A precise, broker-agnostic "order instruction" is constructed. This includes:
+            * Ticker, action (buy/sell/exit).
+            * Calculated quantity (based on subscription sizing rules).
+            * Order type (Market, Limit, etc.).
+            * Any attached TP/SL orders or trailing stops.
+            * Account ID of the target broker.
+        * **Pre-Execution Validation:** Further checks are performed:
+            * Does the broker account have sufficient buying power (though TradersPost emphasizes they don't track margin, the broker's API will reject if insufficient funds).
+            * Are there any conflicting open positions for the same ticker on this account if the strategy/subscription isn't configured for multiple concurrent positions?
+            * Does the order adhere to any account-specific risk limits set in the subscription?
+            * Is the market open for this ticker and broker?
+        * **Conditional Execution (Auto-Submit vs. Manual):**
+            * **If `Auto-Submit` is ON:** The order instruction is immediately passed to the relevant **Broker Adapter** for direct execution.
+            * **If `Auto-Submit` is OFF:** The order instruction is held in a "pending trades" queue within TradersPost. The user is typically notified (e.g., email) and can then manually review, approve, or reject the trade from their dashboard.
+
+3.  **Broker Communication (The Broker Adapters):**
+    * TradersPost maintains a library of highly specialized "Broker Adapters" for each supported broker (Alpaca, TradeStation, Interactive Brokers, Coinbase, etc.).
+    * When an order instruction is ready for execution, the correct Broker Adapter is invoked.
+    * This adapter's sole purpose is to:
+        * Authenticate with the specific user's broker account using the securely stored credentials.
+        * Translate the standardized order instruction into the exact API calls and data formats required by that broker's unique API.
+        * Send the order to the broker.
+        * Handle **broker responses**:
+            * Confirmation of order placement.
+            * Order ID from the broker.
+            * Fill confirmations (partial or full fills).
+            * Error messages (e.g., "Insufficient funds," "Invalid symbol," "Market closed," "Rate limit exceeded").
+        * Log all interactions and responses for auditing and troubleshooting.
+
+**Key Characteristics of a Subscription:**
+
+* **Broker-Specific Execution:** Tailors how a strategy's signals are executed on a particular broker.
+* **Granular Control:** Allows for precise position sizing, risk management, and order type control per account.
+* **Multiple Account Support:** A single strategy can feed signals to many different broker accounts, each with unique subscription settings.
+* **Live vs. Paper Trading:** Allows users to test strategies with paper accounts before deploying to live funds, using the *exact same strategy webhook*.
+
+---
+
+### How Strategies and Subscriptions are Connected (The Data Flow):
+
+1.  **User defines a Strategy:** Sets up the webhook URL, asset class, allowed tickers, and default subscription settings. This is the blueprint for incoming signals.
+2.  **User connects a Broker Account:** Provides credentials for TradersPost to securely interact with their broker.
+3.  **User creates a Subscription:**
+    * Selects a specific Strategy.
+    * Selects a specific Broker Account.
+    * *Inherits* default settings from the chosen Strategy.
+    * *Overrides* any inherited settings to customize execution for *this particular broker account*.
+    * **Crucially, the Subscription stores a reference to both the Strategy ID and the Broker Account ID.** This is the database link.
+4.  **Signal Generation:** An external platform sends a JSON signal to the Strategy's unique webhook URL.
+5.  **Signal Reception and Queueing:** TradersPost's webhook listener receives, validates, and queues the signal.
+6.  **Backend Processing:**
+    * A processing service pulls the signal from the queue.
+    * It queries the database: "Find all **active Subscriptions** where `strategy_id` matches the ID of the Strategy that received this signal."
+7.  **Individual Order Generation & Execution:**
+    * For *each* found Subscription:
+        * The original signal's data is merged with the specific `overridden settings` of *that Subscription*.
+        * A complete, executable order is formulated.
+        * The order is routed through the appropriate Broker Adapter to the connected broker account specified in *that Subscription*.
+8.  **Logging and Feedback:** Execution status, fills, and errors are logged and displayed in the user's dashboard, providing transparency at both the Strategy (signal receipt) and Subscription (execution outcome per broker) levels.
+
+This intricate dance between Strategies and Subscriptions is what enables TradersPost.io to be a powerful and flexible platform for automated trading, allowing traders to separate their signal generation from their execution logic and manage multiple accounts with different risk profiles from a single control panel.
+
+FRONTEND:
+
+Based on information from their website, reviews, and general industry practices for trading automation platforms, the front-end of TradersPost.io is designed to be **intuitive, clean, and functional**, prioritizing ease of use for traders who may not have extensive coding backgrounds.
+
+Here's a breakdown of how the front-end likely looks and functions, organized by typical sections:
+
+**1. Dashboard/Home Screen:**
+
+* **Overview:** Upon logging in, users likely land on a dashboard providing a quick summary of their trading activity.
+* **Key Metrics:** This might include:
+    * Total number of active strategies and subscriptions.
+    * Overall account balance (aggregated across connected brokers, if possible).
+    * Summary of recent trades (successful, pending, failed).
+    * Perhaps a simple chart showing overall performance or equity curve (though they emphasize they don't hold positions, they would track execution results).
+* **Quick Links/Navigation:** Prominent buttons or cards to quickly jump to key sections like:
+    * "Connect Broker"
+    * "Create New Strategy"
+    * "View Subscriptions"
+    * "View Signals/Logs"
+* **Announcements/Notifications:** A section for system updates, new features, or important alerts.
+
+**2. Navigation Bar (Left Sidebar or Top Horizontal Bar):**
+
+* **Clean and Logical:** A clear menu structure to access different areas of the platform. Common sections would include:
+    * **Dashboard:** (As described above)
+    * **Brokers:**
+        * List of connected brokers (e.g., "Alpaca - Live," "TradeStation - Paper").
+        * Option to "Add New Broker."
+        * For each broker, details like connection status, account type (live/paper), and potentially some high-level account stats pulled from the broker API.
+    * **Strategies:**
+        * A list of all created strategies.
+        * "Create New Strategy" button.
+        * Search/filter functionality if many strategies exist.
+    * **Subscriptions:**
+        * A list of all active and inactive subscriptions.
+        * "Create New Subscription" button.
+        * Search/filter functionality.
+    * **Signals/Logs:**
+        * A chronological log of all incoming webhook signals.
+        * Details for each signal: timestamp, source, raw JSON payload, and status (e.g., "Received," "Processed," "Rejected").
+        * Ability to drill down into a signal to see which subscriptions it triggered and their individual outcomes (executed, failed, pending).
+    * **Trades/Orders:**
+        * A history of all trades attempted through TradersPost.
+        * Details for each trade: symbol, action, quantity, price, order type, status (e.g., "Submitted," "Filled," "Cancelled," "Rejected by Broker").
+        * Often includes the broker-specific order ID and any error messages.
+        * **Pending Trades:** A dedicated section for trades that require manual approval (if "Auto-Submit" is off for a subscription).
+    * **Settings/Profile:**
+        * User profile management.
+        * API keys (for advanced users if TradersPost offers outbound APIs for their platform).
+        * Notification preferences (email, SMS).
+        * Subscription plan details.
+    * **Support/Documentation:** Links to help articles, FAQs, and contact support.
+
+**3. Specific Section Views (e.g., "Create Strategy" or "Edit Subscription"):**
+
+* **Forms with Clear Inputs:**
+    * When creating a Strategy or Subscription, users interact with forms.
+    * **Input Fields:** Text fields for names, dropdowns for asset classes, broker selection.
+    * **Toggle Switches:** For `Auto-Submit`, `Use Signal Quantity`.
+    * **Sliders/Numeric Inputs:** For position sizing (e.g., "Fixed Quantity: [____]" or "Percentage of Equity: [__]%").
+    * **Conditional Logic:** Fields might appear or disappear based on previous selections (e.g., if "Limit Order" is selected, a "Limit Price" field appears).
+    * **Help Text/Tooltips:** Small "i" icons or inline text to explain what each field means and its impact. This is crucial for user understanding.
+    * **Webhook URL Display:** For Strategies, the unique webhook URL would be prominently displayed and easily copyable.
+* **"View/Edit" Pages:** When viewing an existing Strategy or Subscription, all its configured settings would be displayed. Users could click an "Edit" button to modify them.
+* **Save/Cancel Buttons:** Standard UI elements. TradersPost mentions a "sticky bottom save bar" for long forms, which is a good usability feature.
+
+**4. Data Presentation:**
+
+* **Tables/Grids:** Most data (Brokers, Strategies, Subscriptions, Signals, Trades) will be presented in sortable and filterable tables.
+* **Color-Coding:** Status indicators (green for active/successful, red for inactive/failed, orange for pending) are commonly used to quickly convey information.
+* **Search and Filter:** Essential for users with many strategies or high trade volume.
+* **Collapsible Sections:** To manage complex forms or display detailed information cleanly.
+
+**5. Design Aesthetic:**
+
+* **Modern and Clean:** Expect a minimalist, professional design with a focus on readability and clear calls to action.
+* **Responsive:** The interface would be designed to work well on various devices (desktop, tablet, mobile) since traders often monitor on the go.
+* **User-Friendly Language:** Avoid overly technical jargon where possible, or provide clear explanations when it's necessary.
+* **Branding:** Consistent use of TradersPost.io's logo, colors, and typography.
+
+**In essence, the TradersPost.io front-end aims to simplify the complex backend automation into an accessible web application. It acts as the user's control panel, allowing them to configure, monitor, and manage their automated trading without needing to dive into code unless they choose to write custom signal logic for their webhooks.**
