@@ -203,15 +203,15 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Key", name: "api_key", type: "text" },
       { label: "API Secret", name: "api_secret", type: "password" },
       { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     acagarwal: [
       { label: "AC Agarwal Client ID", name: "client_id", type: "text" },
       { label: "API Key", name: "api_key", type: "text" },
       { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     motilaloswal: [
       { label: "Motilal Oswal Client ID", name: "client_id", type: "text" },
@@ -219,8 +219,8 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Key", name: "api_key", type: "text" },
       { label: "PAN", name: "pan", type: "text" },
       { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     kotakneo: [
       { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
@@ -229,8 +229,8 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Secret", name: "api_secret", type: "password" },
       { label: "MPIN", name: "mpin", type: "password" },
       { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     tradejini: [
       { label: "Tradejini Client ID", name: "client_id", type: "text" },
@@ -239,8 +239,8 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Secret", name: "api_secret", type: "password" },
       { label: "MPIN", name: "mpin", type: "password" },
       { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     zebu: [
       { label: "Zebu Client ID", name: "client_id", type: "text" },
@@ -249,8 +249,8 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Secret", name: "api_secret", type: "password" },
       { label: "MPIN", name: "mpin", type: "password" },
       { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     enrichmoney: [
       { label: "Enrich Money Client ID", name: "client_id", type: "text" },
@@ -259,15 +259,15 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Secret", name: "api_secret", type: "password" },
       { label: "MPIN", name: "mpin", type: "password" },
       { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     dhan: [
       { label: "Dhan Client ID", name: "client_id", type: "text" },
       { label: "Access Token", name: "access_token", type: "password" },
       { label: "Client Name", name: "client_name", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     finvasia: [
       { label: "Client ID", name: "client_id", type: "text" },
@@ -276,26 +276,26 @@ window.pageScripts["Add-Account"] = function() {
       { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
       { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
       { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     fyers: [
       { label: "Fyers App ID", name: "client_id", type: "text" },
       { label: "Secret Key", name: "secret_key", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     groww: [
       { label: "Groww Client ID", name: "client_id", type: "text" },
       { label: "Access Token", name: "access_token", type: "password" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     aliceblue: [
       { label: "Alice Blue Client ID", name: "client_id", type: "text" },
       { label: "API Key", name: "api_key", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     zerodha: [
       { label: "Zerodha Client ID", name: "client_id", type: "text" },
@@ -303,8 +303,8 @@ window.pageScripts["Add-Account"] = function() {
       { label: "API Key", name: "api_key", type: "text" },
       { label: "API Secret", name: "api_secret", type: "text" },
       { label: "TOTP Key", name: "totp_secret", type: "text" },
-      { label: "Email Id (optional)", name: "email", type: "text" },
-      { label: "Mobile no (optional)", name: "mobile", type: "text" }
+      { label: "Email Id (optional)", name: "email", type: "text", optional: true },
+      { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     broker1: [
       { label: "Broker 1 Client ID", name: "client_id", type: "text", placeholder: "Broker 1 Client ID" },
