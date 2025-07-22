@@ -534,6 +534,129 @@ def map_order_type(order_type: str, broker: str) -> str:
         return "MKT"
     return str(order_type)
 
+def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str, qty: int, order_type: str, api) -> dict:
+    """Return broker specific order parameters."""
+    order_type_mapped = map_order_type(order_type, broker_name)
+    if broker_name == "dhan":
+        security_id = mapping.get("security_id")
+        if not security_id:
+            raise ValueError(f"Symbol not found in mapping: {symbol}")
+        return {
+            "tradingsymbol": symbol,
+            "security_id": security_id,
+            "exchange_segment": api.NSE,
+            "transaction_type": api.BUY if action.upper() == "BUY" else api.SELL,
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product_type": api.INTRA,
+            "price": 0,
+        }
+    elif broker_name == "zerodha":
+        tradingsymbol = mapping.get("tradingsymbol", symbol)
+        return {
+            "tradingsymbol": tradingsymbol,
+            "exchange": "NSE",
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product": "MIS",
+            "price": None,
+        }
+    elif broker_name == "fyers":
+        fy_symbol = mapping.get("symbol") or symbol
+        exch = mapping.get("exchange", "NSE")
+        return {
+            "tradingsymbol": fy_symbol.split(":")[-1],
+            "exchange": exch,
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product": "INTRADAY",
+            "price": None,
+        }
+    elif broker_name == "aliceblue":
+        sym_id = mapping.get("symbol_id")
+        if not sym_id:
+            raise ValueError(f"Symbol not found in mapping: {symbol}")
+        tradingsymbol = mapping.get("trading_symbol", symbol)
+        exch = mapping.get("exch", "NSE")
+        return {
+            "tradingsymbol": tradingsymbol,
+            "symbol_id": sym_id,
+            "exchange": exch,
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product": "MIS",
+            "price": 0,
+        }
+    elif broker_name == "finvasia":
+        tradingsymbol = mapping.get("symbol") or mapping.get("trading_symbol") or symbol
+        exch = mapping.get("exchange", "NSE")
+        return {
+            "tradingsymbol": tradingsymbol,
+            "exchange": exch,
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product": "MIS",
+            "price": 0,
+        }
+    else:
+        tradingsymbol = mapping.get("trading_symbol") or mapping.get("symbol") or symbol
+        exch = mapping.get("exchange", "NSE")
+        return {
+            "tradingsymbol": tradingsymbol,
+            "exchange": exch,
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type_mapped,
+            "product": "MIS",
+            "price": None,
+        }
+
+def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quantity: int):
+    """Execute orders for all approved subscriptions of a strategy."""
+    results = []
+    subs = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).all()
+    for sub in subs:
+        sub_user = sub.subscriber
+        account = None
+        if sub.account_id:
+            account = Account.query.filter_by(id=sub.account_id, user_id=sub_user.id).first()
+        if not account:
+            account = sub_user.accounts[0] if sub_user.accounts else None
+        if not account or not account.credentials:
+            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": "Account not configured"})
+            continue
+        broker_name = (account.broker or "dhan").lower()
+        try:
+            acc_dict = _account_to_dict(account)
+            api = broker_api(acc_dict)
+            mapping = get_symbol_for_broker(symbol, broker_name)
+            qty_use = sub.fixed_qty if sub.qty_mode == "fixed" and sub.fixed_qty else quantity
+            order_params = build_order_params(broker_name, mapping, symbol, action, qty_use, sub.order_type or "MARKET", api)
+        except Exception as e:
+            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
+            continue
+
+        if not sub.auto_submit:
+            results.append({"subscription_id": sub.id, "status": "PENDING", "reason": "Auto submit disabled"})
+            continue
+
+        try:
+            response = api.place_order(**order_params)
+            if isinstance(response, dict) and response.get("status") == "failure":
+                reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
+                record_trade(sub_user.id, symbol, action.upper(), qty_use, order_params.get('price'), "FAILED")
+                results.append({"subscription_id": sub.id, "status": "FAILED", "reason": reason})
+                continue
+            record_trade(sub_user.id, symbol, action.upper(), qty_use, order_params.get('price'), "SUCCESS")
+            results.append({"subscription_id": sub.id, "status": "SUCCESS", "order_id": response.get("order_id")})
+        except Exception as e:
+            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
+    return results
+
 def _resolve_data_path(path: str) -> str:
     """Return an absolute path inside ``DATA_DIR`` for relative paths."""
     if os.path.isabs(path) or os.path.dirname(path):
@@ -2456,6 +2579,11 @@ def webhook(user_id):
             
 
         # Determine account credentials
+        if strategy:
+            sub_count = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).count()
+            if sub_count:
+                results = execute_for_subscriptions(strategy, symbol, action, int(quantity))
+                return jsonify({"results": results}), 200
         account = None
         if strategy and strategy.account_id:
             account = Account.query.filter_by(
