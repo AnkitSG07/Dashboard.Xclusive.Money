@@ -9,12 +9,102 @@
             </div>
         </div>
     </div>
-    <div class="empty-state">
+    <div id="no-subs" class="empty-state">
         <div class="empty-state-icon">
             <i class="fas fa-credit-card"></i>
         </div>
         <h3>No Active Subscriptions</h3>
         <p>Manage your subscription plans here.</p>
     </div>
+    
+    <div id="subs-card" class="card shadow-lg border-0 rounded-3 my-4" style="display:none;">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Current Subscriptions</h5>
+            <table class="table" id="subs-table">
+                <thead>
+                    <tr><th>Strategy</th><th>Account</th><th>Auto</th><th>Order Type</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="sub-form" style="display:none;">
+        <h4 class="mb-3">New Subscription</h4>
+        <form>
+            <div class="mb-2">
+                <label class="form-label">Strategy</label>
+                <select id="sub-strategy" class="form-select"></select>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Account</label>
+                <select id="sub-account" class="form-select"></select>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="sub-auto-submit" checked>
+                <label class="form-check-label" for="sub-auto-submit">Auto Submit</label>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Quantity Mode</label>
+                <select id="qty-mode" class="form-select">
+                    <option value="signal">Use Signal Qty</option>
+                    <option value="fixed">Fixed Qty</option>
+                </select>
+                <input id="fixed-qty" type="number" class="form-control mt-2" placeholder="Quantity" style="display:none;" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Order Type</label>
+                <select id="sub-order-type" class="form-select">
+                    <option value="MARKET">MARKET</option>
+                    <option value="LIMIT">LIMIT</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts["demat-subscriptions"] = function(){
+    const tableBody = document.querySelector('#subs-table tbody');
+    const noSubs = document.getElementById('no-subs');
+    const card = document.getElementById('subs-card');
+    const formDiv = document.getElementById('sub-form');
+    const qtyMode = document.getElementById('qty-mode');
+    const fixedQty = document.getElementById('fixed-qty');
+    qtyMode.addEventListener('change',()=>{fixedQty.style.display = qtyMode.value==='fixed' ? 'block':'none';});
+
+    function fetchJson(url, opts={}){return fetch(url,opts).then(r=>{if(!r.ok) throw new Error('Request failed'); return r.json();});}
+
+    function load(){
+        fetchJson('/api/subscriptions').then(list=>{
+            tableBody.innerHTML='';
+            if(!list.length){noSubs.style.display='block';card.style.display='none';}else{noSubs.style.display='none';card.style.display='block';list.forEach(s=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${s.strategy_name}</td><td>${s.account_client_id||''}</td><td>${s.auto_submit?'Yes':'No'}</td><td>${s.order_type}</td>`;tableBody.appendChild(tr);});}
+        });
+        fetchJson('/api/strategies').then(strats=>{document.getElementById('sub-strategy').innerHTML=strats.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');});
+        fetchJson('/api/accounts?cache_only=1').then(d=>{const accs=d.accounts||[];document.getElementById('sub-account').innerHTML=accs.map(a=>`<option value="${a.id}">${a.client_id} (${a.broker})</option>`).join('');});
+    }
+
+    formDiv.querySelector('form').addEventListener('submit',e=>{
+        e.preventDefault();
+        const payload={
+            account_id: parseInt(document.getElementById('sub-account').value),
+            auto_submit: document.getElementById('sub-auto-submit').checked,
+            order_type: document.getElementById('sub-order-type').value,
+            qty_mode: document.getElementById('qty-mode').value,
+            fixed_qty: parseInt(fixedQty.value)||null
+        };
+        const strategyId=document.getElementById('sub-strategy').value;
+        fetchJson(`/api/strategies/${strategyId}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+            .then(()=>{formDiv.querySelector('form').reset();fixedQty.style.display='none';load();})
+            .catch(err=>alert(err.message));
+    });
+
+    formDiv.style.display='block';
+    load();
+};
+</script>
 {% endblock %}
