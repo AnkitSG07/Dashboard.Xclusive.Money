@@ -3,20 +3,410 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Summary - DhanBot{% endblock %}</title>
+  <title>{% block title %}DhanBot - Modern Trading Platform{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/styles1.css">
-  <link rel="stylesheet" href="/static/responsive.css">
+  <!-- Using Inter font for a modern SaaS look -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN for utility classes -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom CSS for a modern SaaS look */
+    :root {
+      --bs-primary: #4F46E5; /* Indigo 600 */
+      --bs-primary-rgb: 79, 70, 229;
+      --bs-secondary: #6B7280; /* Gray 500 */
+      --bs-secondary-rgb: 107, 114, 128;
+      --bs-success: #10B981; /* Green 500 */
+      --bs-success-rgb: 16, 185, 129;
+      --bs-info: #3B82F6; /* Blue 500 */
+      --bs-info-rgb: 59, 130, 246;
+      --bs-warning: #F59E0B; /* Yellow 500 */
+      --bs-warning-rgb: 245, 158, 11;
+      --bs-danger: #EF4444; /* Red 500 */
+      --bs-danger-rgb: 239, 68, 68;
+      --bs-light: #F9FAFB; /* Gray 50 */
+      --bs-dark: #1F2937; /* Gray 800 */
+      --bs-body-color: #374151; /* Gray 700 */
+      --bs-body-bg: #F3F4F6; /* Gray 100 */
+      --bs-border-color: #E5E7EB; /* Gray 200 */
+      --bs-heading-color: #111827; /* Gray 900 */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background-color: #ffffff; /* White background */
+      border-right: 1px solid var(--bs-border-color);
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      padding: 1.5rem 0;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease-in-out;
+      z-index: 1000; /* Ensure sidebar is above content */
+    }
+
+    .sidebar-logo {
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--bs-border-color);
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar .nav {
+      flex-grow: 1;
+      padding: 0 1rem;
+      overflow-y: auto; /* Enable scrolling for long navs */
+    }
+
+    .sidebar .nav-title {
+      font-size: 0.75rem; /* text-xs */
+      font-weight: 600; /* font-semibold */
+      color: #6B7280; /* Gray 500 */
+      text-transform: uppercase;
+      letter-spacing: 0.05em; /* tracking-wider */
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      padding-left: 0.75rem;
+    }
+
+    .sidebar .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: var(--bs-body-color);
+      font-weight: 500; /* Medium font weight */
+      border-radius: 0.5rem; /* rounded-lg */
+      margin-bottom: 0.25rem;
+      transition: all 0.2s ease-in-out;
+      text-decoration: none;
+    }
+
+    .sidebar .nav-link i {
+      font-size: 1.125rem; /* text-lg */
+      margin-right: 0.75rem;
+      color: #9CA3AF; /* Gray 400 */
+      transition: color 0.2s ease-in-out;
+    }
+
+    .sidebar .nav-link:hover {
+      background-color: var(--bs-light); /* Light gray background on hover */
+      color: var(--bs-primary);
+    }
+    .sidebar .nav-link:hover i {
+      color: var(--bs-primary);
+    }
+
+    .sidebar .nav-link.active {
+      background-color: var(--bs-primary); /* Primary color for active link */
+      color: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Shadow for active */
+    }
+    .sidebar .nav-link.active i {
+      color: #ffffff;
+    }
+
+    .sidebar .nav-collapse {
+      cursor: pointer;
+      justify-content: space-between;
+    }
+    .sidebar .nav-collapse .arrow {
+      transition: transform 0.2s ease-in-out;
+    }
+    .sidebar .nav-collapse.active .arrow {
+      transform: rotate(180deg);
+    }
+
+    .sidebar .submenu {
+      display: none;
+      flex-direction: column;
+      padding-left: 1.5rem;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .sidebar .submenu .nav-link {
+      padding: 0.5rem 1rem;
+      font-size: 0.9375rem; /* text-sm */
+    }
+
+    /* Logout Button */
+    .sidebar .logout {
+      background-color: var(--bs-danger);
+      color: #ffffff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+    }
+    .sidebar .logout:hover {
+      background-color: #DC2626; /* Red 600 */
+      transform: translateY(-1px);
+    }
+    .sidebar .logout:active {
+      transform: translateY(0);
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Navbar */
+    .navbar {
+      background-color: #ffffff;
+      border-bottom: 1px solid var(--bs-border-color);
+      padding: 1rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      z-index: 999; /* Below sidebar */
+    }
+
+    .navbar-icons {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem; /* Space between icons */
+    }
+
+    .navbar-icons i {
+      font-size: 1.25rem; /* text-xl */
+      color: #6B7280; /* Gray 500 */
+      cursor: pointer;
+      transition: color 0.2s ease-in-out;
+    }
+    .navbar-icons i:hover {
+      color: var(--bs-primary);
+    }
+
+    .navbar-icons .profile-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--bs-primary);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+
+    /* Hamburger Icon */
+    .toggle-sidebar {
+      background: none;
+      border: none;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .hamburger-icon {
+      display: block;
+      width: 24px;
+      height: 18px;
+      position: relative;
+    }
+    .hamburger-icon span {
+      display: block;
+      position: absolute;
+      height: 2px;
+      width: 100%;
+      background: var(--bs-dark);
+      border-radius: 9999px;
+      opacity: 1;
+      left: 0;
+      transform: rotate(0deg);
+      transition: .25s ease-in-out;
+    }
+    .hamburger-icon span:nth-child(1) {
+      top: 0px;
+    }
+    .hamburger-icon span:nth-child(2) {
+      top: 8px;
+    }
+    .hamburger-icon span:nth-child(3) {
+      top: 16px;
+    }
+    .sidebar.show + .sidebar-overlay + .main-content .toggle-sidebar .hamburger-icon span:nth-child(1) {
+      top: 8px;
+      transform: rotate(135deg);
+    }
+    .sidebar.show + .sidebar-overlay + .main-content .toggle-sidebar .hamburger-icon span:nth-child(2) {
+      opacity: 0;
+      left: -60px;
+    }
+    .sidebar.show + .sidebar-overlay + .main-content .toggle-sidebar .hamburger-icon span:nth-child(3) {
+      top: 8px;
+      transform: rotate(-135deg);
+    }
+
+    /* Sidebar Overlay for Mobile */
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 990;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .sidebar-overlay.show {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 767.98px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.show {
+        transform: translateX(0%);
+      }
+      .main-content {
+        width: 100%; /* Take full width on mobile */
+      }
+      body.sidebar-open {
+        overflow: hidden; /* Prevent scrolling when sidebar is open */
+      }
+    }
+
+    /* General Card/Section Styling */
+    .section-box {
+      background-color: #ffffff;
+      border-radius: 0.75rem; /* rounded-xl */
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-md */
+    }
+
+    /* Utility classes for consistency */
+    .btn-primary {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-primary:hover {
+      background-color: #4338CA; /* Indigo 700 */
+      border-color: #4338CA;
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      background-color: #3730A3; /* Indigo 800 */
+      border-color: #3730A3;
+      transform: translateY(0);
+    }
+
+    .btn-outline-primary {
+      color: var(--bs-primary);
+      border-color: var(--bs-primary);
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-outline-primary:hover {
+      background-color: var(--bs-primary);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .btn-outline-primary:active {
+      transform: translateY(0);
+    }
+
+    .text-primary { color: var(--bs-primary) !important; }
+    .text-secondary { color: var(--bs-secondary) !important; }
+    .text-success { color: var(--bs-success) !important; }
+    .text-info { color: var(--bs-info) !important; }
+    .text-warning { color: var(--bs-warning) !important; }
+    .text-danger { color: var(--bs-danger) !important; }
+
+    .bg-primary { background-color: var(--bs-primary) !important; }
+    .bg-secondary { background-color: var(--bs-secondary) !important; }
+    .bg-success { background-color: var(--bs-success) !important; }
+    .bg-info { background-color: var(--bs-info) !important; }
+    .bg-warning { background-color: var(--bs-warning) !important; }
+    .bg-danger { background-color: var(--bs-danger) !important; }
+    .bg-light { background-color: var(--bs-light) !important; }
+    .bg-white { background-color: #ffffff !important; }
+
+    /* Custom Modal Styling for consistent alerts */
+    .custom-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050; /* Above Bootstrap modals */
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+    .custom-modal-backdrop.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    .custom-modal-content {
+        background-color: #ffffff;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        width: 90%;
+        max-width: 450px;
+        transform: translateY(-20px);
+        transition: transform 0.3s ease-in-out;
+    }
+    .custom-modal-backdrop.show .custom-modal-content {
+        transform: translateY(0);
+    }
+    .custom-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .custom-modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--bs-heading-color);
+    }
+    .custom-modal-close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #9CA3AF;
+        cursor: pointer;
+    }
+    .custom-modal-body {
+        margin-bottom: 1.5rem;
+        color: var(--bs-body-color);
+    }
+    .custom-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+  </style>
 </head>
 <body>
   <div class="d-flex">
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
-      <div class="sidebar-logo text-center py-3">
-        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo" style="max-width: 140px; height: auto;">
+      <div class="sidebar-logo text-center">
+        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo" class="max-w-[140px] h-auto">
       </div>
       <div class="nav">
         <p class="nav-title">Dashboard</p>
@@ -59,7 +449,6 @@
       </div>
     </div>
 
-    
     <!-- Overlay for sidebar when open on mobile -->
     <div class="sidebar-overlay d-md-none" id="sidebar-overlay"></div>
 
@@ -81,15 +470,16 @@
             {% if logged_in_user and logged_in_user.profile_image %}
             {% if logged_in_user.profile_image.startswith('data:') %}
             <img src="{{ logged_in_user.profile_image }}" alt="User" class="profile-img">
-            {% else %}  
+            {% else %}
             <img src="{{ url_for('profile_image_file', filename=logged_in_user.profile_image.split('/')[-1]) }}" alt="User" class="profile-img">
             {% endif %}
             {% else %}
             <img src="{{ url_for('static', filename='user.png') }}" alt="User" class="profile-img">
-            {% endif %}</a>
+            {% endif %}
+          </a>
         </div>
       </nav>
-      
+
       <!-- Content -->
       <div class="container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
         {% block content %}{% endblock %}
@@ -97,8 +487,75 @@
     </div>
   </div>
 
+  <div id="custom-alert-modal" class="custom-modal-backdrop">
+      <div class="custom-modal-content">
+          <div class="custom-modal-header">
+              <h5 class="custom-modal-title" id="custom-alert-title">Alert</h5>
+              <button type="button" class="custom-modal-close-btn" onclick="hideCustomAlert()">&times;</button>
+          </div>
+          <div class="custom-modal-body" id="custom-alert-message"></div>
+          <div class="custom-modal-footer">
+              <button type="button" class="btn btn-primary" onclick="hideCustomAlert()">OK</button>
+          </div>
+      </div>
+  </div>
+
+  <div id="custom-confirm-modal" class="custom-modal-backdrop">
+      <div class="custom-modal-content">
+          <div class="custom-modal-header">
+              <h5 class="custom-modal-title" id="custom-confirm-title">Confirm Action</h5>
+              <button type="button" class="custom-modal-close-btn" onclick="cancelCustomConfirm()">&times;</button>
+          </div>
+          <div class="custom-modal-body" id="custom-confirm-message"></div>
+          <div class="custom-modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="cancelCustomConfirm()">Cancel</button>
+              <button type="button" class="btn btn-primary" id="custom-confirm-ok-btn">Confirm</button>
+          </div>
+      </div>
+  </div>
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script id="spa-script">
+  <script id="spa-script">
+    // Custom Alert/Confirm Modals
+    let _confirmCallback = null;
+
+    function showCustomAlert(message, title = 'Alert') {
+        document.getElementById('custom-alert-title').textContent = title;
+        document.getElementById('custom-alert-message').textContent = message;
+        document.getElementById('custom-alert-modal').classList.add('show');
+    }
+
+    function hideCustomAlert() {
+        document.getElementById('custom-alert-modal').classList.remove('show');
+    }
+
+    function showCustomConfirm(message, callback, title = 'Confirm Action') {
+        document.getElementById('custom-confirm-title').textContent = title;
+        document.getElementById('custom-confirm-message').textContent = message;
+        _confirmCallback = callback;
+        document.getElementById('custom-confirm-modal').classList.add('show');
+    }
+
+    function confirmCustomConfirm() {
+        if (_confirmCallback) {
+            _confirmCallback(true);
+        }
+        document.getElementById('custom-confirm-modal').classList.remove('show');
+        _confirmCallback = null;
+    }
+
+    function cancelCustomConfirm() {
+        if (_confirmCallback) {
+            _confirmCallback(false);
+        }
+        document.getElementById('custom-confirm-modal').classList.remove('show');
+        _confirmCallback = null;
+    }
+
+    document.getElementById('custom-confirm-ok-btn').addEventListener('click', confirmCustomConfirm);
+
+
     // Logout function, global
     function logout() {
       localStorage.clear();
@@ -158,7 +615,7 @@
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
           if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
-          if (this.getAttribute('target') === '_blank') return; // open in new tab  
+          if (this.getAttribute('target') === '_blank') return; // open in new tab
           e.preventDefault();
           fetch(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
