@@ -144,9 +144,10 @@
             <!-- Account Cards Grid -->
             <div id="accounts-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
                 <!-- Account cards will be rendered here by JavaScript -->
-                <div class="col text-center text-muted py-4" id="no-accounts-message" style="display: none;">
-                    No accounts found matching your filters.
-                </div>
+            </div>
+            <!-- Moved no-accounts-message outside the grid so it's not cleared -->
+            <div class="text-center text-muted py-4" id="no-accounts-message" style="display: none;">
+                No accounts found matching your filters.
             </div>
         </div>
     </div>
@@ -184,7 +185,7 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "PAN", name: "pan", type: "text" },
             { label: "TOTP Key", name: "totp_secret", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         kotakneo: [
             { label: "10 Digit Mobile Number/PAN", name: "client_id", type: "text" },
@@ -204,7 +205,7 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "MPIN", name: "mpin", type: "password" },
             { label: "Client Name", name: "client_name", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         zebu: [
             { label: "Zebu Client ID", name: "client_id", type: "text" },
@@ -214,7 +215,7 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "MPIN", name: "mpin", type: "password" },
             { label: "Client Name", name: "client_name", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         enrichmoney: [
             { label: "Enrich Money Client ID", name: "client_id", type: "text" },
@@ -224,42 +225,42 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "MPIN", name: "mpin", type: "password" },
             { label: "Client Name", name: "client_name", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         dhan: [
             { label: "Dhan Client ID", name: "client_id", type: "text" },
             { label: "Access Token", name: "access_token", type: "password" },
             { label: "Client Name", name: "client_name", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         finvasia: [
             { label: "Client ID", name: "client_id", type: "text" },
             { label: "Password", name: "password", type: "password" },
             { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya → Profile → Security → TOTP. Do not enter the 6-digit code." },
-            { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office → Profile → API Key." },
+            { label: "Vendor Code", name: "vendor_code", "type": "text", tip: "From Prism back office → Profile → API Key." },
             { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
             { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         fyers: [
             { label: "Fyers App ID", name: "client_id", type: "text" },
             { label: "Secret Key", name: "secret_key", type: "password" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         groww: [
             { label: "Groww Client ID", name: "client_id", type: "text" },
             { label: "Access Token", name: "access_token", type: "password" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         aliceblue: [
             { label: "Alice Blue Client ID", name: "client_id", type: "text" },
             { label: "API Key", name: "api_key", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         zerodha: [
             { label: "Zerodha Client ID", name: "client_id", type: "text" },
@@ -268,7 +269,7 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "API Secret", name: "api_secret", type: "text" },
             { label: "TOTP Key", name: "totp_secret", type: "text" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
+            { label: "Mobile no (optional)", type: "text", optional: true }
         ],
         broker1: [
             { label: "Broker 1 Client ID", name: "client_id", type: "text", placeholder: "Broker 1 Client ID" },
@@ -277,7 +278,7 @@ window.pageScripts["demat-dashboard"] = function() {
             { label: "Secret Key", name: "secret_key", type: "password", placeholder: "Secret Key" },
             { label: "TOTP Key", name: "totp_secret", type: "text", placeholder: "TOTP Key" },
             { label: "Email Id (optional)", name: "email", type: "text", optional: true, placeholder: "Email Id (optional)" },
-            { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true, placeholder: "Mobile no (optional)" }
+            { label: "Mobile no (optional)", type: "text", optional: true, placeholder: "Mobile no (optional)" }
         ]
     };
 
@@ -388,10 +389,14 @@ window.pageScripts["demat-dashboard"] = function() {
         grid.innerHTML = ''; // Clear existing cards
 
         if (accounts.length === 0) {
-            noAccountsMessage.style.display = 'block';
+            if (noAccountsMessage) { // Check if element exists before accessing style
+                noAccountsMessage.style.display = 'block';
+            }
             return;
         } else {
-            noAccountsMessage.style.display = 'none';
+            if (noAccountsMessage) { // Check if element exists before accessing style
+                noAccountsMessage.style.display = 'none';
+            }
         }
 
         accounts.forEach(acc => {
@@ -468,56 +473,54 @@ window.pageScripts["demat-dashboard"] = function() {
         return '<span class="badge bg-success">Connected</span>';
     }
 
-    function updateStatusCell(cid) {
-        const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
-        const statusSpan = document.getElementById(`status-${sanitized}`);
-        if (!statusSpan) return;
-        const acc = allAccounts.find(a => a.client_id === cid);
-        if (!acc) return;
-        statusSpan.innerHTML = renderStatusBadge(acc);
-    }
-
-    function attemptAutoLogin() {
-        allAccounts.forEach(acc => {
-            autoLoginResults[acc.client_id] = {status: 'checking'};
-            updateStatusCell(acc.client_id);
-            fetchJson('/api/reconnect-account', {
+    // This function will now ONLY update the status in the `autoLoginResults` and `allAccounts` array
+    // It will NOT call applyFilters() or updateCounts()
+    async function attemptAutoLoginForAccount(acc) {
+        autoLoginResults[acc.client_id] = {status: 'checking'};
+        try {
+            const resp = await fetchJson('/api/reconnect-account', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ client_id: acc.client_id })
-            })
-            .then(resp => {
-                if (resp.message) {
-                    autoLoginResults[acc.client_id] = {status: 'success'};
-                } else {
-                    autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
-                }
-                updateStatusCell(acc.client_id);
-                updateCounts();
-            })
-            .catch(err => {
-                autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
-                updateStatusCell(acc.client_id);
-                updateCounts();
             });
-        });
+            if (resp.message) {
+                autoLoginResults[acc.client_id] = {status: 'success'};
+                const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+                if (updatedAcc) updatedAcc.status = 'connected';
+            } else {
+                autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
+                const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+                if (updatedAcc) {
+                    updatedAcc.status = 'failed';
+                    updatedAcc.last_error = resp.error;
+                }
+            }
+        } catch (err) {
+            autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
+            const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+            if (updatedAcc) {
+                updatedAcc.status = 'failed';
+                updatedAcc.last_error = err.message;
+            }
+        }
     }
 
-    function refreshBalances() {
-        allAccounts.forEach(acc => {
-            fetchJson('/api/account-balance', {
+    // This function will now ONLY update the balance in the `allAccounts` array
+    // It will NOT call applyFilters()
+    async function refreshBalanceForAccount(acc) {
+        try {
+            const resp = await fetchJson('/api/account-balance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ client_id: acc.client_id })
-            })
-            .then(resp => {
-                if (typeof resp.balance === 'number') {
-                    acc.opening_balance = resp.balance;
-                    applyFilters(); // Re-render cards to show updated balance
-                }
-            })
-            .catch(err => console.error('Balance refresh failed', err));
-        });
+            });
+            if (typeof resp.balance === 'number') {
+                const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+                if (updatedAcc) updatedAcc.opening_balance = resp.balance;
+            }
+        } catch (err) {
+            console.error(`Balance refresh failed for ${acc.client_id}:`, err);
+        }
     }
 
     function accountHasError(acc) {
@@ -860,13 +863,20 @@ window.pageScripts["demat-dashboard"] = function() {
 
     // === Initial Load ===
     fetchJson('/api/accounts?cache_only=1')
-        .then(data => {
+        .then(async data => { // Mark as async to use await
             allAccounts = data.accounts || [];
+
+            // Prepare promises for auto-login and balance refresh for all accounts
+            const autoLoginPromises = allAccounts.map(acc => attemptAutoLoginForAccount(acc));
+            const balanceRefreshPromises = allAccounts.map(acc => refreshBalanceForAccount(acc));
+
+            // Execute all promises concurrently and wait for them to finish
+            await Promise.all([...autoLoginPromises, ...balanceRefreshPromises]);
+
+            // After all async operations complete, then update UI
             populateBrokerFilter();
             updateCounts();
-            applyFilters();
-            attemptAutoLogin();
-            refreshBalances();
+            applyFilters(); // This will now render the accounts with their final statuses and balances
         })
         .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
@@ -890,6 +900,23 @@ window.pageScripts["demat-dashboard"] = function() {
 .hero-section {
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--bs-border-color);
+}
+.hero-section .hero-image img {
+    max-width: 250px; /* Adjust as needed */
+    height: auto;
+    display: block; /* Remove extra space below image */
+    margin: 0 auto; /* Center the image */
+}
+
+/* Add some responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .hero-section {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-section .hero-image {
+        margin-top: 1.5rem;
+    }
 }
 
 /* Broker selection styling */
