@@ -9,58 +9,80 @@
             </div>
         </div>
     </div>
+    
+    <!-- Empty State for No Subscriptions -->
     <div id="no-subs" class="empty-state">
         <div class="empty-state-icon">
             <i class="fas fa-credit-card"></i>
         </div>
         <h3>No Active Subscriptions</h3>
         <p>Manage your subscription plans here.</p>
+        <button id="add-subscription-btn" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Add New Subscription
+        </button>
     </div>
     
-    <div id="subs-card" class="card shadow-lg border-0 rounded-3 my-4" style="display:none;">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Current Subscriptions</h5>
-            <table class="table" id="subs-table">
-                <thead>
-                    <tr><th>Strategy</th><th>Account</th><th>Auto</th><th>Order Type</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+    <!-- Subscriptions Section (Cards) -->
+    <div id="subs-section" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Current Subscriptions</h4>
+            <button id="add-subscription-btn-alt" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Add New Subscription
+            </button>
+        </div>
+
+        <div id="subscriptions-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+            <!-- Subscription cards will be rendered here by JavaScript -->
         </div>
     </div>
 
-    <div id="sub-form" style="display:none;">
-        <h4 class="mb-3">New Subscription</h4>
-        <form>
-            <div class="mb-2">
-                <label class="form-label">Strategy</label>
-                <select id="sub-strategy" class="form-select"></select>
-            </div>
-            <div class="mb-2">
-                <label class="form-label">Account</label>
-                <select id="sub-account" class="form-select"></select>
-            </div>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" id="sub-auto-submit" checked>
-                <label class="form-check-label" for="sub-auto-submit">Auto Submit</label>
-            </div>
-            <div class="mb-2">
-                <label class="form-label">Quantity Mode</label>
-                <select id="qty-mode" class="form-select">
-                    <option value="signal">Use Signal Qty</option>
-                    <option value="fixed">Fixed Qty</option>
-                </select>
-                <input id="fixed-qty" type="number" class="form-control mt-2" placeholder="Quantity" style="display:none;" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Order Type</label>
-                <select id="sub-order-type" class="form-select">
-                    <option value="MARKET">MARKET</option>
-                    <option value="LIMIT">LIMIT</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-success">Save</button>
-        </form>
+    <!-- Subscription Form -->
+    <div id="sub-form" class="card shadow-lg border-0 rounded-3 my-4" style="display:none;">
+        <div class="card-body p-4">
+            <h5 class="card-title mb-4 text-primary d-flex align-items-center">
+                <i class="bi bi-journal-plus me-2"></i> New Subscription
+            </h5>
+            <form id="subscription-form-details" class="row g-3">
+                <div class="col-md-6">
+                    <label for="sub-strategy" class="form-label">Strategy <span class="text-danger">*</span></label>
+                    <select id="sub-strategy" class="form-select" required></select>
+                </div>
+                <div class="col-md-6">
+                    <label for="sub-account" class="form-label">Account <span class="text-danger">*</span></label>
+                    <select id="sub-account" class="form-select" required></select>
+                </div>
+                <div class="col-md-6">
+                    <label for="qty-mode" class="form-label">Quantity Mode</label>
+                    <select id="qty-mode" class="form-select">
+                        <option value="signal">Use Signal Qty</option>
+                        <option value="fixed">Fixed Qty</option>
+                    </select>
+                </div>
+                <div class="col-md-6" id="fixed-qty-group" style="display:none;">
+                    <label for="fixed-qty" class="form-label">Fixed Quantity</label>
+                    <input id="fixed-qty" type="number" class="form-control" placeholder="Quantity" min="1" />
+                </div>
+                <div class="col-md-6">
+                    <label for="sub-order-type" class="form-label">Order Type</label>
+                    <select id="sub-order-type" class="form-select">
+                        <option value="MARKET">MARKET</option>
+                        <option value="LIMIT">LIMIT</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="sub-auto-submit" checked>
+                        <label class="form-check-label" for="sub-auto-submit">Auto Submit Orders</label>
+                        <div class="form-text text-muted">If checked, orders generated by this strategy will be automatically submitted to your connected account.</div>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="cancel-subscription-btn">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Subscription</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -69,24 +91,128 @@
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts["demat-subscriptions"] = function(){
-    const tableBody = document.querySelector('#subs-table tbody');
-    const noSubs = document.getElementById('no-subs');
-    const card = document.getElementById('subs-card');
+    const subscriptionsGrid = document.getElementById('subscriptions-grid');
+    const noSubsState = document.getElementById('no-subs');
+    const subsSection = document.getElementById('subs-section');
     const formDiv = document.getElementById('sub-form');
-    const qtyMode = document.getElementById('qty-mode');
-    const fixedQty = document.getElementById('fixed-qty');
-    qtyMode.addEventListener('change',()=>{fixedQty.style.display = qtyMode.value==='fixed' ? 'block':'none';});
+    const qtyModeSelect = document.getElementById('qty-mode');
+    const fixedQtyInput = document.getElementById('fixed-qty');
+    const fixedQtyGroup = document.getElementById('fixed-qty-group');
+    const addSubscriptionBtn = document.getElementById('add-subscription-btn');
+    const addSubscriptionBtnAlt = document.getElementById('add-subscription-btn-alt');
+    const cancelSubscriptionBtn = document.getElementById('cancel-subscription-btn');
 
-    function fetchJson(url, opts={}){return fetch(url,opts).then(r=>{if(!r.ok) throw new Error('Request failed'); return r.json();});}
+    qtyModeSelect.addEventListener('change', () => {
+        fixedQtyGroup.style.display = qtyModeSelect.value === 'fixed' ? 'block' : 'none';
+        if (qtyModeSelect.value !== 'fixed') {
+            fixedQtyInput.value = ''; // Clear fixed quantity if mode changes
+        }
+    });
 
-    function load(){
-        fetchJson('/api/subscriptions').then(list=>{
-            tableBody.innerHTML='';
-            if(!list.length){noSubs.style.display='block';card.style.display='none';}else{noSubs.style.display='none';card.style.display='block';list.forEach(s=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${s.strategy_name}</td><td>${s.account_client_id||''}</td><td>${s.auto_submit?'Yes':'No'}</td><td>${s.order_type}</td>`;tableBody.appendChild(tr);});}
+    function fetchJson(url, opts={}){
+        opts.credentials = opts.credentials || 'include';
+        return fetch(url,opts).then(r=>{
+            if(!r.ok) {
+                return r.json().then(err => { throw new Error(err.error || 'Request failed'); });
+            }
+            return r.json();
         });
-        fetchJson('/api/strategies').then(strats=>{document.getElementById('sub-strategy').innerHTML=strats.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');});
-        fetchJson('/api/accounts?cache_only=1').then(d=>{const accs=d.accounts||[];document.getElementById('sub-account').innerHTML=accs.map(a=>`<option value="${a.id}">${a.client_id} (${a.broker})</option>`).join('');});
     }
+
+    function showToast(message, type='success') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        alert(message); // Using alert for immediate demo purposes
+    }
+
+    function loadSubscriptions(){
+        fetchJson('/api/subscriptions').then(list=>{
+            subscriptionsGrid.innerHTML = ''; // Clear existing cards
+            if(!list.length){
+                noSubsState.style.display='block';
+                subsSection.style.display='none';
+            } else {
+                noSubsState.style.display='none';
+                subsSection.style.display='block';
+                list.forEach(s=>{
+                    const cardHtml = `
+                        <div class="col">
+                            <div class="card h-100 shadow-sm subscription-card">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title text-primary">${s.strategy_name}</h5>
+                                    <p class="card-text mb-1"><strong>Account:</strong> ${s.account_client_id || 'N/A'} (${s.account_broker || 'N/A'})</p>
+                                    <p class="card-text mb-1"><strong>Auto Submit:</strong> ${s.auto_submit ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-danger">No</span>'}</p>
+                                    <p class="card-text mb-1"><strong>Order Type:</strong> ${s.order_type}</p>
+                                    <p class="card-text mb-3"><strong>Quantity Mode:</strong> ${s.qty_mode === 'fixed' ? `Fixed (${s.fixed_qty || 0})` : 'Signal'}</p>
+                                    <div class="mt-auto d-flex justify-content-end">
+                                        <button class="btn btn-sm btn-danger delete-subscription-btn" data-subscription-id="${s.id}">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    subscriptionsGrid.insertAdjacentHTML('beforeend', cardHtml);
+                });
+
+                document.querySelectorAll('.delete-subscription-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const subId = this.dataset.subscriptionId;
+                        if (!confirm('Are you sure you want to delete this subscription?')) return;
+                        fetchJson(`/api/subscriptions/${subId}`, { method: 'DELETE' })
+                            .then(() => {
+                                showToast('Subscription deleted successfully!');
+                                loadSubscriptions();
+                            })
+                            .catch(err => showToast('Failed to delete subscription: ' + err.message, 'error'));
+                    });
+                });
+            }
+        });
+    }
+
+    function loadFormOptions() {
+        fetchJson('/api/strategies').then(strats=>{
+            document.getElementById('sub-strategy').innerHTML=strats.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+        }).catch(err => console.error('Failed to load strategies:', err));
+
+        fetchJson('/api/accounts?cache_only=1').then(d=>{
+            const accs=d.accounts||[];
+            document.getElementById('sub-account').innerHTML=accs.map(a=>`<option value="${a.id}">${a.client_id} (${a.broker})</option>`).join('');
+        }).catch(err => console.error('Failed to load accounts:', err));
+    }
+
+    // Event listeners for Add Subscription buttons
+    if (addSubscriptionBtn) {
+        addSubscriptionBtn.addEventListener('click', () => {
+            noSubsState.style.display = 'none';
+            subsSection.style.display = 'none'; // Hide current subscriptions
+            formDiv.style.display = 'block';
+            document.getElementById('subscription-form-details').reset(); // Clear form
+            fixedQtyGroup.style.display = 'none'; // Hide fixed qty field initially
+            loadFormOptions(); // Load options for strategy and account dropdowns
+        });
+    }
+
+    if (addSubscriptionBtnAlt) {
+        addSubscriptionBtnAlt.addEventListener('click', () => {
+            noSubsState.style.display = 'none';
+            subsSection.style.display = 'none'; // Hide current subscriptions
+            formDiv.style.display = 'block';
+            document.getElementById('subscription-form-details').reset(); // Clear form
+            fixedQtyGroup.style.display = 'none'; // Hide fixed qty field initially
+            loadFormOptions(); // Load options for strategy and account dropdowns
+        });
+    }
+
+    // Event listener for Cancel button
+    if (cancelSubscriptionBtn) {
+        cancelSubscriptionBtn.addEventListener('click', () => {
+            formDiv.style.display = 'none';
+            loadSubscriptions(); // Reload subscriptions to show the grid again
+        });
+    }
+
 
     formDiv.querySelector('form').addEventListener('submit',e=>{
         e.preventDefault();
@@ -95,16 +221,103 @@ window.pageScripts["demat-subscriptions"] = function(){
             auto_submit: document.getElementById('sub-auto-submit').checked,
             order_type: document.getElementById('sub-order-type').value,
             qty_mode: document.getElementById('qty-mode').value,
-            fixed_qty: parseInt(fixedQty.value)||null
+            fixed_qty: parseInt(fixedQtyInput.value)||null
         };
         const strategyId=document.getElementById('sub-strategy').value;
+
+        // Basic form validation
+        if (!strategyId) {
+            showToast('Please select a strategy.', 'warning');
+            return;
+        }
+        if (!payload.account_id) {
+            showToast('Please select an account.', 'warning');
+            return;
+        }
+        if (payload.qty_mode === 'fixed' && (isNaN(payload.fixed_qty) || payload.fixed_qty <= 0)) {
+            showToast('Fixed quantity must be a positive number.', 'warning');
+            return;
+        }
+
         fetchJson(`/api/strategies/${strategyId}/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-            .then(()=>{formDiv.querySelector('form').reset();fixedQty.style.display='none';load();})
-            .catch(err=>alert(err.message));
+            .then(()=>{
+                showToast('Subscription saved successfully!');
+                formDiv.style.display='none'; // Hide form on success
+                document.getElementById('subscription-form-details').reset();
+                fixedQtyGroup.style.display='none';
+                loadSubscriptions(); // Reload and display subscriptions
+            })
+            .catch(err=>showToast(`Failed to save subscription: ${err.message}`, 'error'));
     });
 
-    formDiv.style.display='block';
-    load();
+    loadSubscriptions(); // Initial load of subscriptions
+    // loadFormOptions is called when "Add New Subscription" button is clicked
 };
 </script>
+{% endblock %}
+
+{% block style %}
+<style>
+/* General card shadows and rounded corners */
+.card {
+    border-radius: 0.75rem; /* Larger rounded corners */
+}
+.card.shadow-lg {
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175) !important; /* Deeper shadow for main sections */
+}
+.card.shadow-sm {
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important; /* Lighter shadow for small cards */
+}
+
+/* Page header adjustments */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background-color: var(--bs-light);
+    border-radius: 0.75rem;
+    border: 1px dashed var(--bs-gray-400);
+    margin-top: 2rem;
+    color: var(--bs-gray-600);
+}
+.empty-state-icon {
+    font-size: 4rem;
+    color: var(--bs-gray-500);
+    margin-bottom: 1rem;
+}
+.empty-state h3 {
+    color: var(--bs-dark);
+    margin-bottom: 0.5rem;
+}
+
+/* Subscription Card specific styling */
+.subscription-card {
+    transition: transform 0.2s ease-in-out;
+}
+.subscription-card:hover {
+    transform: translateY(-5px);
+}
+.subscription-card .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* Form styling */
+.form-label {
+    font-weight: 500;
+}
+.form-text {
+    font-size: 0.875em;
+    color: var(--bs-secondary-color);
+}
+</style>
 {% endblock %}
