@@ -199,7 +199,8 @@ window.pageScripts["copy-trading"] = function () {
 
     if (hasErr) {
       const tip = Array.isArray(errors) ? errors.join('\n') : String(errors);
-      return `<span class="badge bg-danger" title="${tip.replace(/\"/g, '&quot;')}">Error</span>`;
+      const sanitized = tip.replace(/\"/g, '&quot;');
+      return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${sanitized}"></i>`;
     }
 
     if (st && st !== 'connected') {
@@ -430,6 +431,7 @@ window.pageScripts["copy-trading"] = function () {
                           <table class="table table-sm table-bordered table-striped mb-0 align-middle">
                             <thead>
                               <tr>
+                                <th>Broker</th>  
                                 <th>Client ID</th>
                                 <th class="d-none d-md-table-cell">Username</th>
                                 <th>Status</th>
@@ -578,6 +580,9 @@ window.pageScripts["copy-trading"] = function () {
             });
         }
       })
+      .then(() => {
+        if (typeof enableDropdowns === 'function') enableDropdowns();
+      })
       .catch(err => {
         console.error("Failed to load accounts:", err);
         showMessage("Failed to load accounts. Please check your API connection.", 'danger');
@@ -591,10 +596,11 @@ window.pageScripts["copy-trading"] = function () {
       if (!tbody) return; // Ensure the tbody element exists
 
       if (kids.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No child accounts linked to this master.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No child accounts linked to this master.</td></tr>`;
       } else {
           tbody.innerHTML = kids.map(child => `
               <tr>
+                <td>${brokerIconHTML(child.broker)}</td>
                 <td>${child.client_id}</td>
                 <td class="d-none d-md-table-cell">${child.username || "-"}</td>
                 <td>${statusBadge(child.status, child.errors || child.last_error)}</td>
@@ -760,6 +766,9 @@ window.pageScripts["copy-trading"] = function () {
         // Reset select all checkbox
         document.getElementById("toggleAllMasterOrdersCheckbox").checked = false;
         document.getElementById("master-orders-select-all").checked = false;
+      })
+      .then(() => {
+        if (typeof enableDropdowns === 'function') enableDropdowns();
       })
       .catch(err => {
         console.error("Error loading master orders:", err);
