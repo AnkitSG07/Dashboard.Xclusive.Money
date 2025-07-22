@@ -61,6 +61,16 @@
       margin-bottom: 1.5rem;
     }
 
+    /* Adjusted logo styling for better control */
+    .sidebar-logo img {
+      max-width: 140px; /* Ensure it doesn't exceed 140px */
+      width: 100px; /* Explicit width */
+      height: 100px; /* Explicit height, adjust as needed for aspect ratio */
+      object-fit: contain; /* Ensures the entire image is visible within its bounds */
+      display: block; /* Remove extra space below image */
+      margin: 0 auto; /* Center the image */
+    }
+
     .sidebar .nav {
       flex-grow: 1;
       padding: 0 1rem;
@@ -398,6 +408,13 @@
         display: flex;
         justify-content: flex-end;
         gap: 0.75rem;
+    }
+    .broker-icon {
+      width: 45px; /* Reduced from 60px */
+      height: 45px; /* Reduced from 60px */
+      object-fit: contain;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 4px;
     }
   </style>
 </head>
