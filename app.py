@@ -504,6 +504,11 @@ def ensure_strategy_subscription_schema():
         columns_to_add = {
             'strategy_id': 'INTEGER',
             'subscriber_id': 'INTEGER',
+            'account_id': 'INTEGER',
+            'auto_submit': 'BOOLEAN',
+            'order_type': "VARCHAR(20)",
+            'qty_mode': "VARCHAR(20)",
+            'fixed_qty': 'INTEGER',
             'approved': 'BOOLEAN',
             'created_at': 'TIMESTAMP WITHOUT TIME ZONE',
         }
