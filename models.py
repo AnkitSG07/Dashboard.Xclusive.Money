@@ -325,12 +325,18 @@ class StrategySubscription(db.Model):
     subscriber_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
     )
+    account_id = db.Column(db.Integer, db.ForeignKey("account.id"), index=True)
+    auto_submit = db.Column(db.Boolean, default=True)
+    order_type = db.Column(db.String(20), default="MARKET")
+    qty_mode = db.Column(db.String(20), default="signal")
+    fixed_qty = db.Column(db.Integer)
     approved = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     strategy = db.relationship("Strategy", backref=db.backref("subscriptions", lazy=True, cascade="all, delete-orphan"))
     subscriber = db.relationship("User", backref=db.backref("strategy_subscriptions", lazy=True, cascade="all, delete-orphan"))
-
+    account = db.relationship("Account")
+    
     __table_args__ = (
         db.UniqueConstraint("strategy_id", "subscriber_id", name="uq_strategy_subscriber"),
     )
