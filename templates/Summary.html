@@ -1,39 +1,94 @@
 {% extends "layout.html" %}
-{% block title %}Summary - DhanBot{% endblock %}
+{% block title %}Dashboard Summary - DhanBot{% endblock %}
 
 {% block content %}
-<div class="section-box hero-section">
-  <div class="hero-text">
-    <h4>Welcome back {{ session['user'] }} <span>👋</span></h4>
-    <p>Be fearful when others are greedy. Be greedy when others are fearful</p>
-    <div class="d-flex gap-2 mt-2">
-      <a class="btn btn-primary" href="/copy-trading">Copy Trading</a>
-      <a class="btn btn-outline-primary" href="/Add-Account">Account Configuration</a>
+<div class="section-box hero-section flex flex-col md:flex-row items-center justify-between p-6 mb-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg">
+  <div class="hero-text mb-6 md:mb-0 md:mr-8 text-center md:text-left">
+    <h4 class="text-3xl font-bold mb-2">Welcome back {{ session['user'] }} <span class="wave-emoji">👋</span></h4>
+    <p class="text-lg opacity-90 mb-4 max-w-lg">"Be fearful when others are greedy. Be greedy when others are fearful."</p>
+    <div class="flex flex-col sm:flex-row gap-3 mt-4 justify-center md:justify-start">
+      <a class="btn bg-white text-indigo-700 hover:bg-gray-100 font-semibold py-2 px-5 rounded-lg shadow-md transition duration-200" href="/copy-trading">
+        <i class="bi bi-people-fill me-2"></i> Copy Trading
+      </a>
+      <a class="btn bg-transparent border-2 border-white text-white hover:bg-white hover:text-indigo-700 font-semibold py-2 px-5 rounded-lg shadow-md transition duration-200" href="/Add-Account">
+        <i class="bi bi-gear-fill me-2"></i> Account Configuration
+      </a>
     </div>
   </div>
-  <div class="hero-image">
-    <img src="/static/images/dashboard-illustration.png" alt="Illustration">
+  <div class="hero-image flex-shrink-0">
+    <img src="{{ url_for('static', filename='images/dashboard-illustration.png') }}" alt="Dashboard Illustration" class="max-w-xs md:max-w-sm lg:max-w-md h-auto">
   </div>
 </div>
 
-<div class="row g-4 mt-4">
-  <div class="col-md-4">
-    <div class="card-box">
-      <p>Plan Name</p>
-      <h4>Professional</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Plan Name</p>
+    <h4 class="text-2xl font-bold text-indigo-600">Professional</h4>
+    <div class="mt-4 text-center">
+      <span class="badge bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">Active</span>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card-box">
-      <p>Days Remaining</p>
-      <h4>0 Days</h4>
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Days Remaining</p>
+    <h4 class="text-2xl font-bold text-red-600">0 Days</h4>
+    <div class="mt-4 text-center">
+      <span class="badge bg-red-100 text-red-800 text-sm font-medium px-3 py-1 rounded-full">Expired</span>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card-box">
-      <p>Validity</p>
-      <h4>06 Sep 2023</h4>
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Validity</p>
+    <h4 class="text-2xl font-bold text-gray-800">06 Sep 2023</h4>
+    <div class="mt-4 text-center">
+      <span class="badge bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">Past Date</span>
     </div>
   </div>
 </div>
+
+<style>
+  /* Additional custom styles for Summary page */
+  .hero-section {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(79, 70, 229, 0.9), rgba(139, 92, 246, 0.8)); /* Deeper gradient */
+    z-index: 1;
+  }
+
+  .hero-section > div {
+    position: relative;
+    z-index: 2;
+  }
+
+  .wave-emoji {
+    animation: wave 2s infinite;
+    display: inline-block;
+    transform-origin: 70% 70%;
+  }
+
+  @keyframes wave {
+    0% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+    60% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* Info Card Specifics */
+  .section-box.flex {
+    border: 1px solid var(--bs-border-color);
+  }
+</style>
 {% endblock %}
