@@ -334,7 +334,7 @@ window.pageScripts["demat-strategies"] = function() {
                                         </div>
                                     </div>
 
-                                    <div class="mt-auto d-flex justify-content-end gap-2">
+                                    <div class="mt-auto d-flex flex-wrap justify-content-end gap-2">
                                         <button class="btn btn-sm ${s.is_active ? 'btn-warning' : 'btn-success'} activate-toggle-btn" data-strategy-id="${s.id}">
                                             <i class="bi ${s.is_active ? 'bi-pause-circle' : 'bi-play-circle'}"></i> ${s.is_active ? 'Deactivate' : 'Activate'}
                                         </button>
@@ -595,6 +595,21 @@ window.pageScripts["demat-strategies"] = function() {
     font-size: 0.875rem;
     padding: 0.25rem 0.5rem;
 }
+
+/* Ensure buttons are contained within the card */
+.strategy-card .card-body .mt-auto {
+    /* Use flex-wrap to allow buttons to wrap to the next line if space is limited */
+    flex-wrap: wrap; 
+    /* Add some padding to ensure buttons don't touch the card edges */
+    padding-top: 0.5rem; 
+    padding-bottom: 0.5rem;
+}
+
+/* Adjust button margins for better spacing within the card */
+.strategy-card .card-body .mt-auto .btn {
+    margin-bottom: 0.5rem; /* Add some bottom margin for wrapped buttons */
+}
+
 
 /* Form styling */
 .form-group {
