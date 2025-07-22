@@ -381,12 +381,16 @@ window.pageScripts["copy-trading"] = function () {
         let children = [];
         for (const master of masters) {
           if (master.children && Array.isArray(master.children)) {
-            for (const child of master.children) {
+            master.children = master.children.map(child => {
+              if (childHasError(child)) {
+                child.copy_status = 'Off';
+              }
               children.push({
                 ...child,
                 linked_master_id: master.client_id
               });
-            }
+              return child;
+            });
           }
         }
         window.childAccounts = children; // Store globally
@@ -533,10 +537,10 @@ window.pageScripts["copy-trading"] = function () {
                   <td>
                     <div class="d-flex align-items-center gap-2">
                       <div class="form-check form-switch m-0">
-                        <input type="checkbox" class="form-check-input" ${child.copy_status === 'On' ? 'checked' : ''} ${disableCopy}
+                        <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
                           ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${master.client_id}', this.checked)\"` }>
                       </div>
-                      <span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || "-"}</span>
+                      <span class="badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</span>
                     </div>
                   </td>
                   <td>
@@ -609,7 +613,9 @@ window.pageScripts["copy-trading"] = function () {
       if (kids.length === 0) {
           tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No child accounts linked to this master.</td></tr>`;
       } else {
-          tbody.innerHTML = kids.map(child => `
+          tbody.innerHTML = kids.map(child => {
+              const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              return `
               <tr>
                 <td>${brokerIconHTML(child.broker)}</td>
                 <td>${child.client_id}</td>
@@ -618,10 +624,10 @@ window.pageScripts["copy-trading"] = function () {
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input" ${child.copy_status === 'On' ? 'checked' : ''} ${childHasError(child) ? 'disabled' : ''}
+                      <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${childHasError(child) ? 'disabled' : ''}
                         ${childHasError(child) ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${masterId}', this.checked)\"` }>
                     </div>
-                    <span class="badge ${child.copy_status === 'On' ? 'bg-success' : 'bg-secondary'}">${child.copy_status || '-'}</span>
+                    <span class="badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</span>
                   </div>
                 </td>
                 <td>${child.multiplier || 1}</td>
@@ -629,7 +635,7 @@ window.pageScripts["copy-trading"] = function () {
                   <button class="btn btn-sm btn-danger" onclick="window.removeChild('${child.client_id}')">Remove</button>
                 </td>
               </tr>
-          `).join('');
+          `}).join('');
       }
   }
 
