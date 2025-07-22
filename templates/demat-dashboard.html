@@ -2,6 +2,7 @@
 {% block title %}Dashboard - DhanBot{% endblock %}
 {% block content %}
 <div class="content-wrapper">
+    <!-- Hero Section -->
     <div class="section-box hero-section">
         <div class="hero-text">
             <h4>Welcome back {{ session['user'] }} <span>👋</span></h4>
@@ -16,6 +17,7 @@
         </div>
     </div>
 
+    <!-- Add/Edit Account Section (Form) -->
     <div id="add-account-section" class="card shadow-lg border-0 rounded-3 mb-5" style="display:none;">
         <div class="card-body p-4">
             <h5 class="card-title mb-4 text-primary d-flex align-items-center">
@@ -25,6 +27,7 @@
             <p class="text-muted small mb-3">Select your broker to configure account credentials.</p>
             <div class="broker-carousel overflow-auto mb-4 pb-2">
                 <div class="broker-scroll d-flex align-items-center gap-4 px-2">
+                    <!-- Broker selection items -->
                     <div class="text-center broker-selection-item" data-broker="broker1" title="Broker 1">
                         <img src="/static/images/logo.svg" class="broker-icon border-0 rounded" alt="Broker 1" />
                         <div class="small text-muted mt-1">Broker 1</div>
@@ -97,12 +100,14 @@
         </div>
     </div>
 
+    <!-- Your Connected Accounts Section (Cards) -->
     <div class="card shadow-lg border-0 rounded-3">
         <div class="card-body p-4">
             <h5 class="card-title mb-4 text-dark d-flex align-items-center">
-                <i class="bi bi-list-columns-reverse me-2"></i> Your Connected Accounts
+                <i class="bi bi-wallet2 me-2"></i> Your Connected Accounts
             </h5>
 
+            <!-- Status Tabs -->
             <ul class="nav nav-tabs nav-tabs-alt mb-3" id="status-tabs">
                 <li class="nav-item">
                     <a class="nav-link active" href="#" data-status="all">All
@@ -121,6 +126,7 @@
                 </li>
             </ul>
 
+            <!-- Filters and Search -->
             <div class="d-flex flex-wrap gap-3 mb-4">
                 <div class="flex-grow-1" style="max-width: 200px;">
                     <label for="broker-filter" class="visually-hidden">Filter by Broker</label>
@@ -135,26 +141,19 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle caption-top" id="accounts-table">
-                    <caption>List of your trading accounts</caption>
-                    <thead class="table-light">
-                        <tr>
-                            <th>Broker</th>
-                            <th>Client ID</th>
-                            <th>Username</th>
-                            <th class="text-end">Opening Balance</th>
-                            <th>Status</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="accounts-table-body">
-                    </tbody>
-                </table>
+            <!-- Account Cards Grid -->
+            <div id="accounts-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <!-- Account cards will be rendered here by JavaScript -->
+                <div class="col text-center text-muted py-4" id="no-accounts-message" style="display: none;">
+                    No accounts found matching your filters.
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts["demat-dashboard"] = function() {
@@ -383,43 +382,58 @@ window.pageScripts["demat-dashboard"] = function() {
         attachValidation();
     }
 
-    function renderTable(rows) {
-        const body = document.getElementById('accounts-table-body');
-        if (!body) return;
+    function renderAccountCards(accounts) {
+        const grid = document.getElementById('accounts-grid');
+        const noAccountsMessage = document.getElementById('no-accounts-message');
+        grid.innerHTML = ''; // Clear existing cards
 
-        if (rows.length === 0) {
-            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
+        if (accounts.length === 0) {
+            noAccountsMessage.style.display = 'block';
             return;
+        } else {
+            noAccountsMessage.style.display = 'none';
         }
 
-        body.innerHTML = rows.map(acc => {
-            const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
+        accounts.forEach(acc => {
+            const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : 'Unknown Broker';
             const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
-            const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
             const statusHtml = renderStatusBadge(acc);
 
-            return `
-                <tr>
-                    <td>${pictureHTML}</td>
-                    <td class="font-monospace">${acc.client_id}</td>
-                    <td>${acc.username || '-'}</td>
-                    <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
-                    <td id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</td>
-                    <td class="text-center">
-                        <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-outline-success btn-sm me-1" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
-                            <i class="bi bi-arrow-repeat"></i>
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-        }).join('');
+            const cardHtml = `
+                <div class="col">
+                    <div class="card h-100 shadow-sm account-card" id="account-card-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex align-items-center mb-3">
+                                <img src="${iconUrl}" class="rounded-circle me-3" style="width: 48px; height: 48px; object-fit: contain;" alt="${brokerName} logo">
+                                <div>
+                                    <h6 class="card-title mb-0">${brokerName}</h6>
+                                    <p class="text-muted small mb-0">Client ID: <span class="font-monospace">${acc.client_id}</span></p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <p class="card-text mb-1"><strong>Username:</strong> ${acc.username || '-'}</p>
+                                <p class="card-text mb-1"><strong>Opening Balance:</strong> ${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</p>
+                                <p class="card-text mb-0"><strong>Status:</strong> <span id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</span></p>
+                            </div>
+                            <div class="mt-auto d-flex justify-content-end gap-2">
+                                <button class="btn btn-outline-primary btn-sm" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
+                                    <i class="bi bi-arrow-repeat"></i> Reconnect
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.insertAdjacentHTML('beforeend', cardHtml);
+        });
 
-        // Initialize tooltips after rendering table
+        // Initialize tooltips after rendering cards
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
         const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
     }
@@ -456,11 +470,11 @@ window.pageScripts["demat-dashboard"] = function() {
 
     function updateStatusCell(cid) {
         const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
-        const cell = document.getElementById(`status-${sanitized}`);
-        if (!cell) return;
+        const statusSpan = document.getElementById(`status-${sanitized}`);
+        if (!statusSpan) return;
         const acc = allAccounts.find(a => a.client_id === cid);
         if (!acc) return;
-        cell.innerHTML = renderStatusBadge(acc);
+        statusSpan.innerHTML = renderStatusBadge(acc);
     }
 
     function attemptAutoLogin() {
@@ -499,7 +513,7 @@ window.pageScripts["demat-dashboard"] = function() {
             .then(resp => {
                 if (typeof resp.balance === 'number') {
                     acc.opening_balance = resp.balance;
-                    applyFilters();
+                    applyFilters(); // Re-render cards to show updated balance
                 }
             })
             .catch(err => console.error('Balance refresh failed', err));
@@ -516,7 +530,7 @@ window.pageScripts["demat-dashboard"] = function() {
 
     function isSuccess(acc) {
         const st = (acc.status || '').toLowerCase();
-        return st === 'connected' || st === '';
+        return st === 'connected' || st === ''; // Consider empty status as connected for display
     }
 
     function isFailed(acc) {
@@ -538,7 +552,7 @@ window.pageScripts["demat-dashboard"] = function() {
                 (a.last_error || (Array.isArray(a.errors) ? a.errors.join(' ') : a.errors) || a.status || '').toLowerCase().includes(term)
             );
         }
-        renderTable(rows);
+        renderAccountCards(rows);
     }
 
     function updateCounts() {
@@ -681,7 +695,7 @@ window.pageScripts["demat-dashboard"] = function() {
         currentBrokerSelected = null;
     });
 
-    // "Connect Your First Broker" buttons
+    // "Connect Your First Broker" buttons (if present)
     document.querySelectorAll('.connect-first-broker-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.getElementById('add-account-btn').click();
@@ -755,7 +769,7 @@ window.pageScripts["demat-dashboard"] = function() {
         .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
     });
 
-    // Table Filters & Actions
+    // Card Filters & Actions
     document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
         link.addEventListener('click', e => {
             e.preventDefault();
@@ -776,7 +790,7 @@ window.pageScripts["demat-dashboard"] = function() {
         applyFilters();
     });
 
-    // Global functions for table actions (can be called directly from onclick in HTML)
+    // Global functions for card actions (can be called directly from onclick in HTML)
     window.deleteAccount = function(cid) {
         if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
         fetchJson('/api/delete-account', {
@@ -857,6 +871,9 @@ window.pageScripts["demat-dashboard"] = function() {
         .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
 </script>
+{% endblock %}
+
+{% block style %}
 <style>
 /* General card shadows and rounded corners */
 .card {
@@ -922,20 +939,12 @@ window.pageScripts["demat-dashboard"] = function() {
     border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Table styling */
-.table th {
-    font-weight: 600;
+/* Account Card specific styling */
+.account-card {
+    transition: transform 0.2s ease-in-out;
 }
-.table-light th {
-    background-color: var(--bs-light);
-}
-.table-hover tbody tr:hover {
-    background-color: var(--bs-table-hover-bg);
-}
-
-/* Custom styling for icons in table cells */
-.table img.rounded-circle {
-    border: 1px solid var(--bs-border-color);
+.account-card:hover {
+    transform: translateY(-5px);
 }
 </style>
 {% endblock %}
