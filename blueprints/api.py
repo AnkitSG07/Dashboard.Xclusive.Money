@@ -250,7 +250,7 @@ def list_strategies():
 @login_required_api
 def create_strategy():
     """Create a new trading strategy."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
 
     required = ["name", "asset_class", "style"]
     for field in required:
@@ -474,6 +474,8 @@ def subscribe_strategy(strategy_id):
     strategy = Strategy.query.get_or_404(strategy_id)
     if strategy.user_id == user.id:
         return jsonify({"error": "Cannot subscribe to your own strategy"}), 400
+    data = request.get_json(silent=True) or {}
+    
     sub = StrategySubscription.query.filter_by(strategy_id=strategy_id, subscriber_id=user.id).first()
     if not sub:
         sub = StrategySubscription(strategy_id=strategy_id, subscriber_id=user.id)
@@ -481,7 +483,22 @@ def subscribe_strategy(strategy_id):
             sub.approved = True
         db.session.add(sub)
         db.session.commit()
-    return jsonify({"message": "Subscription created", "approved": sub.approved})
+
+    account_id = data.get("account_id")
+    if account_id:
+        acc = Account.query.filter_by(id=account_id, user_id=user.id).first()
+        if not acc:
+            return jsonify({"error": "Invalid account_id"}), 400
+        sub.account_id = account_id
+
+    sub.auto_submit = bool(data.get("auto_submit", True))
+    sub.order_type = data.get("order_type") or sub.order_type
+    sub.qty_mode = data.get("qty_mode") or sub.qty_mode
+    sub.fixed_qty = data.get("fixed_qty") if data.get("fixed_qty") is not None else sub.fixed_qty
+
+    db.session.commit()
+
+    return jsonify({"message": "Subscription saved", "id": sub.id, "approved": sub.approved})
 
 
 @api_bp.route("/strategies/<int:strategy_id>/subscribers", methods=["GET"])
@@ -559,3 +576,57 @@ def strategy_logs(strategy_id):
         for l in StrategyLog.query.filter_by(strategy_id=strategy.id).order_by(StrategyLog.timestamp.desc()).all()
     ]
     return jsonify(logs)
+
+
+@api_bp.route("/subscriptions", methods=["GET"])
+@login_required_api
+def list_subscriptions():
+    """Return subscriptions for the logged in user."""
+    user = current_user()
+    subs = StrategySubscription.query.filter_by(subscriber_id=user.id).all()
+    out = []
+    for s in subs:
+        out.append({
+            "id": s.id,
+            "strategy_id": s.strategy_id,
+            "strategy_name": s.strategy.name if s.strategy else None,
+            "account_id": s.account_id,
+            "account_client_id": s.account.client_id if s.account else None,
+            "order_type": s.order_type,
+            "qty_mode": s.qty_mode,
+            "fixed_qty": s.fixed_qty,
+            "auto_submit": s.auto_submit,
+            "approved": s.approved,
+        })
+    return jsonify(out)
+
+
+@api_bp.route("/subscriptions/<int:sub_id>", methods=["PUT", "DELETE"])
+@login_required_api
+def update_subscription(sub_id):
+    """Update or delete a subscription."""
+    user = current_user()
+    sub = StrategySubscription.query.filter_by(id=sub_id, subscriber_id=user.id).first_or_404()
+
+    if request.method == "DELETE":
+        db.session.delete(sub)
+        db.session.commit()
+        return jsonify({"message": "Subscription deleted"})
+
+    data = request.get_json() or {}
+    if "account_id" in data:
+        acc = Account.query.filter_by(id=data["account_id"], user_id=user.id).first()
+        if not acc:
+            return jsonify({"error": "Invalid account_id"}), 400
+        sub.account_id = data["account_id"]
+    if "auto_submit" in data:
+        sub.auto_submit = bool(data.get("auto_submit"))
+    if "order_type" in data:
+        sub.order_type = data.get("order_type") or sub.order_type
+    if "qty_mode" in data:
+        sub.qty_mode = data.get("qty_mode") or sub.qty_mode
+    if "fixed_qty" in data:
+        sub.fixed_qty = data.get("fixed_qty")
+
+    db.session.commit()
+    return jsonify({"message": "Subscription updated"})
