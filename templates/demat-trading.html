@@ -6,18 +6,220 @@
     <title>TradersPost Dashboard</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Custom styles for the SaaS platform look -->
+    {% block style %}{% endblock %}
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-color: #007bff; /* Bootstrap primary */
+            --primary-light: #e0f0ff; /* Lighter shade for backgrounds */
+            --text-dark: #343a40;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --bg-light: #f8f9fa;
+        }
 
-    <link rel="stylesheet" href="/static/style2.css">
-    <link rel="stylesheet" href="/static/style.css">
+        body {
+            font-family: 'Inter', sans-serif; /* Modern font */
+            background-color: #f0f2f5; /* Light grey background */
+            color: var(--text-dark);
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
+        #wrapper {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Sidebar Styling */
+        .sidebar-wrapper {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%); /* Dark gradient background */
+            color: #ecf0f1;
+            transition: margin 0.3s ease-in-out;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            height: 100%;
+            z-index: 1030; /* Above content, below modal */
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 1rem; /* Space for logout button */
+        }
+
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-logo img {
+            max-width: 120px; /* Larger logo */
+            height: auto;
+            filter: brightness(1.8); /* Make logo brighter on dark background */
+        }
+
+        .sidebar-toggle {
+            color: #ecf0f1;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .sidebar-nav {
+            flex-grow: 1;
+            padding-top: 1rem;
+            overflow-y: auto; /* Enable scrolling for long nav lists */
+        }
+
+        .nav-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.85rem 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.2s ease-in-out;
+            border-radius: 0.5rem; /* Slightly rounded corners for links */
+            margin: 0 0.75rem;
+        }
+
+        .nav-link i {
+            font-size: 1.1rem;
+            margin-right: 1rem;
+            width: 24px; /* Fixed width for icons to align text */
+            text-align: center;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transform: translateX(5px); /* Subtle hover effect */
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color); /* Highlight active with primary color */
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        /* Main Content Area */
+        #page-content-wrapper {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            transition: margin 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            background-color: #f0f2f5;
+        }
+
+        /* Top Navbar */
+        .top-navbar {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            z-index: 1020; /* Below sidebar */
+        }
+
+        .breadcrumb {
+            margin-bottom: 0;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            font-weight: 500;
+        }
+
+        .breadcrumb i {
+            color: var(--primary-color);
+        }
+
+        /* Container for page specific content */
+        #page-container {
+            flex-grow: 1;
+            padding: 1.5rem;
+            background-color: #f0f2f5;
+        }
+
+        /* Logout Button in Sidebar */
+        .sidebar-wrapper .logout {
+            background-color: #e74c3c; /* Red color for logout */
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+
+        .sidebar-wrapper .logout:hover {
+            background-color: #c0392b;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 991.98px) {
+            .sidebar-wrapper {
+                margin-left: calc(-1 * var(--sidebar-width));
+                position: fixed;
+                height: 100%;
+                top: 0;
+                left: 0;
+                z-index: 1040; /* Higher z-index for mobile overlay */
+            }
+
+            .sidebar-wrapper.show {
+                margin-left: 0;
+            }
+
+            #page-content-wrapper {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1035;
+                display: none;
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+
+            body.sidebar-open {
+                overflow: hidden; /* Prevent scrolling when sidebar is open */
+            }
+
+            .top-navbar .d-lg-none {
+                display: block !important; /* Show toggle button on mobile */
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
         <div class="sidebar-wrapper" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo text-center py-3">
-                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo" style="max-width: 86px; height: auto;">
+                <div class="sidebar-logo text-center">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo">
                 </div>
                 <div class="sidebar-toggle d-lg-none" id="sidebarToggle">
                     <i class="fas fa-times"></i>
@@ -27,7 +229,7 @@
             <nav class="sidebar-nav">
                 <ul class="nav-list">
                     <li class="nav-item">
-                        <a href="/demat-dashboard" class="nav-link active" data-section="dashboard">
+                        <a href="/demat-dashboard" class="nav-link" data-section="dashboard">
                             <i class="fas fa-home"></i>
                             <span>Dashboard</span>
                         </a>
@@ -74,24 +276,25 @@
                             <span>Account</span>
                         </a>
                     </li>
-                    <li class="nav-item mt-auto mb-4"> <div class="px-3">
-                            <button class="logout btn w-100" onclick="logout()">Logout</button>
-                        </div>
-                    </li>
                 </ul>
             </nav>
+            <div class="mt-auto px-3 py-3">
+                <button class="logout btn w-100" onclick="logout()">Logout</button>
+            </div>
         </div>
 
+        <!-- Page Content Wrapper -->
         <div id="page-content-wrapper" class="main-content flex-grow-1">
-            <nav class="top-navbar navbar navbar-expand-lg navbar-light bg-light border-bottom">
+            <nav class="top-navbar navbar navbar-expand-lg navbar-light">
                 <div class="container-fluid">
                     <button class="btn btn-primary d-lg-none" id="sidebarToggleBtn">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="breadcrumb ms-3 d-flex align-items-center">
                         <i class="fas fa-home me-2"></i>
-                        <span>Dashboard</span>
+                        <span id="current-page-title">Dashboard</span>
                     </div>
+                    <!-- Optional: Add user dropdown or other elements here -->
                 </div>
             </nav>
 
@@ -101,6 +304,7 @@
         </div>
     </div>
 
+    <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -136,15 +340,29 @@
             });
         }
 
-        // Highlight active page in sidebar
+        // Highlight active page in sidebar and update top bar title
         function highlightActivePage() {
+            const currentPath = window.location.pathname;
+            let pageTitle = "Dashboard"; // Default title
+
             document.querySelectorAll('.nav-link').forEach(link => {
-                if (window.location.pathname === link.getAttribute('href')) {
+                if (currentPath === link.getAttribute('href')) {
                     link.classList.add('active');
+                    // Get text content of the span inside the nav-link
+                    const spanElement = link.querySelector('span');
+                    if (spanElement) {
+                        pageTitle = spanElement.textContent;
+                    }
                 } else {
                     link.classList.remove('active');
                 }
             });
+
+            // Update the title in the top navbar
+            const currentPageTitleElement = document.getElementById('current-page-title');
+            if (currentPageTitleElement) {
+                currentPageTitleElement.textContent = pageTitle;
+            }
         }
 
         // Toggles visibility of "Connect Broker" button based on current page
@@ -258,7 +476,7 @@
                             });
 
                             history.pushState(null, '', url); // Update URL in browser history
-                            highlightActivePage(); // Re-highlight active link
+                            highlightActivePage(); // Re-highlight active link and update title
                             updateConnectBrokerVisibility(); // Update visibility based on new page
                             enableDropdowns(); // Re-enable Bootstrap dropdowns
                             reinitializePageScripts(); // Run any page-specific scripts
@@ -299,9 +517,8 @@
         window.addEventListener('DOMContentLoaded', () => {
             enableDropdowns();
             setupSidebarSubmenus(); // Only if you have actual submenus with .nav-collapse
-            highlightActivePage();
+            highlightActivePage(); // Initial highlight and title update
             updateConnectBrokerVisibility();
-            // attachConnectBrokerHandler(); // This is called inside updateConnectBrokerVisibility and reinitializePageScripts
 
             setupSidebarSPALinks();
             reinitializePageScripts(); // Initial call for the first page loaded
