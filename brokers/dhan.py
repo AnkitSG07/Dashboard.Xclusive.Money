@@ -15,9 +15,13 @@ class DhanBroker(BrokerBase):
     def __init__(self, client_id, access_token, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
+        # Disable IPv6 to avoid connection issues as done in official SDK
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+        self.session = requests.Session()
         self.headers = {
             "access-token": access_token,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json",
         }
         # self.symbol_map is already initialized by base class
 
@@ -63,7 +67,9 @@ class DhanBroker(BrokerBase):
             "afterMarketOrder": False,
         }
 
-        r = requests.post(f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=10)
+        r = self.session.post(
+            f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=10
+        )
         try:
             resp = r.json()
         except Exception:
@@ -73,21 +79,25 @@ class DhanBroker(BrokerBase):
         return {"status": "failure", **resp}
 
     def get_order_list(self):
-        r = requests.get(f"{self.api_base}/orders", headers=self.headers, timeout=10)
+        r = self.session.get(f"{self.api_base}/orders", headers=self.headers, timeout=10)
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
             return {"status": "failure", "error": r.text}
 
     def cancel_order(self, order_id):
-        r = requests.delete(f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=10)
+        r = self.session.delete(
+            f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=10
+        )
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
             return {"status": "failure", "error": r.text}
 
     def get_positions(self):
-        r = requests.get(f"{self.api_base}/positions", headers=self.headers, timeout=10)
+        r = self.session.get(
+            f"{self.api_base}/positions", headers=self.headers, timeout=10
+        )
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
@@ -96,7 +106,9 @@ class DhanBroker(BrokerBase):
     
     def get_profile(self):
         """Return profile or fund data to confirm account id."""
-        r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
+        r = self.session.get(
+            f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+        )
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
@@ -105,7 +117,9 @@ class DhanBroker(BrokerBase):
     def check_token_valid(self):
         """Validate access token and ensure it belongs to this client_id."""
         try:
-            r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
+            r = self.session.get(
+                f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+            )
             r.raise_for_status()
             data = r.json()
             cid = str(data.get("clientId") or data.get("dhanClientId") or "").strip()
@@ -118,7 +132,9 @@ class DhanBroker(BrokerBase):
     def get_opening_balance(self):
         """Fetch available cash balance from fundlimit API."""
         try:
-            r = requests.get(f"{self.api_base}/fundlimit", headers=self.headers, timeout=5)
+            r = self.session.get(
+                f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+            )
             data = r.json()
             for key in [
                 "openingBalance",
