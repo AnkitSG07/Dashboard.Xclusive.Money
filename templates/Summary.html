@@ -45,14 +45,28 @@
 </div>
 
 <style>
+
   /* Additional custom styles for Summary page */
   .hero-section {
     background-size: cover;
     background-position: center;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: row;
   }
-
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: none; /* No filter for natural image appearance */
+}
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 50%;
+  margin-top: 1rem;
+  align-self: right;
+}
   .hero-section::before {
     content: '';
     position: absolute;
@@ -93,14 +107,15 @@
 
   /* Specific adjustment for the hero image within its container */
   .hero-image img {
-    max-width: 250px; /* A fixed max-width for the image itself */
+    max-width: 190px; /* A fixed max-width for the image itself */
     height: auto;
     object-fit: contain;
+    align-content: right;
   }
 
   /* Ensure text content doesn't get too wide on very large screens */
   .hero-text {
-    max-width: 600px; /* Limit text width for better readability */
+    max-width: 900px; /* Limit text width for better readability */
   }
 </style>
 {% endblock %}
