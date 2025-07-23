@@ -1,4 +1,3 @@
-# brokers/dhan.py
 import requests
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker
@@ -16,14 +15,12 @@ class DhanBroker(BrokerBase):
         timeout = kwargs.pop("timeout", None)
         super().__init__(client_id, access_token, timeout=timeout, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
-        # Disable IPv6 to avoid connection issues as done in official SDK
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
         self.headers = {
             "access-token": access_token,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        # self.symbol_map is already initialized by base class
 
     def place_order(
         self,
@@ -37,7 +34,9 @@ class DhanBroker(BrokerBase):
         price=0,
         **extra
     ):
-        # --- Symbol mapping ---
+        """
+        Place a new order on Dhan.
+        """
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not security_id:
             if tradingsymbol and self.symbol_map:
@@ -67,57 +66,95 @@ class DhanBroker(BrokerBase):
             "afterMarketOrder": False,
         }
 
-        r = self.session.post(
-            f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=self.timeout
-        )
         try:
+            r = self.session.post(
+                f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=self.timeout
+            )
             resp = r.json()
-        except Exception:
-            resp = {"status": "failure", "error": r.text}
+        except Exception as e:
+            resp = {"status": "failure", "error": str(e)}
         if "orderId" in resp:
             return {"status": "success", **resp}
         return {"status": "failure", **resp}
 
-    def get_order_list(self):
-        r = self.session.get(
-            f"{self.api_base}/orders", headers=self.headers, timeout=self.timeout
-        )
-        try:
-            return {"status": "success", "data": r.json()}
-        except Exception:
-            return {"status": "failure", "error": r.text}
+    def get_order_list(self, use_pagination=True, batch_size=100, max_batches=50):
+        """
+        Fetch order list. For large accounts, use pagination to avoid timeouts.
+        If the Dhan API doesn't support offset/limit, set use_pagination=False.
+        """
+        if not use_pagination:
+            try:
+                r = self.session.get(
+                    f"{self.api_base}/orders", headers=self.headers, timeout=self.timeout
+                )
+                return {"status": "success", "data": r.json()}
+            except Exception as e:
+                return {"status": "failure", "error": str(e)}
+
+        # Paginated fetch for large accounts
+        all_orders = []
+        offset = 0
+        for _ in range(max_batches):
+            try:
+                url = f"{self.api_base}/orders?offset={offset}&limit={batch_size}"
+                r = self.session.get(url, headers=self.headers, timeout=self.timeout)
+                batch = r.json()
+                batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
+                if not batch_orders or len(batch_orders) == 0:
+                    break
+                all_orders.extend(batch_orders)
+                if len(batch_orders) < batch_size:
+                    break
+                offset += batch_size
+            except Exception as e:
+                # Return partial results if error occurs
+                return {
+                    "status": "partial_failure" if all_orders else "failure",
+                    "error": str(e),
+                    "data": all_orders,
+                }
+        return {"status": "success", "data": all_orders}
 
     def cancel_order(self, order_id):
-        r = self.session.delete(
-            f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=self.timeout
-        )
+        """
+        Cancel an order by order_id.
+        """
         try:
+            r = self.session.delete(
+                f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=self.timeout
+            )
             return {"status": "success", "data": r.json()}
-        except Exception:
-            return {"status": "failure", "error": r.text}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
 
     def get_positions(self):
-        r = self.session.get(
-            f"{self.api_base}/positions", headers=self.headers, timeout=self.timeout
-        )
+        """
+        Fetch current positions.
+        """
         try:
+            r = self.session.get(
+                f"{self.api_base}/positions", headers=self.headers, timeout=self.timeout
+            )
             return {"status": "success", "data": r.json()}
-        except Exception:
-            return {"status": "failure", "error": r.text}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
 
-    
     def get_profile(self):
-        """Return profile or fund data to confirm account id."""
-        r = self.session.get(
-            f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
-        )
+        """
+        Return profile or fund data to confirm account id.
+        """
         try:
+            r = self.session.get(
+                f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
+            )
             return {"status": "success", "data": r.json()}
-        except Exception:
-            return {"status": "failure", "error": r.text}
+        except Exception as e:
+            return {"status": "failure", "error": str(e)}
 
     def check_token_valid(self):
-        """Validate access token and ensure it belongs to this client_id."""
+        """
+        Validate access token and ensure it belongs to this client_id.
+        """
         try:
             r = self.session.get(
                 f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
@@ -132,7 +169,9 @@ class DhanBroker(BrokerBase):
             return False
 
     def get_opening_balance(self):
-        """Fetch available cash balance from fundlimit API."""
+        """
+        Fetch available cash balance from fundlimit API.
+        """
         try:
             r = self.session.get(
                 f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
