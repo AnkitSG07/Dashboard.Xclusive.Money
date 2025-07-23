@@ -39,6 +39,15 @@ class BrokerBase(ABC):
         return session
 
 
+    def _request(self, method, url, *, timeout=None, **kwargs):
+        """Perform an HTTP request with a simple timeout retry."""
+        timeout = timeout or self.timeout
+        try:
+            return self.session.request(method, url, timeout=timeout, **kwargs)
+        except requests.exceptions.ReadTimeout:
+            # Retry once with double the timeout for slow APIs
+            return self.session.request(method, url, timeout=timeout * 2, **kwargs)
+            
     @abstractmethod
     def place_order(
         self,
