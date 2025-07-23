@@ -13,7 +13,8 @@ class DhanBroker(BrokerBase):
     LIMIT = "LIMIT"
 
     def __init__(self, client_id, access_token, **kwargs):
-        super().__init__(client_id, access_token, **kwargs)
+        timeout = kwargs.pop("timeout", None)
+        super().__init__(client_id, access_token, timeout=timeout, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
         # Disable IPv6 to avoid connection issues as done in official SDK
         self.headers = {
@@ -66,7 +67,7 @@ class DhanBroker(BrokerBase):
         }
 
         r = requests.post(
-            f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=10
+            f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=self.timeout
         )
         try:
             resp = r.json()
@@ -77,7 +78,9 @@ class DhanBroker(BrokerBase):
         return {"status": "failure", **resp}
 
     def get_order_list(self):
-        r = requests.get(f"{self.api_base}/orders", headers=self.headers, timeout=10)
+        r = requests.get(
+            f"{self.api_base}/orders", headers=self.headers, timeout=self.timeout
+        )
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
@@ -85,7 +88,7 @@ class DhanBroker(BrokerBase):
 
     def cancel_order(self, order_id):
         r = requests.delete(
-            f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=10
+            f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=self.timeout
         )
         try:
             return {"status": "success", "data": r.json()}
@@ -94,7 +97,7 @@ class DhanBroker(BrokerBase):
 
     def get_positions(self):
         r = requests.get(
-            f"{self.api_base}/positions", headers=self.headers, timeout=10
+            f"{self.api_base}/positions", headers=self.headers, timeout=self.timeout
         )
         try:
             return {"status": "success", "data": r.json()}
@@ -105,7 +108,7 @@ class DhanBroker(BrokerBase):
     def get_profile(self):
         """Return profile or fund data to confirm account id."""
         r = requests.get(
-            f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+            f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
         )
         try:
             return {"status": "success", "data": r.json()}
@@ -131,7 +134,7 @@ class DhanBroker(BrokerBase):
         """Fetch available cash balance from fundlimit API."""
         try:
             r = requests.get(
-                f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+                f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
             )
             data = r.json()
             for key in [
