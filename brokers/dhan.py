@@ -67,8 +67,11 @@ class DhanBroker(BrokerBase):
         }
 
         try:
-            r = self.session.post(
-                f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=self.timeout
+            r = self._request(
+                "post",
+                f"{self.api_base}/orders",
+                json=payload,
+                headers=self.headers,
             )
             resp = r.json()
         except Exception as e:
@@ -85,7 +88,10 @@ class DhanBroker(BrokerBase):
         if not use_pagination:
             try:
                 r = self.session.get(
-                    f"{self.api_base}/orders", headers=self.headers, timeout=self.timeout
+                r = self._request(
+                    "get",
+                    f"{self.api_base}/orders",
+                    headers=self.headers,
                 )
                 return {"status": "success", "data": r.json()}
             except Exception as e:
@@ -97,7 +103,7 @@ class DhanBroker(BrokerBase):
         for _ in range(max_batches):
             try:
                 url = f"{self.api_base}/orders?offset={offset}&limit={batch_size}"
-                r = self.session.get(url, headers=self.headers, timeout=self.timeout)
+                r = self._request("get", url, headers=self.headers)
                 batch = r.json()
                 batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
                 if not batch_orders or len(batch_orders) == 0:
@@ -121,7 +127,10 @@ class DhanBroker(BrokerBase):
         """
         try:
             r = self.session.delete(
-                f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=self.timeout
+            r = self._request(
+                "delete",
+                f"{self.api_base}/orders/{order_id}",
+                headers=self.headers,
             )
             return {"status": "success", "data": r.json()}
         except Exception as e:
@@ -133,7 +142,10 @@ class DhanBroker(BrokerBase):
         """
         try:
             r = self.session.get(
-                f"{self.api_base}/positions", headers=self.headers, timeout=self.timeout
+            r = self._request(
+                "get",
+                f"{self.api_base}/positions",
+                headers=self.headers,
             )
             return {"status": "success", "data": r.json()}
         except Exception as e:
@@ -145,7 +157,10 @@ class DhanBroker(BrokerBase):
         """
         try:
             r = self.session.get(
-                f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
+            r = self._request(
+                "get",
+                f"{self.api_base}/fundlimit",
+                headers=self.headers,
             )
             return {"status": "success", "data": r.json()}
         except Exception as e:
@@ -157,7 +172,11 @@ class DhanBroker(BrokerBase):
         """
         try:
             r = self.session.get(
-                f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
+            r = self._request(
+                "get",
+                f"{self.api_base}/fundlimit",
+                headers=self.headers,
+                timeout=5,
             )
             r.raise_for_status()
             data = r.json()
@@ -174,7 +193,10 @@ class DhanBroker(BrokerBase):
         """
         try:
             r = self.session.get(
-                f"{self.api_base}/fundlimit", headers=self.headers, timeout=self.timeout
+            r = self._request(
+                "get",
+                f"{self.api_base}/fundlimit",
+                headers=self.headers,
             )
             data = r.json()
             for key in [
