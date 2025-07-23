@@ -87,7 +87,6 @@ class DhanBroker(BrokerBase):
         """
         if not use_pagination:
             try:
-                r = self.session.get(
                 r = self._request(
                     "get",
                     f"{self.api_base}/orders",
@@ -126,7 +125,6 @@ class DhanBroker(BrokerBase):
         Cancel an order by order_id.
         """
         try:
-            r = self.session.delete(
             r = self._request(
                 "delete",
                 f"{self.api_base}/orders/{order_id}",
@@ -141,7 +139,6 @@ class DhanBroker(BrokerBase):
         Fetch current positions.
         """
         try:
-            r = self.session.get(
             r = self._request(
                 "get",
                 f"{self.api_base}/positions",
@@ -156,7 +153,6 @@ class DhanBroker(BrokerBase):
         Return profile or fund data to confirm account id.
         """
         try:
-            r = self.session.get(
             r = self._request(
                 "get",
                 f"{self.api_base}/fundlimit",
@@ -171,7 +167,6 @@ class DhanBroker(BrokerBase):
         Validate access token and ensure it belongs to this client_id.
         """
         try:
-            r = self.session.get(
             r = self._request(
                 "get",
                 f"{self.api_base}/fundlimit",
@@ -192,7 +187,6 @@ class DhanBroker(BrokerBase):
         Fetch available cash balance from fundlimit API.
         """
         try:
-            r = self.session.get(
             r = self._request(
                 "get",
                 f"{self.api_base}/fundlimit",
