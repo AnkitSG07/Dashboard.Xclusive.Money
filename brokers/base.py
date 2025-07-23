@@ -1,16 +1,23 @@
 # brokers/base.py
 from abc import ABC, abstractmethod
+import os
+
+# Default request timeout for broker HTTP calls. Can be overridden via the
+# ``BROKER_TIMEOUT`` environment variable.
+DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "10"))
 
 class BrokerBase(ABC):
     """
     Abstract base class for all broker adapters.
     """
 
-    def __init__(self, client_id, access_token, **kwargs):
+    def __init__(self, client_id, access_token, *, timeout=None, **kwargs):
         self.client_id = client_id
         self.access_token = access_token
+        # Use the passed timeout or fall back to the default configurable value
+        self.timeout = timeout or DEFAULT_TIMEOUT
         # Accept optional symbol map for symbol → security_id mapping
-        self.symbol_map = kwargs.get('symbol_map', {})
+        self.symbol_map = kwargs.get("symbol_map", {})
 
     @abstractmethod
     def place_order(
