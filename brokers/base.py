@@ -1,10 +1,13 @@
 # brokers/base.py
 from abc import ABC, abstractmethod
 import os
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 # Default request timeout for broker HTTP calls. Can be overridden via the
 # ``BROKER_TIMEOUT`` environment variable.
-DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "10"))
+DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "30"))
 
 class BrokerBase(ABC):
     """
@@ -16,8 +19,25 @@ class BrokerBase(ABC):
         self.access_token = access_token
         # Use the passed timeout or fall back to the default configurable value
         self.timeout = timeout or DEFAULT_TIMEOUT
+        # HTTP session with retries for all network calls
+        self.session = self._create_session()
         # Accept optional symbol map for symbol → security_id mapping
         self.symbol_map = kwargs.get("symbol_map", {})
+
+    def _create_session(self):
+        """Return a requests session configured with retries."""
+        session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[408, 429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
 
     @abstractmethod
     def place_order(
