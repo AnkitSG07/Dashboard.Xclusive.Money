@@ -16,8 +16,6 @@ class DhanBroker(BrokerBase):
         super().__init__(client_id, access_token, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
         # Disable IPv6 to avoid connection issues as done in official SDK
-        requests.packages.urllib3.util.connection.HAS_IPV6 = False
-        self.session = requests.Session()
         self.headers = {
             "access-token": access_token,
             "Content-Type": "application/json",
@@ -67,7 +65,7 @@ class DhanBroker(BrokerBase):
             "afterMarketOrder": False,
         }
 
-        r = self.session.post(
+        r = requests.post(
             f"{self.api_base}/orders", json=payload, headers=self.headers, timeout=10
         )
         try:
@@ -79,14 +77,14 @@ class DhanBroker(BrokerBase):
         return {"status": "failure", **resp}
 
     def get_order_list(self):
-        r = self.session.get(f"{self.api_base}/orders", headers=self.headers, timeout=10)
+        r = requests.get(f"{self.api_base}/orders", headers=self.headers, timeout=10)
         try:
             return {"status": "success", "data": r.json()}
         except Exception:
             return {"status": "failure", "error": r.text}
 
     def cancel_order(self, order_id):
-        r = self.session.delete(
+        r = requests.delete(
             f"{self.api_base}/orders/{order_id}", headers=self.headers, timeout=10
         )
         try:
@@ -95,7 +93,7 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": r.text}
 
     def get_positions(self):
-        r = self.session.get(
+        r = requests.get(
             f"{self.api_base}/positions", headers=self.headers, timeout=10
         )
         try:
@@ -106,7 +104,7 @@ class DhanBroker(BrokerBase):
     
     def get_profile(self):
         """Return profile or fund data to confirm account id."""
-        r = self.session.get(
+        r = requests.get(
             f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
         )
         try:
@@ -117,7 +115,7 @@ class DhanBroker(BrokerBase):
     def check_token_valid(self):
         """Validate access token and ensure it belongs to this client_id."""
         try:
-            r = self.session.get(
+            r = requests.get(
                 f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
             )
             r.raise_for_status()
@@ -132,7 +130,7 @@ class DhanBroker(BrokerBase):
     def get_opening_balance(self):
         """Fetch available cash balance from fundlimit API."""
         try:
-            r = self.session.get(
+            r = requests.get(
                 f"{self.api_base}/fundlimit", headers=self.headers, timeout=5
             )
             data = r.json()
