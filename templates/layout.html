@@ -90,16 +90,19 @@
     }
 
     .sidebar .nav-link {
-      display: flex;
-      align-items: center;
-      padding: 0.75rem 1rem;
-      color: var(--bs-body-color);
-      font-weight: 500; /* Medium font weight */
-      border-radius: 0.5rem; /* rounded-lg */
-      margin-bottom: 0.25rem;
-      transition: all 0.2s ease-in-out;
-      text-decoration: none;
-    }
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: clamp(0.6rem, 2.8vw, 0.8rem) clamp(0.75rem, 3.5vw, 1rem);
+    color: var(--text-light); /* Dark text for links */
+    font-weight: 500;
+    border-radius: 0.3rem;
+    margin: 0.1rem clamp(0.75rem, 3.5vw, 1rem);
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    font-size: clamp(0.875rem, 3.2vw, 0.95rem);
+    flex-shrink: 0;
+  }
 
     .sidebar .nav-link i {
       font-size: 1.125rem; /* text-lg */
