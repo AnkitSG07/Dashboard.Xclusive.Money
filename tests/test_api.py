@@ -299,7 +299,67 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         assert placed
         db.session.refresh(child)
         assert child.last_copied_trade_id == "2"
-        
+
+
+
+def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    import brokers
+
+    class DummyChildBroker(brokers.base.BrokerBase):
+        def place_order(self, **kwargs):
+            pass
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    def failing_get_broker_class(name):
+        if name == "dhan":
+            raise ImportError(
+                "Failed to load broker 'dhan': invalid syntax (dhan.py, line 96)"
+            )
+        return DummyChildBroker
+
+    monkeypatch.setattr(brokers.factory, "get_broker_class", failing_get_broker_class)
+    monkeypatch.setattr(app_module, "get_broker_class", failing_get_broker_class)
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="dhan",
+            client_id="DM",
+            credentials={"access_token": "x"},
+            status="Error",
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="child_broker",
+            client_id="DC",
+            linked_master_id="DM",
+            copy_status="On",
+            credentials={"access_token": "y"},
+            last_copied_trade_id="0",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        app_module.poll_and_copy_trades()
+
+        db.session.refresh(master)
+        assert master.status == "Connected"
 
 def test_opening_balance_cache(monkeypatch):
     app = app_module.app
