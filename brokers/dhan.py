@@ -93,12 +93,11 @@ class DhanBroker(BrokerBase):
             payload.pop("price", None) # Market orders typically don't send a price
             payload.pop("triggerPrice", None) # And no trigger price
         try:
+            # Perform the request in a single line to avoid any potential
+            # parser issues on older Python versions.
             r = self._request(
-                "post",
-                "{}/orders".format(self.api_base),
-                json=payload,
-                headers=self.headers,
-                timeout=self.timeout, # Pass timeout to the request
+                "post", "{}/orders".format(self.api_base),
+                json=payload, headers=self.headers, timeout=self.timeout
             )
             resp = r.json()
         except requests.exceptions.Timeout:
