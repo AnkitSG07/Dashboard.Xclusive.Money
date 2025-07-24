@@ -342,6 +342,7 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
             client_id="DM",
             credentials={"access_token": "x"},
             status="Error",
+            copy_status="Off",
         )
         child = Account(
             user_id=user.id,
@@ -360,6 +361,7 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
 
         db.session.refresh(master)
         assert master.status == "Connected"
+        assert master.copy_status == "On"
 
 def test_opening_balance_cache(monkeypatch):
     app = app_module.app
