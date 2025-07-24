@@ -92,7 +92,6 @@ class DhanBroker(BrokerBase):
         if order_type == self.MARKET:
             payload.pop("price", None) # Market orders typically don't send a price
             payload.pop("triggerPrice", None) # And no trigger price
-
         try:
             r = self._request(
                 "post",
@@ -174,9 +173,9 @@ class DhanBroker(BrokerBase):
                     "data": all_orders,
                 }
             except json.JSONDecodeError:
-                 return {
+                return {
                     "status": "partial_failure" if all_orders else "failure",
-                    "error": f"Invalid JSON response from Dhan API during pagination: {r.text}",
+                    "error": "Invalid JSON response from Dhan API during pagination: {}".format(r.text),
                     "data": all_orders,
                 }
             except Exception as e:
