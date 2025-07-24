@@ -112,8 +112,14 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "An unexpected error occurred while placing order: {}".format(str(e))}
 
         if "orderId" in resp:
-            return {"status": "success", **resp}
-        return {"status": "failure", **resp}
+            result = {"status": "success"}
+            if isinstance(resp, dict):
+                result.update(resp)
+            return result
+        result = {"status": "failure"}
+        if isinstance(resp, dict):
+            result.update(resp)
+        return result
 
     def get_order_list(self, use_pagination=True, batch_size=100, max_batches=50):
         """
