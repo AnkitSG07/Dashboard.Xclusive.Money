@@ -1517,6 +1517,13 @@ def poll_and_copy_trades():
                     )
                     if not skip_error:
                         log_connection_error(master, err, disable_children=True)
+                    else:
+                        master.status = "Connected"
+                        try:
+                            db.session.commit()
+                        except Exception:
+                            db.session.rollback()
+                            logger.error("Failed to commit status update")
                     continue
 
                 # Fetch orders from master account
