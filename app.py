@@ -1513,12 +1513,15 @@ def poll_and_copy_trades():
                     err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
                     logger.error(err)
                     skip_error = (
-                        master_broker == "dhan" and "invalid syntax" in str(e).lower()
+                        master_broker.lower() == "dhan"
+                        and "invalid syntax" in str(e).lower()
                     )
                     if not skip_error:
                         log_connection_error(master, err, disable_children=True)
                     else:
                         master.status = "Connected"
+                        if master.copy_status == "Off":
+                            master.copy_status = "On"    
                         try:
                             db.session.commit()
                         except Exception:
