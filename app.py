@@ -1512,7 +1512,11 @@ def poll_and_copy_trades():
                 except Exception as e:
                     err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
                     logger.error(err)
-                    log_connection_error(master, err, disable_children=True)
+                    skip_error = (
+                        master_broker == "dhan" and "invalid syntax" in str(e).lower()
+                    )
+                    if not skip_error:
+                        log_connection_error(master, err, disable_children=True)
                     continue
 
                 # Fetch orders from master account
