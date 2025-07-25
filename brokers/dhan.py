@@ -230,15 +230,62 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "An unexpected error occurred while fetching positions: {}".format(str(e))}
 
     def get_holdings(self):
-        """Fetch portfolio holdings."""
+        """Fetch portfolio holdings and enrich with LTP and P/L."""
         try:
             r = self._request(
                 "get",
-                "{}/holdings".format(self.api_base),
+                f"{self.api_base}/holdings",
                 headers=self.headers,
                 timeout=self.timeout,
             )
-            return {"status": "success", "data": r.json()}
+            holdings = r.json()
+            if isinstance(holdings, dict) and "data" in holdings:
+                holdings = holdings.get("data")
+            if not isinstance(holdings, list):
+                holdings = []
+
+            # Build securities dict for ticker API
+            securities = {}
+            for h in holdings:
+                seg = h.get("exchangeSegment") or h.get("exchange") or self.NSE
+                sid = h.get("securityId") or h.get("security_id")
+                if seg and sid:
+                    securities.setdefault(seg, []).append(int(sid))
+
+            quotes = {}
+            if securities:
+                try:
+                    qr = self._request(
+                        "post",
+                        f"{self.api_base}/marketfeed/ltp",
+                        json=securities,
+                        headers=self.headers,
+                        timeout=self.timeout,
+                    )
+                    qdata = qr.json()
+                    if isinstance(qdata, dict):
+                        quotes = qdata.get("data", {})
+                except Exception:
+                    quotes = {}
+
+            # Attach LTP and P/L if possible
+            for h in holdings:
+                seg = h.get("exchangeSegment") or h.get("exchange") or self.NSE
+                sid = str(h.get("securityId") or h.get("security_id"))
+                quote = quotes.get(seg, {}).get(sid)
+                if isinstance(quote, dict):
+                    ltp = quote.get("last_price") or quote.get("ltp")
+                    if ltp is not None:
+                        try:
+                            ltp_val = float(ltp)
+                            h["last_price"] = ltp_val
+                            qty = float(h.get("availableQty") or h.get("totalQty") or 0)
+                            avg = float(h.get("avgCostPrice") or 0)
+                            h["pnl"] = round((ltp_val - avg) * qty, 2)
+                        except Exception:
+                            pass
+
+            return {"status": "success", "data": holdings}
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while fetching holdings."}
         except requests.exceptions.RequestException as e:
@@ -247,6 +294,7 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
             return {"status": "failure", "error": "An unexpected error occurred while fetching holdings: {}".format(str(e))}
+
             
     def get_profile(self):
         """
