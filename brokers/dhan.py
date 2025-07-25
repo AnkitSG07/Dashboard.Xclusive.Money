@@ -298,10 +298,14 @@ class DhanBroker(BrokerBase):
                     if ltp is not None:
                         try:
                             ltp_val = float(ltp)
+                            # expose LTP under both common keys
                             h["last_price"] = ltp_val
+                            h.setdefault("ltp", ltp_val)
                             qty = float(h.get("availableQty") or h.get("totalQty") or 0)
                             avg = float(h.get("avgCostPrice") or 0)
-                            h["pnl"] = round((ltp_val - avg) * qty, 2)
+                            pnl = round((ltp_val - avg) * qty, 2)
+                            h["pnl"] = pnl
+                            h.setdefault("unrealizedProfit", pnl)
                         except Exception:
                             pass
 
