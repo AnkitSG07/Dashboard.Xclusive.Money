@@ -362,6 +362,10 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
         db.session.refresh(master)
         assert master.status == "Connected"
         assert master.copy_status == "On"
+        logs = app_module.SystemLog.query.all()
+        assert not any(
+            "invalid syntax" in (log.message or "").lower() for log in logs
+        )
 
 def test_opening_balance_cache(monkeypatch):
     app = app_module.app
