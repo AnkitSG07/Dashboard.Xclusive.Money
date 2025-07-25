@@ -1535,11 +1535,11 @@ def poll_and_copy_trades():
 
                         try:
                             logs = (
-                                SystemLog.query.filter_by(
-                                    user_id=master.user_id, level="ERROR"
+                                SystemLog.query.filter(
+                                    SystemLog.user_id == master.user_id,
+                                    SystemLog.level == "ERROR",
+                                    SystemLog.message.ilike("%invalid syntax%"),
                                 )
-                                .order_by(SystemLog.timestamp.desc())
-                                .limit(5)
                                 .all()
                             )
                             for log in logs:
@@ -1553,8 +1553,6 @@ def poll_and_copy_trades():
                                     isinstance(details, dict)
                                     and str(details.get("client_id"))
                                     == master.client_id
-                                    and "invalid syntax"
-                                    in (log.message or "").lower()
                                 ):
                                     db.session.delete(log)
                             db.session.commit()
