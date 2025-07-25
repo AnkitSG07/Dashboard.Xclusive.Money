@@ -1539,7 +1539,11 @@ def poll_and_copy_trades():
                                 SystemLog.query.filter(
                                     SystemLog.user_id == master.user_id,
                                     SystemLog.level == "ERROR",
-                                    SystemLog.message.ilike("%invalid syntax%"),
+                                    or_(
+                                        SystemLog.message.ilike("%invalid syntax%"),
+                                        SystemLog.message.ilike("%failed to load broker%"),
+                                        SystemLog.message.ilike("%Failed to initialize master API%"),
+                                    ),
                                 ).all()
                             )
                             for log in logs:
