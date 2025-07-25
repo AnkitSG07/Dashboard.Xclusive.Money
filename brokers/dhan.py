@@ -229,6 +229,25 @@ class DhanBroker(BrokerBase):
         except Exception as e:
             return {"status": "failure", "error": "An unexpected error occurred while fetching positions: {}".format(str(e))}
 
+    def get_holdings(self):
+        """Fetch portfolio holdings."""
+        try:
+            r = self._request(
+                "get",
+                "{}/holdings".format(self.api_base),
+                headers=self.headers,
+                timeout=self.timeout,
+            )
+            return {"status": "success", "data": r.json()}
+        except requests.exceptions.Timeout:
+            return {"status": "failure", "error": "Request to Dhan API timed out while fetching holdings."}
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": "Failed to fetch holdings from Dhan API: {}".format(str(e))}
+        except json.JSONDecodeError:
+            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
+        except Exception as e:
+            return {"status": "failure", "error": "An unexpected error occurred while fetching holdings: {}".format(str(e))}
+            
     def get_profile(self):
         """
         Return profile or fund data to confirm account id.
