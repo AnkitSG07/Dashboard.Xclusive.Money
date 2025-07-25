@@ -662,19 +662,21 @@ window.pageScripts["copy-trading"] = function () {
 
 
   window.showMasterTab = function(clientId, tabName) {
-    // Deactivate all tab links for this master
     const tabLinks = document.querySelectorAll(`#tabs-${clientId} .nav-link`);
-    tabLinks.forEach(link => link.classList.remove('active'));
-
-    // Deactivate all tab panes for this master
     const tabPanes = document.querySelectorAll(`#master-children-${clientId}, #master-positions-${clientId}, #master-holdings-${clientId}, #master-orders-book-${clientId}`);
-
-    // Activate the selected tab link
     const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}`);
-    if (activeTabLink) activeTabLink.classList.add('active');
-
-    // Activate the selected tab pane and load data
     const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${clientId}`);
+    const alreadyActive = activeTabLink && activeTabLink.classList.contains('active');
+    tabLinks.forEach(link => link.classList.remove('active'));
+    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+
+    if (alreadyActive) {
+      // If the tab was active, toggling closes it
+      return;
+    }
+
+    // Activate selected tab and pane
+    if (activeTabLink) activeTabLink.classList.add('active');
     if (selectedTabPane) {
       selectedTabPane.classList.add('show', 'active');
       if (tabName === 'positions') {
