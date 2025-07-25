@@ -1260,11 +1260,18 @@ window.pageScripts["copy-trading"] = function () {
   window.loadMasterOrders();
 };
 
-// This ensures the main page script function runs only after the DOM is fully loaded.
-document.addEventListener('DOMContentLoaded', () => {
+// This ensures the main page script function runs even if this script is loaded
+// after the DOM has already finished loading (e.g. when navigating via SPA).
+function initCopyTradingPage() {
   if (window.pageScripts && typeof window.pageScripts["copy-trading"] === 'function') {
     window.pageScripts["copy-trading"]();
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initCopyTradingPage);
+} else {
+  initCopyTradingPage();
+}
 </script>
 {% endblock %}
