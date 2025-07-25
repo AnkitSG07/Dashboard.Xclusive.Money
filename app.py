@@ -832,6 +832,11 @@ def parse_timestamp(value):
             return datetime.fromtimestamp(float(value))
         except Exception:
             return None
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except Exception:
+            pass
     for fmt in TIME_FORMATS:
         try:
             return datetime.strptime(str(value), fmt)
@@ -2360,8 +2365,14 @@ def get_order_book(client_id):
                     or ""
                 )
                 
-                # Clean up timestamp format
-                order_time = str(order_time_raw).replace("T", " ").split(".")[0] if order_time_raw else "—"
+                parsed_dt = parse_timestamp(order_time_raw)
+                if parsed_dt:
+                    order_time = parsed_dt.isoformat()
+                else:
+                    try:
+                        order_time = datetime.fromisoformat(str(order_time_raw)).isoformat()
+                    except Exception:
+                        order_time = str(order_time_raw).replace("T", " ").split(".")[0] if order_time_raw else "—"
 
                 # Extract remarks
                 remarks = (
@@ -2371,8 +2382,13 @@ def get_order_book(client_id):
                     or order.get("usercomment")
                     or order.get("Usercomments")
                     or order.get("remarks1")
-                    or order.get("rejreason")       # Rejection reason
-                    or "—"
+
+                if status.startswith("REJECT"):
+                    remarks = order.get("rejreason") or remarks or "Order rejected"
+                elif status in ["TRADED", "FILLED", "COMPLETE", "SUCCESS"]:
+                    remarks = remarks or "Trade successful"
+                else:
+                    remarks = remarks or "—"
                 )
 
                 # ✅ Create formatted order entry
