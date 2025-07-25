@@ -2382,14 +2382,14 @@ def get_order_book(client_id):
                     or order.get("usercomment")
                     or order.get("Usercomments")
                     or order.get("remarks1")
-
+                )
+                
                 if status.startswith("REJECT"):
                     remarks = order.get("rejreason") or remarks or "Order rejected"
                 elif status in ["TRADED", "FILLED", "COMPLETE", "SUCCESS"]:
                     remarks = remarks or "Trade successful"
                 else:
                     remarks = remarks or "—"
-                )
 
                 # ✅ Create formatted order entry
                 formatted_order = {
