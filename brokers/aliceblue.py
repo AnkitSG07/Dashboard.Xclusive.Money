@@ -283,6 +283,34 @@ class AliceBlueBroker(BrokerBase):
             positions = []
         return {"status": "success", "positions": positions}
 
+    def get_holdings(self):
+        """Fetch account holdings."""
+        self.ensure_session()
+        url = self.BASE_URL + "positionAndHoldings/holdings"
+        r = requests.get(url, headers=self.headers, timeout=10)
+        try:
+            resp = r.json()
+        except Exception:
+            return {"status": "failure", "error": r.text}
+        if isinstance(resp, list):
+            holdings = resp
+        elif isinstance(resp, dict):
+            if resp.get("stat") and resp.get("stat") != "Ok":
+                return {
+                    "status": "failure",
+                    "error": resp.get("emsg", "Failed to retrieve holdings."),
+                    "raw": resp,
+                }
+            holdings = (
+                resp.get("data")
+                or resp.get("holdingVal")
+                or resp.get("HoldingVal")
+                or []
+            )
+        else:
+            holdings = []
+        return {"status": "success", "holdings": holdings}
+
     def get_opening_balance(self):
         self.ensure_session()
         url = self.BASE_URL + "limits/getRmsLimits"
