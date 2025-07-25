@@ -1516,7 +1516,6 @@ def poll_and_copy_trades():
                         )
                 except Exception as e:
                     err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
-                    logger.error(err)
                     err_lower = str(e).lower()    
                     skip_error = (
                         master_broker.lower() == "dhan"
@@ -1525,9 +1524,8 @@ def poll_and_copy_trades():
                             or "failed to load broker 'dhan'" in err_lower
                         )
                     )
-                    if not skip_error:
-                        log_connection_error(master, err, disable_children=True)
-                    else:
+                    if skip_error:
+                        logger.warning(err)
                         master.status = "Connected"
                         if master.copy_status == "Off":
                             master.copy_status = "On"
@@ -1536,15 +1534,13 @@ def poll_and_copy_trades():
                         except Exception:
                             db.session.rollback()
                             logger.error("Failed to commit status update")
-
                         try:
                             logs = (
                                 SystemLog.query.filter(
                                     SystemLog.user_id == master.user_id,
                                     SystemLog.level == "ERROR",
                                     SystemLog.message.ilike("%invalid syntax%"),
-                                )
-                                .all()
+                                ).all()
                             )
                             for log in logs:
                                 details = log.details
@@ -1565,6 +1561,9 @@ def poll_and_copy_trades():
                             logger.error(
                                 f"Failed to clear Dhan init error logs for {master_id}: {e2}"
                             )
+                    else:
+                        logger.error(err)
+                        log_connection_error(master, err, disable_children=True)    
                     continue
 
                 # Fetch orders from master account
