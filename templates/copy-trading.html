@@ -1,21 +1,175 @@
 {% extends "layout.html" %}
 {% block title %}Copy Trading - DhanBot{% endblock %}
 
+{% block head %}
+  {{ super() }}
+  <style>
+    :root {
+      --bs-primary: #007bff; /* A standard primary blue */
+      --bs-secondary: #6c757d;
+      --bs-success: #28a745;
+      --bs-info: #17a2b8;
+      --bs-warning: #ffc107;
+      --bs-danger: #dc3545;
+      --bs-light: #f8f9fa;
+      --bs-dark: #343a40;
+
+      --bs-body-bg: #f4f7f6; /* Light gray background for the whole page */
+      --bs-body-color: #333; /* Darker text for readability */
+
+      /* Customizing shadows for a softer look */
+      --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+      --bs-box-shadow-sm: 0 .125rem .25rem rgba(0,0,0,.06);
+      --bs-box-shadow-lg: 0 .5rem 1rem rgba(0,0,0,.15);
+      --bs-box-shadow-inset: inset 0 1px 2px rgba(0,0,0,.075);
+
+      /* Rounded corners */
+      --bs-border-radius: .5rem; /* Slightly more rounded */
+      --bs-border-radius-sm: .3rem;
+      --bs-border-radius-lg: .75rem;
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+    }
+
+    .card {
+      border-radius: var(--bs-border-radius-lg); /* More pronounced rounded corners for cards */
+      box-shadow: var(--bs-box-shadow);
+      transition: all 0.3s ease; /* Smooth transition for hover effects */
+    }
+
+    .card:hover {
+      box-shadow: var(--bs-box-shadow-lg); /* Lift effect on hover */
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      border-top-left-radius: var(--bs-border-radius-lg);
+      border-top-right-radius: var(--bs-border-radius-lg);
+      font-weight: 600;
+      border-bottom: none; /* Remove default header border */
+    }
+
+    .hero-section {
+      background: linear-gradient(45deg, var(--bs-primary), #0d6efd); /* Gradient background for hero */
+      color: white;
+      padding: 2.5rem !important;
+      border-radius: var(--bs-border-radius-lg) !important;
+      box-shadow: var(--bs-box-shadow-lg) !important;
+    }
+
+    .hero-section h3, .hero-section p {
+        color: white !important; /* Ensure text is white on gradient */
+    }
+
+    .hero-section a {
+        color: rgba(255, 255, 255, 0.8) !important;
+        text-decoration: underline !important;
+    }
+    .hero-section a:hover {
+        color: white !important;
+    }
+
+    .btn {
+      border-radius: var(--bs-border-radius-sm);
+    }
+
+    .btn-outline-primary,
+    .btn-outline-secondary,
+    .btn-outline-success,
+    .btn-outline-warning,
+    .btn-outline-info,
+    .btn-outline-danger,
+    .btn-outline-dark {
+        transition: all 0.2s ease; /* Smooth hover for outline buttons */
+    }
+
+    .accordion-item {
+      border: none; /* Remove default accordion borders */
+      border-radius: var(--bs-border-radius);
+      box-shadow: var(--bs-box-shadow-sm);
+      margin-bottom: 1rem; /* Space between accordion items */
+      overflow: hidden; /* Ensure rounded corners clip content */
+    }
+
+    .accordion-button {
+      background-color: white;
+      border-radius: var(--bs-border-radius);
+      transition: background-color 0.2s ease;
+      font-weight: 500;
+      padding: 1rem 1.25rem; /* Adjust padding */
+    }
+
+    .accordion-button:not(.collapsed) {
+      background-color: var(--bs-light); /* Slightly different background for expanded */
+      color: var(--bs-primary);
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.125);
+    }
+
+    .accordion-body {
+      background-color: #fcfdff; /* Lighter background for accordion content */
+      border-top: 1px solid rgba(0,0,0,.05); /* Subtle separator */
+    }
+
+    .list-group-item {
+      border-radius: var(--bs-border-radius-sm);
+      margin-bottom: .5rem; /* Space between list items */
+      border: 1px solid rgba(0,0,0,.05);
+      background-color: white;
+      transition: all 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: var(--bs-light);
+        box-shadow: var(--bs-box-shadow-sm);
+    }
+
+    .badge {
+      font-weight: 600;
+      padding: .4em .7em;
+      border-radius: .25rem;
+    }
+
+    .form-check-input:checked {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
+    }
+
+    /* Adjust modal header background for consistent theme */
+    .modal-header.bg-primary,
+    .modal-header.bg-info {
+        background-color: var(--bs-primary) !important;
+    }
+
+    /* Specific adjustments for input groups in tables */
+    .input-group-sm .form-control, .input-group-sm .btn {
+        height: calc(1.5em + .5rem + 2px); /* Bootstrap's height for sm inputs */
+    }
+
+    /* Specific styling for the custom backdrop used in modals for spinner/symbol select */
+    .modal-backdrop.d-flex {
+        background-color: rgba(0, 0, 0, 0.65); /* Darker backdrop for loading */
+        backdrop-filter: blur(3px); /* Optional blur effect */
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-body d-flex align-items-center justify-content-between">
-                    <h3 class="mb-0 text-primary">
-                        <i class="bi bi-people-fill me-2"></i> Copy Trading Setup
-                    </h3>
-                    <a href="/Add-Account" class="btn btn-primary btn-sm">
+            <div class="card hero-section">
+                <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between">
+                    <div class="mb-3 mb-md-0">
+                        <h3 class="mb-2"><i class="bi bi-people-fill me-2"></i> Copy Trading Setup</h3>
+                        <p class="mb-0">Manage your trading accounts for copy trading. Use the <a href="/Add-Account" class="text-decoration-none fw-semibold">Account Configuration</a> page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.</p>
+                    </div>
+                    <a href="/Add-Account" class="btn btn-light text-primary btn-lg mt-3 mt-md-0 shadow-sm">
                         <i class="bi bi-plus-circle me-2"></i> Configure New Account
                     </a>
-                </div>
-                <div class="card-footer bg-light border-0 text-muted">
-                    Manage your trading accounts for copy trading. Use the Account Configuration page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.
                 </div>
             </div>
         </div>
@@ -238,7 +392,7 @@ window.pageScripts["copy-trading"] = function () {
       .then(data => {
         const masters = data.masters || [];
         const dropdown = document.getElementById("newMasterDropdown");
-        dropdown.innerHTML = masters.map(m => `<option value="${m.client_id}">${m.username || m.client_id}</option>`).join("");
+        dropdown.innerHTML = masters.map(m => `<option value="${m.client_id || ''}">${m.username || m.client_id || 'N/A'}</option>`).join(""); // Added checks
         new bootstrap.Modal(document.getElementById("changeMasterModal")).show();
       })
       .catch(err => {
@@ -279,10 +433,10 @@ window.pageScripts["copy-trading"] = function () {
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                   <div class="d-flex w-100 justify-content-between">
-                      <h6 class="mb-1">${row.child_client_id} <span class="badge bg-secondary ms-2">${row.status}</span></h6>
+                      <h6 class="mb-1">${row.child_client_id || 'N/A'} <span class="badge bg-secondary ms-2">${row.status || 'N/A'}</span></h6>
                       <small>${brokerIconHTML(row.child_broker)}</small>
                   </div>
-                  <p class="mb-1 text-muted">Order ID: ${row.child_order_id}</p>
+                  <p class="mb-1 text-muted">Order ID: ${row.child_order_id || 'N/A'}</p>
               </div>`;
           });
           emptyState.style.display = 'none';
@@ -315,7 +469,7 @@ window.pageScripts["copy-trading"] = function () {
           <div class="mb-3">
             <label for="setChildMasterSelect" class="form-label">Select Master Account</label>
             <select class="form-select" id="setChildMasterSelect">
-              ${masters.map(m => `<option value="${m.client_id}">${m.username || m.client_id}</option>`).join("")}
+              ${masters.map(m => `<option value="${m.client_id || ''}">${m.username || m.client_id || 'N/A'}</option>`).join("")}
             </select>
           </div>
         `;
@@ -381,10 +535,14 @@ window.pageScripts["copy-trading"] = function () {
       .then(res => res.json())
       .then(data => {
         // 1. Masters
-        const masters = (data.masters || []).map(m => ({
+        // Ensure data.masters is an array before mapping
+        const masters = (Array.isArray(data.masters) ? data.masters : []).map(m => ({
           ...m,
+          // Use nullish coalescing for safer access, ensuring client_id is present
+          client_id: m.client_id || (m.client ? m.client.id : undefined), // Defensive check for m.client.id
+          username: m.username || (m.client ? m.client.username : undefined), // Defensive check for m.client.username
           role: "master"
-        }));
+        })).filter(m => m.client_id); // Filter out masters without a valid client_id
         window.masterAccounts = masters; // Store globally for other functions
 
         // 2. Children (flattened, with .linked_master_id if possible)
@@ -397,7 +555,7 @@ window.pageScripts["copy-trading"] = function () {
               }
               children.push({
                 ...child,
-                linked_master_id: master.client_id
+                linked_master_id: master.client_id // Master's client_id should be defined here
               });
               return child;
             });
@@ -413,59 +571,63 @@ window.pageScripts["copy-trading"] = function () {
         } else {
             document.getElementById("master-empty-state").style.display = 'none';
             masters.forEach((master, index) => {
+              // Safely access master properties for rendering
+              const masterClientId = master.client_id || 'N/A';
+              const masterUsername = master.username || "-";
+
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingMaster${master.client_id}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${master.client_id}" aria-expanded="false" aria-controls="collapseMaster${master.client_id}">
+                  <h2 class="accordion-header" id="headingMaster${masterClientId}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterClientId}" aria-expanded="false" aria-controls="collapseMaster${masterClientId}">
                       <div class="d-flex align-items-center w-100 pe-3">
                         ${brokerIconHTML(master.broker)}
-                        <span class="ms-2 fw-semibold">${master.client_id}</span>
-                        <span class="text-muted ms-3 d-none d-md-inline-block">${master.username || "-"}</span>
+                        <span class="ms-2 fw-semibold">${masterClientId}</span>
+                        <span class="text-muted ms-3 d-none d-md-inline-block">${masterUsername}</span>
                         <div class="ms-auto">${statusBadge(master.status, master.errors || master.last_error, master.broker)}</div>
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseMaster${master.client_id}" class="accordion-collapse collapse" aria-labelledby="headingMaster${master.client_id}" data-bs-parent="#master-accounts-accordion">
+                  <div id="collapseMaster${masterClientId}" class="accordion-collapse collapse" aria-labelledby="headingMaster${masterClientId}" data-bs-parent="#master-accounts-accordion">
                     <div class="accordion-body p-3">
                       <div class="d-flex flex-wrap gap-2 mb-3">
-                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster('${master.client_id}')">Remove Master</button>
+                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster('${masterClientId}')">Remove Master</button>
                           <div class="vr"></div>
-                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child Copying</button>
-                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child Copying</button>
-                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren('${master.client_id}')">Exit All Child Positions</button>
+                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren('${masterClientId}')">Turn On All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren('${masterClientId}')">Turn Off All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren('${masterClientId}')">Exit All Child Positions</button>
                       </div>
-                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${master.client_id}" role="tablist">
+                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterClientId}" role="tablist">
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link active" id="tab-children-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${master.client_id}" type="button" role="tab" aria-controls="master-children-${master.client_id}" aria-selected="true" onclick="window.showMasterTab('${master.client_id}', 'children')">View Children</button>
+                              <button class="nav-link active" id="tab-children-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterClientId}" type="button" role="tab" aria-controls="master-children-${masterClientId}" aria-selected="true" onclick="window.showMasterTab('${masterClientId}', 'children')">View Children</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-positions-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${master.client_id}" type="button" role="tab" aria-controls="master-positions-${master.client_id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'positions')">Positions</button>
+                              <button class="nav-link" id="tab-positions-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterClientId}" type="button" role="tab" aria-controls="master-positions-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'positions')">Positions</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-holdings-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${master.client_id}" type="button" role="tab" aria-controls="master-holdings-${master.client_id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'holdings')">Holdings</button>
+                              <button class="nav-link" id="tab-holdings-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterClientId}" type="button" role="tab" aria-controls="master-holdings-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'holdings')">Holdings</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-orders-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${master.client_id}" type="button" role="tab" aria-controls="master-orders-book-${master.client.id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'orders')">Order Book</button>
+                              <button class="nav-link" id="tab-orders-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterClientId}" type="button" role="tab" aria-controls="master-orders-book-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'orders')">Order Book</button>
                           </li>
                       </ul>
                       <div class="tab-content">
-                          <div class="tab-pane fade show active" id="master-children-${master.client_id}" role="tabpanel" aria-labelledby="tab-children-${master.client_id}-tab">
+                          <div class="tab-pane fade show active" id="master-children-${masterClientId}" role="tabpanel" aria-labelledby="tab-children-${masterClientId}-tab">
                               <h6>Linked Child Accounts</h6>
-                              <div id="child-rows-${master.client_id}" class="list-group">
+                              <div id="child-rows-${masterClientId}" class="list-group">
                                   </div>
-                              <div id="child-rows-empty-${master.client_id}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
+                              <div id="child-rows-empty-${masterClientId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-positions-${master.client_id}" role="tabpanel" aria-labelledby="tab-positions-${master.client_id}-tab">
-                            <div id="positions-body-${master.client_id}" class="list-group"></div>
-                            <div id="positions-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
+                          <div class="tab-pane fade" id="master-positions-${masterClientId}" role="tabpanel" aria-labelledby="tab-positions-${masterClientId}-tab">
+                            <div id="positions-body-${masterClientId}" class="list-group"></div>
+                            <div id="positions-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-holdings-${master.client_id}" role="tabpanel" aria-labelledby="tab-holdings-${master.client_id}-tab">
-                            <div id="holdings-body-${master.client_id}" class="list-group"></div>
-                            <div id="holdings-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
+                          <div class="tab-pane fade" id="master-holdings-${masterClientId}" role="tabpanel" aria-labelledby="tab-holdings-${masterClientId}-tab">
+                            <div id="holdings-body-${masterClientId}" class="list-group"></div>
+                            <div id="holdings-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-orders-book-${master.client_id}" role="tabpanel" aria-labelledby="tab-orders-${master.client_id}-tab">
-                            <div id="orders-body-${master.client_id}" class="list-group"></div>
-                            <div id="orders-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                          <div class="tab-pane fade" id="master-orders-book-${masterClientId}" role="tabpanel" aria-labelledby="tab-orders-${masterClientId}-tab">
+                            <div id="orders-body-${masterClientId}" class="list-group"></div>
+                            <div id="orders-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
                           </div>
                       </div>
                     </div>
@@ -476,7 +638,7 @@ window.pageScripts["copy-trading"] = function () {
             });
             // Manually trigger initial tab content load for the first tab (children) for all masters
             masters.forEach(master => {
-                window.showMasterTab(master.client_id, 'children');
+                window.showMasterTab(master.client_id || 'N/A', 'children'); // Pass potentially 'N/A' but the method expects it
             });
         }
 
@@ -492,62 +654,67 @@ window.pageScripts["copy-trading"] = function () {
               const exited = window.exitedChildren[child.client_id];
               const disableCopy = childHasError(child) ? 'disabled' : '';
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              const childClientId = child.client_id || 'N/A';
+              const childUsername = child.username || "-";
+              const linkedMasterId = master.client_id || "-";
+              const childMultiplier = child.multiplier || 1;
+
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingChild${child.client_id}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${child.client_id}" aria-expanded="false" aria-controls="collapseChild${child.client_id}">
+                  <h2 class="accordion-header" id="headingChild${childClientId}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childClientId}" aria-expanded="false" aria-controls="collapseChild${childClientId}">
                       <div class="d-flex align-items-center w-100 pe-3">
                         ${brokerIconHTML(child.broker)}
-                        <span class="ms-2 fw-semibold">${child.client_id}</span>
-                        <span class="text-muted ms-3 d-none d-md-inline-block">Master: ${master.client_id || "-"}</span>
+                        <span class="ms-2 fw-semibold">${childClientId}</span>
+                        <span class="text-muted ms-3 d-none d-md-inline-block">Master: ${linkedMasterId}</span>
                         <div class="ms-auto me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                         <div class="form-check form-switch m-0 me-3">
                             <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${master.client_id}', this.checked)\"` }>
+                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this.checked)\"` }>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
                         <div class="input-group input-group-sm w-auto d-inline-flex me-3">
-                          <input type="number" min="0.1" step="0.1" class="form-control form-control-sm" id="mult-${child.client_id}" value="${child.multiplier || 1}" style="width: 60px;">
-                          <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${child.client_id}')">Save</button>
+                          <input type="number" min="0.1" step="0.1" class="form-control form-control-sm" id="mult-${childClientId}" value="${childMultiplier}" style="width: 60px;">
+                          <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${childClientId}')">Save</button>
                         </div>
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseChild${child.client_id}" class="accordion-collapse collapse" aria-labelledby="headingChild${child.client_id}" data-bs-parent="#children-accounts-accordion">
+                  <div id="collapseChild${childClientId}" class="accordion-collapse collapse" aria-labelledby="headingChild${childClientId}" data-bs-parent="#children-accounts-accordion">
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button class="btn btn-sm btn-outline-success ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.startCopying('${child.client_id}', '${master.client_id}')\"`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.stopCopying('${child.client_id}', '${master.client_id}')\"`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline-success ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}')\"`}>Stop Copying</button>
                             <div class="vr"></div>
-                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off Specific Symbol</button>
-                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${child.client_id}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${linkedMasterId}', '${childClientId}')">Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${childClientId}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
                             <div class="vr"></div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild('${child.client_id}')">Remove Child</button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster('${child.client_id}')">Change Master</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild('${childClientId}')">Remove Child</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster('${childClientId}')">Change Master</button>
                         </div>
-                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${child.client_id}" role="tablist">
+                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childClientId}" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="tab-child-orders-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${child.client_id}" type="button" role="tab" aria-controls="child-orders-${child.client_id}" aria-selected="true" onclick="window.showChildTab('${child.client_id}', 'orders')">Order Book</button>
+                                <button class="nav-link active" id="tab-child-orders-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childClientId}" type="button" role="tab" aria-controls="child-orders-${childClientId}" aria-selected="true" onclick="window.showChildTab('${childClientId}', 'orders')">Order Book</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-positions-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${child.client_id}" type="button" role="tab" aria-controls="child-positions-${child.client_id}" aria-selected="false" onclick="window.showChildTab('${child.client_id}', 'positions')">Positions</button>
+                                <button class="nav-link" id="tab-child-positions-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childClientId}" type="button" role="tab" aria-controls="child-positions-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'positions')">Positions</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-holdings-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${child.client_id}" type="button" role="tab" aria-controls="child-holdings-${child.client.id}" aria-selected="false" onclick="window.showChildTab('${child.client_id}', 'holdings')">Holdings</button>
+                                <button class="nav-link" id="tab-child-holdings-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childClientId}" type="button" role="tab" aria-controls="child-holdings-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'holdings')">Holdings</button>
                             </li>
                         </ul>
                         <div class="tab-content">
-                            <div class="tab-pane fade show active" id="child-orders-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-orders-${child.client_id}-tab">
-                                <div id="child-orders-body-${child.client_id}" class="list-group"></div>
-                                <div id="child-orders-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                            <div class="tab-pane fade show active" id="child-orders-${childClientId}" role="tabpanel" aria-labelledby="tab-child-orders-${childClientId}-tab">
+                                <div id="child-orders-body-${childClientId}" class="list-group"></div>
+                                <div id="child-orders-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
                             </div>
-                            <div class="tab-pane fade" id="child-positions-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-positions-${child.client_id}-tab">
-                                <div id="child-positions-body-${child.client_id}" class="list-group"></div>
-                                <div id="child-positions-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                            <div class="tab-pane fade" id="child-positions-${childClientId}" role="tabpanel" aria-labelledby="tab-child-positions-${childClientId}-tab">
+                                <div id="child-positions-body-${childClientId}" class="list-group"></div>
+                                <div id="child-positions-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
                             </div>
-                            <div class="tab-pane fade" id="child-holdings-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-holdings-${child.client_id}-tab">
-                                <div id="child-holdings-body-${child.client_id}" class="list-group"></div>
-                                <div id="child-holdings-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                            <div class="tab-pane fade" id="child-holdings-${childClientId}" role="tabpanel" aria-labelledby="tab-child-holdings-${childClientId}-tab">
+                                <div id="child-holdings-body-${childClientId}" class="list-group"></div>
+                                <div id="child-holdings-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
                             </div>
                         </div>
                     </div>
@@ -558,32 +725,36 @@ window.pageScripts["copy-trading"] = function () {
             });
             // Initial load for child tabs
             children.forEach(child => {
-                window.showChildTab(child.client_id, 'orders');
+                window.showChildTab(child.client_id || 'N/A', 'orders');
             });
         }
 
         // --- Unassigned Accounts Display ---
         const unassignedList = document.getElementById("unassigned-accounts-list");
         unassignedList.innerHTML = "";
-        const unassignedAccounts = (data.accounts || []).filter(acc => !acc.role);
+        // Ensure data.accounts is an array before filtering
+        const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
         if (unassignedAccounts.length === 0) {
             document.getElementById("unassigned-empty-state").style.display = 'block';
         } else {
             document.getElementById("unassigned-empty-state").style.display = 'none';
             unassignedAccounts.forEach(acc => {
+              const accClientId = acc.client_id || 'N/A';
+              const accUsername = acc.username || "-";
+
               unassignedList.innerHTML += `
                 <div class="col">
                     <div class="card h-100 shadow-sm border-0">
                         <div class="card-body d-flex flex-column">
                             <div class="d-flex align-items-center mb-2">
                                 ${brokerIconHTML(acc.broker)}
-                                <h6 class="card-title mb-0 ms-2">${acc.client_id}</h6>
+                                <h6 class="card-title mb-0 ms-2">${accClientId}</h6>
                             </div>
-                            <p class="card-text text-muted mb-auto">Username: ${acc.username || "-"}</p>
+                            <p class="card-text text-muted mb-auto">Username: ${accUsername}</p>
                             <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
                             <div class="d-flex gap-2 mt-auto">
-                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster('${acc.client_id}')">Set as Master</button>
-                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild('${acc.client_id}')">Set as Child</button>
+                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster('${accClientId}')">Set as Master</button>
+                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild('${accClientId}')">Set as Child</button>
                             </div>
                         </div>
                     </div>
@@ -593,11 +764,11 @@ window.pageScripts["copy-trading"] = function () {
         }
       })
       .then(() => {
-        if (typeof enableDropdowns === 'function') enableDropdowns(); // Re-enable dropdowns if needed (Bootstrap 5 handles this automatically with data-bs-toggle)
+        // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
-        console.error("Failed to load accounts:", err);
-        showMessage("Failed to load accounts. Please check your API connection.", 'danger');
+        console.error("Failed to load accounts:", err); // Keep this for overall fetch errors
+        showMessage("Failed to load accounts. Please check your API connection or data structure.", 'danger');
       });
   };
 
@@ -616,19 +787,23 @@ window.pageScripts["copy-trading"] = function () {
           listGroup.innerHTML = kids.map(child => {
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
               const disableCopy = childHasError(child) ? 'disabled' : '';
+              const childClientId = child.client_id || 'N/A';
+              const childUsername = child.username || "-";
+              const childMultiplier = child.multiplier || 1;
+
               return `
               <div class="list-group-item list-group-item-action py-3 d-flex align-items-center">
                 ${brokerIconHTML(child.broker)}
-                <span class="ms-2 me-auto fw-semibold">${child.client_id}</span>
-                <span class="text-muted d-none d-md-inline-block me-3">${child.username || "-"}</span>
+                <span class="ms-2 me-auto fw-semibold">${childClientId}</span>
+                <span class="text-muted d-none d-md-inline-block me-3">${childUsername}</span>
                 <div class="me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                 <div class="form-check form-switch m-0 me-3">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${masterId}', this.checked)\"` }>
+                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this.checked)\"` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
-                <span class="me-3">Mult: ${child.multiplier || 1}</span>
-                <button class="btn btn-sm btn-danger" onclick="window.removeChild('${child.client_id}')">Remove</button>
+                <span class="me-3">Mult: ${childMultiplier}</span>
+                <button class="btn btn-sm btn-danger" onclick="window.removeChild('${childClientId}')">Remove</button>
               </div>
           `}).join('');
       }
@@ -993,13 +1168,13 @@ window.pageScripts["copy-trading"] = function () {
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between align-items-center">
                   <div class="form-check">
-                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id}" id="masterOrderCheck${order.master_order_id}">
-                    <label class="form-check-label fw-semibold" for="masterOrderCheck${order.master_order_id}">${order.symbol}</label>
+                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id || ''}" id="masterOrderCheck${order.master_order_id || ''}">
+                    <label class="form-check-label fw-semibold" for="masterOrderCheck${order.master_order_id || ''}">${order.symbol || '-'}</label>
                   </div>
-                  <span class="badge bg-primary">${order.status}</span>
+                  <span class="badge bg-primary">${order.status || '-'}</span>
                 </div>
-                <p class="mb-1 text-muted">Order ID: ${order.master_order_id} | Children: ${order.total_children}</p>
-                <button class="btn btn-sm btn-info mt-2" onclick="window.viewChildMappings('${order.master_order_id}')"><i class="bi bi-eye-fill"></i> View Children</button>
+                <p class="mb-1 text-muted">Order ID: ${order.master_order_id || 'N/A'} | Children: ${order.total_children || 0}</p>
+                <button class="btn btn-sm btn-info mt-2" onclick="window.viewChildMappings('${order.master_order_id || ''}')"><i class="bi bi-eye-fill"></i> View Children</button>
               </div>`;
           });
         } else {
