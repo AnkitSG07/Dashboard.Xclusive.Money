@@ -580,7 +580,7 @@ window.pageScripts["copy-trading"] = function () {
                           <li><a class="dropdown-item ${disableCopy ? 'disabled' : ''}" href="javascript:void(0)" ${disableCopy ? '' : `onclick=\"window.stopCopying('${child.client_id}', '${master.client_id}')\"`}>Stop Copying</a></li>
                           <li><hr class="dropdown-divider"></li>
                           <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off Specific Symbol</a></li>
-                          <li><a class="dropdown-item ${exited ? 'disabled' : ''}" href="javascript:void(0)" ${exited ? '' : `onclick="window.exitAllPositions('${child.client_id}')"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</a></li>
+                          <li><a class="dropdown-item ${exited ? 'disabled' : ''}" href="javascript:void(0)" ${exited ? '' : `onclick=\"window.exitAllPositions('${child.client_id}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</a></li>
                           <li><hr class="dropdown-divider"></li>
                           <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.removeChild('${child.client_id}')">Remove Child</a></li>
                           <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.openChangeMaster('${child.client_id}')">Change Master</a></li>
@@ -588,8 +588,89 @@ window.pageScripts["copy-trading"] = function () {
                     </div>
                   </td>
                 </tr>
+                <tr id="child-tabs-container-${child.client_id}">
+                  <td colspan="8" class="p-0">
+                    <ul class="nav nav-tabs child-tab-links px-3" id="child-tabs-${child.client_id}">
+                      <li class="nav-item">
+                        <a class="nav-link active" id="tab-child-orders-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'orders')">Order Book</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" id="tab-child-positions-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'positions')">Positions</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" id="tab-child-holdings-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'holdings')">Holdings</a>
+                      </li>
+                    </ul>
+                    <div class="tab-content p-3 bg-light rounded-bottom">
+                      <div class="tab-pane fade show active" id="child-orders-${child.client_id}" role="tabpanel">
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
+                            <thead>
+                              <tr>
+                                <th>Order ID</th>
+                                <th>Side</th>
+                                <th>Status</th>
+                                <th>Symbol</th>
+                                <th>Product Type</th>
+                                <th>Placed Qty</th>
+                                <th>Filled Qty</th>
+                                <th>Avg Price</th>
+                                <th>Order Time</th>
+                                <th>Remarks</th>
+                              </tr>
+                            </thead>
+                            <tbody id="child-orders-body-${child.client_id}"></tbody>
+                          </table>
+                          <div id="child-orders-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="child-positions-${child.client_id}" role="tabpanel">
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
+                            <thead>
+                              <tr>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>Buy Qty</th>
+                                <th>Sell Qty</th>
+                                <th>Net Qty</th>
+                                <th>Avg Buy Price</th>
+                                <th>Avg Sell Price</th>
+                                <th>LTP</th>
+                                <th>P/L</th>
+                              </tr>
+                            </thead>
+                            <tbody id="child-positions-body-${child.client_id}"></tbody>
+                          </table>
+                          <div id="child-positions-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="child-holdings-${child.client_id}" role="tabpanel">
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
+                            <thead>
+                              <tr>
+                                <th>Symbol</th>
+                                <th>Qty</th>
+                                <th>Avg Price</th>
+                                <th>LTP</th>
+                                <th>P/L</th>
+                              </tr>
+                            </thead>
+                            <tbody id="child-holdings-body-${child.client_id}"></tbody>
+                          </table>
+                          <div id="child-holdings-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               `;
             });
+            // Initial load for child tabs
+            children.forEach(child => {
+                window.showChildTab(child.client_id, 'orders');
+            });  
         }
         // --- Unassigned Accounts Table ---
         const unassignedBody = document.getElementById("unassigned-table-body");
@@ -850,7 +931,182 @@ window.pageScripts["copy-trading"] = function () {
         console.error("Holdings fetch failed:", err);
         tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load holdings.</td></tr>`;
         emptyState.style.display = 'none';
-        showMessage("Failed to load holdings for child account.", 'danger');
+      showMessage("Failed to load holdings for child account.", 'danger');
+    });
+  }
+
+  // --- Child Tabs ---
+  window.showChildTab = function(childId, tabName) {
+    const tabLinks = document.querySelectorAll(`#child-tabs-${childId} .nav-link`);
+    const tabPanes = document.querySelectorAll(`#child-orders-${childId}, #child-positions-${childId}, #child-holdings-${childId}`);
+    const activeTabLink = document.getElementById(`tab-child-${tabName}-${childId}`);
+    const selectedTabPane = document.getElementById(`child-${tabName}-${childId}`);
+    const alreadyActive = activeTabLink && activeTabLink.classList.contains('active');
+    tabLinks.forEach(link => link.classList.remove('active'));
+    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+
+    if (alreadyActive) {
+      return;
+    }
+
+    if (activeTabLink) activeTabLink.classList.add('active');
+    if (selectedTabPane) {
+      selectedTabPane.classList.add('show', 'active');
+      if (tabName === 'positions') {
+        loadChildPositions(childId);
+      } else if (tabName === 'orders') {
+        loadChildOrderBook(childId);
+      } else if (tabName === 'holdings') {
+        loadChildHoldings(childId);
+      }
+    }
+  };
+
+  function loadChildOrderBook(childId) {
+    const tbody = document.getElementById(`child-orders-body-${childId}`);
+    const emptyState = document.getElementById(`child-orders-empty-${childId}`);
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading orders...</td></tr>`;
+    emptyState.style.display = 'none';
+
+    fetch(`/api/order-book/${childId}`)
+      .then(res => res.json())
+      .then(data => {
+        tbody.innerHTML = "";
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(order => {
+            const status = String(order.status || '').toUpperCase();
+            const statusDisplay = status === 'TRADED'
+              ? `<span class="text-success">${status}</span>`
+              : status === 'REJECTED'
+                ? `<span class="text-danger">${status}</span>`
+                : status;
+            tbody.innerHTML += `
+              <tr>
+                <td>${order.order_id || '-'}</td>
+                <td>${order.side || '-'}</td>
+                <td>${statusDisplay}</td>
+                <td>${order.symbol || '-'}</td>
+                <td>${order.product_type || '-'}</td>
+                <td>${order.placed_qty || '-'}</td>
+                <td>${order.filled_qty || '-'}</td>
+                <td>${order.avg_price || '-'}</td>
+                <td>${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</td>
+                <td>${order.remarks || '-'}</td>
+              </tr>
+            `;
+          });
+        } else {
+          emptyState.style.display = 'block';
+          tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">No recent orders found.</td></tr>`;
+        }
+      })
+      .catch(err => {
+        console.error('Child order book fetch failed:', err);
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Failed to load order book.</td></tr>`;
+        emptyState.style.display = 'none';
+        showMessage('Failed to load order book.', 'danger');
+      });
+  }
+
+  function loadChildPositions(childId) {
+    const tbody = document.getElementById(`child-positions-body-${childId}`);
+    const emptyState = document.getElementById(`child-positions-empty-${childId}`);
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading positions...</td></tr>`;
+    emptyState.style.display = 'none';
+
+    fetch(`/api/portfolio/${childId}`)
+      .then(res => res.json())
+      .then(positions => {
+        tbody.innerHTML = "";
+        if (Array.isArray(positions) && positions.length > 0) {
+          positions.forEach(pos => {
+            const buyQty = pos.buyQty || pos.buy_quantity || 0;
+            const sellQty = pos.sellQty || pos.sell_quantity || 0;
+            const netQty = pos.netQty || pos.net_quantity || 0;
+            const type = netQty >= 0 ? 'BUY' : 'SELL';
+            tbody.innerHTML += `
+              <tr>
+                <td>${pos.tradingSymbol || pos.symbol || '-'}</td>
+                <td><span class="badge ${type === 'BUY' ? 'bg-success' : 'bg-danger'}">${type}</span></td>
+                <td>${buyQty}</td>
+                <td>${sellQty}</td>
+                <td>${netQty}</td>
+                <td>${pos.buyAvg || pos.buy_avg_price || '-'}</td>
+                <td>${pos.sellAvg || pos.sell_avg_price || '-'}</td>
+                <td>${pos.ltp || pos.last_price || '-'}</td>
+                <td>${pos.profitAndLoss || pos.pnl || '-'}</td>
+              </tr>
+            `;
+          });
+        } else {
+          emptyState.style.display = 'block';
+          tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No positions for this child account.</td></tr>`;
+        }
+      })
+      .catch(err => {
+        console.error('Child positions fetch failed:', err);
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Failed to load positions.</td></tr>`;
+        emptyState.style.display = 'none';
+        showMessage('Failed to load positions.', 'danger');
+      });
+  }
+
+  function loadChildHoldings(childId) {
+    const tbody = document.getElementById(`child-holdings-body-${childId}`);
+    const emptyState = document.getElementById(`child-holdings-empty-${childId}`);
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading holdings...</td></tr>`;
+    emptyState.style.display = 'none';
+
+    fetch(`/api/holdings/${childId}`)
+      .then(res => res.json())
+      .then(holdings => {
+        tbody.innerHTML = "";
+        if (Array.isArray(holdings) && holdings.length > 0) {
+          holdings.forEach(h => {
+            const getVal = (obj, keys) => {
+              for (const k of keys) {
+                for (const key in obj) {
+                  if (key.toLowerCase() === k.toLowerCase()) return obj[key];
+                }
+              }
+              return undefined;
+            };
+            const qty = getVal(h, [
+              'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
+              'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
+            ]) || 0;
+            const avg = getVal(h, [
+              'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
+            ]);
+            const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
+            const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
+            const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
+            tbody.innerHTML += `
+              <tr>
+                <td>${sym}</td>
+                <td>${qty}</td>
+                <td>${avg !== undefined ? avg : '-'}</td>
+                <td>${ltp !== undefined ? ltp : '-'}</td>
+                <td>${pnl !== undefined ? pnl : '-'}</td>
+              </tr>
+            `;
+          });
+        } else {
+          emptyState.style.display = 'block';
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No holdings for this child account.</td></tr>`;
+        }
+      })
+      .catch(err => {
+        console.error('Child holdings fetch failed:', err);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load holdings.</td></tr>`;
+        emptyState.style.display = 'none';
+        showMessage('Failed to load holdings for child account.', 'danger');
       });
   }
 
