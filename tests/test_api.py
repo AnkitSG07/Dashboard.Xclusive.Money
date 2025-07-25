@@ -301,7 +301,6 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         assert child.last_copied_trade_id == "2"
 
 
-
 def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
     app = app_module.app
     db = app_module.db
@@ -357,6 +356,18 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
         db.session.add_all([master, child])
         db.session.commit()
 
+        # Seed a couple of old error logs that should be cleared
+        for _ in range(2):
+            log = app_module.SystemLog(
+                timestamp=datetime.utcnow(),
+                level="ERROR",
+                message="Failed to initialize master API (dhan): invalid syntax",
+                user_id=str(user.id),
+                details=json.dumps({"client_id": "DM"}),
+            )
+            db.session.add(log)
+        db.session.commit()
+
         app_module.poll_and_copy_trades()
 
         db.session.refresh(master)
@@ -366,6 +377,7 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
         assert not any(
             "invalid syntax" in (log.message or "").lower() for log in logs
         )
+
 
 def test_opening_balance_cache(monkeypatch):
     app = app_module.app
