@@ -28,6 +28,17 @@ class DhanBroker(BrokerBase):
         # Initialize symbol_map if it's expected to be used
         self.symbol_map = kwargs.pop("symbol_map", {}) # Add this line to initialize symbol_map
 
+    def _normalize_segment(self, seg):
+        """Return API-compatible exchange segment string."""
+        if not seg or str(seg).upper() in ("ALL", "", "NONE"):
+            return self.NSE
+        seg = str(seg).upper()
+        if seg == "NSE":
+            return "NSE_EQ"
+        if seg == "BSE":
+            return "BSE_EQ"
+        return seg
+
     # Assuming _request method exists in BrokerBase.
     # If not, you'd need to define it here or in BrokerBase.
     # Example minimal _request for demonstration if it's missing:
@@ -247,16 +258,7 @@ class DhanBroker(BrokerBase):
             # Build securities dict for ticker API
             securities = {}
             for h in holdings:
-                seg = h.get("exchangeSegment") or h.get("exchange")
-                # Map common values like "NSE" or "ALL" to the segment expected by the LTP API
-                if not seg or str(seg).upper() in ("ALL", "", "NONE"):
-                    seg = self.NSE
-                else:
-                    seg = str(seg).upper()
-                    if seg == "NSE":
-                        seg = "NSE_EQ"
-                    elif seg == "BSE":
-                        seg = "BSE_EQ"
+                seg = self._normalize_segment(h.get("exchangeSegment") or h.get("exchange"))
                 sid = h.get("securityId") or h.get("security_id")
                 if seg and sid:
                     try:
@@ -282,15 +284,7 @@ class DhanBroker(BrokerBase):
 
             # Attach LTP and P/L if possible
             for h in holdings:
-                seg = h.get("exchangeSegment") or h.get("exchange")
-                if not seg or str(seg).upper() in ("ALL", "", "NONE"):
-                    seg = self.NSE
-                else:
-                    seg = str(seg).upper()
-                    if seg == "NSE":
-                        seg = "NSE_EQ"
-                    elif seg == "BSE":
-                        seg = "BSE_EQ"
+                seg = self._normalize_segment(h.get("exchangeSegment") or h.get("exchange"))
                 sid = str(h.get("securityId") or h.get("security_id"))
                 quote = quotes.get(seg, {}).get(sid)
                 if isinstance(quote, dict):
