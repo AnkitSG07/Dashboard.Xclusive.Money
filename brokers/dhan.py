@@ -287,21 +287,26 @@ class DhanBroker(BrokerBase):
                 seg = self._normalize_segment(h.get("exchangeSegment") or h.get("exchange"))
                 sid = str(h.get("securityId") or h.get("security_id"))
                 quote = quotes.get(seg, {}).get(sid)
+                ltp = None
                 if isinstance(quote, dict):
                     ltp = quote.get("last_price") or quote.get("ltp")
-                    if ltp is not None:
-                        try:
-                            ltp_val = float(ltp)
-                            # expose LTP under both common keys
-                            h["last_price"] = ltp_val
-                            h.setdefault("ltp", ltp_val)
-                            qty = float(h.get("availableQty") or h.get("totalQty") or 0)
-                            avg = float(h.get("avgCostPrice") or 0)
-                            pnl = round((ltp_val - avg) * qty, 2)
-                            h["pnl"] = pnl
-                            h.setdefault("unrealizedProfit", pnl)
-                        except Exception:
-                            pass
+
+                if ltp is None and h.get("lastTradedPrice") not in (None, ""):
+                    ltp = h.get("lastTradedPrice")
+
+                if ltp is not None:
+                    try:
+                        ltp_val = float(ltp)
+                        # expose LTP under both common keys
+                        h["last_price"] = ltp_val
+                        h.setdefault("ltp", ltp_val)
+                        qty = float(h.get("availableQty") or h.get("totalQty") or 0)
+                        avg = float(h.get("avgCostPrice") or 0)
+                        pnl = round((ltp_val - avg) * qty, 2)
+                        h["pnl"] = pnl
+                        h.setdefault("unrealizedProfit", pnl)
+                    except Exception:
+                        pass
 
             return {"status": "success", "data": holdings}
         except requests.exceptions.Timeout:
