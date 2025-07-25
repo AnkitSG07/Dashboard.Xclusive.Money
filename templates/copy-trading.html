@@ -2,168 +2,151 @@
 {% block title %}Copy Trading - DhanBot{% endblock %}
 
 {% block content %}
-<div class="section-box hero-section mb-4 p-4 rounded shadow-sm bg-white">
-  <h3 class="mb-2 text-primary"><i class="bi bi-people-fill me-2"></i> Copy Trading Setup</h3>
-  <p class="mb-0 text-muted">Manage your trading accounts for copy trading. Use the <a href="/Add-Account" class="text-decoration-none fw-semibold">Account Configuration</a> page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.</p>
-</div>
-
-<div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
-  <h5 class="mb-3 text-info"><i class="bi bi-question-circle me-2"></i> Unassigned Accounts</h5>
-  <p class="text-muted">Accounts added but not yet assigned a role (Master or Child). Assign their role below to get started.</p>
-  <div class="table-responsive">
-    <table class="table table-hover table-striped table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Broker</th>
-          <th>Client ID</th>
-          <th class="d-none d-md-table-cell">Username</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="unassigned-table-body">
-        </tbody>
-    </table>
-  </div>
-  <div id="unassigned-empty-state" class="text-center p-3 text-muted" style="display: none;">
-    No unassigned accounts. All accounts have a role.
-  </div>
-</div>
-
-<div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
-  <h5 class="mb-3 text-success"><i class="bi bi-person-badge-fill me-2"></i> Master Accounts</h5>
-  <p class="text-muted">Accounts selected to replicate their trades across linked child accounts.</p>
-  <div class="table-responsive">
-    <table class="table table-hover table-striped table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Broker</th>
-          <th>Client ID</th>
-          <th class="d-none d-md-table-cell">Username</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="master-table-body">
-        </tbody>
-    </table>
-  </div>
-  <div id="master-empty-state" class="text-center p-3 text-muted" style="display: none;">
-    No master accounts configured.
-  </div>
-</div>
-
-<div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
-  <h5 class="mb-3 text-primary"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
-  <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
-  <div class="table-responsive">
-    <table class="table table-hover table-striped table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Broker</th>
-          <th class="d-none d-sm-table-cell">Master ID</th>
-          <th>Client ID</th>
-          <th class="d-none d-md-table-cell">Username</th>
-          <th>Status</th>
-          <th>Copy Status</th>
-          <th>Multiplier</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="children-table-body">
-        </tbody>
-    </table>
-  </div>
-  <div id="children-empty-state" class="text-center p-3 text-muted" style="display: none;">
-    No child accounts configured.
-  </div>
-</div>
-
-<div class="section-box mb-4 p-4 rounded shadow-sm bg-white">
-  <h5 class="mb-3 text-secondary"><i class="bi bi-card-checklist me-2"></i> Master Orders</h5>
-  <p class="text-muted">Manage or cancel trades initiated by Master accounts and copied to children.</p>
-  <div class="sticky-toolbar bg-light p-3 border-bottom rounded-top d-flex flex-wrap gap-2 align-items-center" style="position: sticky; top: 0; z-index: 10;">
-    <button class="btn btn-danger btn-sm" id="cancelSelectedOrdersBtn"><i class="bi bi-x-circle me-1"></i> Cancel Selected</button>
-    <button class="btn btn-warning btn-sm" id="squareOffSelectedOrdersBtn"><i class="bi bi-box-arrow-in-up-right me-1"></i> Square Off Selected</button>
-    <div class="form-check ms-auto">
-      <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange="window.toggleAllMasterOrders(this.checked)">
-      <label class="form-check-label" for="toggleAllMasterOrdersCheckbox">Select All</label>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <h3 class="mb-0 text-primary">
+                        <i class="bi bi-people-fill me-2"></i> Copy Trading Setup
+                    </h3>
+                    <a href="/Add-Account" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle me-2"></i> Configure New Account
+                    </a>
+                </div>
+                <div class="card-footer bg-light border-0 text-muted">
+                    Manage your trading accounts for copy trading. Use the Account Configuration page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <div class="table-responsive mt-3">
-    <table class="table table-hover table-striped table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th><input type="checkbox" id="master-orders-select-all" onchange="window.toggleAllMasterOrders(this.checked)"></th>
-          <th>Order ID</th>
-          <th>Symbol</th>
-          <th>Status</th>
-          <th>Children</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="master-orders-body">
-        </tbody>
-    </table>
-  </div>
-  <div id="master-orders-empty-state" class="text-center p-3 text-muted" style="display: none;">
-    No master orders found.
-  </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-question-circle me-2"></i> Unassigned Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Accounts added but not yet assigned a role (Master or Child). Assign their role below to get started.</p>
+                    <div id="unassigned-accounts-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        </div>
+                    <div id="unassigned-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                        <i class="bi bi-check-circle-fill fs-3 text-success mb-2"></i>
+                        <p class="mb-0">No unassigned accounts. All accounts have a role.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-badge-fill me-2"></i> Master Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Accounts selected to replicate their trades across linked child accounts.</p>
+                    <div id="master-accounts-accordion" class="accordion">
+                        </div>
+                    <div id="master-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                        <p class="mb-0">No master accounts configured.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
+                    <div id="children-accounts-accordion" class="accordion">
+                        </div>
+                    <div id="children-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                        <p class="mb-0">No child accounts configured.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i> Master Orders</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Manage or cancel trades initiated by Master accounts and copied to children.</p>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button class="btn btn-danger btn-sm" id="cancelSelectedOrdersBtn"><i class="bi bi-x-circle me-1"></i> Cancel Selected</button>
+                        <button class="btn btn-warning btn-sm" id="squareOffSelectedOrdersBtn"><i class="bi bi-box-arrow-in-up-right me-1"></i> Square Off Selected</button>
+                        <div class="form-check form-check-inline ms-auto">
+                            <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange="window.toggleAllMasterOrders(this.checked)">
+                            <label class="form-check-label" for="toggleAllMasterOrdersCheckbox">Select All</label>
+                        </div>
+                    </div>
+                    <div id="master-orders-list" class="list-group">
+                        </div>
+                    <div id="master-orders-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                        <p class="mb-0">No master orders found.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="childMappingModal" tabindex="-1" aria-labelledby="childMappingModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="childMappingModalLabel">Child Orders</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered table-striped align-middle">
-            <thead>
-              <tr>
-                <th>Child Client ID</th>
-                <th>Order ID</th>
-                <th>Status</th>
-                <th>Broker</th>
-              </tr>
-            </thead>
-            <tbody id="child-mapping-body">
-              </tbody>
-          </table>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="childMappingModalLabel">Child Orders for Master Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="child-mapping-list" class="list-group">
+                    </div>
+                <div id="child-mapping-empty-state" class="text-center p-3 text-muted" style="display: none;">
+                    No child orders found for this master order.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
-        <div id="child-mapping-empty-state" class="text-center p-3 text-muted" style="display: none;">
-          No child orders found for this master order.
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
     </div>
-  </div>
 </div>
 
 <div class="modal fade" id="changeMasterModal" tabindex="-1" aria-labelledby="changeMasterModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="changeMasterModalLabel">Change Master for Child Account</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="changeChildId" />
-        <div class="mb-3">
-          <label for="newMasterDropdown" class="form-label">Select New Master:</label>
-          <select id="newMasterDropdown" class="form-select"></select>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="changeMasterModalLabel">Change Master for Child Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="changeChildId" />
+                <div class="mb-3">
+                    <label for="newMasterDropdown" class="form-label">Select New Master:</label>
+                    <select id="newMasterDropdown" class="form-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitChangeMasterBtn">Confirm</button>
+            </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="submitChangeMasterBtn">Confirm</button>
-      </div>
     </div>
-  </div>
 </div>
 
 {% endblock %}
@@ -185,7 +168,6 @@ window.pageScripts["copy-trading"] = function () {
     const url = brokerIcons[broker] || '/static/images/logo.png';
     return `<img src="${url}" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo">`;
   }
-
 
   // Utility for showing messages (kept alert to match original behavior)
   function showMessage(message, type = 'info') {
@@ -247,7 +229,6 @@ window.pageScripts["copy-trading"] = function () {
     return false;
   }
 
-
   // ============ Helper Modal Functions (Using Bootstrap API where applicable) ============
 
   window.openChangeMaster = function(childId) {
@@ -290,22 +271,23 @@ window.pageScripts["copy-trading"] = function () {
     fetch(`/api/child-orders?master_order_id=${masterOrderId}`)
       .then(res => res.json())
       .then(data => {
-        const tbody = document.getElementById("child-mapping-body");
+        const listGroup = document.getElementById("child-mapping-list");
         const emptyState = document.getElementById("child-mapping-empty-state");
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (data && data.length > 0) {
           data.forEach(row => {
-            tbody.innerHTML += `
-              <tr>
-                <td>${row.child_client_id}</td>
-                <td>${row.child_order_id}</td>
-                <td>${row.status}</td>
-                <td>${brokerIconHTML(row.child_broker)}</td>
-              </tr>`;
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                  <div class="d-flex w-100 justify-content-between">
+                      <h6 class="mb-1">${row.child_client_id} <span class="badge bg-secondary ms-2">${row.status}</span></h6>
+                      <small>${brokerIconHTML(row.child_broker)}</small>
+                  </div>
+                  <p class="mb-1 text-muted">Order ID: ${row.child_order_id}</p>
+              </div>`;
           });
           emptyState.style.display = 'none';
         } else {
-          tbody.innerHTML = `<tr><td colspan="4" class="text-center">No child orders found.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
           emptyState.style.display = 'block';
         }
         new bootstrap.Modal(document.getElementById("childMappingModal")).show();
@@ -316,7 +298,7 @@ window.pageScripts["copy-trading"] = function () {
       });
   };
 
-  // ============ MAIN TABLE LOADERS ============
+  // ============ MAIN CONTENT LOADERS ============
 
   // Show modal to select master for setting as child (original manual modal creation retained)
   window.openSetAsChild = function(clientId) {
@@ -337,32 +319,35 @@ window.pageScripts["copy-trading"] = function () {
             </select>
           </div>
         `;
-        const modalDiv = document.createElement('div');
-        modalDiv.classList.add('modal', 'fade', 'show'); // Add Bootstrap modal classes
-        modalDiv.setAttribute('tabindex', '-1');
-        modalDiv.setAttribute('aria-modal', 'true');
-        modalDiv.style.display = 'block'; // Ensure it's block to show
-        modalDiv.innerHTML = `
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">Assign as Child</h5>
-                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="document.body.removeChild(this.closest('.modal'))"></button>
-              </div>
-              <div class="modal-body">${selectHtml}</div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.body.removeChild(this.closest('.modal'))">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmSetAsChildBtn">Confirm</button>
-              </div>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(modalDiv);
-        document.body.classList.add('modal-open'); // Add class to body for backdrop
+        // Use Bootstrap modal directly instead of manually creating divs
+        const modalElement = document.getElementById('manualSetChildModal') || (() => {
+            const div = document.createElement('div');
+            div.id = 'manualSetChildModal';
+            div.classList.add('modal', 'fade');
+            div.setAttribute('tabindex', '-1');
+            div.setAttribute('aria-hidden', 'true');
+            div.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">Assign as Child</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmSetAsChildBtn">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+            return div;
+        })();
 
-        const backdrop = document.createElement('div');
-        backdrop.classList.add('modal-backdrop', 'fade', 'show');
-        document.body.appendChild(backdrop);
+        modalElement.querySelector('.modal-body').innerHTML = selectHtml;
+        const setChildModal = new bootstrap.Modal(modalElement);
+        setChildModal.show();
   
         document.getElementById("confirmSetAsChildBtn").onclick = function() {
           const linked_master_id = document.getElementById("setChildMasterSelect").value;
@@ -381,9 +366,7 @@ window.pageScripts["copy-trading"] = function () {
             showMessage("Failed to assign as child.", 'danger');
           })
           .finally(() => {
-            document.body.removeChild(modalDiv);
-            document.body.removeChild(backdrop);
-            document.body.classList.remove('modal-open');
+            setChildModal.hide();
           });
         };
       })
@@ -422,310 +405,195 @@ window.pageScripts["copy-trading"] = function () {
         }
         window.childAccounts = children; // Store globally
 
-        // --- Master Accounts Table ---
-        const masterBody = document.getElementById("master-table-body");
-        masterBody.innerHTML = "";
+        // --- Master Accounts Display ---
+        const masterAccordion = document.getElementById("master-accounts-accordion");
+        masterAccordion.innerHTML = "";
         if (masters.length === 0) {
             document.getElementById("master-empty-state").style.display = 'block';
-            masterBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No master accounts configured.</td></tr>`;
         } else {
             document.getElementById("master-empty-state").style.display = 'none';
-            masters.forEach(master => {
-              masterBody.innerHTML += `
-                <tr>
-                  <td>${brokerIconHTML(master.broker)}</td>
-                  <td>${master.client_id}</td>
-                  <td class="d-none d-md-table-cell">${master.username || "-"}</td>
-                  <td>${statusBadge(master.status, master.errors || master.last_error, master.broker)}</td>
-                  <td>
-                    <div class="dropdown">
-                      <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Actions
-                      </button>
-                      <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.removeMaster('${master.client_id}')">Remove Master</a></li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child Copying</a></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child Copying</a></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.exitAllChildren('${master.client_id}')">Exit All Child Positions</a></li>
+            masters.forEach((master, index) => {
+              const accordionItem = `
+                <div class="accordion-item shadow-sm mb-3 rounded">
+                  <h2 class="accordion-header" id="headingMaster${master.client_id}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${master.client_id}" aria-expanded="false" aria-controls="collapseMaster${master.client_id}">
+                      <div class="d-flex align-items-center w-100 pe-3">
+                        ${brokerIconHTML(master.broker)}
+                        <span class="ms-2 fw-semibold">${master.client_id}</span>
+                        <span class="text-muted ms-3 d-none d-md-inline-block">${master.username || "-"}</span>
+                        <div class="ms-auto">${statusBadge(master.status, master.errors || master.last_error, master.broker)}</div>
+                      </div>
+                    </button>
+                  </h2>
+                  <div id="collapseMaster${master.client_id}" class="accordion-collapse collapse" aria-labelledby="headingMaster${master.client_id}" data-bs-parent="#master-accounts-accordion">
+                    <div class="accordion-body p-3">
+                      <div class="d-flex flex-wrap gap-2 mb-3">
+                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster('${master.client_id}')">Remove Master</button>
+                          <div class="vr"></div>
+                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren('${master.client_id}')">Turn On All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren('${master.client_id}')">Turn Off All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren('${master.client_id}')">Exit All Child Positions</button>
+                      </div>
+                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${master.client_id}" role="tablist">
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link active" id="tab-children-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${master.client_id}" type="button" role="tab" aria-controls="master-children-${master.client_id}" aria-selected="true" onclick="window.showMasterTab('${master.client_id}', 'children')">View Children</button>
+                          </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-positions-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${master.client_id}" type="button" role="tab" aria-controls="master-positions-${master.client_id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'positions')">Positions</button>
+                          </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-holdings-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${master.client_id}" type="button" role="tab" aria-controls="master-holdings-${master.client_id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'holdings')">Holdings</button>
+                          </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-orders-${master.client_id}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${master.client_id}" type="button" role="tab" aria-controls="master-orders-book-${master.client.id}" aria-selected="false" onclick="window.showMasterTab('${master.client_id}', 'orders')">Order Book</button>
+                          </li>
                       </ul>
-                    </div>
-                  </td>
-                </tr>
-                <tr id="master-tabs-container-${master.client_id}">
-                  <td colspan="5" class="p-0">
-                    <ul class="nav nav-tabs master-tab-links px-3" id="tabs-${master.client_id}">
-                      <li class="nav-item">
-                        <a class="nav-link active" id="tab-children-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'children')">View Children</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="tab-positions-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'positions')">Positions</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="tab-holdings-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'holdings')">Holdings</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="tab-orders-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'orders')">Order Book</a>
-                      </li>
-                    </ul>
-                    <div class="tab-content p-3 bg-light rounded-bottom">
-                      <div class="tab-pane fade show active" id="master-children-${master.client_id}" role="tabpanel">
-                        <h6>Linked Child Accounts</h6>
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Broker</th>  
-                                <th>Client ID</th>
-                                <th class="d-none d-md-table-cell">Username</th>
-                                <th>Status</th>
-                                <th>Copy Status</th>
-                                <th>Multiplier</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody id="child-rows-${master.client_id}">
-                              </tbody>
-                          </table>
-                        </div>
-                      </div>
-                      <div class="tab-pane fade" id="master-positions-${master.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Symbol</th>
-                                <th>Type</th>
-                                <th>Buy Qty</th>
-                                <th>Sell Qty</th>
-                                <th>Net Qty</th>
-                                <th>Avg Buy Price</th>
-                                <th>Avg Sell Price</th>
-                                <th>LTP</th>
-                                <th>P/L</th>
-                              </tr>
-                            </thead>
-                            <tbody id="positions-body-${master.client_id}"></tbody>
-                          </table>
-                          <div id="positions-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
-                        </div>
-                      </div>
-                      <div class="tab-pane fade" id="master-holdings-${master.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Symbol</th>
-                                <th>Qty</th>
-                                <th>Avg Price</th>
-                                <th>LTP</th>
-                                <th>P/L</th>
-                              </tr>
-                            </thead>
-                            <tbody id="holdings-body-${master.client_id}"></tbody>
-                          </table>
-                          <div id="holdings-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
-                        </div>
-                      </div>  
-                      <div class="tab-pane fade" id="master-orders-book-${master.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Order ID</th>
-                                <th>Side</th>
-                                <th>Status</th>
-                                <th>Symbol</th>
-                                <th>Product Type</th>
-                                <th>Placed Qty</th>
-                                <th>Filled Qty</th>
-                                <th>Avg Price</th>
-                                <th>Order Time</th>
-                                <th>Remarks</th>
-                              </tr>
-                            </thead>
-                            <tbody id="orders-body-${master.client_id}"></tbody>
-                          </table>
-                          <div id="orders-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
-                        </div>
+                      <div class="tab-content">
+                          <div class="tab-pane fade show active" id="master-children-${master.client_id}" role="tabpanel" aria-labelledby="tab-children-${master.client_id}-tab">
+                              <h6>Linked Child Accounts</h6>
+                              <div id="child-rows-${master.client_id}" class="list-group">
+                                  </div>
+                              <div id="child-rows-empty-${master.client_id}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-positions-${master.client_id}" role="tabpanel" aria-labelledby="tab-positions-${master.client_id}-tab">
+                            <div id="positions-body-${master.client_id}" class="list-group"></div>
+                            <div id="positions-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-holdings-${master.client_id}" role="tabpanel" aria-labelledby="tab-holdings-${master.client_id}-tab">
+                            <div id="holdings-body-${master.client_id}" class="list-group"></div>
+                            <div id="holdings-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-orders-book-${master.client_id}" role="tabpanel" aria-labelledby="tab-orders-${master.client_id}-tab">
+                            <div id="orders-body-${master.client_id}" class="list-group"></div>
+                            <div id="orders-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                          </div>
                       </div>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               `;
+              masterAccordion.innerHTML += accordionItem;
             });
-            // Initial load for master children tabs
+            // Manually trigger initial tab content load for the first tab (children) for all masters
             masters.forEach(master => {
-                // Manually trigger the initial tab content load for the first tab (children)
                 window.showMasterTab(master.client_id, 'children');
             });
         }
 
-
-        // --- Children Table ---
-        const childrenBody = document.getElementById("children-table-body");
-        childrenBody.innerHTML = "";
+        // --- Children Accounts Display ---
+        const childrenAccordion = document.getElementById("children-accounts-accordion");
+        childrenAccordion.innerHTML = "";
         if (children.length === 0) {
             document.getElementById("children-empty-state").style.display = 'block';
-            childrenBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No child accounts configured.</td></tr>`;
         } else {
             document.getElementById("children-empty-state").style.display = 'none';
-            children.forEach(child => {
+            children.forEach((child, index) => {
               const master = masters.find(m => m.client_id === child.linked_master_id) || {};
               const exited = window.exitedChildren[child.client_id];
               const disableCopy = childHasError(child) ? 'disabled' : '';
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
-              childrenBody.innerHTML += `
-                <tr>
-                 <td>${brokerIconHTML(child.broker)}</td>
-                  <td class="d-none d-sm-table-cell">${master.client_id || "-"}</td>
-                  <td>${child.client_id}</td>
-                  <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                  <td>${statusBadge(child.status, child.errors || child.last_error, child.broker)}</td>
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <div class="form-check form-switch m-0">
-                        <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                          ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${master.client_id}', this.checked)\"` }>
-                      </div>
-                      <span class="badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="input-group input-group-sm">
-                      <input type="number" min="0.1" step="0.1" class="form-control" id="mult-${child.client_id}" value="${child.multiplier || 1}">
-                      <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${child.client_id}')">Save</button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="dropdown">
-                      <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Actions
-                      </button>
-                      <ul class="dropdown-menu">
-                          <li><a class="dropdown-item ${disableCopy ? 'disabled' : ''}" href="javascript:void(0)" ${disableCopy ? '' : `onclick=\"window.startCopying('${child.client_id}', '${master.client_id}')\"`}>Start Copying</a></li>
-                          <li><a class="dropdown-item ${disableCopy ? 'disabled' : ''}" href="javascript:void(0)" ${disableCopy ? '' : `onclick=\"window.stopCopying('${child.client_id}', '${master.client_id}')\"`}>Stop Copying</a></li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off Specific Symbol</a></li>
-                          <li><a class="dropdown-item ${exited ? 'disabled' : ''}" href="javascript:void(0)" ${exited ? '' : `onclick=\"window.exitAllPositions('${child.client_id}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</a></li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.removeChild('${child.client_id}')">Remove Child</a></li>
-                          <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.openChangeMaster('${child.client_id}')">Change Master</a></li>
-                      </ul>
-                    </div>
-                  </td>
-                </tr>
-                <tr id="child-tabs-container-${child.client_id}">
-                  <td colspan="8" class="p-0">
-                    <ul class="nav nav-tabs child-tab-links px-3" id="child-tabs-${child.client_id}">
-                      <li class="nav-item">
-                        <a class="nav-link active" id="tab-child-orders-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'orders')">Order Book</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="tab-child-positions-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'positions')">Positions</a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="tab-child-holdings-${child.client_id}" href="javascript:void(0)" onclick="window.showChildTab('${child.client_id}', 'holdings')">Holdings</a>
-                      </li>
-                    </ul>
-                    <div class="tab-content p-3 bg-light rounded-bottom">
-                      <div class="tab-pane fade show active" id="child-orders-${child.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Order ID</th>
-                                <th>Side</th>
-                                <th>Status</th>
-                                <th>Symbol</th>
-                                <th>Product Type</th>
-                                <th>Placed Qty</th>
-                                <th>Filled Qty</th>
-                                <th>Avg Price</th>
-                                <th>Order Time</th>
-                                <th>Remarks</th>
-                              </tr>
-                            </thead>
-                            <tbody id="child-orders-body-${child.client_id}"></tbody>
-                          </table>
-                          <div id="child-orders-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+              const accordionItem = `
+                <div class="accordion-item shadow-sm mb-3 rounded">
+                  <h2 class="accordion-header" id="headingChild${child.client_id}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${child.client_id}" aria-expanded="false" aria-controls="collapseChild${child.client_id}">
+                      <div class="d-flex align-items-center w-100 pe-3">
+                        ${brokerIconHTML(child.broker)}
+                        <span class="ms-2 fw-semibold">${child.client_id}</span>
+                        <span class="text-muted ms-3 d-none d-md-inline-block">Master: ${master.client_id || "-"}</span>
+                        <div class="ms-auto me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
+                        <div class="form-check form-switch m-0 me-3">
+                            <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
+                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${master.client_id}', this.checked)\"` }>
+                            <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
+                        </div>
+                        <div class="input-group input-group-sm w-auto d-inline-flex me-3">
+                          <input type="number" min="0.1" step="0.1" class="form-control form-control-sm" id="mult-${child.client_id}" value="${child.multiplier || 1}" style="width: 60px;">
+                          <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${child.client_id}')">Save</button>
                         </div>
                       </div>
-                      <div class="tab-pane fade" id="child-positions-${child.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Symbol</th>
-                                <th>Type</th>
-                                <th>Buy Qty</th>
-                                <th>Sell Qty</th>
-                                <th>Net Qty</th>
-                                <th>Avg Buy Price</th>
-                                <th>Avg Sell Price</th>
-                                <th>LTP</th>
-                                <th>P/L</th>
-                              </tr>
-                            </thead>
-                            <tbody id="child-positions-body-${child.client_id}"></tbody>
-                          </table>
-                          <div id="child-positions-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                    </button>
+                  </h2>
+                  <div id="collapseChild${child.client_id}" class="accordion-collapse collapse" aria-labelledby="headingChild${child.client_id}" data-bs-parent="#children-accounts-accordion">
+                    <div class="accordion-body p-3">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button class="btn btn-sm btn-outline-success ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.startCopying('${child.client_id}', '${master.client_id}')\"`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.stopCopying('${child.client_id}', '${master.client_id}')\"`}>Stop Copying</button>
+                            <div class="vr"></div>
+                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${master.client_id}', '${child.client_id}')">Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${child.client_id}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <div class="vr"></div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild('${child.client_id}')">Remove Child</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster('${child.client_id}')">Change Master</button>
                         </div>
-                      </div>
-                      <div class="tab-pane fade" id="child-holdings-${child.client_id}" role="tabpanel">
-                        <div class="table-responsive">
-                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
-                            <thead>
-                              <tr>
-                                <th>Symbol</th>
-                                <th>Qty</th>
-                                <th>Avg Price</th>
-                                <th>LTP</th>
-                                <th>P/L</th>
-                              </tr>
-                            </thead>
-                            <tbody id="child-holdings-body-${child.client_id}"></tbody>
-                          </table>
-                          <div id="child-holdings-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${child.client_id}" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-child-orders-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${child.client_id}" type="button" role="tab" aria-controls="child-orders-${child.client_id}" aria-selected="true" onclick="window.showChildTab('${child.client_id}', 'orders')">Order Book</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-child-positions-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${child.client_id}" type="button" role="tab" aria-controls="child-positions-${child.client_id}" aria-selected="false" onclick="window.showChildTab('${child.client_id}', 'positions')">Positions</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-child-holdings-${child.client_id}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${child.client_id}" type="button" role="tab" aria-controls="child-holdings-${child.client.id}" aria-selected="false" onclick="window.showChildTab('${child.client_id}', 'holdings')">Holdings</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="child-orders-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-orders-${child.client_id}-tab">
+                                <div id="child-orders-body-${child.client_id}" class="list-group"></div>
+                                <div id="child-orders-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                            </div>
+                            <div class="tab-pane fade" id="child-positions-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-positions-${child.client_id}-tab">
+                                <div id="child-positions-body-${child.client_id}" class="list-group"></div>
+                                <div id="child-positions-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                            </div>
+                            <div class="tab-pane fade" id="child-holdings-${child.client_id}" role="tabpanel" aria-labelledby="tab-child-holdings-${child.client_id}-tab">
+                                <div id="child-holdings-body-${child.client_id}" class="list-group"></div>
+                                <div id="child-holdings-empty-${child.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                            </div>
                         </div>
-                      </div>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               `;
+              childrenAccordion.innerHTML += accordionItem;
             });
             // Initial load for child tabs
             children.forEach(child => {
                 window.showChildTab(child.client_id, 'orders');
-            });  
+            });
         }
-        // --- Unassigned Accounts Table ---
-        const unassignedBody = document.getElementById("unassigned-table-body");
-        unassignedBody.innerHTML = "";
+
+        // --- Unassigned Accounts Display ---
+        const unassignedList = document.getElementById("unassigned-accounts-list");
+        unassignedList.innerHTML = "";
         const unassignedAccounts = (data.accounts || []).filter(acc => !acc.role);
         if (unassignedAccounts.length === 0) {
             document.getElementById("unassigned-empty-state").style.display = 'block';
-            unassignedBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No unassigned accounts.</td></tr>`;
         } else {
             document.getElementById("unassigned-empty-state").style.display = 'none';
             unassignedAccounts.forEach(acc => {
-              unassignedBody.innerHTML += `
-                <tr>
-                  <td>${brokerIconHTML(acc.broker)}</td>
-                  <td>${acc.client_id}</td>
-                  <td class="d-none d-md-table-cell">${acc.username || "-"}</td>
-                  <td><span class="badge bg-secondary">Not Assigned</span></td>
-                  <td>
-                    <button class="btn btn-sm btn-primary me-1" onclick="window.setAsMaster('${acc.client_id}')">Set as Master</button>
-                    <button class="btn btn-sm btn-info" onclick="window.openSetAsChild('${acc.client_id}')">Set as Child</button>
-                  </td>
-                </tr>
+              unassignedList.innerHTML += `
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex align-items-center mb-2">
+                                ${brokerIconHTML(acc.broker)}
+                                <h6 class="card-title mb-0 ms-2">${acc.client_id}</h6>
+                            </div>
+                            <p class="card-text text-muted mb-auto">Username: ${acc.username || "-"}</p>
+                            <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
+                            <div class="d-flex gap-2 mt-auto">
+                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster('${acc.client_id}')">Set as Master</button>
+                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild('${acc.client_id}')">Set as Child</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
               `;
             });
         }
       })
       .then(() => {
-        if (typeof enableDropdowns === 'function') enableDropdowns();
+        if (typeof enableDropdowns === 'function') enableDropdowns(); // Re-enable dropdowns if needed (Bootstrap 5 handles this automatically with data-bs-toggle)
       })
       .catch(err => {
         console.error("Failed to load accounts:", err);
@@ -733,37 +601,35 @@ window.pageScripts["copy-trading"] = function () {
       });
   };
 
-  function renderMasterChildrenTable(masterId) {
+  function renderMasterChildrenList(masterId) {
       const master = window.masterAccounts.find(m => m.client_id === masterId);
       const kids = (master?.children || []);
-      const tbody = document.getElementById(`child-rows-${masterId}`);
-      if (!tbody) return; // Ensure the tbody element exists
+      const listGroup = document.getElementById(`child-rows-${masterId}`);
+      const emptyState = document.getElementById(`child-rows-empty-${masterId}`);
+      if (!listGroup || !emptyState) return;
 
       if (kids.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No child accounts linked to this master.</td></tr>`;
+          listGroup.innerHTML = ``;
+          emptyState.style.display = 'block';
       } else {
-          tbody.innerHTML = kids.map(child => {
+          emptyState.style.display = 'none';
+          listGroup.innerHTML = kids.map(child => {
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              const disableCopy = childHasError(child) ? 'disabled' : '';
               return `
-              <tr>
-                <td>${brokerIconHTML(child.broker)}</td>
-                <td>${child.client_id}</td>
-                <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                <td>${statusBadge(child.status, child.errors || child.last_error, child.broker)}</td>
-                <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${childHasError(child) ? 'disabled' : ''}
-                        ${childHasError(child) ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${masterId}', this.checked)\"` }>
-                    </div>
-                    <span class="badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</span>
-                  </div>
-                </td>
-                <td>${child.multiplier || 1}</td>
-                <td>
-                  <button class="btn btn-sm btn-danger" onclick="window.removeChild('${child.client_id}')">Remove</button>
-                </td>
-              </tr>
+              <div class="list-group-item list-group-item-action py-3 d-flex align-items-center">
+                ${brokerIconHTML(child.broker)}
+                <span class="ms-2 me-auto fw-semibold">${child.client_id}</span>
+                <span class="text-muted d-none d-md-inline-block me-3">${child.username || "-"}</span>
+                <div class="me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
+                <div class="form-check form-switch m-0 me-3">
+                  <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
+                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${child.client_id}', '${masterId}', this.checked)\"` }>
+                  <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
+                </div>
+                <span class="me-3">Mult: ${child.multiplier || 1}</span>
+                <button class="btn btn-sm btn-danger" onclick="window.removeChild('${child.client_id}')">Remove</button>
+              </div>
           `}).join('');
       }
   }
@@ -772,16 +638,12 @@ window.pageScripts["copy-trading"] = function () {
   window.showMasterTab = function(clientId, tabName) {
     const tabLinks = document.querySelectorAll(`#tabs-${clientId} .nav-link`);
     const tabPanes = document.querySelectorAll(`#master-children-${clientId}, #master-positions-${clientId}, #master-holdings-${clientId}, #master-orders-book-${clientId}`);
-    const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}`);
+    const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}-tab`); // Correct ID for tab button
     const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${clientId}`);
-    const alreadyActive = activeTabLink && activeTabLink.classList.contains('active');
+    
+    // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
     tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
-
-    if (alreadyActive) {
-      // If the tab was active, toggling closes it
-      return;
-    }
 
     // Activate selected tab and pane
     if (activeTabLink) activeTabLink.classList.add('active');
@@ -794,117 +656,107 @@ window.pageScripts["copy-trading"] = function () {
       } else if (tabName === 'holdings') {
         loadMasterHoldings(clientId);
       } else if (tabName === 'children') {
-        renderMasterChildrenTable(clientId); // Re-render in case child data changed
+        renderMasterChildrenList(clientId); // Re-render in case child data changed
       }
     }
   };
 
 
   function loadMasterOrderBook(clientId) {
-    const tbody = document.getElementById(`orders-body-${clientId}`);
+    const listGroup = document.getElementById(`orders-body-${clientId}`);
     const emptyState = document.getElementById(`orders-empty-${clientId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="10" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading orders...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/order-book/${clientId}`)
       .then(res => res.json())
       .then(data => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(order => {
             const status = String(order.status || '').toUpperCase();
-            const statusDisplay = status === 'TRADED'
-              ? `<span class="text-success">${status}</span>`
-              : status === 'REJECTED'
-                ? `<span class="text-danger">${status}</span>`
-                : status;
-            tbody.innerHTML += `
-              <tr>
-                <td>${order.order_id || '-'}</td>
-                <td>${order.side || '-'}</td>
-                <td>${statusDisplay}</td>
-                <td>${order.symbol || '-'}</td>
-                <td>${order.product_type || '-'}</td>
-                <td>${order.placed_qty || '-'}</td>
-                <td>${order.filled_qty || '-'}</td>
-                <td>${order.avg_price || '-'}</td>
-                <td>${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</td>
-                <td>${order.remarks || '-'}</td>
-              </tr>
+            const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
+                  <small class="text-muted">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+                </div>
+                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
+                <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">No recent orders found.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error("Order book fetch failed:", err);
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Failed to load order book.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
         showMessage("Failed to load order book.", 'danger');
       });
   }
 
   function loadMasterPositions(clientId) {
-    const tbody = document.getElementById(`positions-body-${clientId}`);
+    const listGroup = document.getElementById(`positions-body-${clientId}`);
     const emptyState = document.getElementById(`positions-empty-${clientId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading positions...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/portfolio/${clientId}`)
       .then(res => res.json())
       .then(positions => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(positions) && positions.length > 0) {
           positions.forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
             const netQty = pos.netQty || pos.net_quantity || 0;
             const type = netQty >= 0 ? "BUY" : "SELL";
-            tbody.innerHTML += `
-              <tr>
-                <td>${pos.tradingSymbol || pos.symbol || '-'}</td>
-                <td><span class="badge ${type === 'BUY' ? 'bg-success' : 'bg-danger'}">${type}</span></td>
-                <td>${buyQty}</td>
-                <td>${sellQty}</td>
-                <td>${netQty}</td>
-                <td>${pos.buyAvg || pos.buy_avg_price || '-'}</td>
-                <td>${pos.sellAvg || pos.sell_avg_price || '-'}</td>
-                <td>${pos.ltp || pos.last_price || '-'}</td>
-                <td>${pos.profitAndLoss || pos.pnl || '-'}</td>
-              </tr>
+            const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <small class="text-muted">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
+                <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No positions for this master account.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error("Positions fetch failed:", err);
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Failed to load positions.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
         emptyState.style.display = 'none';
-      showMessage("Failed to load positions.", 'danger');
+        showMessage("Failed to load positions.", 'danger');
     });
   }
 
   function loadMasterHoldings(clientId) {
-    const tbody = document.getElementById(`holdings-body-${clientId}`);
+    const listGroup = document.getElementById(`holdings-body-${clientId}`);
     const emptyState = document.getElementById(`holdings-empty-${clientId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading holdings...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/holdings/${clientId}`)
       .then(res => res.json())
       .then(holdings => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(holdings) && holdings.length > 0) {
           holdings.forEach(h => {
             const getVal = (obj, keys) => {
@@ -916,25 +768,11 @@ window.pageScripts["copy-trading"] = function () {
               return undefined;
             };
             const qty = getVal(h, [
-              'quantity',
-              'qty',
-              'holdqty',
-              'holdingsquantity',
-              't1_quantity',
-              'dp_qty',
-              'totalqty',
-              'availableqty',
-              'dpqty',
-              't1qty',
-              'collateralqty'
+              'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
+              'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
             ]) || 0;
             const avg = getVal(h, [
-              'buyavg',
-              'buy_avg_price',
-              'average_price',
-              'avg_price',
-              'purchaseprice',
-              'avgcostprice'
+              'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
             ]);
             const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
             let pnl = getVal(h, [
@@ -952,26 +790,27 @@ window.pageScripts["copy-trading"] = function () {
               }
             }
             const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
-            tbody.innerHTML += `
-              <tr>
-                <td>${sym}</td>
-                <td>${qty}</td>
-                <td>${avg !== undefined ? avg : '-'}</td>
-                <td>${ltp !== undefined ? ltp : '-'}</td>
-                <td>${pnl !== undefined ? pnl : '-'}</td>
-              </tr>
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${sym}</h6>
+                  <small class="text-muted">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                </div>
+                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
+                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No holdings for this master account.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error("Holdings fetch failed:", err);
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load holdings.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
         emptyState.style.display = 'none';
-      showMessage("Failed to load holdings for child account.", 'danger');
+        showMessage("Failed to load holdings for child account.", 'danger');
     });
   }
 
@@ -979,16 +818,14 @@ window.pageScripts["copy-trading"] = function () {
   window.showChildTab = function(childId, tabName) {
     const tabLinks = document.querySelectorAll(`#child-tabs-${childId} .nav-link`);
     const tabPanes = document.querySelectorAll(`#child-orders-${childId}, #child-positions-${childId}, #child-holdings-${childId}`);
-    const activeTabLink = document.getElementById(`tab-child-${tabName}-${childId}`);
+    const activeTabLink = document.getElementById(`tab-child-${tabName}-${childId}-tab`); // Correct ID for tab button
     const selectedTabPane = document.getElementById(`child-${tabName}-${childId}`);
-    const alreadyActive = activeTabLink && activeTabLink.classList.contains('active');
+    
+    // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
     tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
 
-    if (alreadyActive) {
-      return;
-    }
-
+    // Activate selected tab and pane
     if (activeTabLink) activeTabLink.classList.add('active');
     if (selectedTabPane) {
       selectedTabPane.classList.add('show', 'active');
@@ -1003,110 +840,100 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   function loadChildOrderBook(childId) {
-    const tbody = document.getElementById(`child-orders-body-${childId}`);
+    const listGroup = document.getElementById(`child-orders-body-${childId}`);
     const emptyState = document.getElementById(`child-orders-empty-${childId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="10" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading orders...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/order-book/${childId}`)
       .then(res => res.json())
       .then(data => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(order => {
             const status = String(order.status || '').toUpperCase();
-            const statusDisplay = status === 'TRADED'
-              ? `<span class="text-success">${status}</span>`
-              : status === 'REJECTED'
-                ? `<span class="text-danger">${status}</span>`
-                : status;
-            tbody.innerHTML += `
-              <tr>
-                <td>${order.order_id || '-'}</td>
-                <td>${order.side || '-'}</td>
-                <td>${statusDisplay}</td>
-                <td>${order.symbol || '-'}</td>
-                <td>${order.product_type || '-'}</td>
-                <td>${order.placed_qty || '-'}</td>
-                <td>${order.filled_qty || '-'}</td>
-                <td>${order.avg_price || '-'}</td>
-                <td>${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</td>
-                <td>${order.remarks || '-'}</td>
-              </tr>
+            const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
+                  <small class="text-muted">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+                </div>
+                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
+                <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">No recent orders found.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error('Child order book fetch failed:', err);
-        tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Failed to load order book.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
         showMessage('Failed to load order book.', 'danger');
       });
   }
 
   function loadChildPositions(childId) {
-    const tbody = document.getElementById(`child-positions-body-${childId}`);
+    const listGroup = document.getElementById(`child-positions-body-${childId}`);
     const emptyState = document.getElementById(`child-positions-empty-${childId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading positions...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/portfolio/${childId}`)
       .then(res => res.json())
       .then(positions => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(positions) && positions.length > 0) {
           positions.forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
             const netQty = pos.netQty || pos.net_quantity || 0;
             const type = netQty >= 0 ? 'BUY' : 'SELL';
-            tbody.innerHTML += `
-              <tr>
-                <td>${pos.tradingSymbol || pos.symbol || '-'}</td>
-                <td><span class="badge ${type === 'BUY' ? 'bg-success' : 'bg-danger'}">${type}</span></td>
-                <td>${buyQty}</td>
-                <td>${sellQty}</td>
-                <td>${netQty}</td>
-                <td>${pos.buyAvg || pos.buy_avg_price || '-'}</td>
-                <td>${pos.sellAvg || pos.sell_avg_price || '-'}</td>
-                <td>${pos.ltp || pos.last_price || '-'}</td>
-                <td>${pos.profitAndLoss || pos.pnl || '-'}</td>
-              </tr>
+            const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <small class="text-muted">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
+                <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No positions for this child account.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error('Child positions fetch failed:', err);
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Failed to load positions.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
         emptyState.style.display = 'none';
         showMessage('Failed to load positions.', 'danger');
       });
   }
 
   function loadChildHoldings(childId) {
-    const tbody = document.getElementById(`child-holdings-body-${childId}`);
+    const listGroup = document.getElementById(`child-holdings-body-${childId}`);
     const emptyState = document.getElementById(`child-holdings-empty-${childId}`);
-    if (!tbody || !emptyState) return;
+    if (!listGroup || !emptyState) return;
 
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading holdings...</td></tr>`;
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
     fetch(`/api/holdings/${childId}`)
       .then(res => res.json())
       .then(holdings => {
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(holdings) && holdings.length > 0) {
           holdings.forEach(h => {
             const getVal = (obj, keys) => {
@@ -1127,64 +954,67 @@ window.pageScripts["copy-trading"] = function () {
             const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
             const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
             const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
-            tbody.innerHTML += `
-              <tr>
-                <td>${sym}</td>
-                <td>${qty}</td>
-                <td>${avg !== undefined ? avg : '-'}</td>
-                <td>${ltp !== undefined ? ltp : '-'}</td>
-                <td>${pnl !== undefined ? pnl : '-'}</td>
-              </tr>
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${sym}</h6>
+                  <small class="text-muted">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                </div>
+                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
+                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
+              </div>
             `;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No holdings for this child account.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
         console.error('Child holdings fetch failed:', err);
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load holdings.</td></tr>`;
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
         emptyState.style.display = 'none';
         showMessage('Failed to load holdings for child account.', 'danger');
       });
   }
 
-  // --- Master Orders Table ---
+  // --- Master Orders Display ---
   window.loadMasterOrders = function() {
     fetch('/api/master-orders')
       .then(res => res.json())
       .then(data => {
-        const tbody = document.getElementById("master-orders-body");
+        const listGroup = document.getElementById("master-orders-list");
         const emptyState = document.getElementById("master-orders-empty-state");
-        tbody.innerHTML = "";
+        listGroup.innerHTML = "";
         if (Array.isArray(data) && data.length > 0) {
           emptyState.style.display = 'none';
           data.forEach(order => {
-            tbody.innerHTML += `
-              <tr>
-                <td><input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id}"></td>
-                <td>${order.master_order_id}</td>
-                <td>${order.symbol}</td>
-                <td><span class="badge bg-primary">${order.status}</span></td>
-                <td>${order.total_children}</td>
-                <td><button class="btn btn-sm btn-info" onclick="window.viewChildMappings('${order.master_order_id}')"><i class="bi bi-eye-fill"></i> View Children</button></td>
-              </tr>`;
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id}" id="masterOrderCheck${order.master_order_id}">
+                    <label class="form-check-label fw-semibold" for="masterOrderCheck${order.master_order_id}">${order.symbol}</label>
+                  </div>
+                  <span class="badge bg-primary">${order.status}</span>
+                </div>
+                <p class="mb-1 text-muted">Order ID: ${order.master_order_id} | Children: ${order.total_children}</p>
+                <button class="btn btn-sm btn-info mt-2" onclick="window.viewChildMappings('${order.master_order_id}')"><i class="bi bi-eye-fill"></i> View Children</button>
+              </div>`;
           });
         } else {
           emptyState.style.display = 'block';
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No master orders found.</td></tr>`;
+          listGroup.innerHTML = ``; // Clear list if no data
         }
         // Reset select all checkbox
         document.getElementById("toggleAllMasterOrdersCheckbox").checked = false;
-        document.getElementById("master-orders-select-all").checked = false;
       })
       .then(() => {
-        if (typeof enableDropdowns === 'function') enableDropdowns();
+        // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
         console.error("Error loading master orders:", err);
-        document.getElementById("master-orders-body").innerHTML = `<tr><td colspan="6" class="text-center text-danger">Failed to load master orders.</td></tr>`;
+        document.getElementById("master-orders-list").innerHTML = `<div class="p-3 text-center text-danger">Failed to load master orders.</div>`;
         document.getElementById("master-orders-empty-state").style.display = 'none';
         showMessage("Failed to load master orders.", 'danger');
       });
@@ -1192,8 +1022,9 @@ window.pageScripts["copy-trading"] = function () {
 
   window.toggleAllMasterOrders = function(isChecked) {
     document.querySelectorAll(".master-order-checkbox").forEach(cb => cb.checked = isChecked);
-    document.getElementById("master-orders-select-all").checked = isChecked;
-    document.getElementById("toggleAllMasterOrdersCheckbox").checked = isChecked;
+    // No longer a separate "master-orders-select-all" element in new design, only one toggle
+    // document.getElementById("master-orders-select-all").checked = isChecked;
+    // document.getElementById("toggleAllMasterOrdersCheckbox").checked = isChecked; // This is the source of truth
   };
 
   // --- Cancel/Square Off Actions ---
@@ -1203,7 +1034,8 @@ window.pageScripts["copy-trading"] = function () {
 
     if (!confirm(`Are you sure you want to cancel ${selected.length} selected order(s)?`)) return;
 
-    selected.forEach(id => {
+    // Use Promise.all to handle multiple fetches and then reload once
+    Promise.all(selected.map(id => 
       fetch("/api/cancel-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1211,13 +1043,18 @@ window.pageScripts["copy-trading"] = function () {
       })
       .then(res => res.json())
       .then(data => {
-        showMessage(data.message);
-        window.loadMasterOrders(); // Reload orders after each operation
+        showMessage(data.message); // Show message for each operation or collect messages
+        return data;
       })
       .catch(err => {
         console.error(`Error cancelling order ${id}:`, err);
         showMessage(`Failed to cancel order ${id}.`, 'danger');
-      });
+        return { error: true, message: `Failed to cancel order ${id}.` };
+      })
+    ))
+    .then(() => {
+      window.loadMasterOrders(); // Reload orders after all operations
+      window.loadAccounts(); // Also reload accounts as status might change
     });
   };
 
@@ -1227,7 +1064,8 @@ window.pageScripts["copy-trading"] = function () {
 
     if (!confirm(`Are you sure you want to square off ${selected.length} selected order(s)? This will attempt to exit positions in all linked children.`)) return;
 
-    selected.forEach(id => {
+    // Use Promise.all to handle multiple fetches and then reload once
+    Promise.all(selected.map(id => 
       fetch("/api/master-squareoff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1236,13 +1074,17 @@ window.pageScripts["copy-trading"] = function () {
       .then(res => res.json())
       .then(data => {
         showMessage(data.message);
-        window.loadMasterOrders();
-        window.loadAccounts(); // Reload accounts to update child positions
+        return data;
       })
       .catch(err => {
         console.error(`Error squaring off order ${id}:`, err);
         showMessage(`Failed to square off order ${id}.`, 'danger');
-      });
+        return { error: true, message: `Failed to square off order ${id}.` };
+      })
+    ))
+    .then(() => {
+      window.loadMasterOrders();
+      window.loadAccounts(); // Reload accounts to update child positions
     });
   };
 
@@ -1393,59 +1235,59 @@ window.pageScripts["copy-trading"] = function () {
           return;
         }
 
-        // Create modal for symbol selection (retained original manual creation)
-        const symbolOptions = symbols.map(s => `<option value="${s}">${s}</option>`).join('');
-        const modalDiv = document.createElement('div');
-        modalDiv.classList.add('modal', 'fade', 'show'); // Add Bootstrap modal classes
-        modalDiv.setAttribute('tabindex', '-1');
-        modalDiv.setAttribute('aria-modal', 'true');
-        modalDiv.style.display = 'block'; // Ensure it's block to show
-        modalDiv.innerHTML = `
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">Square Off Position</h5>
-                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="document.body.removeChild(this.closest('.modal'))"></button>
-              </div>
-              <div class="modal-body">
-                <p>Select a symbol to square off for child account <strong>${childId}</strong>:</p>
-                <div class="mb-3">
-                  <label for="squareOffSymbol" class="form-label">Symbol:</label>
-                  <select id="squareOffSymbol" class="form-select">${symbolOptions}</select>
+        // Use Bootstrap modal directly instead of manually creating divs
+        const modalElement = document.getElementById('squareOffSymbolModal') || (() => {
+            const div = document.createElement('div');
+            div.id = 'squareOffSymbolModal';
+            div.classList.add('modal', 'fade');
+            div.setAttribute('tabindex', '-1');
+            div.setAttribute('aria-hidden', 'true');
+            div.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">Square Off Position</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Select a symbol to square off for child account <strong>${childId}</strong>:</p>
+                            <div class="mb-3">
+                                <label for="squareOffSymbol" class="form-label">Symbol:</label>
+                                <select id="squareOffSymbol" class="form-select"></select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-danger" id="confirmSquareOffBtn">Confirm Square Off</button>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.body.removeChild(this.closest('.modal'))">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmSquareOffBtn">Confirm Square Off</button>
-              </div>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(modalDiv);
-        document.body.classList.add('modal-open'); // Add class to body for backdrop
+            `;
+            document.body.appendChild(div);
+            return div;
+        })();
 
-        const backdrop = document.createElement('div');
-        backdrop.classList.add('modal-backdrop', 'fade', 'show');
-        document.body.appendChild(backdrop);
-
+        const symbolOptions = symbols.map(s => `<option value="${s}">${s}</option>`).join('');
+        modalElement.querySelector('#squareOffSymbol').innerHTML = symbolOptions;
+        const squareOffModal = new bootstrap.Modal(modalElement);
+        squareOffModal.show();
 
         document.getElementById("confirmSquareOffBtn").onclick = function() {
           const symbol = document.getElementById("squareOffSymbol").value;
           if (!confirm(`Are you sure you want to square off ${symbol} for child ${childId}?`)) {
-            document.body.removeChild(modalDiv);
-            document.body.removeChild(backdrop);
-            document.body.classList.remove('modal-open');
+            squareOffModal.hide();
             return;
           }
 
-          // Show spinner
-          const spinnerDiv = document.createElement('div');
-          spinnerDiv.classList.add('modal-backdrop', 'fade', 'show', 'd-flex', 'align-items-center', 'justify-content-center');
-          spinnerDiv.innerHTML = `
+          // Show spinner within the modal or as a global overlay
+          const spinnerOverlay = document.createElement('div');
+          spinnerOverlay.classList.add('modal-backdrop', 'fade', 'show', 'd-flex', 'align-items-center', 'justify-content-center', 'position-fixed', 'top-0', 'start-0', 'w-100', 'h-100');
+          spinnerOverlay.style.zIndex = 1050; // Ensure it's above other modals
+          spinnerOverlay.innerHTML = `
             <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div>
             <p class="text-light ms-2">Processing...</p>
           `;
-          document.body.appendChild(spinnerDiv);
+          document.body.appendChild(spinnerOverlay);
 
           fetch("/api/square-off", {
             method: "POST",
@@ -1466,10 +1308,8 @@ window.pageScripts["copy-trading"] = function () {
             showMessage("Failed to square off positions.", 'danger');
           })
           .finally(() => {
-            document.body.removeChild(spinnerDiv);
-            document.body.removeChild(modalDiv);
-            document.body.removeChild(backdrop);
-            document.body.classList.remove('modal-open');
+            document.body.removeChild(spinnerOverlay);
+            squareOffModal.hide();
           });
         };
       })
@@ -1559,8 +1399,9 @@ window.pageScripts["copy-trading"] = function () {
     .then(res => res.json())
     .then(data => {
       showMessage(data.message || "Multiplier updated successfully.");
-      inputElement.defaultValue = newMultiplier; // Update default value on success
       // No need to reload all accounts, just update the default value for the input
+      // And the multiplier shown in the master's children list
+      window.loadAccounts(); // Reload to update master's children list and child's own section
     })
     .catch(err => {
       console.error("Error updating multiplier:", err);
@@ -1570,7 +1411,7 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   // --- INIT ON LOAD ---
-  // These calls will now fetch and populate the tables
+  // These calls will now fetch and populate the sections
   window.loadAccounts();
   window.loadMasterOrders();
 };
