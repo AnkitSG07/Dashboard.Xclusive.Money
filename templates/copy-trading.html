@@ -683,11 +683,17 @@ window.pageScripts["copy-trading"] = function () {
         tbody.innerHTML = "";
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(order => {
+            const status = String(order.status || '').toUpperCase();
+            const statusDisplay = status === 'TRADED'
+              ? `<span class="text-success">${status}</span>`
+              : status === 'REJECTED'
+                ? `<span class="text-danger">${status}</span>`
+                : status;
             tbody.innerHTML += `
               <tr>
                 <td>${order.order_id || '-'}</td>
                 <td>${order.side || '-'}</td>
-                <td>${order.status || '-'}</td>
+                <td>${statusDisplay}</td>
                 <td>${order.symbol || '-'}</td>
                 <td>${order.product_type || '-'}</td>
                 <td>${order.placed_qty || '-'}</td>
