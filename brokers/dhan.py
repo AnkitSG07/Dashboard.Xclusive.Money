@@ -14,7 +14,7 @@ class DhanBroker(BrokerBase):
 
     def __init__(self, client_id, access_token, **kwargs):
         timeout = kwargs.pop("timeout", 10)
-        super().__init__(client_id, access_token, timeout=timeout, **kwargs)
+        super(DhanBroker, self).__init__(client_id, access_token, timeout=timeout, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
         self.headers = {
@@ -46,7 +46,7 @@ class DhanBroker(BrokerBase):
             if not security_id:
                 security_id = mapping.get("security_id")
             if not security_id:
-                raise ValueError(f"DhanBroker: 'security_id' required (tradingsymbol={tradingsymbol})")
+                raise ValueError("DhanBroker: 'security_id' required (tradingsymbol={})".format(tradingsymbol))
 
         if not exchange_segment:
             exchange_segment = mapping.get("exchange_segment", self.NSE)
@@ -76,7 +76,7 @@ class DhanBroker(BrokerBase):
         try:
             r = self._request(
                 "post",
-                f"{self.api_base}/orders",
+                "{}/orders".format(self.api_base),
                 json=payload,
                 headers=self.headers,
                 timeout=self.timeout,
@@ -85,11 +85,11 @@ class DhanBroker(BrokerBase):
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while placing order."}
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": f"Failed to place order with Dhan API: {str(e)}"}
+            return {"status": "failure", "error": "Failed to place order with Dhan API: {}".format(str(e))}
         except json.JSONDecodeError:
-            return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
+            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
-            return {"status": "failure", "error": f"An unexpected error occurred while placing order: {str(e)}"}
+            return {"status": "failure", "error": "An unexpected error occurred while placing order: {}".format(str(e))}
 
         if "orderId" in resp:
             result = {"status": "success"}
@@ -102,14 +102,11 @@ class DhanBroker(BrokerBase):
         return result
 
     def get_order_list(self, use_pagination=True, batch_size=100, max_batches=50):
-        """
-        Fetch order list.
-        """
         if not use_pagination:
             try:
                 r = self._request(
                     "get",
-                    f"{self.api_base}/orders",
+                    "{}/orders".format(self.api_base),
                     headers=self.headers,
                     timeout=self.timeout,
                 )
@@ -117,17 +114,17 @@ class DhanBroker(BrokerBase):
             except requests.exceptions.Timeout:
                 return {"status": "failure", "error": "Request to Dhan API timed out while fetching order list."}
             except requests.exceptions.RequestException as e:
-                return {"status": "failure", "error": f"Failed to fetch order list from Dhan API: {str(e)}"}
+                return {"status": "failure", "error": "Failed to fetch order list from Dhan API: {}".format(str(e))}
             except json.JSONDecodeError:
-                return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
+                return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
             except Exception as e:
-                return {"status": "failure", "error": f"An unexpected error occurred while fetching order list: {str(e)}"}
+                return {"status": "failure", "error": "An unexpected error occurred while fetching order list: {}".format(str(e))}
 
         all_orders = []
         offset = 0
         for i in range(max_batches):
             try:
-                url = f"{self.api_base}/orders?offset={offset}&limit={batch_size}"
+                url = "{}/orders?offset={}&limit={}".format(self.api_base, offset, batch_size)
                 r = self._request("get", url, headers=self.headers, timeout=self.timeout)
                 batch = r.json()
                 batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
@@ -146,31 +143,28 @@ class DhanBroker(BrokerBase):
             except requests.exceptions.RequestException as e:
                 return {
                     "status": "partial_failure" if all_orders else "failure",
-                    "error": f"Failed to fetch order list from Dhan API during pagination: {str(e)}",
+                    "error": "Failed to fetch order list from Dhan API during pagination: {}".format(str(e)),
                     "data": all_orders,
                 }
             except json.JSONDecodeError:
                 return {
                     "status": "partial_failure" if all_orders else "failure",
-                    "error": f"Invalid JSON response from Dhan API during pagination: {r.text}",
+                    "error": "Invalid JSON response from Dhan API during pagination: {}".format(r.text),
                     "data": all_orders,
                 }
             except Exception as e:
                 return {
                     "status": "partial_failure" if all_orders else "failure",
-                    "error": f"An unexpected error occurred during pagination: {str(e)}",
+                    "error": "An unexpected error occurred during pagination: {}".format(str(e)),
                     "data": all_orders,
                 }
         return {"status": "success", "data": all_orders}
 
     def cancel_order(self, order_id):
-        """
-        Cancel an order by order_id.
-        """
         try:
             r = self._request(
                 "delete",
-                f"{self.api_base}/orders/{order_id}",
+                "{}/orders/{}".format(self.api_base, order_id),
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -178,20 +172,17 @@ class DhanBroker(BrokerBase):
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while canceling order."}
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": f"Failed to cancel order with Dhan API: {str(e)}"}
+            return {"status": "failure", "error": "Failed to cancel order with Dhan API: {}".format(str(e))}
         except json.JSONDecodeError:
-            return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
+            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
-            return {"status": "failure", "error": f"An unexpected error occurred while canceling order: {str(e)}"}
+            return {"status": "failure", "error": "An unexpected error occurred while canceling order: {}".format(str(e))}
 
     def get_positions(self):
-        """
-        Fetch current positions.
-        """
         try:
             r = self._request(
                 "get",
-                f"{self.api_base}/positions",
+                "{}/positions".format(self.api_base),
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -199,20 +190,17 @@ class DhanBroker(BrokerBase):
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while fetching positions."}
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": f"Failed to fetch positions from Dhan API: {str(e)}"}
+            return {"status": "failure", "error": "Failed to fetch positions from Dhan API: {}".format(str(e))}
         except json.JSONDecodeError:
-            return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
+            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
-            return {"status": "failure", "error": f"An unexpected error occurred while fetching positions: {str(e)}"}
+            return {"status": "failure", "error": "An unexpected error occurred while fetching positions: {}".format(str(e))}
 
     def get_profile(self):
-        """
-        Return profile or fund data to confirm account id.
-        """
         try:
             r = self._request(
                 "get",
-                f"{self.api_base}/fundlimit",
+                "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -220,20 +208,17 @@ class DhanBroker(BrokerBase):
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while fetching profile."}
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": f"Failed to fetch profile from Dhan API: {str(e)}"}
+            return {"status": "failure", "error": "Failed to fetch profile from Dhan API: {}".format(str(e))}
         except json.JSONDecodeError:
-            return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
+            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
-            return {"status": "failure", "error": f"An unexpected error occurred while fetching profile: {str(e)}"}
+            return {"status": "failure", "error": "An unexpected error occurred while fetching profile: {}".format(str(e))}
 
     def check_token_valid(self):
-        """
-        Validate access token and ensure it belongs to this client_id.
-        """
         try:
             r = self._request(
                 "get",
-                f"{self.api_base}/fundlimit",
+                "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
                 timeout=5,
             )
@@ -247,13 +232,10 @@ class DhanBroker(BrokerBase):
             return False
 
     def get_opening_balance(self):
-        """
-        Fetch available cash balance from fundlimit API.
-        """
         try:
             r = self._request(
                 "get",
-                f"{self.api_base}/fundlimit",
+                "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
                 timeout=self.timeout,
             )
