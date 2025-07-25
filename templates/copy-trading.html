@@ -154,6 +154,97 @@
         background-color: rgba(0, 0, 0, 0.65); /* Darker backdrop for loading */
         backdrop-filter: blur(3px); /* Optional blur effect */
     }
+
+    /* --- FIXES FOR MOBILE VIEW & MULTIPLIER --- */
+
+    /* Multiplier input and button on the same line and responsive */
+    .multiplier-control {
+        display: flex;
+        align-items: center;
+        gap: .5rem; /* Space between input and button */
+        flex-wrap: nowrap; /* Keep them on one line */
+        width: auto; /* Allow content to dictate width */
+    }
+
+    .multiplier-control .form-control {
+        max-width: 80px; /* Limit width of multiplier input */
+        text-align: center;
+    }
+
+    /* Ensure list-group-item content flows well on small screens */
+    .list-group-item .d-flex {
+        flex-wrap: wrap; /* Allow content inside list items to wrap */
+    }
+
+    .list-group-item .d-flex > * {
+        margin-bottom: .25rem; /* Small space for wrapped items */
+    }
+
+    .list-group-item .d-flex > *:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Adjust spacing and font size for details within list items on smaller screens */
+    .list-group-item p,
+    .list-group-item small {
+        font-size: 0.875rem; /* Slightly smaller text */
+        line-height: 1.3;
+    }
+
+    @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
+        .accordion-button .d-flex.w-100.pe-3 {
+            flex-wrap: wrap; /* Allow elements in accordion header to wrap */
+            justify-content: center;
+            text-align: center;
+        }
+        .accordion-button .d-flex.w-100.pe-3 > * {
+            margin-bottom: .5rem;
+            width: 100%; /* Make each element take full width if wrapped */
+        }
+        .accordion-button .d-flex.w-100.pe-3 .ms-auto,
+        .accordion-button .d-flex.w-100.pe-3 .ms-2,
+        .accordion-button .d-flex.w-100.pe-3 .ms-3 {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        .accordion-button .d-flex.w-100.pe-3 .ms-auto {
+            margin-top: .5rem;
+        }
+
+        .accordion-button .d-none.d-md-inline-block {
+            display: block !important; /* Show username on mobile */
+            font-size: 0.85rem;
+        }
+
+        .accordion-button .multiplier-control {
+            width: 100%; /* Take full width on mobile */
+            justify-content: center;
+        }
+
+        .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
+            justify-content: center;
+        }
+
+        .accordion-body .d-flex.flex-wrap.gap-2.mb-3 .btn {
+            flex-grow: 1; /* Make buttons expand on mobile */
+            max-width: 48%; /* Allow two buttons per row */
+        }
+
+        .nav-tabs .nav-item {
+            flex-grow: 1; /* Make tabs equally wide */
+            text-align: center;
+        }
+        .nav-tabs .nav-link {
+            padding: .75rem .5rem; /* Smaller padding for tabs */
+            font-size: 0.875rem;
+        }
+
+        /* Adjust list-group items for better mobile readability */
+        .list-group-item p,
+        .list-group-item small {
+            word-break: break-word; /* Break long words */
+        }
+    }
   </style>
 {% endblock %}
 
@@ -539,8 +630,8 @@ window.pageScripts["copy-trading"] = function () {
         const masters = (Array.isArray(data.masters) ? data.masters : []).map(m => ({
           ...m,
           // Use nullish coalescing for safer access, ensuring client_id is present
-          client_id: m.client_id || (m.client ? m.client.id : undefined), // Defensive check for m.client.id
-          username: m.username || (m.client ? m.client.username : undefined), // Defensive check for m.client.username
+          client_id: m.client_id || (m.client && m.client.id ? m.client.id : undefined), // Defensive check for m.client.id
+          username: m.username || (m.client && m.client.username ? m.client.username : undefined), // Defensive check for m.client.username
           role: "master"
         })).filter(m => m.client_id); // Filter out masters without a valid client_id
         window.masterAccounts = masters; // Store globally for other functions
@@ -663,18 +754,18 @@ window.pageScripts["copy-trading"] = function () {
                 <div class="accordion-item shadow-sm mb-3 rounded">
                   <h2 class="accordion-header" id="headingChild${childClientId}">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childClientId}" aria-expanded="false" aria-controls="collapseChild${childClientId}">
-                      <div class="d-flex align-items-center w-100 pe-3">
+                      <div class="d-flex align-items-center flex-wrap w-100 pe-3">
                         ${brokerIconHTML(child.broker)}
                         <span class="ms-2 fw-semibold">${childClientId}</span>
-                        <span class="text-muted ms-3 d-none d-md-inline-block">Master: ${linkedMasterId}</span>
-                        <div class="ms-auto me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
-                        <div class="form-check form-switch m-0 me-3">
+                        <span class="text-muted ms-3 d-block d-md-inline-block">Master: ${linkedMasterId}</span>
+                        <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
+                        <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                             <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
                               ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this.checked)\"` }>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
-                        <div class="input-group input-group-sm w-auto d-inline-flex me-3">
-                          <input type="number" min="0.1" step="0.1" class="form-control form-control-sm" id="mult-${childClientId}" value="${childMultiplier}" style="width: 60px;">
+                        <div class="multiplier-control mt-2 mt-md-0">
+                          <input type="number" min="0.1" step="0.1" class="form-control form-control-sm" id="mult-${childClientId}" value="${childMultiplier}">
                           <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier('${childClientId}')">Save</button>
                         </div>
                       </div>
@@ -685,10 +776,10 @@ window.pageScripts["copy-trading"] = function () {
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button class="btn btn-sm btn-outline-success ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
                             <button class="btn btn-sm btn-outline-warning text-dark ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}')\"`}>Stop Copying</button>
-                            <div class="vr"></div>
+                            <div class="vr d-none d-md-block"></div>
                             <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${linkedMasterId}', '${childClientId}')">Square Off Specific Symbol</button>
                             <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${childClientId}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
-                            <div class="vr"></div>
+                            <div class="vr d-none d-md-block"></div>
                             <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild('${childClientId}')">Remove Child</button>
                             <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster('${childClientId}')">Change Master</button>
                         </div>
@@ -792,18 +883,18 @@ window.pageScripts["copy-trading"] = function () {
               const childMultiplier = child.multiplier || 1;
 
               return `
-              <div class="list-group-item list-group-item-action py-3 d-flex align-items-center">
+              <div class="list-group-item list-group-item-action py-3 d-flex align-items-center flex-wrap">
                 ${brokerIconHTML(child.broker)}
                 <span class="ms-2 me-auto fw-semibold">${childClientId}</span>
-                <span class="text-muted d-none d-md-inline-block me-3">${childUsername}</span>
-                <div class="me-3">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
-                <div class="form-check form-switch m-0 me-3">
+                <span class="text-muted d-block d-md-inline-block me-3">${childUsername}</span>
+                <div class="me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
+                <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
                     ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this.checked)\"` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
-                <span class="me-3">Mult: ${childMultiplier}</span>
-                <button class="btn btn-sm btn-danger" onclick="window.removeChild('${childClientId}')">Remove</button>
+                <span class="me-3 mt-2 mt-md-0">Mult: ${childMultiplier}</span>
+                <button class="btn btn-sm btn-danger mt-2 mt-md-0" onclick="window.removeChild('${childClientId}')">Remove</button>
               </div>
           `}).join('');
       }
@@ -855,9 +946,9 @@ window.pageScripts["copy-trading"] = function () {
             const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
-                  <small class="text-muted">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
                 </div>
                 <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
                 <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
@@ -898,9 +989,9 @@ window.pageScripts["copy-trading"] = function () {
             const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
-                  <small class="text-muted">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
                 <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
@@ -967,9 +1058,9 @@ window.pageScripts["copy-trading"] = function () {
             const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
                 </div>
                 <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
                 <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
@@ -1032,9 +1123,9 @@ window.pageScripts["copy-trading"] = function () {
             const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
-                  <small class="text-muted">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
                 </div>
                 <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
                 <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
@@ -1075,9 +1166,9 @@ window.pageScripts["copy-trading"] = function () {
             const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
-                  <small class="text-muted">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
                 <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
@@ -1131,9 +1222,9 @@ window.pageScripts["copy-trading"] = function () {
             const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
                 </div>
                 <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
                 <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
@@ -1166,12 +1257,12 @@ window.pageScripts["copy-trading"] = function () {
           data.forEach(order => {
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between align-items-center">
+                <div class="d-flex w-100 justify-content-between align-items-center flex-wrap">
                   <div class="form-check">
                     <input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id || ''}" id="masterOrderCheck${order.master_order_id || ''}">
                     <label class="form-check-label fw-semibold" for="masterOrderCheck${order.master_order_id || ''}">${order.symbol || '-'}</label>
                   </div>
-                  <span class="badge bg-primary">${order.status || '-'}</span>
+                  <span class="badge bg-primary mt-1 mt-md-0">${order.status || '-'}</span>
                 </div>
                 <p class="mb-1 text-muted">Order ID: ${order.master_order_id || 'N/A'} | Children: ${order.total_children || 0}</p>
                 <button class="btn btn-sm btn-info mt-2" onclick="window.viewChildMappings('${order.master_order_id || ''}')"><i class="bi bi-eye-fill"></i> View Children</button>
