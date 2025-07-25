@@ -1517,9 +1517,13 @@ def poll_and_copy_trades():
                 except Exception as e:
                     err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
                     logger.error(err)
+                    err_lower = str(e).lower()    
                     skip_error = (
                         master_broker.lower() == "dhan"
-                        and "invalid syntax" in str(e).lower()
+                        and (
+                            "invalid syntax" in err_lower
+                            or "failed to load broker 'dhan'" in err_lower
+                        )
                     )
                     if not skip_error:
                         log_connection_error(master, err, disable_children=True)
