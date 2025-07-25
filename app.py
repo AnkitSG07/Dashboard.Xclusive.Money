@@ -5760,6 +5760,7 @@ def start_copy():
 
         # ✅ STEP 10: Return success response
         return jsonify({
+            'message': f"Started copying for {client_id}",
             'details': {
                 'child_account': client_id,
                 'master_account': master_id,
