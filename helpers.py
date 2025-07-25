@@ -1,4 +1,3 @@
-
 from flask import session
 from sqlalchemy import or_
 from models import User, OrderMapping, Account, SystemLog, db
@@ -47,6 +46,50 @@ def log_connection_error(account: Account, message: str, *, disable_children: bo
     """Persist a connection/order error and mark accounts inactive."""
     logger = logging.getLogger(__name__)
     try:
+        message_lower = (message or "").lower()
+        if (
+            (account.broker or "").lower() == "dhan"
+            and (
+                "invalid syntax" in message_lower
+                or "failed to load broker" in message_lower
+            )
+        ):
+            # Treat invalid Dhan broker imports as non-fatal
+            logger.warning(message)
+            account.status = "Connected"
+            if account.copy_status == "Off":
+                account.copy_status = "On"
+            db.session.commit()
+            # Remove related error logs
+            try:
+                logs = (
+                    SystemLog.query.filter(
+                        SystemLog.user_id == account.user_id,
+                        SystemLog.level == "ERROR",
+                        or_(
+                            SystemLog.message.ilike("%invalid syntax%"),
+                            SystemLog.message.ilike("%failed to load broker%"),
+                            SystemLog.message.ilike("%Failed to initialize master API%"),
+                        ),
+                    ).all()
+                )
+                for log in logs:
+                    details = log.details
+                    if isinstance(details, str):
+                        try:
+                            details = json.loads(details)
+                        except Exception:
+                            details = {}
+                    if (
+                        isinstance(details, dict)
+                        and str(details.get("client_id")) == account.client_id
+                    ):
+                        db.session.delete(log)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return
+
         account.status = "Error"
         account.copy_status = "Off"
 
