@@ -435,6 +435,9 @@ window.pageScripts["copy-trading"] = function () {
                         <a class="nav-link" id="tab-positions-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'positions')">Positions</a>
                       </li>
                       <li class="nav-item">
+                        <a class="nav-link" id="tab-holdings-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'holdings')">Holdings</a>
+                      </li>
+                      <li class="nav-item">
                         <a class="nav-link" id="tab-orders-${master.client_id}" href="javascript:void(0)" onclick="window.showMasterTab('${master.client_id}', 'orders')">Order Book</a>
                       </li>
                     </ul>
@@ -480,6 +483,23 @@ window.pageScripts["copy-trading"] = function () {
                           <div id="positions-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
                         </div>
                       </div>
+                      <div class="tab-pane fade" id="master-holdings-${master.client_id}" role="tabpanel">
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered table-striped mb-0 align-middle">
+                            <thead>
+                              <tr>
+                                <th>Symbol</th>
+                                <th>Qty</th>
+                                <th>Avg Price</th>
+                                <th>LTP</th>
+                                <th>P/L</th>
+                              </tr>
+                            </thead>
+                            <tbody id="holdings-body-${master.client_id}"></tbody>
+                          </table>
+                          <div id="holdings-empty-${master.client_id}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
+                        </div>
+                      </div>  
                       <div class="tab-pane fade" id="master-orders-book-${master.client_id}" role="tabpanel">
                         <div class="table-responsive">
                           <table class="table table-sm table-bordered table-striped mb-0 align-middle">
@@ -647,8 +667,7 @@ window.pageScripts["copy-trading"] = function () {
     tabLinks.forEach(link => link.classList.remove('active'));
 
     // Deactivate all tab panes for this master
-    const tabPanes = document.querySelectorAll(`#master-children-${clientId}, #master-positions-${clientId}, #master-orders-book-${clientId}`);
-    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+    const tabPanes = document.querySelectorAll(`#master-children-${clientId}, #master-positions-${clientId}, #master-holdings-${clientId}, #master-orders-book-${clientId}`);
 
     // Activate the selected tab link
     const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}`);
@@ -662,6 +681,8 @@ window.pageScripts["copy-trading"] = function () {
         loadMasterPositions(clientId);
       } else if (tabName === 'orders') {
         loadMasterOrderBook(clientId);
+      } else if (tabName === 'holdings') {
+        loadMasterHoldings(clientId);
       } else if (tabName === 'children') {
         renderMasterChildrenTable(clientId); // Re-render in case child data changed
       }
@@ -758,7 +779,57 @@ window.pageScripts["copy-trading"] = function () {
         console.error("Positions fetch failed:", err);
         tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Failed to load positions.</td></tr>`;
         emptyState.style.display = 'none';
-        showMessage("Failed to load positions.", 'danger');
+      showMessage("Failed to load positions.", 'danger');
+    });
+  }
+
+  function loadMasterHoldings(clientId) {
+    const tbody = document.getElementById(`holdings-body-${clientId}`);
+    const emptyState = document.getElementById(`holdings-empty-${clientId}`);
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading holdings...</td></tr>`;
+    emptyState.style.display = 'none';
+
+    fetch(`/api/holdings/${clientId}`)
+      .then(res => res.json())
+      .then(holdings => {
+        tbody.innerHTML = "";
+        if (Array.isArray(holdings) && holdings.length > 0) {
+          holdings.forEach(h => {
+            const getVal = (obj, keys) => {
+              for (const k of keys) {
+                for (const key in obj) {
+                  if (key.toLowerCase() === k.toLowerCase()) return obj[key];
+                }
+              }
+              return undefined;
+            };
+            const qty = getVal(h, ['quantity','qty','holdqty','holdingsquantity','t1_quantity','dp_qty']) || 0;
+            const avg = getVal(h, ['buyavg','buy_avg_price','average_price','avg_price','purchaseprice']);
+            const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
+            const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
+            const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
+            tbody.innerHTML += `
+              <tr>
+                <td>${sym}</td>
+                <td>${qty}</td>
+                <td>${avg !== undefined ? avg : '-'}</td>
+                <td>${ltp !== undefined ? ltp : '-'}</td>
+                <td>${pnl !== undefined ? pnl : '-'}</td>
+              </tr>
+            `;
+          });
+        } else {
+          emptyState.style.display = 'block';
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No holdings for this master account.</td></tr>`;
+        }
+      })
+      .catch(err => {
+        console.error("Holdings fetch failed:", err);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load holdings.</td></tr>`;
+        emptyState.style.display = 'none';
+        showMessage("Failed to load holdings for child account.", 'danger');
       });
   }
 
