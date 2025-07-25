@@ -1,47 +1,275 @@
 {% extends "layout.html" %}
 {% block title %}Account Configuration - DhanBot{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    :root {
+      --bs-primary: #007bff; /* A standard primary blue */
+      --bs-secondary: #6c757d;
+      --bs-success: #28a745;
+      --bs-info: #17a2b8;
+      --bs-warning: #ffc107;
+      --bs-danger: #dc3545;
+      --bs-light: #f8f9fa;
+      --bs-dark: #343a40;
+
+      /* Soft shadows */
+      --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+      --bs-box-shadow-sm: 0 .125rem .25rem rgba(0,0,0,.06);
+      --bs-box-shadow-lg: 0 .5rem 1rem rgba(0,0,0,.15);
+
+      /* Rounded corners */
+      --bs-border-radius: .5rem;
+      --bs-border-radius-lg: .75rem;
+
+      /* Backgrounds */
+      --bs-body-bg: #f4f7f6;
+      --bs-light-bg: #fdfefe; /* A slightly off-white for internal cards/elements */
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+      background-color: var(--bs-body-bg);
+      color: var(--bs-dark);
+    }
+
+    .container-fluid {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    .card {
+      border: none;
+      border-radius: var(--bs-border-radius-lg);
+      box-shadow: var(--bs-box-shadow);
+      transition: all 0.2s ease-in-out;
+      background-color: white; /* Default card background */
+    }
+
+    .card:hover {
+      box-shadow: var(--bs-box-shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      background-color: var(--bs-light); /* Lighter header for general cards */
+      border-bottom: none;
+      border-top-left-radius: var(--bs-border-radius-lg);
+      border-top-right-radius: var(--bs-border-radius-lg);
+      font-weight: 600;
+      padding: 1.25rem 1.5rem;
+    }
+
+    /* Hero section specific styling */
+    .hero-section {
+        background: linear-gradient(135deg, var(--bs-primary) 0%, #0056b3 100%);
+        color: white;
+        padding: 2.5rem !important;
+        border-radius: var(--bs-border-radius-lg) !important;
+        box-shadow: var(--bs-box-shadow-lg) !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap; /* Allow wrapping on small screens */
+    }
+    .hero-section h2, .hero-section p {
+        color: white !important;
+    }
+    .hero-section .btn-light {
+        background-color: rgba(255, 255, 255, 0.9);
+        color: var(--bs-primary) !important;
+        border: none;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+    }
+    .hero-section .btn-light:hover {
+        background-color: white;
+    }
+
+    /* Summary cards styling */
+    .summary-card .card-body {
+        padding: 1rem;
+    }
+    .summary-card .card-title {
+        font-size: 1.6rem;
+    }
+
+    /* Broker carousel styling */
+    .broker-carousel {
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: none; /* Firefox */
+    }
+    .broker-carousel::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    .broker-selection-item {
+        flex-shrink: 0; /* Prevent items from shrinking */
+        width: 100px; /* Fixed width for each item */
+        padding: 0.75rem;
+        border-radius: var(--bs-border-radius);
+        background-color: var(--bs-light-bg);
+        transition: all 0.2s ease-in-out;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+    .broker-selection-item:hover {
+        background-color: var(--bs-gray-200);
+    }
+    .broker-selection-item.active-broker {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary-bg-subtle);
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), .25);
+    }
+    .broker-icon {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+        border-radius: 50%;
+        border: 1px solid var(--bs-gray-300);
+        background-color: white;
+    }
+    .broker-selection-item .small {
+        font-size: 0.8em;
+        margin-top: 0.5rem;
+        color: var(--bs-dark);
+    }
+
+    /* Form styling */
+    .form-label {
+        font-weight: 500;
+        color: var(--bs-dark);
+    }
+    .form-control:read-only {
+        background-color: var(--bs-light);
+        opacity: 0.7;
+    }
+
+    /* Filter/Search bar styling */
+    .filter-search-bar .form-select,
+    .filter-search-bar .form-control {
+        border-radius: var(--bs-border-radius-sm);
+    }
+    .filter-search-bar .input-group-text {
+        border-radius: var(--bs-border-radius-sm) 0 0 var(--bs-border-radius-sm);
+    }
+
+    /* Connected Accounts Card (replacing table rows) */
+    .account-card {
+        background-color: var(--bs-light-bg);
+        border: 1px solid var(--bs-gray-200);
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .account-card-body {
+        flex-grow: 1; /* Allow content to push actions to bottom */
+    }
+
+    .account-card-footer {
+        background-color: var(--bs-light);
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--bs-gray-200);
+        border-bottom-left-radius: calc(var(--bs-border-radius-lg) - 1px);
+        border-bottom-right-radius: calc(var(--bs-border-radius-lg) - 1px);
+    }
+
+    .account-card .status-badge {
+        font-size: 0.75rem;
+        padding: 0.3em 0.6em;
+        border-radius: var(--bs-border-radius-sm);
+    }
+
+    .account-card .action-buttons .btn-sm {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    /* Responsiveness */
+    @media (max-width: 767.98px) {
+        .hero-section {
+            padding: 1.5rem !important;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .hero-section .mb-3.mb-md-0 {
+            width: 100%;
+        }
+        .hero-section .btn-lg {
+            width: 100%;
+            text-align: center;
+        }
+
+        .summary-card {
+            margin-bottom: 1rem; /* Add spacing between summary cards on mobile */
+        }
+
+        .filter-search-bar .flex-grow-1 {
+            max-width: 100% !important; /* Full width for filters on mobile */
+            margin-bottom: 0.75rem;
+        }
+        .filter-search-bar .flex-grow-1:last-child {
+            margin-bottom: 0;
+        }
+
+        .account-card .card-body {
+            padding-bottom: 0.5rem; /* Reduce padding slightly */
+        }
+        .account-card .action-buttons {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .account-card .action-buttons .btn {
+            flex-grow: 1;
+            max-width: calc(50% - 0.25rem); /* Two buttons per row */
+        }
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-5 pb-3 border-bottom">
-        <div>
-            <h2 class="mb-2 fw-bold text-dark"><i class="bi bi-gear-fill me-2"></i> Account Configuration</h2>
-            <p class="lead text-muted">Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
+    <div class="hero-section mb-5">
+        <div class="me-auto me-md-0 mb-3 mb-md-0">
+            <h2 class="mb-2"><i class="bi bi-gear-fill me-2"></i> Account Configuration</h2>
+            <p class="lead">Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
         </div>
-        <button id="add-account-btn" class="btn btn-primary btn-lg shadow-sm">
+        <button id="add-account-btn" class="btn btn-light btn-lg shadow-sm">
             <i class="bi bi-plus-circle me-2"></i> Add New Account
         </button>
     </div>
 
     <div class="row g-4 mb-5">
-        <div class="col-md-3">
-            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+        <div class="col-sm-6 col-md-3">
+            <div class="card h-100 shadow-sm rounded-3 summary-card bg-light">
                 <div class="card-body">
                     <p class="card-text text-muted mb-1 small">Total Capacity</p>
-                    <h4 class="card-title fw-bold text-primary">10</h4>
+                    <h4 class="card-title fw-bold text-primary" id="total-capacity">0</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+        <div class="col-sm-6 col-md-3">
+            <div class="card h-100 shadow-sm rounded-3 summary-card bg-light">
                 <div class="card-body">
                     <p class="card-text text-muted mb-1 small">Master Accounts</p>
-                    <h4 class="card-title fw-bold text-info">1</h4>
+                    <h4 class="card-title fw-bold text-info" id="master-accounts-count">0</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+        <div class="col-sm-6 col-md-3">
+            <div class="card h-100 shadow-sm rounded-3 summary-card bg-light">
                 <div class="card-body">
                     <p class="card-text text-muted mb-1 small">Child Accounts</p>
-                    <h4 class="card-title fw-bold text-secondary">9</h4>
+                    <h4 class="card-title fw-bold text-secondary" id="child-accounts-count">0</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card h-100 border-0 shadow-sm rounded-3 bg-light text-center py-3">
+        <div class="col-sm-6 col-md-3">
+            <div class="card h-100 shadow-sm rounded-3 summary-card bg-light">
                 <div class="card-body">
                     <p class="card-text text-muted mb-1 small">Current Plan</p>
-                    <h4 class="card-title fw-bold text-success">Professional</h4>
+                    <h4 class="card-title fw-bold text-success" id="current-plan">N/A</h4>
                 </div>
             </div>
         </div>
@@ -57,59 +285,59 @@
             <div class="broker-carousel overflow-auto mb-4 pb-2">
                 <div class="broker-scroll d-flex align-items-center gap-4 px-2">
                     <div class="text-center broker-selection-item" data-broker="broker1" title="Broker 1">
-                        <img src="/static/images/logo.svg" class="broker-icon border-0 rounded" alt="Broker 1" />
+                        <img src="/static/images/logo.svg" class="broker-icon" alt="Broker 1" />
                         <div class="small text-muted mt-1">Broker 1</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="zerodha" title="Zerodha">
-                        <img src="/static/images/zerodha.png" class="broker-icon border-0 rounded" alt="Zerodha" />
+                        <img src="/static/images/zerodha.png" class="broker-icon" alt="Zerodha" />
                         <div class="small text-muted mt-1">Zerodha</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="aliceblue" title="Alice Blue">
-                        <img src="/static/images/aliceblue.jpg" class="broker-icon border-0 rounded" alt="Alice Blue" />
+                        <img src="/static/images/aliceblue.jpg" class="broker-icon" alt="Alice Blue" />
                         <div class="small text-muted mt-1">Alice Blue</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="groww" title="Groww">
-                        <img src="/static/images/groww.png" class="broker-icon border-0 rounded" alt="Groww" />
+                        <img src="/static/images/groww.png" class="broker-icon" alt="Groww" />
                         <div class="small text-muted mt-1">Groww</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="fyers" title="Fyers">
-                        <img src="/static/images/fyers.png" class="broker-icon border-0 rounded" alt="Fyers" />
+                        <img src="/static/images/fyers.png" class="broker-icon" alt="Fyers" />
                         <div class="small text-muted mt-1">Fyers</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="finvasia" title="Finvasia">
-                        <img src="/static/images/finvasia.jpg" class="broker-icon border-0 rounded" alt="Finvasia" />
+                        <img src="/static/images/finvasia.jpg" class="broker-icon" alt="Finvasia" />
                         <div class="small text-muted mt-1">Finvasia</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="dhan" title="Dhan">
-                        <img src="/static/images/dhan.jpg" class="broker-icon border-0 rounded" alt="Dhan" />
+                        <img src="/static/images/dhan.jpg" class="broker-icon" alt="Dhan" />
                         <div class="small text-muted mt-1">Dhan</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="flattrade" title="Flattrade">
-                        <img src="/static/images/flattrade.jpg" class="broker-icon border-0 rounded" alt="Flattrade" />
+                        <img src="/static/images/flattrade.jpg" class="broker-icon" alt="Flattrade" />
                         <div class="small text-muted mt-1">Flattrade</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="acagarwal" title="AC Agarwal">
-                        <img src="/static/images/acagarwal.jpg" class="broker-icon border-0 rounded" alt="AC Agarwal" />
+                        <img src="/static/images/acagarwal.jpg" class="broker-icon" alt="AC Agarwal" />
                         <div class="small text-muted mt-1">AC Agarwal</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="motilaloswal" title="Motilal Oswal">
-                        <img src="/static/images/motilaloswal.png" class="broker-icon border-0 rounded" alt="Motilal Oswal" />
+                        <img src="/static/images/motilaloswal.png" class="broker-icon" alt="Motilal Oswal" />
                         <div class="small text-muted mt-1">Motilal Oswal</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="kotakneo" title="Kotak Neo">
-                        <img src="/static/images/kotakneo.png" class="broker-icon border-0 rounded" alt="Kotak Neo" />
+                        <img src="/static/images/kotakneo.png" class="broker-icon" alt="Kotak Neo" />
                         <div class="small text-muted mt-1">Kotak Neo</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="tradejini" title="Tradejini">
-                        <img src="/static/images/tradejini.png" class="broker-icon border-0 rounded" alt="Tradejini" />
+                        <img src="/static/images/tradejini.png" class="broker-icon" alt="Tradejini" />
                         <div class="small text-muted mt-1">Tradejini</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="zebu" title="Zebu">
-                        <img src="/static/images/zebu.jpg" class="broker-icon border-0 rounded" alt="Zebu" />
+                        <img src="/static/images/zebu.jpg" class="broker-icon" alt="Zebu" />
                         <div class="small text-muted mt-1">Zebu</div>
                     </div>
                     <div class="text-center broker-selection-item" data-broker="enrichmoney" title="Enrich Money">
-                        <img src="/static/images/enrichmoney.jpg" class="broker-icon border-0 rounded" alt="Enrich Money" />
+                        <img src="/static/images/enrichmoney.jpg" class="broker-icon" alt="Enrich Money" />
                         <div class="small text-muted mt-1">Enrich Money</div>
                     </div>
                 </div>
@@ -152,7 +380,7 @@
                 </li>
             </ul>
 
-            <div class="d-flex flex-wrap gap-3 mb-4">
+            <div class="d-flex flex-wrap gap-3 mb-4 filter-search-bar">
                 <div class="flex-grow-1" style="max-width: 200px;">
                     <label for="broker-filter" class="visually-hidden">Filter by Broker</label>
                     <select class="form-select" id="broker-filter" aria-label="Filter by Broker"></select>
@@ -166,22 +394,11 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle caption-top" id="accounts-table">
-                    <caption>List of your trading accounts</caption>
-                    <thead class="table-light">
-                        <tr>
-                            <th>Broker</th>
-                            <th>Client ID</th>
-                            <th>Username</th>
-                            <th class="text-end">Opening Balance</th>
-                            <th>Status</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="accounts-table-body">
-                        </tbody>
-                </table>
+            <div id="accounts-card-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                </div>
+            <div id="accounts-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                <p class="mb-0">No accounts found matching your criteria.</p>
             </div>
         </div>
     </div>
@@ -416,46 +633,60 @@ window.pageScripts["Add-Account"] = function() {
     attachValidation();
   }
 
-  function renderTable(rows) {
-    const body = document.getElementById('accounts-table-body');
-    if (!body) return;
+  // MODIFIED renderTable to render cards instead of table rows
+  function renderAccounts(accountsToRender) {
+    const cardGrid = document.getElementById('accounts-card-grid');
+    const emptyState = document.getElementById('accounts-empty-state');
+    cardGrid.innerHTML = ''; // Clear previous cards
 
-    if (rows.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No accounts found matching your filters.</td></tr>';
-      return;
+    if (accountsToRender.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+    } else {
+        emptyState.style.display = 'none';
     }
 
-  body.innerHTML = rows.map(acc => {
-      const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
-      const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
-      const pictureHTML = `<img src="${iconUrl}" class="rounded-circle" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
-      const statusHtml = renderStatusBadge(acc);
+    accountsToRender.forEach(acc => {
+        const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
+        const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
+        const pictureHTML = `<img src="${iconUrl}" class="rounded-circle me-2" style="width:28px; height:28px; object-fit:contain;" alt="${brokerName} logo">`;
+        const statusHtml = renderStatusBadge(acc);
 
-      return `
-        <tr>
-          <td>${pictureHTML}</td>
-          <td class="font-monospace">${acc.client_id}</td>
-          <td>${acc.username || '-'}</td>
-          <td class="text-end fw-bold">${acc.opening_balance ? `₹${acc.opening_balance.toLocaleString('en-IN')}` : '-'}</td>
-          <td id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</td>
-          <td class="text-center">
-            <button class="btn btn-outline-primary btn-sm me-1" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
-                <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-outline-success btn-sm me-1" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
-                <i class="bi bi-arrow-repeat"></i>
-            </button>
-            <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
-                <i class="bi bi-trash"></i>
-            </button>
-          </td>
-        </tr>`;
-    }).join('');
+        const cardHtml = `
+            <div class="col">
+                <div class="card h-100 shadow-sm account-card">
+                    <div class="card-body account-card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            ${pictureHTML}
+                            <h6 class="card-title mb-0 flex-grow-1">${brokerName}</h6>
+                            <span id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}" class="status-badge">${statusHtml}</span>
+                        </div>
+                        <p class="mb-1 text-muted"><strong>Client ID:</strong> <span class="font-monospace">${acc.client_id}</span></p>
+                        <p class="mb-1 text-muted"><strong>Username:</strong> ${acc.username || '-'}</p>
+                        <p class="mb-0 text-muted"><strong>Balance:</strong> <span class="fw-bold">₹${acc.opening_balance ? acc.opening_balance.toLocaleString('en-IN') : '-'}</span></p>
+                    </div>
+                    <div class="account-card-footer d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="window.editAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Account">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="window.reconnectAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Reconnect Account">
+                            <i class="bi bi-arrow-repeat"></i> Reconnect
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="window.deleteAccount('${acc.client_id}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Account">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        cardGrid.insertAdjacentHTML('beforeend', cardHtml);
+    });
 
-    // Initialize tooltips after rendering table
+    // Initialize tooltips after rendering cards
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
     const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
   }
+
 
   function renderStatusBadge(acc) {
     const auto = autoLoginResults[acc.client_id];
@@ -487,13 +718,14 @@ window.pageScripts["Add-Account"] = function() {
     return '<span class="badge bg-success">Connected</span>';
   }
 
+  // MODIFIED updateStatusCell to target card
   function updateStatusCell(cid) {
-    const sanitized = cid.replace(/[^a-zA-Z0-9_-]/g,'');
-    const cell = document.getElementById(`status-${sanitized}`);
-    if (!cell) return;
+    const sanitizedCid = cid.replace(/[^a-zA-Z0-9_-]/g,'');
+    const statusSpan = document.getElementById(`status-${sanitizedCid}`);
+    if (!statusSpan) return;
     const acc = allAccounts.find(a => a.client_id === cid);
     if (!acc) return;
-    cell.innerHTML = renderStatusBadge(acc);
+    statusSpan.innerHTML = renderStatusBadge(acc);
   }
 
   function attemptAutoLogin() {
@@ -512,12 +744,12 @@ window.pageScripts["Add-Account"] = function() {
           autoLoginResults[acc.client_id] = {status: 'error', error: resp.error || 'Error'};
         }
         updateStatusCell(acc.client_id);
-        updateCounts();
+        updateCounts(); // Update counts in summary cards
       })
       .catch(err => {
         autoLoginResults[acc.client_id] = {status: 'error', error: err.message};
         updateStatusCell(acc.client_id);
-        updateCounts();
+        updateCounts(); // Update counts in summary cards
       });
     });
   }
@@ -532,7 +764,7 @@ window.pageScripts["Add-Account"] = function() {
       .then(resp => {
         if (typeof resp.balance === 'number') {
           acc.opening_balance = resp.balance;
-          applyFilters();
+          applyFilters(); // Re-render to show updated balance
         }
       })
       .catch(err => console.error('Balance refresh failed', err));
@@ -541,46 +773,63 @@ window.pageScripts["Add-Account"] = function() {
 
   function accountHasError(acc) {
     const st = (acc.status || '').toLowerCase();
-    if (st && st !== 'connected' && st !== 'pending') return true;
-    if (st === 'failed') return true;
-    // only consider error logs if status itself indicates failure
-    return st === 'failed' && !!(acc.last_error || (Array.isArray(acc.errors) ? acc.errors.length : acc.errors));
+    // Consider error if status is explicitly 'failed' or if any non-connected/pending status is present
+    if (st === 'failed' || (st && st !== 'connected' && st !== 'pending')) return true;
+    // Also consider error if auto-login result is an error
+    if (autoLoginResults[acc.client_id] && autoLoginResults[acc.client_id].status === 'error') return true;
+    return false;
   }
 
   function isSuccess(acc) {
     const st = (acc.status || '').toLowerCase();
-    return st === 'connected' || st === '';
+    // An account is "connected" if its status is 'connected' AND auto-login result is not an error
+    return st === 'connected' && (!autoLoginResults[acc.client_id] || autoLoginResults[acc.client_id].status !== 'error');
   }
 
   function isFailed(acc) {
     const st = (acc.status || '').toLowerCase();
+    // An account is "failed" if its status is 'failed' OR if it's a non-connected/pending status OR if auto-login failed
+    if (st === 'failed' || (st && st !== 'connected' && st !== 'pending')) return true;
     if (autoLoginResults[acc.client_id] && autoLoginResults[acc.client_id].status === 'error') return true;
-    return st === 'failed' || (st && st !== 'connected' && st !== 'pending');
+    return false;
   }
 
+  // MODIFIED applyFilters to use renderAccounts (card rendering)
   function applyFilters() {
-    let rows = allAccounts.slice(); // Create a shallow copy to filter
-    if (statusFilter === 'success') rows = rows.filter(isSuccess);
-    else if (statusFilter === 'failed') rows = rows.filter(isFailed);
-    if (brokerFilter) rows = rows.filter(a => a.broker === brokerFilter);
+    let accountsToRender = allAccounts.slice(); // Create a shallow copy to filter
+    if (statusFilter === 'success') accountsToRender = accountsToRender.filter(isSuccess);
+    else if (statusFilter === 'failed') accountsToRender = accountsToRender.filter(isFailed);
+    if (brokerFilter) accountsToRender = accountsToRender.filter(a => a.broker === brokerFilter);
     if (searchFilter) {
       const term = searchFilter.toLowerCase();
-      rows = rows.filter(a =>
+      accountsToRender = accountsToRender.filter(a =>
         String(a.client_id).toLowerCase().includes(term) ||
         (a.username || '').toLowerCase().includes(term) ||
         (a.last_error || (Array.isArray(a.errors) ? a.errors.join(' ') : a.errors) || a.status || '').toLowerCase().includes(term)
       );
     }
-    renderTable(rows);
+    renderAccounts(accountsToRender); // Use the new card rendering function
   }
 
   function updateCounts() {
     const total = allAccounts.length;
-    const success = allAccounts.filter(isSuccess).length;
+    const connected = allAccounts.filter(isSuccess).length;
     const failed = allAccounts.filter(isFailed).length;
+    
     document.getElementById('tab-count-all').textContent = total;
-    document.getElementById('tab-count-success').textContent = success;
+    document.getElementById('tab-count-success').textContent = connected;
     document.getElementById('tab-count-failed').textContent = failed;
+
+    // Assuming you have elements for master/child accounts and plan, populate them
+    // You would need to fetch/determine master/child counts from your API or allAccounts
+    const masterAccountsCount = allAccounts.filter(acc => acc.role === 'master').length;
+    const childAccountsCount = allAccounts.filter(acc => acc.role === 'child').length;
+    
+    document.getElementById('master-accounts-count').textContent = masterAccountsCount;
+    document.getElementById('child-accounts-count').textContent = childAccountsCount;
+    // Assuming 'Total Capacity' and 'Current Plan' come from a different API or fixed values
+    document.getElementById('total-capacity').textContent = '10'; // Example static value
+    document.getElementById('current-plan').textContent = 'Professional'; // Example static value
   }
 
   function populateBrokerFilter() {
@@ -631,13 +880,14 @@ window.pageScripts["Add-Account"] = function() {
     if (!currentBrokerSelected) { return; }
 
     const fields = brokerFields[currentBrokerSelected] || [];
-    // The optional status is now directly in the brokerFields definition
     
     let allRequiredFieldsFilled = true;
 
     // Check username field if applicable
     const usernameInput = form.querySelector('input[name="username"]');
-    if (usernameInput && usernameInput.value.trim() === '') {
+    // Only check if username field exists and is required (not optional)
+    const isUsernameRequired = !fields.some(f => f.name === 'username' && f.optional); // Check if username is explicitly optional in brokerFields
+    if (usernameInput && isUsernameRequired && usernameInput.value.trim() === '') {
         allRequiredFieldsFilled = false;
         usernameInput.classList.add('is-invalid');
     }
@@ -876,93 +1126,11 @@ window.pageScripts["Add-Account"] = function() {
       allAccounts = data.accounts || [];
       populateBrokerFilter();
       updateCounts();
-      applyFilters();
+      applyFilters(); // Call applyFilters to render cards initially
       attemptAutoLogin();
       refreshBalances();
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
 </script>
-
-<style>
-/* General card shadows and rounded corners */
-.card {
-    border-radius: 0.75rem; /* Larger rounded corners */
-}
-.card.shadow-lg {
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175) !important; /* Deeper shadow for main sections */
-}
-.card.shadow-sm {
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important; /* Lighter shadow for small cards */
-}
-
-/* Hero Section specific */
-.hero-section {
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-/* Broker selection styling */
-.broker-selection-item {
-  cursor: pointer;
-  padding: 10px;
-  transition: all 0.2s ease-in-out;
-  border: 2px solid transparent;
-  border-radius: 8px; /* Match card roundedness */
-}
-.broker-selection-item:hover {
-  background-color: var(--bs-light);
-  border-color: var(--bs-gray-300);
-}
-.broker-selection-item.active-broker {
-  background-color: var(--bs-primary-bg-subtle); /* Light primary background */
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus ring effect */
-}
-.broker-icon {
-  width: 60px; /* Larger icons */
-  height: 60px;
-  object-fit: contain; /* Ensure images fit without distortion */
-  border: 1px solid var(--bs-border-color); /* Subtle border for images */
-  border-radius: 4px;
-}
-
-/* Custom styling for status tabs to look more modern */
-.nav-tabs-alt .nav-link {
-    border: 0;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    color: var(--bs-dark);
-    font-weight: 500;
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-.nav-tabs-alt .nav-link.active {
-    color: var(--bs-primary);
-    border-color: var(--bs-primary);
-    background-color: transparent;
-}
-.nav-tabs-alt .nav-link:hover {
-    border-color: var(--bs-gray-300);
-}
-.nav-tabs-alt {
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-/* Table styling */
-.table th {
-    font-weight: 600;
-}
-.table-light th {
-    background-color: var(--bs-light);
-}
-.table-hover tbody tr:hover {
-    background-color: var(--bs-table-hover-bg);
-}
-
-/* Custom styling for icons in table cells */
-.table img.rounded-circle {
-    border: 1px solid var(--bs-border-color);
-}
-</style>
 {% endblock %}
