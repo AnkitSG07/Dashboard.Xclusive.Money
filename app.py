@@ -2177,26 +2177,25 @@ def get_order_book(client_id):
     
     try:
         user = current_user()
-        master_account = Account.query.filter_by(
+        account = Account.query.filter_by(
             client_id=client_id,
-            role='master',
             user_id=user.id
         ).first()
-        
-        if not master_account:
-            logger.warning(f"Master account not found for client {client_id}")
+
+        if not account:
+            logger.warning(f"Account not found for client {client_id}")
             return jsonify({
-                "error": "Master account not found"
+               "error": "Account not found"
             }), 404
 
         # ✅ STEP 2: Convert database model to dict for broker_api compatibility
-        master = _account_to_dict(master_account)
-        logger.info(f"Found master account: {master['broker']} - {master['username']}")
+        account_data = _account_to_dict(account)
+        logger.info(f"Found account: {account_data['broker']} - {account_data['username']}")
 
         # ✅ STEP 3: Initialize broker API
         try:
-            api = broker_api(master)
-            logger.debug(f"Initialized {master['broker']} API for {client_id}")
+            api = broker_api(account_data)
+            logger.debug(f"Initialized {account_data['broker']} API for {client_id}")
         except Exception as e:
             logger.error(f"Failed to initialize broker API: {str(e)}")
             return jsonify({
@@ -2206,7 +2205,7 @@ def get_order_book(client_id):
 
         # ✅ STEP 4: Fetch orders from broker
         try:
-            broker_name = master.get('broker', '').lower()
+            broker_name = account_data.get('broker', '').lower()
 
             # Use appropriate method based on broker
             if broker_name == "aliceblue" and hasattr(api, "get_trade_book"):
