@@ -247,10 +247,22 @@ class DhanBroker(BrokerBase):
             # Build securities dict for ticker API
             securities = {}
             for h in holdings:
-                seg = h.get("exchangeSegment") or h.get("exchange") or self.NSE
+                seg = h.get("exchangeSegment") or h.get("exchange")
+                # Map common values like "NSE" or "ALL" to the segment expected by the LTP API
+                if not seg or str(seg).upper() in ("ALL", "", "NONE"):
+                    seg = self.NSE
+                else:
+                    seg = str(seg).upper()
+                    if seg == "NSE":
+                        seg = "NSE_EQ"
+                    elif seg == "BSE":
+                        seg = "BSE_EQ"
                 sid = h.get("securityId") or h.get("security_id")
                 if seg and sid:
-                    securities.setdefault(seg, []).append(int(sid))
+                    try:
+                        securities.setdefault(seg, []).append(int(sid))
+                    except Exception:
+                        pass
 
             quotes = {}
             if securities:
@@ -270,7 +282,15 @@ class DhanBroker(BrokerBase):
 
             # Attach LTP and P/L if possible
             for h in holdings:
-                seg = h.get("exchangeSegment") or h.get("exchange") or self.NSE
+                seg = h.get("exchangeSegment") or h.get("exchange")
+                if not seg or str(seg).upper() in ("ALL", "", "NONE"):
+                    seg = self.NSE
+                else:
+                    seg = str(seg).upper()
+                    if seg == "NSE":
+                        seg = "NSE_EQ"
+                    elif seg == "BSE":
+                        seg = "BSE_EQ"
                 sid = str(h.get("securityId") or h.get("security_id"))
                 quote = quotes.get(seg, {}).get(sid)
                 if isinstance(quote, dict):
@@ -294,7 +314,6 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
             return {"status": "failure", "error": "An unexpected error occurred while fetching holdings: {}".format(str(e))}
-
             
     def get_profile(self):
         """
