@@ -193,17 +193,33 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   // Generate a status badge with optional tooltip for error messages
-  function statusBadge(status, errors) {
-    const hasErr = errors && (Array.isArray(errors) ? errors.length > 0 : true);
+  function statusBadge(status, errors, broker) {
     const st = (status || '').toLowerCase();
+    const errList = Array.isArray(errors)
+      ? errors.map(e => String(e))
+      : errors
+        ? [String(errors)]
+        : [];
+    const hasErr = errList.length > 0;
+    const normalized = errList.map(e => e.toLowerCase());
+
+    if (broker === 'dhan') {
+      const showErr = normalized.some(e => e.includes('short margin') || e.includes('market closed'));
+      if (!showErr) {
+        return '<span class="badge bg-success">Connected</span>';
+      }
+    }
 
     if (hasErr) {
-      const tip = Array.isArray(errors) ? errors.join('\n') : String(errors);
+      const tip = errList.join('\n');
       const sanitized = tip.replace(/\"/g, '&quot;');
       return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${sanitized}"></i>`;
     }
 
     if (st && st !== 'connected') {
+      if (broker === 'dhan') {
+        return '<span class="badge bg-success">Connected</span>';
+      }
       if (st === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
       return `<span class="badge bg-warning text-dark">${status}</span>`;
     }
@@ -213,8 +229,19 @@ window.pageScripts["copy-trading"] = function () {
 
   function childHasError(acc) {
     const st = (acc.status || '').toLowerCase();
-    const err = acc.errors || acc.last_error;
-    if (err && (Array.isArray(err) ? err.length > 0 : true)) return true;
+    const errList = Array.isArray(acc.errors || acc.last_error)
+      ? (acc.errors || acc.last_error).map(e => String(e))
+      : acc.errors || acc.last_error
+        ? [String(acc.errors || acc.last_error)]
+        : [];
+    const normalized = errList.map(e => e.toLowerCase());
+
+    if (acc.broker === 'dhan') {
+      const showErr = normalized.some(e => e.includes('short margin') || e.includes('market closed'));
+      return showErr ? true : false;
+    }
+
+    if (errList.length > 0) return true;
     if (st === 'failed') return true;
     if (st && st !== 'connected' && st !== 'pending') return true;
     return false;
@@ -409,7 +436,7 @@ window.pageScripts["copy-trading"] = function () {
                   <td>${brokerIconHTML(master.broker)}</td>
                   <td>${master.client_id}</td>
                   <td class="d-none d-md-table-cell">${master.username || "-"}</td>
-                  <td>${statusBadge(master.status, master.errors || master.last_error)}</td>
+                  <td>${statusBadge(master.status, master.errors || master.last_error, master.broker)}</td>
                   <td>
                     <div class="dropdown">
                       <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -554,7 +581,7 @@ window.pageScripts["copy-trading"] = function () {
                   <td class="d-none d-sm-table-cell">${master.client_id || "-"}</td>
                   <td>${child.client_id}</td>
                   <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                  <td>${statusBadge(child.status, child.errors || child.last_error)}</td>
+                  <td>${statusBadge(child.status, child.errors || child.last_error, child.broker)}</td>
                   <td>
                     <div class="d-flex align-items-center gap-2">
                       <div class="form-check form-switch m-0">
@@ -722,7 +749,7 @@ window.pageScripts["copy-trading"] = function () {
                 <td>${brokerIconHTML(child.broker)}</td>
                 <td>${child.client_id}</td>
                 <td class="d-none d-md-table-cell">${child.username || "-"}</td>
-                <td>${statusBadge(child.status, child.errors || child.last_error)}</td>
+                <td>${statusBadge(child.status, child.errors || child.last_error, child.broker)}</td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <div class="form-check form-switch m-0">
