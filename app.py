@@ -1521,12 +1521,43 @@ def poll_and_copy_trades():
                     else:
                         master.status = "Connected"
                         if master.copy_status == "Off":
-                            master.copy_status = "On"    
+                            master.copy_status = "On"
                         try:
                             db.session.commit()
                         except Exception:
                             db.session.rollback()
                             logger.error("Failed to commit status update")
+
+                        try:
+                            logs = (
+                                SystemLog.query.filter_by(
+                                    user_id=master.user_id, level="ERROR"
+                                )
+                                .order_by(SystemLog.timestamp.desc())
+                                .limit(5)
+                                .all()
+                            )
+                            for log in logs:
+                                details = log.details
+                                if isinstance(details, str):
+                                    try:
+                                        details = json.loads(details)
+                                    except Exception:
+                                        details = {}
+                                if (
+                                    isinstance(details, dict)
+                                    and str(details.get("client_id"))
+                                    == master.client_id
+                                    and "invalid syntax"
+                                    in (log.message or "").lower()
+                                ):
+                                    db.session.delete(log)
+                            db.session.commit()
+                        except Exception as e2:
+                            db.session.rollback()
+                            logger.error(
+                                f"Failed to clear Dhan init error logs for {master_id}: {e2}"
+                            )
                     continue
 
                 # Fetch orders from master account
