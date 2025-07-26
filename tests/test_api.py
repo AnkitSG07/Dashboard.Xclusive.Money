@@ -464,7 +464,8 @@ def test_add_account_stores_all_credentials(client, monkeypatch):
             "totp_secret": "t",
             "vendor_code": "v",
             "api_key": "a",
-            "imei": "i"
+            "imei": "i",
+            "access_token": "dummy_token"
         }
         assert acc.credentials == expected
 
