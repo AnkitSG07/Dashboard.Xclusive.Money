@@ -8,10 +8,24 @@ import logging
 
 def current_user():
     """Return the logged in ``User`` instance or ``None``."""
-    email = session.get("user")
-    if not email:
+    user_key = session.get("user")
+    if user_key is None:
         return None
-    return User.query.filter_by(email=email).first()
+
+    # ``session['user']`` historically stored the user email but some
+    # workflows may put the user id (as int or str).  Handle both cases
+    # gracefully to avoid type mismatch errors when querying.
+    if isinstance(user_key, int):
+        return db.session.get(User, user_key)
+
+    # When ``user_key`` is a digit string it might actually be the user id.
+    # Try id lookup first and fall back to email if no match.
+    if isinstance(user_key, str) and user_key.isdigit():
+        by_id = db.session.get(User, int(user_key))
+        if by_id:
+            return by_id
+
+    return User.query.filter_by(email=user_key).first()
 
 
 def user_account_ids(user):
