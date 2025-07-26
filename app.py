@@ -466,6 +466,8 @@ def ensure_strategy_schema():
             'log_retention_days': 'INTEGER',
             'is_public': 'BOOLEAN',
             'icon': 'TEXT',
+            'brokers': 'TEXT',
+            'master_accounts': 'TEXT',
         }
 
         for col_name, col_def in columns_to_add.items():
