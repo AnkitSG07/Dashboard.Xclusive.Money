@@ -1856,8 +1856,15 @@ def poll_and_copy_trades():
                                     continue
                                 device_number = child_credentials.get("device_number") or child.device_number
                                 rest_child = {
-                                    k: v for k, v in child_credentials.items()
-                                    if k not in ("access_token", "api_key", "device_number")
+                                    k: v
+                                    for k, v in child_credentials.items()
+                                    if k
+                                    not in (
+                                        "access_token",
+                                        "api_key",
+                                        "device_number",
+                                        "client_id",
+                                    )
                                 }
                                 child_api = ChildBrokerClass(
                                     child.client_id, 
@@ -1887,7 +1894,11 @@ def poll_and_copy_trades():
                                 if not access_token:
                                     logger.warning(f"Missing access token for {child_broker} child {child_id}")
                                     continue
-                                rest_child = {k: v for k, v in child_credentials.items() if k != "access_token"}
+                                rest_child = {
+                                    k: v
+                                    for k, v in child_credentials.items()
+                                    if k not in ("access_token", "client_id")
+                                }
                                 child_api = ChildBrokerClass(
                                     client_id=child.client_id,
                                     access_token=access_token,
