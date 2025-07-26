@@ -241,6 +241,7 @@ def list_strategies():
             "is_public": s.is_public,
             "icon": s.icon,
             "brokers": s.brokers,
+            "master_accounts": s.master_accounts,
         }
         for s in strategies
     ]
@@ -278,6 +279,9 @@ def create_strategy():
     brokers = data.get("brokers")
     if isinstance(brokers, list):
         brokers = ",".join(brokers)
+    master_accounts = data.get("master_accounts")
+    if isinstance(master_accounts, list):
+        master_accounts = ",".join(str(a) for a in master_accounts)
     strategy = Strategy(
         user_id=user.id,
         account_id=_to_int(account_id) if account_id else None,
@@ -302,6 +306,7 @@ def create_strategy():
         is_public=bool(data.get("is_public", False)),
         icon=data.get("icon"),
         brokers=brokers,
+        master_accounts=master_accounts,
     )
 
     db.session.add(strategy)
@@ -342,6 +347,7 @@ def strategy_detail(strategy_id):
             "is_public": strategy.is_public,
             "icon": strategy.icon,
             "brokers": strategy.brokers,
+            "master_accounts": strategy.master_accounts,
         })
 
     if request.method == "PUT":
@@ -381,6 +387,7 @@ def strategy_detail(strategy_id):
             "is_public",
             "icon",
             "brokers",
+            "master_accounts",
         ]:
             if field in data:
                 if field == "account_id" and data[field] is not None:
@@ -393,8 +400,8 @@ def strategy_detail(strategy_id):
                 elif field == "risk_max_allocation":
                     setattr(strategy, field, _to_float(data[field]))
                 else:
-                    if field == "brokers" and isinstance(data[field], list):
-                        setattr(strategy, field, ",".join(data[field]))
+                    if field in ["brokers", "master_accounts"] and isinstance(data[field], list):
+                        setattr(strategy, field, ",".join(str(v) for v in data[field]))
                     else:
                         setattr(strategy, field, data[field])
         db.session.commit()
@@ -551,6 +558,8 @@ def clone_strategy(strategy_id):
         log_retention_days=src.log_retention_days,
         is_public=src.is_public,
         icon=src.icon,
+        brokers=src.brokers,
+        master_accounts=src.master_accounts,
     )
     db.session.add(clone)
     db.session.commit()
