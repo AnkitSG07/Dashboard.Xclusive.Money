@@ -1,5 +1,5 @@
 from flask import session
-from sqlalchemy import or_
+from sqlalchemy import or_, cast
 from models import User, OrderMapping, Account, SystemLog, db
 from datetime import datetime
 import json
@@ -132,7 +132,7 @@ def clear_init_error_logs(account: Account, *, is_master: bool) -> None:
     try:
         logs = (
             SystemLog.query.filter(
-                SystemLog.user_id == account.user_id,
+                cast(SystemLog.user_id, db.String) == str(account.user_id),
                 SystemLog.level == "ERROR",
                 SystemLog.message.ilike(f"{prefix}%"),
             ).all()
