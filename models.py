@@ -287,6 +287,7 @@ class Strategy(db.Model):
     log_retention_days = db.Column(db.Integer, default=30)
     is_public = db.Column(db.Boolean, default=False, index=True)
     icon = db.Column(db.Text)
+    brokers = db.Column(db.Text)
     
     user = db.relationship("User", backref=db.backref("strategies", lazy=True, cascade="all, delete-orphan"))
     account = db.relationship(
