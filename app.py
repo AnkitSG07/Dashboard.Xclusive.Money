@@ -1479,7 +1479,17 @@ def poll_and_copy_trades():
                         if not api_key:
                             logger.error(f"Missing API key for AliceBlue master {master_id}")
                             continue
-                        rest = {k: v for k, v in credentials.items() if k not in ("access_token", "api_key", "device_number")}
+                        rest = {
+                            k: v
+                            for k, v in credentials.items()
+                            if k
+                            not in (
+                                "access_token",
+                                "api_key",
+                                "device_number",
+                                "client_id",
+                            )
+                        }
                         master_api = BrokerClass(
                             master.client_id,
                             api_key,
@@ -1508,7 +1518,11 @@ def poll_and_copy_trades():
                         if not access_token:
                             logger.error(f"Missing access token for {master_broker} master {master_id}")
                             continue
-                        rest = {k: v for k, v in credentials.items() if k != "access_token"}
+                        rest = {
+                            k: v
+                            for k, v in credentials.items()
+                            if k not in ("access_token", "client_id")
+                        }
                         master_api = BrokerClass(
                             client_id=master.client_id,
                             access_token=access_token,
@@ -4919,7 +4933,11 @@ def check_credentials():
         else:
             # For other brokers, assume access_token based authentication
             access_token = credentials.get('access_token')
-            rest = {k: v for k, v in credentials.items() if k != 'access_token'}
+            rest = {
+                k: v
+                for k, v in credentials.items()
+                if k not in ('access_token', 'client_id')
+            }
             broker_obj = BrokerClass(client_id, access_token, **rest)
 
         # After instantiation, check token validity if the method exists
