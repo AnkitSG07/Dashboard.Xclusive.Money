@@ -4727,10 +4727,12 @@ def reconnect_account():
             db.session.commit()
             return jsonify({"error": "Failed to reconnect with stored credentials"}), 400
 
-        # Update stored access token if broker object exposes it
+        # Update stored access token and token_time if available
         if getattr(api, 'access_token', None):
             new_creds['access_token'] = api.access_token
-            acc_db.credentials = dict(new_creds)
+        if getattr(api, 'token_time', None):
+            new_creds['token_time'] = api.token_time
+        acc_db.credentials = dict(new_creds)
 
         acc_db.status = 'Connected'
         acc_db.last_login_time = datetime.utcnow()
@@ -4792,6 +4794,8 @@ def check_auto_logins():
                 if getattr(api, "access_token", None):
                     creds = dict(acc_db.credentials or {})
                     creds["access_token"] = api.access_token
+                    if getattr(api, "token_time", None):
+                        creds["token_time"] = api.token_time    
                     acc_db.credentials = creds
             db.session.commit()
             results.append({"client_id": acc_db.client_id, "status": acc_db.status})
@@ -4846,7 +4850,9 @@ def update_account():
 
         if getattr(api, "access_token", None):
             new_creds["access_token"] = api.access_token
-            acc_db.credentials = new_creds
+        if getattr(api, "token_time", None):
+            new_creds["token_time"] = api.token_time
+        acc_db.credentials = new_creds
 
         acc_db.status = "Connected"
         acc_db.last_login_time = datetime.utcnow()
@@ -5101,6 +5107,12 @@ def add_account():
                 # Pass additional credentials as kwargs
                 other_creds = {k: v for k, v in credentials.items() if k != 'access_token'}
                 broker_obj = BrokerClass(client_id, access_token, **other_creds)
+
+            # Store any updated token information from the broker object
+            if getattr(broker_obj, 'access_token', None):
+                credentials['access_token'] = broker_obj.access_token
+            if getattr(broker_obj, 'token_time', None):
+                credentials['token_time'] = broker_obj.token_time
                 
             # Test connection if validation method exists
             if broker != 'zerodha' and hasattr(broker_obj, 'check_token_valid'):
