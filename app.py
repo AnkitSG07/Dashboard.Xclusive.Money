@@ -59,6 +59,7 @@ from helpers import (
     active_children_for_master,
     extract_product_type,
     log_connection_error,
+    clear_init_error_logs,
     normalize_position,
 )
 from symbols import get_symbols
@@ -1496,6 +1497,7 @@ def poll_and_copy_trades():
                             device_number=credentials.get("device_number") or master.device_number,
                             **rest
                         )
+                       clear_init_error_logs(master, is_master=True)    
                     elif master_broker == "finvasia":
                         required = ["password", "totp_secret", "vendor_code", "api_key"]
                         if not all(credentials.get(r) for r in required):
@@ -1513,6 +1515,7 @@ def poll_and_copy_trades():
                             api_key=credentials["api_key"],
                             imei=imei
                         )
+                        clear_init_error_logs(master, is_master=True)
                     else:
                         access_token = credentials.get("access_token")
                         if not access_token:
@@ -1528,6 +1531,7 @@ def poll_and_copy_trades():
                             access_token=access_token,
                             **rest
                         )
+                        clear_init_error_logs(master, is_master=True)
                 except Exception as e:
                     err = f"Failed to initialize master API ({master_broker}) for {master_id}: {str(e)}"
                     err_lower = str(e).lower()    
@@ -1867,11 +1871,12 @@ def poll_and_copy_trades():
                                     )
                                 }
                                 child_api = ChildBrokerClass(
-                                    child.client_id, 
-                                    api_key, 
-                                    device_number=device_number, 
+                                    child.client_id,
+                                    api_key,
+                                    device_number=device_number,
                                     **rest_child
                                 )
+                                clear_init_error_logs(child, is_master=False)
                             elif child_broker == "finvasia":
                                 required = ['password', 'totp_secret', 'vendor_code', 'api_key']
                                 if not all(child_credentials.get(r) for r in required):
@@ -1889,6 +1894,7 @@ def poll_and_copy_trades():
                                     api_key=child_credentials['api_key'],
                                     imei=imei
                                 )
+                                clear_init_error_logs(child, is_master=False)
                             else:
                                 access_token = child_credentials.get("access_token")
                                 if not access_token:
@@ -1904,6 +1910,7 @@ def poll_and_copy_trades():
                                     access_token=access_token,
                                     **rest_child
                                 )
+                                clear_init_error_logs(child, is_master=False)
                         except Exception as e:
                             err = f"Failed to initialize child API for {child_id}: {e}"
                             logger.error(err)
