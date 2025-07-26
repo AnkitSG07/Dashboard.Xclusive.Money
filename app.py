@@ -626,6 +626,7 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
     results = []
     subs = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).all()
     allowed = [b.strip().lower() for b in (strategy.brokers or '').split(',') if b.strip()]
+    allowed_accounts = [int(a) for a in (strategy.master_accounts or '').split(',') if a.strip()]
     for sub in subs:
         sub_user = sub.subscriber
         account = None
@@ -637,6 +638,9 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
             results.append({"subscription_id": sub.id, "status": "ERROR", "reason": "Account not configured"})
             continue
         broker_name = (account.broker or "dhan").lower()
+        if allowed and broker_name not in allowed:
+            results.append({"subscription_id": sub.id, "status": "SKIPPED", "reason": "Broker not allowed"})
+            continue
         if allowed and broker_name not in allowed:
             results.append({"subscription_id": sub.id, "status": "SKIPPED", "reason": "Broker not allowed"})
             continue
@@ -2705,6 +2709,11 @@ def webhook(user_id):
             allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
             if allowed and (account.broker or '').lower() not in allowed:
                 return jsonify({"error": "Broker not allowed for this strategy"}), 403
+        if strategy and strategy.master_accounts:
+            allowed_accs = [int(a) for a in strategy.master_accounts.split(',') if a.strip()]
+            if allowed_accs and account.id not in allowed_accs:
+                return jsonify({"error": "Account not allowed for this strategy"}), 403
+
 
         broker_name = (account.broker or "dhan").lower()
        # Initialize broker API using full credentials
