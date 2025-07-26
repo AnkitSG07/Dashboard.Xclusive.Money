@@ -5477,7 +5477,7 @@ def delete_group(group_name):
 @app.route('/api/symbols')
 @login_required
 def symbols_list():
-   """Return list of symbols with token mappings for common brokers."""
+    """Return list of symbols with token mappings for common brokers."""
     return jsonify(get_symbols())
 
 
