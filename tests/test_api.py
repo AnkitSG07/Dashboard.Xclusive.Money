@@ -1002,7 +1002,21 @@ def test_create_strategy_invalid_account(client):
         json={"name": "Bad", "asset_class": "Stocks", "style": "Systematic", "account_id": 999},
     )
     assert resp.status_code == 400
-    
+
+def test_create_strategy_auto_secret(client):
+    login(client)
+    resp = client.post(
+        "/api/strategies",
+        json={"name": "AutoSec", "asset_class": "Stocks", "style": "Systematic"},
+    )
+    assert resp.status_code == 200
+    sid = resp.get_json()["id"]
+    app = app_module.app
+    db = app_module.db
+    Strategy = app_module.Strategy
+    with app.app_context():
+        s = db.session.get(Strategy, sid)
+        assert s.webhook_secret
 
 def test_strategy_list_and_delete(client):
     login(client)
