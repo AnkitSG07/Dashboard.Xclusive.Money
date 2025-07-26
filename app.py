@@ -1216,9 +1216,19 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
 
 
 
-def record_trade(user_email, symbol, action, qty, price, status):
-    """Persist a trade record to the database."""
-    user = User.query.filter_by(email=user_email).first()
+def record_trade(user_identifier, symbol, action, qty, price, status):
+    """Persist a trade record to the database.
+
+    ``user_identifier`` may be a ``User`` object, user id or email string.
+    """
+    if isinstance(user_identifier, User):
+        user = user_identifier
+    elif isinstance(user_identifier, int):
+        user = db.session.get(User, user_identifier)
+    elif isinstance(user_identifier, str) and user_identifier.isdigit():
+        user = db.session.get(User, int(user_identifier)) or User.query.filter_by(email=user_identifier).first()
+    else:
+        user = User.query.filter_by(email=user_identifier).first()
     trade = Trade(
         user_id=user.id if user else None,
         symbol=symbol,
@@ -6629,7 +6639,7 @@ def dashboard_data():
 @login_required
 def summary():
     if 'username' not in session:
-        user = User.query.filter_by(email=session.get('user')).first()
+        user = current_user()
         if user:
             session['username'] = user.name or (user.email.split('@')[0] if user.email else user.phone)
     return render_template("Summary.html")  # or "Summary.html" if that's your file name
