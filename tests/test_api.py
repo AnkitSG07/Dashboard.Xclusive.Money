@@ -469,6 +469,38 @@ def test_add_account_stores_all_credentials(client, monkeypatch):
         }
         assert acc.credentials == expected
 
+def test_add_zerodha_sets_token_time(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            self.access_token = "tok"
+            self.token_time = 1111
+        def check_token_valid(self):
+            return True
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+
+    data = {
+        "broker": "zerodha",
+        "client_id": "Z1",
+        "username": "user",
+        "access_token": "tok",
+        "api_key": "k",
+        "api_secret": "s",
+    }
+
+    resp = client.post("/api/add-account", json=data)
+    assert resp.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account.query.filter_by(user_id=user.id, client_id="Z1").first()
+        assert isinstance(acc.credentials.get("token_time"), (int, float))
 
 def test_reconnect_uses_stored_credentials(client, monkeypatch):
     login(client)
