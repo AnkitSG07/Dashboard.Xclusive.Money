@@ -288,6 +288,7 @@ class Strategy(db.Model):
     is_public = db.Column(db.Boolean, default=False, index=True)
     icon = db.Column(db.Text)
     brokers = db.Column(db.Text)
+    master_accounts = db.Column(db.Text)
     
     user = db.relationship("User", backref=db.backref("strategies", lazy=True, cascade="all, delete-orphan"))
     account = db.relationship(
