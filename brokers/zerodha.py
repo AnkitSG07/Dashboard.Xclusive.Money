@@ -39,6 +39,8 @@ class ZerodhaBroker(BrokerBase):
         if access_token:
             self.kite.set_access_token(access_token)
             self.access_token = access_token
+            if self.token_time is None:
+                self.token_time = time.time()
         elif request_token and api_secret:
             self.access_token = self.create_session(request_token)
             self.kite.set_access_token(self.access_token)
