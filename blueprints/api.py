@@ -282,6 +282,10 @@ def create_strategy():
     master_accounts = data.get("master_accounts")
     if isinstance(master_accounts, list):
         master_accounts = ",".join(str(a) for a in master_accounts)
+    if not data.get("webhook_secret"):
+        import secrets
+        data["webhook_secret"] = secrets.token_hex(16)
+
     strategy = Strategy(
         user_id=user.id,
         account_id=_to_int(account_id) if account_id else None,
@@ -471,8 +475,11 @@ def test_webhook(strategy_id):
     from brokers.symbol_map import SYMBOL_MAP
     symbol = next(iter(SYMBOL_MAP.keys()))
     payload = {"symbol": symbol, "action": "BUY", "quantity": 1}
-    if strategy.webhook_secret:
-        payload["secret"] = strategy.webhook_secret
+    if not strategy.webhook_secret:
+        import secrets
+        strategy.webhook_secret = secrets.token_hex(16)
+        db.session.commit()
+    payload["secret"] = strategy.webhook_secret
     from flask import current_app
     with current_app.test_client() as c:
         resp = c.post(f"/webhook/{token}", json=payload)
