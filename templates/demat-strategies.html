@@ -46,9 +46,9 @@
                             <input type="text" class="form-control" id="strategy-name" name="strategyName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="strategy-brokers" class="form-label">Brokers</label>
-                            <select class="form-select" id="strategy-brokers" name="brokers" multiple></select>
-                            <div class="form-text">Select brokers this strategy applies to.</div>
+                            <label for="strategy-accounts" class="form-label">Master Accounts</label>
+                            <select class="form-select" id="strategy-accounts" name="masterAccounts" multiple></select>
+                            <div class="form-text">Select connected master accounts for this strategy.</div>
                         </div>
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -331,7 +331,7 @@ window.pageScripts["demat-strategies"] = function() {
         if(symbols.length===0){ alert('Enter at least one trading symbol'); return; }
 
         Promise.all(symbols.map(sym=>{
-            const payload = {name:`${name}-${sym}`, asset_class:'Stocks', style:'Systematic', brokers:Array.from(form.brokers.selectedOptions).map(o=>o.value)};
+            const payload = {name:`${name}-${sym}`, asset_class:'Stocks', style:'Systematic', master_accounts:Array.from(form.masterAccounts.selectedOptions).map(o=>o.value)};
             return fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         })).then(()=>{
             modal.hide();
@@ -345,7 +345,7 @@ window.pageScripts["demat-strategies"] = function() {
             orderType: form.orderType.value,
             orderValidity: form.orderValidity.value,
             productType: form.productType.value,
-            brokers: Array.from(form.brokers.selectedOptions).map(o=>o.value),
+            masterAccounts: Array.from(form.masterAccounts.selectedOptions).map(o=>o.value),
         };
         if(form.orderQty.value){
             compactPayload.orderQty = parseFloat(form.orderQty.value);
