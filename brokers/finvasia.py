@@ -39,24 +39,34 @@ class FinvasiaBroker(BrokerBase):
     def login(self):
         try:
             totp = pyotp.TOTP(self.totp_secret).now()
-            ret = self.api.login(
-                userid=self.client_id,
-                password=self.password,
-                twoFA=totp,
-                vendor_code=self.vendor_code,
-                api_secret=self.api_key,
-                imei=self.imei
-            )
+            try:
+                ret = self.api.login(
+                    userid=self.client_id,
+                    password=self.password,
+                    twoFA=totp,
+                    vendor_code=self.vendor_code,
+                    api_secret=self.api_key,
+                    imei=self.imei
+                )
+            except ValueError as e:
+                # ShoonyaApiPy can raise JSON decoding errors when the API
+                # returns an empty or non-JSON response. Handle it gracefully
+                error_msg = f"Invalid response from Finvasia login API: {e}"
+                self._last_auth_error = error_msg
+                logger.error(error_msg)
+                return {"status": "failure", "error": error_msg}
+
             if ret and ret.get("stat") == "Ok":
-                self.session = ret # Store the session info if needed, or just status
+                self.session = ret  # Store the session info
                 self._last_auth_error = None
                 logger.info("Finvasia login successful for %s", self.client_id)
                 return {"status": "success", "message": "Login successful"}
-            else:
-                error_msg = ret.get("emsg", "Unknown login error") if ret else "No response from login API"
-                self._last_auth_error = error_msg
-                logger.error("Finvasia login failed for %s: %s", self.client_id, error_msg)
-                return {"status": "failure", "error": error_msg}
+                
+            error_msg = ret.get("emsg", "Unknown login error") if ret else "No response from login API"
+            self._last_auth_error = error_msg
+            logger.error("Finvasia login failed for %s: %s", self.client_id, error_msg)
+            return {"status": "failure", "error": error_msg}
+
         except Exception as e:
             error_msg = f"Exception during Finvasia login: {e}"
             self._last_auth_error = error_msg
