@@ -240,6 +240,7 @@ def list_strategies():
             "log_retention_days": s.log_retention_days,
             "is_public": s.is_public,
             "icon": s.icon,
+            "brokers": s.brokers,
         }
         for s in strategies
     ]
@@ -274,6 +275,9 @@ def create_strategy():
             return float(val)
         except (TypeError, ValueError):
             return None
+    brokers = data.get("brokers")
+    if isinstance(brokers, list):
+        brokers = ",".join(brokers)
     strategy = Strategy(
         user_id=user.id,
         account_id=_to_int(account_id) if account_id else None,
@@ -297,6 +301,7 @@ def create_strategy():
         log_retention_days=_to_int(data.get("log_retention_days")),
         is_public=bool(data.get("is_public", False)),
         icon=data.get("icon"),
+        brokers=brokers,
     )
 
     db.session.add(strategy)
@@ -336,6 +341,7 @@ def strategy_detail(strategy_id):
             "log_retention_days": strategy.log_retention_days,
             "is_public": strategy.is_public,
             "icon": strategy.icon,
+            "brokers": strategy.brokers,
         })
 
     if request.method == "PUT":
@@ -374,6 +380,7 @@ def strategy_detail(strategy_id):
             "log_retention_days",
             "is_public",
             "icon",
+            "brokers",
         ]:
             if field in data:
                 if field == "account_id" and data[field] is not None:
@@ -386,7 +393,10 @@ def strategy_detail(strategy_id):
                 elif field == "risk_max_allocation":
                     setattr(strategy, field, _to_float(data[field]))
                 else:
-                    setattr(strategy, field, data[field])
+                    if field == "brokers" and isinstance(data[field], list):
+                        setattr(strategy, field, ",".join(data[field]))
+                    else:
+                        setattr(strategy, field, data[field])
         db.session.commit()
         return jsonify({"message": "Strategy updated"})
 
