@@ -46,8 +46,8 @@
                             <input type="text" class="form-control" id="strategy-name" name="strategyName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="strategy-accounts" class="form-label">Master Accounts</label>
-                            <select class="form-select" id="strategy-accounts" name="masterAccounts" multiple></select>
+                            <label class="form-label">Master Accounts</label>
+                            <div id="strategy-accounts" class="d-flex flex-column gap-1"></div>
                             <div class="form-text">Select connected master accounts for this strategy.</div>
                         </div>
                         <div class="row g-3">
@@ -148,6 +148,7 @@ window.pageScripts["demat-strategies"] = function() {
     const modal = new bootstrap.Modal(modalEl);
     const userToken = '{{ logged_in_user.webhook_token }}';
     let symbolMap = {};
+    let editingId = null;
     const BROKER_KEYS = ['dhan','aliceblue','angelone','iifl','kotak','upstox'];
 
     function fetchJson(url, opts={}) {
@@ -165,13 +166,30 @@ window.pageScripts["demat-strategies"] = function() {
         }).catch(() => {});
     }
 
-    function loadMasterAccounts(){
-        fetchJson('/api/accounts?cache_only=1').then(data=>{
+    function loadMasterAccounts(selected){
+        const container = document.getElementById('strategy-accounts');
+        return fetchJson('/api/accounts?cache_only=1').then(data=>{
             const masters = Array.isArray(data.masters) ? data.masters : [];
-            form.masterAccounts.innerHTML = masters
-                .map(m => `<option value="${m.id}">${m.broker || ''} - ${m.client_id}</option>`)
-                .join('');
+            container.innerHTML = masters.map(m => {
+                const id = `acc-${m.id}`;
+                return `<div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="masterAccounts" value="${m.id}" id="${id}">
+                            <label class="form-check-label" for="${id}">${m.broker || ''} - ${m.client_id}</label>
+                        </div>`;
+            }).join('');
+            if(selected){
+                const vals = Array.isArray(selected) ? selected : String(selected).split(',');
+                vals.forEach(v => {
+                    const cb = container.querySelector(`input[value="${v}"]`);
+                    if(cb) cb.checked = true;
+                });
+            }
         }).catch(()=>{});
+    }
+
+    function getSelectedAccounts(){
+        const container = document.getElementById('strategy-accounts');
+        return Array.from(container.querySelectorAll('input[name="masterAccounts"]:checked')).map(cb => cb.value);
     }
 
     function getSymbols(){
@@ -204,12 +222,14 @@ window.pageScripts["demat-strategies"] = function() {
     form.tradingSymbols.addEventListener('input', updateTokens);
 
     function resetForm(){
+        editingId = null;
         form.reset();
         tokensList.textContent = '';
         form.orderValue.disabled = false;
         form.orderQty.disabled = false;
         updateTokens();
         loadMasterAccounts();
+        modalEl.querySelector('.modal-title').textContent = 'Create Strategy';
     }
     form.orderQty.addEventListener('input', ()=>{ form.orderValue.disabled = !!form.orderQty.value; });
     form.orderValue.addEventListener('input', ()=>{ form.orderQty.disabled = !!form.orderValue.value; });
@@ -273,6 +293,9 @@ window.pageScripts["demat-strategies"] = function() {
                         <a href="/strategy-performance/${s.id}" class="btn btn-sm btn-outline-secondary">
                           <i class="bi bi-graph-up"></i> Logs
                         </a>
+                        <button class="btn btn-sm btn-primary edit-btn" data-strategy-id="${s.id}">
+                          <i class="bi bi-pencil"></i> Edit
+                        </button>    
                         <button class="btn btn-sm btn-danger delete-btn" data-strategy-id="${s.id}">
                           <i class="bi bi-trash"></i> Delete
                         </button>
@@ -310,6 +333,17 @@ window.pageScripts["demat-strategies"] = function() {
                 btn.addEventListener('click',()=>{
                     fetchJson(`/api/strategies/${btn.dataset.strategyId}/clone`,{method:'POST'}).then(loadStrategies);
                 });
+            });
+            document.querySelectorAll('.edit-btn').forEach(btn=>{
+                btn.addEventListener('click',()=>{
+                    fetchJson(`/api/strategies/${btn.dataset.strategyId}`).then(data=>{
+                        editingId = data.id;
+                        modalEl.querySelector('.modal-title').textContent = 'Edit Strategy';
+                        form.strategyName.value = data.name;
+                        loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
+                        modal.show();
+                    });
+                });
 
             });
             document.querySelectorAll('.delete-btn').forEach(btn=>{
@@ -332,13 +366,22 @@ window.pageScripts["demat-strategies"] = function() {
         if(!name){ alert('Strategy Name is required'); return; }
         if(symbols.length===0){ alert('Enter at least one trading symbol'); return; }
 
-        Promise.all(symbols.map(sym=>{
-            const payload = {name:`${name}-${sym}`, asset_class:'Stocks', style:'Systematic', master_accounts:Array.from(form.masterAccounts.selectedOptions).map(o=>o.value)};
-            return fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        })).then(()=>{
-            modal.hide();
-            loadStrategies();
-        });
+        const accountsSel = getSelectedAccounts();
+        if(editingId){
+            const payload = {name:name, master_accounts:accountsSel};
+            fetchJson(`/api/strategies/${editingId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(()=>{
+                modal.hide();
+                loadStrategies();
+            });
+        } else {
+            Promise.all(symbols.map(sym=>{
+                const payload = {name:`${name}-${sym}`, asset_class:'Stocks', style:'Systematic', master_accounts:accountsSel};
+                return fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            })).then(()=>{
+                modal.hide();
+                loadStrategies();
+            });
+        }
 
         const compactPayload = {
             strategyName: name,
@@ -347,7 +390,7 @@ window.pageScripts["demat-strategies"] = function() {
             orderType: form.orderType.value,
             orderValidity: form.orderValidity.value,
             productType: form.productType.value,
-            masterAccounts: Array.from(form.masterAccounts.selectedOptions).map(o=>o.value),
+            masterAccounts: getSelectedAccounts(),
         };
         if(form.orderQty.value){
             compactPayload.orderQty = parseFloat(form.orderQty.value);
