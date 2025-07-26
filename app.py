@@ -2674,8 +2674,40 @@ def webhook(user_id):
 
         # Validate required fields
         symbol = data.get("symbol") or data.get("ticker")
+        if not symbol:
+            trading_symbols = data.get("tradingSymbols") or data.get("tradingSymbol")
+            if isinstance(trading_symbols, list):
+                if trading_symbols:
+                    symbol = trading_symbols[0]
+            else:
+                symbol = trading_symbols
+            exchange = data.get("exchange")
+            if symbol and exchange and ":" not in str(symbol):
+                symbol = f"{exchange}:{symbol}"
+
         action = data.get("action")
+        if not action:
+            ttype = data.get("transactionType")
+            if ttype:
+                ttype = str(ttype).lower()
+                mapping = {
+                    "le": "BUY",
+                    "sxle": "BUY",
+                    "lx": "SELL",
+                    "se": "SELL",
+                    "lxse": "SELL",
+                    "sx": "BUY",
+                }
+                action = mapping.get(ttype)
+
         quantity = data.get("quantity")
+        if quantity is None:
+            quantity = data.get("orderQty")
+        try:
+            if quantity is not None:
+                quantity = int(float(quantity))
+        except (TypeError, ValueError):
+            quantity = None
 
         if not all([symbol, action, quantity]):
             logger.error(f"Missing required fields: {data}")
