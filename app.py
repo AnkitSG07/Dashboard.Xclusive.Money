@@ -625,6 +625,7 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
     """Execute orders for all approved subscriptions of a strategy."""
     results = []
     subs = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).all()
+    allowed = [b.strip().lower() for b in (strategy.brokers or '').split(',') if b.strip()]
     for sub in subs:
         sub_user = sub.subscriber
         account = None
@@ -636,6 +637,9 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
             results.append({"subscription_id": sub.id, "status": "ERROR", "reason": "Account not configured"})
             continue
         broker_name = (account.broker or "dhan").lower()
+        if allowed and broker_name not in allowed:
+            results.append({"subscription_id": sub.id, "status": "SKIPPED", "reason": "Broker not allowed"})
+            continue
         try:
             acc_dict = _account_to_dict(account)
             api = broker_api(acc_dict)
@@ -2696,6 +2700,11 @@ def webhook(user_id):
         if not account or not account.credentials:
             logger.error("Account not configured")
             return jsonify({"error": "Account not configured"}), 403
+
+        if strategy and strategy.brokers:
+            allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
+            if allowed and (account.broker or '').lower() not in allowed:
+                return jsonify({"error": "Broker not allowed for this strategy"}), 403
 
         broker_name = (account.broker or "dhan").lower()
        # Initialize broker API using full credentials
@@ -5468,8 +5477,49 @@ def delete_group(group_name):
 @app.route('/api/symbols')
 @login_required
 def symbols_list():
-    """Return list of symbols with their security IDs."""
+   """Return list of symbols with token mappings for common brokers."""
     return jsonify(get_symbols())
+
+
+@app.route('/api/quote/<symbol>')
+@login_required
+def quote_price(symbol):
+    """Return latest price for a symbol using the primary account broker."""
+    user = current_user()
+    account = get_primary_account(user)
+    if not account or not account.credentials:
+        return jsonify({'error': 'Account not configured'}), 400
+
+    try:
+        api = broker_api(_account_to_dict(account))
+        broker = (account.broker or 'dhan').lower()
+        mapping = get_symbol_for_broker(symbol, broker)
+
+        price = None
+        if broker == 'dhan':
+            sid = mapping.get('security_id')
+            seg = mapping.get('exchange_segment', api.NSE)
+            if sid:
+                resp = api._request(
+                    'post',
+                    f"{api.api_base}/marketfeed/ltp",
+                    json={seg: [int(sid)]},
+                    headers=api.headers,
+                    timeout=api.timeout,
+                )
+                data = resp.json()
+                price = (
+                    data.get('data', {})
+                    .get(seg, {})
+                    .get(str(sid), {})
+                    .get('ltp')
+                )
+
+        if price is None:
+            return jsonify({'error': 'Price not available'}), 400
+        return jsonify({'price': float(price)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/group-order', methods=['POST'])
