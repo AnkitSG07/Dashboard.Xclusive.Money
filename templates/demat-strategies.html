@@ -165,10 +165,12 @@ window.pageScripts["demat-strategies"] = function() {
         }).catch(() => {});
     }
 
-    function loadBrokers(){
+    function loadMasterAccounts(){
         fetchJson('/api/accounts?cache_only=1').then(data=>{
-            const brokers = [...new Set((data.accounts||[]).map(a=>a.broker).filter(Boolean))];
-            form.brokers.innerHTML = brokers.map(b=>`<option value="${b}">${b}</option>`).join('');
+            const masters = Array.isArray(data.masters) ? data.masters : [];
+            form.masterAccounts.innerHTML = masters
+                .map(m => `<option value="${m.id}">${m.broker || ''} - ${m.client_id}</option>`)
+                .join('');
         }).catch(()=>{});
     }
 
@@ -207,7 +209,7 @@ window.pageScripts["demat-strategies"] = function() {
         form.orderValue.disabled = false;
         form.orderQty.disabled = false;
         updateTokens();
-        loadBrokers();
+        loadMasterAccounts();
     }
     form.orderQty.addEventListener('input', ()=>{ form.orderValue.disabled = !!form.orderQty.value; });
     form.orderValue.addEventListener('input', ()=>{ form.orderQty.disabled = !!form.orderValue.value; });
@@ -251,7 +253,7 @@ window.pageScripts["demat-strategies"] = function() {
                         <span class="badge ${s.is_active ? 'bg-success':'bg-secondary'} ms-auto">${s.is_active ? 'Active':'Inactive'}</span>
                       </div>
                       <p class="card-text text-muted mb-3">${s.description || 'No description provided.'}</p>
-                      <p class="small text-muted">Brokers: ${s.brokers || 'Any'}</p>
+                      <p class="small text-muted">Accounts: ${s.master_accounts || 'All'}</p>
                       <div class="mb-3">
                         <label class="form-label small text-muted mb-1">Webhook URL</label>
                         <div class="input-group input-group-sm">
@@ -359,7 +361,7 @@ window.pageScripts["demat-strategies"] = function() {
     });
 
     loadSymbols();
-    loadBrokers();
+    loadMasterAccounts();
     loadStrategies();
 };
 </script>
