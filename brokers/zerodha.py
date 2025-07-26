@@ -22,7 +22,7 @@ class ZerodhaBroker(BrokerBase):
 
     def __init__(self, client_id, access_token=None, api_key=None,
                  api_secret=None, request_token=None, password=None,
-                 totp_secret=None, **kwargs):
+                 totp_secret=None, token_time=None, **kwargs):
         super().__init__(client_id, access_token or "", **kwargs)
         if KiteConnect is None:
             raise ImportError("kiteconnect not installed")
@@ -35,11 +35,13 @@ class ZerodhaBroker(BrokerBase):
         self.password = password
         self.totp_secret = totp_secret
         self.kite = KiteConnect(api_key=api_key)
-        self.token_time = None
+        self.token_time = token_time
         if access_token:
             self.kite.set_access_token(access_token)
             self.access_token = access_token
-            self.token_time = time.time()
+            # Only update token_time if not provided (new login vs stored token)
+            if self.token_time is None:
+                self.token_time = time.time()
         elif request_token and api_secret:
             self.access_token = self.create_session(request_token)
             self.kite.set_access_token(self.access_token)
@@ -103,32 +105,32 @@ class ZerodhaBroker(BrokerBase):
 
     def ensure_token(self):
         """Refresh token if expired or invalid."""
-        if not self.access_token and self.request_token:
+        if self.access_token:
+            # If token_time is unknown or older than 7 hours, verify by calling profile
+            if not self.token_time or time.time() - self.token_time > 7 * 3600:
+                try:
+                    self.kite.profile()
+                    if not self.token_time:
+                        self.token_time = time.time()
+                    return
+                except Exception:
+                    self.access_token = None
+            else:
+                return
+
+        # If we reach here, no valid token is present - attempt to create one
+        if self.request_token:
             self.access_token = self.create_session(self.request_token)
             self.kite.set_access_token(self.access_token)
             self.token_time = time.time()
             return
 
-        if not self.access_token and self.password and self.totp_secret:
+        if self.password and self.totp_secret:
             req = self._login_with_totp(self.password, self.totp_secret)
             self.access_token = self.create_session(req)
             self.kite.set_access_token(self.access_token)
             self.token_time = time.time()
             return
-        # Simple time based check (Zerodha tokens last ~8-12 hours). Re-login if >7h
-        if self.token_time and time.time() - self.token_time > 7 * 3600:
-            try:
-                self.kite.profile()
-            except Exception:
-                if self.request_token:
-                    self.access_token = self.create_session(self.request_token)
-                elif self.password and self.totp_secret:
-                    req = self._login_with_totp(self.password, self.totp_secret)
-                    self.access_token = self.create_session(req)
-                else:
-                    raise
-                self.kite.set_access_token(self.access_token)
-                self.token_time = time.time()
 
     # ================= Standard BrokerBase methods ==================
     def place_order(
