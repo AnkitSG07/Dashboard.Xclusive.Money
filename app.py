@@ -1497,7 +1497,7 @@ def poll_and_copy_trades():
                             device_number=credentials.get("device_number") or master.device_number,
                             **rest
                         )
-                       clear_init_error_logs(master, is_master=True)    
+                       clear_init_error_logs(master, is_master=True)
                     elif master_broker == "finvasia":
                         required = ["password", "totp_secret", "vendor_code", "api_key"]
                         if not all(credentials.get(r) for r in required):
