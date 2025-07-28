@@ -429,6 +429,15 @@ window.pageScripts["demat-strategies"] = function() {
         if(editingId){
             const payload = {name:name, master_accounts:accountsSel};
             fetchJson(`/api/strategies/${editingId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(()=>{
+                const stored = localStorage.getItem('strategyPayload_'+editingId);
+                if(stored){
+                    try{
+                        const obj = JSON.parse(stored);
+                        obj.strategyName = name;
+                        obj.masterAccounts = accountsSel;
+                        localStorage.setItem('strategyPayload_'+editingId, JSON.stringify(obj));
+                    }catch(e){/* ignore */}
+                }
                 modal.hide();
                 loadStrategies();
             });
