@@ -5,6 +5,7 @@ import re
 import requests
 import pyotp
 import time
+from urllib.parse import urlparse, parse_qs
 
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker
@@ -99,11 +100,25 @@ class ZerodhaBroker(BrokerBase):
         # Extract request_token from the final URL
         match = re.search(r"request_token=([^&]+)", resp.url)
         if not match:
+            message = None
             try:
                 data = resp.json()
+                if isinstance(data, dict):
+                    message = data.get("message") or data.get("error")
             except Exception:  # pragma: no cover - non-json response
-                data = {"message": resp.text}
-            raise Exception(data.get("message", "TOTP login failed"))
+                pass
+
+            if not message:
+                parsed = urlparse(resp.url)
+                qs = parse_qs(parsed.query)
+                message = (
+                    (qs.get("error") or qs.get("message") or [None])[0]
+                )
+
+            if not message:
+                message = resp.text
+
+            raise Exception(message or "TOTP login failed")
         return match.group(1)
 
     def ensure_token(self):
