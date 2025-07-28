@@ -890,6 +890,15 @@ def parse_timestamp(value):
         except Exception:
             return None
     if isinstance(value, str):
+        value = value.strip()
+        if value.isdigit():
+            try:
+                ts = float(value)
+                if len(value) > 10:  # milliseconds precision
+                    ts /= 1000.0
+                return datetime.fromtimestamp(ts)
+            except Exception:
+                pass
         try:
             return datetime.fromisoformat(value.replace('Z', '+00:00'))
         except Exception:
@@ -2404,7 +2413,16 @@ def get_order_book(client_id):
                 )
 
                 # Extract transaction side
-                side = order.get("transactionType") or order.get("side") or order.get("Trantype") or "N/A"
+                side = (
+                    order.get("transactionType")
+                    or order.get("transaction_type")
+                    or order.get("side")
+                    or order.get("Trantype")
+                    or order.get("tran_side")
+                    or order.get("buyOrSell")
+                    or order.get("bs")
+                    or "N/A"
+                )
                 
                 # Extract status with fallbacks
                 status_raw = (
