@@ -99,7 +99,11 @@ class ZerodhaBroker(BrokerBase):
         # Extract request_token from the final URL
         match = re.search(r"request_token=([^&]+)", resp.url)
         if not match:
-            raise Exception("Failed to obtain request token")
+            try:
+                data = resp.json()
+            except Exception:  # pragma: no cover - non-json response
+                data = {"message": resp.text}
+            raise Exception(data.get("message", "TOTP login failed"))
         return match.group(1)
 
     def ensure_token(self):
