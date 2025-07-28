@@ -1042,7 +1042,7 @@ def save_settings(settings):
 
 
 def save_account_to_user(owner: str, account: dict):
-    """Persist account credentials to the database."""
+    """Create or update a user's broker account in the database."""
     user = User.query.filter_by(email=owner).first()
     if not user:
         # Create shell user if not present
@@ -1050,21 +1050,57 @@ def save_account_to_user(owner: str, account: dict):
         db.session.add(user)
         db.session.commit()
 
-    acc = Account(
-        user_id=user.id,
-        broker=account.get("broker"),
-        client_id=account.get("client_id"),
-        username=account.get("username"),
-        token_expiry=account.get("token_expiry"),
-        status=account.get("status", "active"),
-        role=account.get("role"),
-        linked_master_id=account.get("linked_master_id"),
-        copy_status=account.get("copy_status", "Off"),
-        multiplier=account.get("multiplier", 1.0),
-        credentials=account.get("credentials"),
-        last_copied_trade_id=account.get("last_copied_trade_id"),
-    )
-    db.session.add(acc)
+    client_id = account.get("client_id")
+    acc = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+
+    if acc:
+        # Update existing account
+        acc.broker = account.get("broker", acc.broker)
+        acc.username = account.get("username", acc.username)
+        acc.token_expiry = account.get("token_expiry", acc.token_expiry)
+        acc.status = account.get("status", acc.status)
+        acc.role = account.get("role", acc.role)
+        acc.linked_master_id = account.get("linked_master_id", acc.linked_master_id)
+        acc.copy_status = account.get("copy_status", acc.copy_status)
+        acc.multiplier = account.get("multiplier", acc.multiplier)
+        acc.credentials = account.get("credentials", acc.credentials)
+        acc.last_copied_trade_id = account.get("last_copied_trade_id", acc.last_copied_trade_id)
+        if account.get("auto_login") is not None:
+            acc.auto_login = account.get("auto_login")
+        last_login = account.get("last_login")
+        if last_login:
+            try:
+                if isinstance(last_login, str):
+                    last_login = datetime.fromisoformat(last_login)
+            except Exception:
+                last_login = None
+            acc.last_login_time = last_login or acc.last_login_time
+    else:
+        acc = Account(
+            user_id=user.id,
+            broker=account.get("broker"),
+            client_id=client_id,
+            username=account.get("username"),
+            token_expiry=account.get("token_expiry"),
+            status=account.get("status", "active"),
+            role=account.get("role"),
+            linked_master_id=account.get("linked_master_id"),
+            copy_status=account.get("copy_status", "Off"),
+            multiplier=account.get("multiplier", 1.0),
+            credentials=account.get("credentials"),
+            last_copied_trade_id=account.get("last_copied_trade_id"),
+            auto_login=account.get("auto_login", True),
+        )
+        last_login = account.get("last_login")
+        if last_login:
+            try:
+                if isinstance(last_login, str):
+                    last_login = datetime.fromisoformat(last_login)
+            except Exception:
+                last_login = None
+            acc.last_login_time = last_login
+        db.session.add(acc)
+
     db.session.commit()
 
 def get_pending_zerodha() -> dict:
