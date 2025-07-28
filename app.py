@@ -60,6 +60,7 @@ from helpers import (
     extract_product_type,
     log_connection_error,
     clear_init_error_logs,
+    clear_connection_error_logs,
     normalize_position,
 )
 from symbols import get_symbols
@@ -4730,6 +4731,7 @@ def reconnect_account():
         acc_db.status = 'Connected'
         acc_db.last_login_time = datetime.utcnow()
         db.session.commit()
+        clear_connection_error_logs(acc_db)
     except Exception as e:
         db.session.rollback()
         logger.error(f"Failed to reconnect account {client_id}: {str(e)}")
@@ -4788,9 +4790,11 @@ def check_auto_logins():
                     creds = dict(acc_db.credentials or {})
                     creds["access_token"] = api.access_token
                     if getattr(api, "token_time", None):
-                        creds["token_time"] = api.token_time    
+                        creds["token_time"] = api.token_time
                     acc_db.credentials = creds
             db.session.commit()
+            if valid:
+                clear_connection_error_logs(acc_db)
             results.append({"client_id": acc_db.client_id, "status": acc_db.status})
         except Exception as e:
             db.session.rollback()
@@ -4850,6 +4854,7 @@ def update_account():
         acc_db.status = "Connected"
         acc_db.last_login_time = datetime.utcnow()
         db.session.commit()
+        clear_connection_error_logs(acc_db)
     except Exception as e:
         db.session.rollback()
         logger.error(f"Failed to update account {client_id}: {str(e)}")
