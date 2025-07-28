@@ -2683,17 +2683,20 @@ def webhook(user_id):
                 return jsonify({"error": "Webhook secret required"}), 403
 
         # Validate required fields
-        symbol = data.get("symbol") or data.get("ticker")
-        if not symbol:
-            trading_symbols = data.get("tradingSymbols") or data.get("tradingSymbol")
+        symbols = []
+        base_symbol = data.get("symbol") or data.get("ticker")
+        trading_symbols = data.get("tradingSymbols") or data.get("tradingSymbol")
+        if base_symbol:
+            symbols = [base_symbol]
+        elif trading_symbols:
             if isinstance(trading_symbols, list):
-                if trading_symbols:
-                    symbol = trading_symbols[0]
+               symbols = trading_symbols
             else:
-                symbol = trading_symbols
-            exchange = data.get("exchange")
-            if symbol and exchange and ":" not in str(symbol):
-                symbol = f"{exchange}:{symbol}"
+                symbols = [trading_symbols]
+        exchange = data.get("exchange")
+        if exchange:
+            symbols = [s if ":" in str(s) else f"{exchange}:{s}" for s in symbols]
+        symbol = symbols[0] if symbols else None
 
         action = data.get("action")
         if not action:
@@ -2719,13 +2722,13 @@ def webhook(user_id):
         except (TypeError, ValueError):
             quantity = None
 
-        if not all([symbol, action, quantity]):
+        if not symbols or action is None or quantity is None:
             logger.error(f"Missing required fields: {data}")
             return jsonify({
                 "error": "Missing required fields",
                 "required": ["symbol/ticker", "action", "quantity"],
                 "received": {
-                    "symbol_or_ticker": bool(symbol),
+                    "symbol_or_ticker": bool(symbols),
                     "action": bool(action),
                     "quantity": bool(quantity)
                 }
@@ -2733,47 +2736,47 @@ def webhook(user_id):
             
 
         # Determine account credentials
+        sub_count = 0
         if strategy:
             sub_count = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).count()
-            if sub_count:
-                results = execute_for_subscriptions(strategy, symbol, action, int(quantity))
-                return jsonify({"results": results}), 200
-        accounts = []
-        if strategy and strategy.master_accounts:
-            allowed_ids = [int(a) for a in strategy.master_accounts.split(',') if a.strip()]
-            if allowed_ids:
-                accounts = Account.query.filter(Account.user_id==user_obj.id, Account.id.in_(allowed_ids)).all()
-        if not accounts:
-            default_acc = None
-            if strategy and strategy.account_id:
-                default_acc = Account.query.filter_by(id=strategy.account_id, user_id=user_obj.id).first()
-            if not default_acc:
-                default_acc = user_obj.accounts[0] if user_obj.accounts else None
-            if default_acc:
-                accounts = [default_acc]
-        if not accounts or any(not a or not a.credentials for a in accounts):
-            logger.error("Account not configured")
-            return jsonify({"error": "Account not configured"}), 403
 
-        def process_account(account):
+        accounts = []
+        if sub_count == 0:
+            if strategy and strategy.master_accounts:
+                allowed_ids = [int(a) for a in strategy.master_accounts.split(',') if a.strip()]
+                if allowed_ids:
+                    accounts = Account.query.filter(Account.user_id==user_obj.id, Account.id.in_(allowed_ids)).all()
+            if not accounts:
+                default_acc = None
+                if strategy and strategy.account_id:
+                    default_acc = Account.query.filter_by(id=strategy.account_id, user_id=user_obj.id).first()
+                if not default_acc:
+                    default_acc = user_obj.accounts[0] if user_obj.accounts else None
+                if default_acc:
+                    accounts = [default_acc]
+            if not accounts or any(not a or not a.credentials for a in accounts):
+                logger.error("Account not configured")
+                return jsonify({"error": "Account not configured"}), 403
+
+        def process_account(account, symbol):
             broker_name = (account.broker or "dhan").lower()
             if strategy and strategy.brokers:
                 allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
                 if allowed and broker_name not in allowed:
-                    return {"account_id": account.id, "status": "SKIPPED", "reason": "Broker not allowed"}
+                    return {"account_id": account.id, "symbol": symbol, "status": "SKIPPED", "reason": "Broker not allowed"}
 
             try:
                 acc_dict = _account_to_dict(account)
                 broker_api_instance = broker_api(acc_dict)
             except Exception as e:
                 logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
-                return {"account_id": account.id, "status": "ERROR", "reason": "Failed to initialize broker"}
+                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to initialize broker"}
             try:
                 mapping = get_symbol_for_broker(symbol, broker_name)
                 order_params = build_order_params(broker_name, mapping, symbol, action, int(quantity), "MARKET", broker_api_instance)
             except Exception as e:
                 logger.error(f"Error building order parameters: {str(e)}")
-                return {"account_id": account.id, "status": "ERROR", "reason": "Failed to build order parameters"}
+                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to build order parameters"}
 
             if strategy:
                 if strategy.schedule:
@@ -2783,7 +2786,7 @@ def webhook(user_id):
                         start_t = datetime.strptime(start.strip(), "%H:%M").time()
                         end_t = datetime.strptime(end.strip(), "%H:%M").time()
                         if not (start_t <= now <= end_t):
-                            return {"account_id": account.id, "status": "ERROR", "reason": "Outside allowed schedule"}
+                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Outside allowed schedule"}
                     except Exception as e:
                         logger.error(f"Schedule parse error: {e}")
 
@@ -2806,9 +2809,9 @@ def webhook(user_id):
                             pricep = norm.get("ltp") or norm.get("buyAvg") or 0
                             allocation += qtyp * pricep
                         if strategy.risk_max_positions is not None and count >= strategy.risk_max_positions:
-                            return {"account_id": account.id, "status": "ERROR", "reason": "Max positions exceeded"}
+                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Max positions exceeded"}
                         if strategy.risk_max_allocation is not None and allocation >= strategy.risk_max_allocation:
-                            return {"account_id": account.id, "status": "ERROR", "reason": "Max allocation exceeded"}
+                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Max allocation exceeded"}
                     except Exception as e:
                         logger.error(f"Risk check failed: {e}")
 
@@ -2817,20 +2820,27 @@ def webhook(user_id):
                 if isinstance(response, dict) and response.get("status") == "failure":
                     reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
                     record_trade(user_obj.id, symbol, action.upper(), quantity, order_params.get('price'), "FAILED")
-                    return {"account_id": account.id, "status": "FAILED", "reason": reason}
+                    return {"account_id": account.id, "symbol": symbol, "status": "FAILED", "reason": reason}
                 record_trade(user_obj.id, symbol, action.upper(), quantity, order_params.get('price'), "SUCCESS")
                 try:
                     poll_and_copy_trades()
                 except Exception as e:
                     logger.error(f"Failed to trigger copy trading: {str(e)}")
-                return {"account_id": account.id, "status": "SUCCESS", "order_id": response.get("order_id"), "result": response.get("remarks", "Trade placed successfully")}
+                return {"account_id": account.id, "symbol": symbol, "status": "SUCCESS", "order_id": response.get("order_id"), "result": response.get("remarks", "Trade placed successfully")}
             except Exception as e:
                 logger.error(f"Error placing order: {str(e)}")
-                return {"account_id": account.id, "status": "ERROR", "reason": str(e)}
+                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": str(e)}
 
-        results = [process_account(acc) for acc in accounts]
-        if len(results) == 1:
-            r = results[0]
+        all_results = []
+        for sym in symbols:
+            if sub_count:
+                all_results.extend(execute_for_subscriptions(strategy, sym, action, int(quantity)))
+                continue
+            results = [process_account(acc, sym) for acc in accounts]
+            all_results.extend(results)
+
+        if len(all_results) == 1:
+            r = all_results[0]
             if r.get("status") in ("ERROR", "FAILED", "SKIPPED"):
                 reason = r.get("reason", "")
                 if reason in (
@@ -2841,7 +2851,7 @@ def webhook(user_id):
                     return jsonify({"error": reason}), 403
                 return jsonify(r), 400
             return jsonify(r), 200
-        return jsonify({"results": results}), 200
+        return jsonify({"results": all_results}), 200
 
     except Exception as e:
         logger.error(f"Unexpected error in webhook: {str(e)}")
