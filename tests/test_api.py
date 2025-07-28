@@ -557,6 +557,73 @@ def test_reconnect_uses_stored_credentials(client, monkeypatch):
         assert count == 1
 
 
+def test_reconnect_totp_error_propagated(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    from brokers import zerodha
+    import brokers
+
+    class FakeKite:
+        def __init__(self, *a, **k):
+            pass
+        def set_access_token(self, *a, **k):
+            pass
+        def generate_session(self, *a, **k):
+            return {"access_token": "tok"}
+
+    class FakeTOTP:
+        def __init__(self, *a, **k):
+            pass
+        def now(self):
+            return "000000"
+
+    class FakeResp:
+        def __init__(self, url, data):
+            self.url = url
+            self._data = data
+            self.text = json.dumps(data)
+        def json(self):
+            return self._data
+
+    class FakeSession:
+        def mount(self, *a, **k):
+            pass
+        def post(self, url, *a, **k):
+            if url.endswith("/login"):
+                return FakeResp(url, {"status": "success", "data": {"request_id": "1"}})
+            return FakeResp(url, {"status": "error", "message": "Invalid TOTP"})
+
+    monkeypatch.setattr(zerodha, "KiteConnect", FakeKite)
+    monkeypatch.setattr(zerodha.pyotp, "TOTP", FakeTOTP)
+    monkeypatch.setattr(zerodha.requests, "Session", lambda: FakeSession())
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: zerodha.ZerodhaBroker)
+    monkeypatch.setattr(brokers.factory, "get_broker_class", lambda name: zerodha.ZerodhaBroker)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(
+            user_id=user.id,
+            broker="zerodha",
+            client_id="ZT1",
+            credentials={
+                "api_key": "k",
+                "api_secret": "s",
+                "password": "p",
+                "totp_secret": "t",
+            },
+        )
+        db.session.add(acc)
+        db.session.commit()
+
+    resp = client.post("/api/reconnect-account", json={"client_id": "ZT1"})
+    assert resp.status_code == 500
+    assert "Invalid TOTP" in resp.get_json()["error"]
+
+
 def test_check_auto_logins_reconnects_all(client, monkeypatch):
     login(client)
     app = app_module.app
