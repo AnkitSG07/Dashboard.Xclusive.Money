@@ -582,11 +582,13 @@ def test_reconnect_totp_error_propagated(client, monkeypatch):
             return "000000"
 
     class FakeResp:
-        def __init__(self, url, data):
+        def __init__(self, url, data=None):
             self.url = url
             self._data = data
-            self.text = json.dumps(data)
+            self.text = "" if data is None else json.dumps(data)
         def json(self):
+            if self._data is None:
+                raise ValueError("not json")
             return self._data
 
     class FakeSession:
@@ -595,7 +597,8 @@ def test_reconnect_totp_error_propagated(client, monkeypatch):
         def post(self, url, *a, **k):
             if url.endswith("/login"):
                 return FakeResp(url, {"status": "success", "data": {"request_id": "1"}})
-            return FakeResp(url, {"status": "error", "message": "Invalid TOTP"})
+            # simulate redirect with error in query string and no JSON body
+            return FakeResp(f"{url}?error=Invalid%20TOTP")
 
     monkeypatch.setattr(zerodha, "KiteConnect", FakeKite)
     monkeypatch.setattr(zerodha.pyotp, "TOTP", FakeTOTP)
@@ -622,6 +625,7 @@ def test_reconnect_totp_error_propagated(client, monkeypatch):
     resp = client.post("/api/reconnect-account", json={"client_id": "ZT1"})
     assert resp.status_code == 500
     assert "Invalid TOTP" in resp.get_json()["error"]
+
 
 
 def test_check_auto_logins_reconnects_all(client, monkeypatch):
