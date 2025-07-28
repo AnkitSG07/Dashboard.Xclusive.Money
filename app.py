@@ -82,6 +82,7 @@ csp = {
         "'unsafe-inline'",
         'https://cdn.jsdelivr.net',
         'https://s3.tradingview.com',
+        'https://cdn.tailwindcss.com',
     ],
     'style-src': [
         "'self'",
