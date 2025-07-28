@@ -46,6 +46,7 @@ from models import (
     TradeLog,
     Strategy,
     StrategySubscription,
+    StrategyLog,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
@@ -534,6 +535,50 @@ def ensure_strategy_subscription_schema():
         logger.info(f"Schema check for {table_name} completed.")
 
 ensure_strategy_subscription_schema()
+
+def ensure_strategy_log_schema():
+    """Ensure the strategy_log table exists with required columns."""
+    logger.info("Ensuring strategy_log table schema is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'strategy_log'
+
+        if table_name not in insp.get_table_names():
+            try:
+                db.metadata.create_all(bind=db.engine, tables=[StrategyLog.__table__])
+                logger.info(f'Created {table_name} table as it was missing.')
+            except Exception as exc:
+                logger.error(f'Failed to create {table_name} table: {exc}')
+                return
+
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+
+        columns_to_add = {
+            'strategy_id': 'INTEGER',
+            'timestamp': 'TIMESTAMP WITHOUT TIME ZONE',
+            'level': 'VARCHAR(20)',
+            'message': 'TEXT',
+            'performance': 'JSONB',
+        }
+
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in existing_columns:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_def}'))
+                    logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(
+                        f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.'
+                    )
+            else:
+                logger.debug(f'Column "{col_name}" already exists in "{table_name}" table.')
+
+        logger.info(f"Schema check for {table_name} completed.")
+
+
+ensure_strategy_log_schema()
+
 
 def map_order_type(order_type: str, broker: str) -> str:
     """Convert generic order types to broker specific codes."""
