@@ -168,6 +168,33 @@ def clear_init_error_logs(account: Account, *, is_master: bool) -> None:
         )
 
 
+def clear_connection_error_logs(account: Account) -> None:
+    """Remove previous connection/order error logs for an account."""
+    logger = logging.getLogger(__name__)
+    try:
+        logs = (
+            SystemLog.query.filter(
+                cast(SystemLog.user_id, db.String) == str(account.user_id),
+                SystemLog.level == "ERROR",
+            ).all()
+        )
+        for log in logs:
+            details = log.details
+            if isinstance(details, str):
+                try:
+                    details = json.loads(details)
+                except Exception:
+                    details = {}
+            if isinstance(details, dict) and str(details.get("client_id")) == account.client_id:
+                db.session.delete(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(
+            f"Failed to clear connection error logs for {account.client_id}: {e}"
+        )
+
+
 def extract_product_type(position: dict) -> str | None:
     """Attempt to extract a product type from a raw position dict."""
     lower = {k.lower(): v for k, v in position.items()}
