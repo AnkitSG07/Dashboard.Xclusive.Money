@@ -155,8 +155,13 @@ class FyersBroker(BrokerBase):
         if self.api is None:
             raise RuntimeError("fyers-apiv3 not installed")
         try:
-            self.api.get_profile()
-            return True
+            resp = self.api.get_profile()
+            if isinstance(resp, dict):
+                if str(resp.get("s")).lower() == "ok":
+                    code = resp.get("code")
+                    if code is None or int(code) >= 0:
+                        return True
+            return False
         except Exception:
             return False
 
