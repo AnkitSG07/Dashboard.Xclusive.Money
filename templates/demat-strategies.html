@@ -176,6 +176,9 @@ window.pageScripts["demat-strategies"] = function() {
     const form = document.getElementById('strategyForm');
     const tokensList = document.getElementById('tokens-list');
     const modal = new bootstrap.Modal(modalEl);
+    const payloadModal = new bootstrap.Modal(document.getElementById('payloadModal'));
+    const payloadWebhook = document.getElementById('payload-webhook');
+    const payloadJson = document.getElementById('payload-json');
     const userToken = '{{ logged_in_user.webhook_token }}';
     let symbolMap = {};
     let editingId = null;
@@ -300,6 +303,7 @@ window.pageScripts["demat-strategies"] = function() {
             noStrategiesState.style.display='none';
             list.forEach(s => {
                 const accText = s.master_accounts ? s.master_accounts.split(',').map(id=>accMap[id.trim()]||id.trim()).join(', ') : 'All';
+                const webhookUrl = `${window.location.origin}/webhook/${userToken}?secret=${encodeURIComponent(s.webhook_secret || '')}`;
                 const cardHtml = `
                 <div class="col">
                   <div class="card h-100 shadow-sm strategy-card">
