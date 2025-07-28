@@ -13,7 +13,6 @@
         </div>
     </div>
 
-    <!-- Empty State for No Strategies -->
     <div id="no-strategies-state" class="empty-state">
         <div class="empty-state-icon">
             <i class="fas fa-chart-bar"></i>
@@ -26,12 +25,9 @@
         </button>
     </div>
 
-    <!-- Strategies Grid (replaces table) -->
     <div id="strategies-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 my-4" style="display:none;">
-        <!-- Strategy cards will be rendered here by JavaScript -->
-    </div>
+        </div>
 
-    <!-- Strategy Creation Modal -->
     <div class="modal fade" id="strategyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -63,9 +59,19 @@
                                 <input type="text" class="form-control" id="symbol-token" name="symbolToken" placeholder="Auto" />
                             </div>
                             <div class="col-md-12">
-                                <label for="trading-symbols" class="form-label">Trading Symbols <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="trading-symbols" name="tradingSymbols" rows="3" placeholder="One symbol per line"></textarea>
-                                <div class="form-text">Enter one symbol per line for a watchlist.</div>
+                                <label class="form-label">Trading Symbols <span class="text-danger">*</span></label>
+                                <div class="mb-2">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="singleSymbolMode" value="single" checked>
+                                        <label class="form-check-label" for="singleSymbolMode">Single Symbol</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="watchlistMode" value="watchlist">
+                                        <label class="form-check-label" for="watchlistMode">Watchlist (TradingView Alert)</label>
+                                    </div>
+                                </div>
+                                <textarea class="form-control" id="trading-symbols" name="tradingSymbols" rows="1" placeholder="Enter single symbol" required></textarea>
+                                <div class="form-text" id="symbol-input-help">Enter the trading symbol.</div>
                                 <div id="tokens-list" class="small text-muted mt-1"></div>
                             </div>
                             <div class="col-md-6">
@@ -134,7 +140,6 @@
         </div>
     </div>
 
-    <!-- Payload Modal -->
     <div class="modal fade" id="payloadModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -227,19 +232,33 @@ window.pageScripts["demat-strategies"] = function() {
     }
 
     function getSymbols(){
-        return form.tradingSymbols.value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+        // This function needs to be aware of the mode.
+        // If in single symbol mode, it returns the single symbol.
+        // If in watchlist mode, it returns a placeholder for preview purposes.
+        if (singleSymbolModeRadio.checked) {
+            return [tradingSymbolsTextarea.value.trim()].filter(Boolean);
+        } else { // watchlistModeRadio.checked
+            return ["{{ticker}}"]; // For display/preview purposes in the UI
+        }
     }
+
 
     function updateTokens(){
         const syms = getSymbols();
         const tokenText = syms.map(s => {
+            // If it's the {{ticker}} placeholder, don't try to look it up in symbolMap
+            if (s === "{{ticker}}") {
+                return "Dynamic (TradingView {{ticker}})";
+            }
             const info = symbolMap[s.toUpperCase()];
             if(!info) return s;
             const parts = BROKER_KEYS.map(k => info[k] ? `${k}:${info[k]}` : null).filter(Boolean);
             return parts.length ? `${s} (${parts.join(', ')})` : s;
         }).join(', ');
         tokensList.textContent = tokenText;
-        if(syms.length===1){
+
+        // Symbol token should only be displayed/auto-filled for single symbols
+        if(singleSymbolModeRadio.checked && syms.length === 1){
             const info = symbolMap[syms[0].toUpperCase()];
             if(info){
                 for(const k of BROKER_KEYS){
@@ -255,23 +274,110 @@ window.pageScripts["demat-strategies"] = function() {
     }
     form.tradingSymbols.addEventListener('input', updateTokens);
 
+    // NEW: Elements for symbol input mode toggle
+    const singleSymbolModeRadio = document.getElementById('singleSymbolMode');
+    const watchlistModeRadio = document.getElementById('watchlistMode');
+    const tradingSymbolsTextarea = document.getElementById('trading-symbols');
+    const symbolInputHelp = document.getElementById('symbol-input-help');
+
+    function updateSymbolInputMode() {
+        if (singleSymbolModeRadio.checked) {
+            tradingSymbolsTextarea.rows = 1;
+            tradingSymbolsTextarea.placeholder = "Enter single symbol (e.g., RELIANCE)";
+            tradingSymbolsTextarea.disabled = false;
+            symbolInputHelp.textContent = "Enter the trading symbol.";
+            // If switching from watchlist mode, clear dynamic placeholder
+            if (tradingSymbolsTextarea.value === "{{ticker}}") {
+                tradingSymbolsTextarea.value = "";
+            }
+        } else { // watchlistModeRadio.checked
+            tradingSymbolsTextarea.rows = 1; // Keep it single line, but disabled
+            tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({{ticker}})";
+            tradingSymbolsTextarea.disabled = true;
+            symbolInputHelp.textContent = "For TradingView Watchlist alerts, symbols will be passed dynamically. No input needed here.";
+            tradingSymbolsTextarea.value = ""; // Clear any manual input
+        }
+        updateTokens(); // Re-trigger token info update based on new mode
+        // Also update the webhook preview to reflect the new mode instantly
+        updateWebhookPreview();
+    }
+
+    singleSymbolModeRadio.addEventListener('change', updateSymbolInputMode);
+    watchlistModeRadio.addEventListener('change', updateSymbolInputMode);
+
+    // Function to explicitly update the webhook preview
+    function updateWebhookPreview() {
+        const name = form.strategyName.value.trim();
+        const selectedAccounts = getSelectedAccounts();
+
+        const previewPayload = {
+            strategyName: name, // Will be updated to name-symbol or just name on submit
+            exchange: form.exchange.value,
+            transactionType: form.transactionType.value,
+            orderType: form.orderType.value,
+            orderValidity: form.orderValidity.value,
+            productType: form.productType.value,
+            masterAccounts: selectedAccounts,
+        };
+        if(form.orderQty.value){
+            previewPayload.orderQty = parseFloat(form.orderQty.value);
+        } else if(form.orderValue.value){
+            previewPayload.orderValue = parseFloat(form.orderValue.value);
+        }
+
+        // The tradingSymbols in the preview should reflect what TradingView will send
+        if (singleSymbolModeRadio.checked) {
+            const currentSymbol = tradingSymbolsTextarea.value.trim();
+            previewPayload.tradingSymbols = currentSymbol ? [currentSymbol] : [];
+        } else { // Watchlist mode
+            previewPayload.tradingSymbols = ["{{ticker}}"];
+        }
+
+        document.getElementById('webhook-preview').value = JSON.stringify(previewPayload, null, 2);
+    }
+
+    // Attach updateWebhookPreview to relevant input changes
+    form.strategyName.addEventListener('input', updateWebhookPreview);
+    form.exchange.addEventListener('change', updateWebhookPreview);
+    form.transactionType.addEventListener('change', updateWebhookPreview);
+    form.orderType.addEventListener('change', updateWebhookPreview);
+    form.orderValidity.addEventListener('change', updateWebhookPreview);
+    form.productType.addEventListener('change', updateWebhookPreview);
+    form.orderQty.addEventListener('input', updateWebhookPreview);
+    form.orderValue.addEventListener('input', updateWebhookPreview);
+
+
+    // Call it once on load to set initial state
+    updateSymbolInputMode();
+
+
     function resetForm(){
         editingId = null;
         form.reset();
         tokensList.textContent = '';
         form.orderValue.disabled = false;
         form.orderQty.disabled = false;
+        // Set default mode back to single symbol and update textarea
+        singleSymbolModeRadio.checked = true;
+        updateSymbolInputMode(); // Apply the mode
         updateTokens();
         loadMasterAccounts();
         modalEl.querySelector('.modal-title').textContent = 'Create Strategy';
+        updateWebhookPreview(); // Ensure preview is reset
     }
     form.orderQty.addEventListener('input', ()=>{ form.orderValue.disabled = !!form.orderQty.value; });
     form.orderValue.addEventListener('input', ()=>{ form.orderQty.disabled = !!form.orderValue.value; });
 
     async function updateQtyFromValue(){
-        if(!form.orderValue.value || getSymbols().length !== 1) return;
+        if(!form.orderValue.value || singleSymbolModeRadio.checked && getSymbols().length !== 1) return; // Only if single symbol mode
+
+        if (!singleSymbolModeRadio.checked) { // If in watchlist mode, disable this.
+            form.orderQty.value = '';
+            return;
+        }
+
         try{
-            const sym = getSymbols()[0];
+            const sym = getSymbols()[0]; // Only one symbol in single symbol mode
             const data = await fetchJson(`/api/quote/${encodeURIComponent(sym)}`);
             const price = parseFloat(data.price);
             if(price>0){
@@ -397,6 +503,17 @@ window.pageScripts["demat-strategies"] = function() {
                         modalEl.querySelector('.modal-title').textContent = 'Edit Strategy';
                         form.strategyName.value = data.name;
                         loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
+                        
+                        // Restore symbol input mode for editing based on 'allowed_tickers'
+                        const storedAllowedTickers = data.allowed_tickers || ''; // Assuming 'allowed_tickers' from your Strategy model
+                        if (storedAllowedTickers === '__WATCHLIST_DYNAMIC__') {
+                            watchlistModeRadio.checked = true;
+                        } else {
+                            singleSymbolModeRadio.checked = true;
+                            tradingSymbolsTextarea.value = storedAllowedTickers; // Set the single symbol
+                        }
+                        updateSymbolInputMode(); // Apply the mode and re-evaluate
+                        updateWebhookPreview(); // Ensure preview is updated for edit mode
                         modal.show();
                     });
                 });
@@ -421,20 +538,46 @@ window.pageScripts["demat-strategies"] = function() {
     form.addEventListener('submit', function(e){
         e.preventDefault();
         const name = form.strategyName.value.trim();
-        const symbols = getSymbols();
-        if(!name){ alert('Strategy Name is required'); return; }
-        if(symbols.length===0){ alert('Enter at least one trading symbol'); return; }
+        const selectedAccounts = getSelectedAccounts();
 
-        const accountsSel = getSelectedAccounts();
+        if(!name){ alert('Strategy Name is required'); return; }
+
+        const isSingleSymbolMode = singleSymbolModeRadio.checked;
+        let symbolsToProcessForPreview = []; // What appears in the webhook preview
+        let strategyNameForDB = name;
+        let tradingSymbolsForDb = ''; // What gets stored in Strategy.allowed_tickers
+
+        if (isSingleSymbolMode) {
+            const singleSymbol = tradingSymbolsTextarea.value.trim(); // Get from the textarea directly
+            if (!singleSymbol) {
+                alert('Enter a trading symbol for single symbol mode');
+                return;
+            }
+            symbolsToProcessForPreview = [singleSymbol];
+            tradingSymbolsForDb = singleSymbol; // Store the single symbol
+            strategyNameForDB = `${name}-${singleSymbol}`; // Append symbol to name
+        } else { // Watchlist mode
+            symbolsToProcessForPreview = ["{{ticker}}"]; // For preview
+            tradingSymbolsForDb = "__WATCHLIST_DYNAMIC__"; // Special marker for DB
+            strategyNameForDB = name; // Keep the name clean for a watchlist strategy
+        }
+
+
         if(editingId){
-            const payload = {name:name, master_accounts:accountsSel};
+            // When editing, update the existing strategy entry.
+            const payload = {
+                name: strategyNameForDB,
+                master_accounts: selectedAccounts,
+                allowed_tickers: tradingSymbolsForDb // Use 'allowed_tickers' as it's the DB field
+            };
             fetchJson(`/api/strategies/${editingId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(()=>{
                 const stored = localStorage.getItem('strategyPayload_'+editingId);
                 if(stored){
                     try{
                         const obj = JSON.parse(stored);
-                        obj.strategyName = name;
-                        obj.masterAccounts = accountsSel;
+                        obj.strategyName = strategyNameForDB;
+                        obj.masterAccounts = selectedAccounts;
+                        obj.tradingSymbols = symbolsToProcessForPreview; // Update local storage preview
                         localStorage.setItem('strategyPayload_'+editingId, JSON.stringify(obj));
                     }catch(e){/* ignore */}
                 }
@@ -442,50 +585,45 @@ window.pageScripts["demat-strategies"] = function() {
                 loadStrategies();
             });
         } else {
-            Promise.all(symbols.map(sym=>{
-                const payload = {name:`${name}-${sym}`, asset_class:'Stocks', style:'Systematic', master_accounts:accountsSel};
-                return fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(res=>{
-                    const cp = {
-                        strategyName:`${name}-${sym}`,
-                        exchange: form.exchange.value,
-                        transactionType: form.transactionType.value,
-                        orderType: form.orderType.value,
-                        orderValidity: form.orderValidity.value,
-                        productType: form.productType.value,
-                        masterAccounts: getSelectedAccounts(),
-                        tradingSymbols:[sym]
-                    };
-                    if(form.orderQty.value){
-                        cp.orderQty = parseFloat(form.orderQty.value);
-                    } else if(form.orderValue.value){
-                        cp.orderValue = parseFloat(form.orderValue.value);
-                    }
-                    localStorage.setItem('strategyPayload_'+res.id, JSON.stringify(cp));
-                });
-            })).then(()=>{
+            // Logic for creating NEW strategies.
+            // We now create only ONE strategy entry regardless of mode.
+            const payload = {
+                name: strategyNameForDB,
+                asset_class:'Stocks',
+                style:'Systematic',
+                master_accounts: selectedAccounts,
+                allowed_tickers: tradingSymbolsForDb // Store the single symbol or the watchlist marker
+            };
+
+            fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+            .then(res=>{
+                const cp = {
+                    strategyName: strategyNameForDB,
+                    exchange: form.exchange.value,
+                    transactionType: form.transactionType.value,
+                    orderType: form.orderType.value,
+                    orderValidity: form.orderValidity.value,
+                    productType: form.productType.value,
+                    masterAccounts: selectedAccounts,
+                    tradingSymbols: symbolsToProcessForPreview // For local storage preview
+                };
+                if(form.orderQty.value){
+                    cp.orderQty = parseFloat(form.orderQty.value);
+                } else if(form.orderValue.value){
+                    cp.orderValue = parseFloat(form.orderValue.value);
+                }
+                localStorage.setItem('strategyPayload_'+res.id, JSON.stringify(cp));
                 modal.hide();
                 loadStrategies();
+            })
+            .catch(error => {
+                alert('Error creating strategy: ' + error.message);
+                console.error('Error creating strategy:', error);
             });
         }
 
-        const compactPayload = {
-            strategyName: name,
-            exchange: form.exchange.value,
-            transactionType: form.transactionType.value,
-            orderType: form.orderType.value,
-            orderValidity: form.orderValidity.value,
-            productType: form.productType.value,
-            masterAccounts: getSelectedAccounts(),
-        };
-        if(form.orderQty.value){
-            compactPayload.orderQty = parseFloat(form.orderQty.value);
-        } else if(form.orderValue.value){
-            compactPayload.orderValue = parseFloat(form.orderValue.value);
-        }
-        compactPayload.tradingSymbols = symbols;
-        document.getElementById('webhook-preview').value = JSON.stringify(compactPayload);
-
-        // preview only shown for convenience
+        // The webhook preview is now updated via updateWebhookPreview()
+        // No need for duplicate logic here.
     });
 
     loadSymbols();
