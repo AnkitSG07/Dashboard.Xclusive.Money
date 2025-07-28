@@ -2748,6 +2748,8 @@ def webhook(user_id):
                     "se": "SELL",
                     "lxse": "SELL",
                     "sx": "BUY",
+                    "buy": "BUY",
+                    "sell": "SELL",    
                 }
                 action = mapping.get(ttype)
 
