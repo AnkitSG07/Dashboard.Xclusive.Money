@@ -235,7 +235,7 @@ window.pageScripts["demat-strategies"] = function() {
         if (singleSymbolModeRadio.checked) {
             return [tradingSymbolsTextarea.value.trim()].filter(Boolean);
         } else { // watchlistModeRadio.checked
-            return ["{{ticker}}"]; // For display/preview purposes in the UI
+           return ["{% raw %}{{ticker}}{% endraw %}"]; // For display/preview purposes in the UI
         }
     }
 
@@ -243,8 +243,8 @@ window.pageScripts["demat-strategies"] = function() {
     function updateTokens(){
         const syms = getSymbols();
         const tokenText = syms.map(s => {
-            if (s === "{{ticker}}") {
-                return "Dynamic (TradingView {{ticker}})";
+            if (s === "{% raw %}{{ticker}}{% endraw %}") {
+                return "Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})";
             }
             const info = symbolMap[s.toUpperCase()];
             if(!info) return s;
@@ -282,12 +282,12 @@ window.pageScripts["demat-strategies"] = function() {
             tradingSymbolsTextarea.name = "tradingSymbols"; // Ensure name is correct for single mode
             symbolInputHelp.textContent = "Enter the trading symbol.";
             // If switching from watchlist mode, clear dynamic placeholder value
-            if (tradingSymbolsTextarea.value === "{{ticker}}") {
+            if (tradingSymbolsTextarea.value === "{% raw %}{{ticker}}{% endraw %}") {
                 tradingSymbolsTextarea.value = "";
             }
         } else { // watchlistModeRadio.checked
             tradingSymbolsTextarea.rows = 1;
-            tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({{ticker}})";
+            tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({% raw %}{{ticker}}{% endraw %})";
             tradingSymbolsTextarea.value = ""; // Explicitly clear any content
             tradingSymbolsTextarea.disabled = true; // Disable the input
             tradingSymbolsTextarea.name = "disabledTradingSymbols"; // Change name to prevent accidental submission
@@ -323,7 +323,7 @@ window.pageScripts["demat-strategies"] = function() {
             const currentSymbol = tradingSymbolsTextarea.value.trim();
             previewPayload.tradingSymbols = currentSymbol ? [currentSymbol] : [];
         } else { // Watchlist mode
-            previewPayload.tradingSymbols = ["{{ticker}}"];
+            previewPayload.tradingSymbols = ["{% raw %}{{ticker}}{% endraw %}"];
         }
 
         document.getElementById('webhook-preview').value = JSON.stringify(previewPayload, null, 2);
@@ -546,7 +546,7 @@ window.pageScripts["demat-strategies"] = function() {
             tradingSymbolsForDb = singleSymbol;
             strategyNameForDB = `${name}-${singleSymbol}`;
         } else {
-            symbolsToProcessForPreview = ["{{ticker}}"];
+            symbolsToProcessForPreview = ["{% raw %}{{ticker}}{% endraw %}"];
             tradingSymbolsForDb = "__WATCHLIST_DYNAMIC__";
             strategyNameForDB = name;
         }
