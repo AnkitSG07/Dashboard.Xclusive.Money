@@ -9,6 +9,7 @@
     <tbody id="perf-body"></tbody>
     <tfoot><tr><th colspan="3">Total P&L</th><th id="pnl-total"></th></tr></tfoot>
 </table>
+<div id="order-logs"></div>
 <script>
 fetch('/api/strategies/{{ strategy.id }}/logs').then(r=>r.json()).then(rows=>{
   const body=document.getElementById('perf-body');
@@ -21,6 +22,29 @@ fetch('/api/strategies/{{ strategy.id }}/logs').then(r=>r.json()).then(rows=>{
     body.appendChild(tr);
   });
   document.getElementById('pnl-total').textContent = total.toFixed(2);
+});
+fetch('/api/strategies/{{ strategy.id }}/orders').then(r=>r.json()).then(data=>{
+  const container=document.getElementById('order-logs');
+  container.innerHTML='';
+  Object.entries(data).forEach(([broker, orders])=>{
+    if(!Array.isArray(orders) || !orders.length) return;
+    const cid='orders-'+broker.replace(/[^a-zA-Z0-9]/g,'');
+    const rows=orders.map(o=>`<tr><td>${o.timestamp||''}</td><td>${o.symbol||''}</td><td>${o.action||''}</td><td>${o.qty||''}</td><td>${o.status||''}</td><td>${o.price||''}</td></tr>`).join('');
+    container.insertAdjacentHTML('beforeend',`
+      <div class="card mb-3">
+        <div class="card-header">
+          <button class="btn btn-link" data-bs-toggle="collapse" data-bs-target="#${cid}" aria-expanded="false">Broker: ${broker}</button>
+        </div>
+        <div id="${cid}" class="collapse">
+          <div class="card-body p-0">
+            <table class="table mb-0">
+              <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>Qty</th><th>Status</th><th>Price</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>`);
+  });
 });
 </script>
 {% endblock %}
