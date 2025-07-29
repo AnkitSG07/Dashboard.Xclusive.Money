@@ -16,11 +16,13 @@ os.environ.setdefault("RUN_SCHEDULER", "0")
 
 import app as app_module
 
+
 @pytest.fixture
 def client():
     db_fd, db_path = tempfile.mkstemp()
     os.environ["DATABASE_URL"] = "sqlite:///" + db_path
     from importlib import reload
+    
     reload(app_module)
     local_app = app_module.app
     local_db = app_module.db
@@ -42,7 +44,9 @@ def client():
 
 
 def login(client):
-    return client.post("/login", data={"email": "test@example.com", "password": "secret"})
+    return client.post(
+        "/login", data={"email": "test@example.com", "password": "secret"}
+    )
 
 
 def test_account_endpoint_requires_auth(client):
@@ -76,6 +80,7 @@ def test_holdings_endpoint_requires_auth(client):
     resp = client.get("/api/holdings")
     assert resp.status_code in (200, 400, 500)
 
+
 def test_portfolio_parses_net_positions(client, monkeypatch):
     login(client)
     app = app_module.app
@@ -86,6 +91,7 @@ def test_portfolio_parses_net_positions(client, monkeypatch):
     class DummyBroker:
         def __init__(self, *a, **k):
             pass
+            
         def get_positions(self):
             return {"netPositions": [{"symbol": "ABC"}]}
 
@@ -93,7 +99,12 @@ def test_portfolio_parses_net_positions(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, broker="fyers", client_id="F1", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="fyers",
+            client_id="F1",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -114,8 +125,20 @@ def test_active_children_scoped_to_user(client):
         db.session.add(user2)
         db.session.commit()
         master = Account(user_id=user1.id, role="master", client_id="M1")
-        c1 = Account(user_id=user1.id, role="child", client_id="C1", linked_master_id="M1", copy_status="On")
-        c2 = Account(user_id=user2.id, role="child", client_id="C2", linked_master_id="M1", copy_status="On")
+        c1 = Account(
+            user_id=user1.id,
+            role="child",
+            client_id="C1",
+            linked_master_id="M1",
+            copy_status="On",
+        )
+        c2 = Account(
+            user_id=user2.id,
+            role="child",
+            client_id="C2",
+            linked_master_id="M1",
+            copy_status="On",
+        )
         db.session.add_all([master, c1, c2])
         db.session.commit()
 
@@ -133,7 +156,13 @@ def test_active_children_case_insensitive_status(client):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         master = Account(user_id=user.id, role="master", client_id="M2")
-        c1 = Account(user_id=user.id, role="child", client_id="C3", linked_master_id="M2", copy_status="ON")
+        c1 = Account(
+            user_id=user.id,
+            role="child",
+            client_id="C3",
+            linked_master_id="M2",
+            copy_status="ON",
+        )
         db.session.add_all([master, c1])
         db.session.commit()
 
@@ -170,7 +199,7 @@ def test_save_account_persists_username(client):
             "broker": "fyers",
             "client_id": "F1",
             "username": "demo",
-            "credentials": {"access_token": "x"}
+            "credentials": {"access_token": "x"},
         }
         app_module.save_account_to_user(user.email, data)
         acc = Account.query.filter_by(client_id="F1", user_id=user.id).first()
@@ -188,14 +217,17 @@ def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
         def place_order(self, *a, **k):
             pass
         def get_order_list(self):
-            return [{
-                "orderId": "1",
-                "status": "COMPLETE",
-                "filledQuantity": 1,
-                "price": 100,
-                "tradingSymbol": "TESTSYM",
-                "transactionType": "BUY"
-            }]
+            return [
+                {
+                    "orderId": "1",
+                    "status": "COMPLETE",
+                    "filledQuantity": 1,
+                    "price": 100,
+                    "tradingSymbol": "TESTSYM",
+                    "transactionType": "BUY",
+                }
+            ]
+
         def get_positions(self):
             return []
         def cancel_order(self, order_id):
@@ -220,22 +252,44 @@ def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
 
     monkeypatch.setattr(brokers.factory, "get_broker_class", fake_get_broker_class)
     monkeypatch.setattr(app_module, "get_broker_class", fake_get_broker_class)
-    assert app_module.poll_and_copy_trades.__globals__["get_broker_class"] is fake_get_broker_class
+    assert (
+        app_module.poll_and_copy_trades.__globals__["get_broker_class"]
+        is fake_get_broker_class
+    )
     monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
     monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        master = Account(user_id=user.id, role="master", broker="master_broker", client_id="M", credentials={"access_token": "x"})
-        child = Account(user_id=user.id, role="child", broker="child_broker", client_id="C", linked_master_id="M", copy_status="On", credentials={"access_token": "y"}, last_copied_trade_id="0")
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="master_broker",
+            client_id="M",
+            credentials={"access_token": "x"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="child_broker",
+            client_id="C",
+            linked_master_id="M",
+            copy_status="On",
+            credentials={"access_token": "y"},
+            last_copied_trade_id="0",
+        )
         db.session.add_all([master, child])
         db.session.commit()
 
-        monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, "TESTSYM", {
-            "master_broker": {"trading_symbol": "TESTSYM"},
-            "child_broker": {"tradingsymbol": "TESTSYM"}
-        })
+        monkeypatch.setitem(
+            brokers.symbol_map.SYMBOL_MAP,
+            "TESTSYM",
+            {
+                "master_broker": {"trading_symbol": "TESTSYM"},
+                "child_broker": {"tradingsymbol": "TESTSYM"},
+            },
+        )
 
         app_module.poll_and_copy_trades()
 
@@ -262,14 +316,16 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
             return {"status": "success", "order_id": "child1"}
 
         def get_order_list(self):
-            return [{
-                "orderId": "2",
-                "status": "COMPLETE",
-                "filledQuantity": 1,
-                "price": 50,
-                "transactionType": "BUY",
-                "instrument_token": "926241"
-            }]
+            return [
+                {
+                    "orderId": "2",
+                    "status": "COMPLETE",
+                    "filledQuantity": 1,
+                    "price": 50,
+                    "transactionType": "BUY",
+                    "instrument_token": "926241",
+                }
+            ]
 
         def get_positions(self):
             return []
@@ -288,14 +344,31 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        master = Account(user_id=user.id, role="master", broker="zerodha", client_id="ZM", credentials={"access_token": "x"})
-        child = Account(user_id=user.id, role="child", broker="zerodha", client_id="ZC", linked_master_id="ZM", copy_status="On", credentials={"access_token": "y"}, last_copied_trade_id="0")
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="zerodha",
+            client_id="ZM",
+            credentials={"access_token": "x"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="zerodha",
+            client_id="ZC",
+            linked_master_id="ZM",
+            copy_status="On",
+            credentials={"access_token": "y"},
+            last_copied_trade_id="0",
+        )
         db.session.add_all([master, child])
         db.session.commit()
 
-        monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, "IDEA", {
-            "zerodha": {"trading_symbol": "IDEA", "token": "926241"}
-        })
+        monkeypatch.setitem(
+            brokers.symbol_map.SYMBOL_MAP,
+            "IDEA",
+            {"zerodha": {"trading_symbol": "IDEA", "token": "926241"}},
+        )
 
         app_module.poll_and_copy_trades()
 
@@ -377,9 +450,7 @@ def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
         assert master.status == "Connected"
         assert master.copy_status == "On"
         logs = app_module.SystemLog.query.all()
-        assert not any(
-            "invalid syntax" in (log.message or "").lower() for log in logs
-        )
+        assert not any("invalid syntax" in (log.message or "").lower() for log in logs)
 
 
 def test_opening_balance_cache(monkeypatch):
@@ -449,7 +520,7 @@ def test_add_account_stores_all_credentials(client, monkeypatch):
         "totp_secret": "t",
         "vendor_code": "v",
         "api_key": "a",
-        "imei": "i"
+        "imei": "i",
     }
 
     resp = client.post("/api/add-account", json=data)
@@ -465,7 +536,7 @@ def test_add_account_stores_all_credentials(client, monkeypatch):
             "vendor_code": "v",
             "api_key": "a",
             "imei": "i",
-            "access_token": "dummy_token"
+            "access_token": "dummy_token",
         }
         assert acc.credentials == expected
 
@@ -528,7 +599,7 @@ def test_reconnect_uses_stored_credentials(client, monkeypatch):
         "totp_secret": "t",
         "vendor_code": "v",
         "api_key": "a",
-        "imei": "i"
+        "imei": "i",
     }
 
     resp = client.post("/api/add-account", json=data)
@@ -603,8 +674,12 @@ def test_reconnect_totp_error_propagated(client, monkeypatch):
     monkeypatch.setattr(zerodha, "KiteConnect", FakeKite)
     monkeypatch.setattr(zerodha.pyotp, "TOTP", FakeTOTP)
     monkeypatch.setattr(zerodha.requests, "Session", lambda: FakeSession())
-    monkeypatch.setattr(app_module, "get_broker_class", lambda name: zerodha.ZerodhaBroker)
-    monkeypatch.setattr(brokers.factory, "get_broker_class", lambda name: zerodha.ZerodhaBroker)
+    monkeypatch.setattr(
+        app_module, "get_broker_class", lambda name: zerodha.ZerodhaBroker
+    )
+    monkeypatch.setattr(
+        brokers.factory, "get_broker_class", lambda name: zerodha.ZerodhaBroker
+    )
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
@@ -644,14 +719,24 @@ def test_check_auto_logins_reconnects_all(client, monkeypatch):
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
 
     data1 = {
-        "broker": "finvasia", "client_id": "A1", "username": "u",
-        "password": "p", "totp_secret": "t", "vendor_code": "v",
-        "api_key": "a", "imei": "i"
+        "broker": "finvasia",
+        "client_id": "A1",
+        "username": "u",
+        "password": "p",
+        "totp_secret": "t",
+        "vendor_code": "v",
+        "api_key": "a",
+        "imei": "i",
     }
     data2 = {
-        "broker": "finvasia", "client_id": "A2", "username": "u",
-        "password": "p", "totp_secret": "t", "vendor_code": "v",
-        "api_key": "a", "imei": "i"
+        "broker": "finvasia",
+        "client_id": "A2",
+        "username": "u",
+        "password": "p",
+        "totp_secret": "t",
+        "vendor_code": "v",
+        "api_key": "a",
+        "imei": "i",
     }
 
     assert client.post("/api/add-account", json=data1).status_code == 200
@@ -659,8 +744,12 @@ def test_check_auto_logins_reconnects_all(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        Account.query.filter_by(user_id=user.id, client_id="A1").first().status = "Failed"
-        Account.query.filter_by(user_id=user.id, client_id="A2").first().status = "Failed"
+        Account.query.filter_by(user_id=user.id, client_id="A1").first().status = (
+            "Failed"
+        )
+        Account.query.filter_by(user_id=user.id, client_id="A2").first().status = (
+            "Failed"
+        )
         db.session.commit()
 
     resp = client.post("/api/check-auto-logins")
@@ -693,7 +782,12 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
         def __init__(self, *a, **k):
             pass
         def get_positions(self):
-            return {"positions": [{"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}]}
+            return {
+                "positions": [
+                    {"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}
+                ]
+            }
+
         def place_order(self, **kwargs):
             placed.update(kwargs)
             return {"status": "success"}
@@ -707,7 +801,13 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, role="child", broker="dhan", client_id="C1", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            role="child",
+            broker="dhan",
+            client_id="C1",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -717,7 +817,9 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
     assert results[0]["status"] == "SUCCESS"
 
 
-@pytest.mark.parametrize("broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"])
+@pytest.mark.parametrize(
+    "broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"]
+)
 def test_exit_all_positions_handles_netqty_and_quantity(client, monkeypatch, broker):
     login(client)
     app = app_module.app
@@ -752,7 +854,13 @@ def test_exit_all_positions_handles_netqty_and_quantity(client, monkeypatch, bro
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, role="child", broker=broker, client_id="CX", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            role="child",
+            broker=broker,
+            client_id="CX",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -778,7 +886,14 @@ def test_exit_all_positions_handles_nested_positions(client, monkeypatch):
         def __init__(self, *a, **k):
             pass
         def get_positions(self):
-            return {"data": {"payload": {"netPositions": [{"tradingSymbol": "SBIN", "netQty": 1}]}}}
+            return {
+                "data": {
+                    "payload": {
+                        "netPositions": [{"tradingSymbol": "SBIN", "netQty": 1}]
+                    }
+                }
+            }
+
         def place_order(self, **kwargs):
             placed.update(kwargs)
             return {"status": "success"}
@@ -792,7 +907,13 @@ def test_exit_all_positions_handles_nested_positions(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, role="child", broker="dhan", client_id="CX", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            role="child",
+            broker="dhan",
+            client_id="CX",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -817,7 +938,14 @@ def test_exit_all_positions_handles_wrapped_position_list(client, monkeypatch):
         def __init__(self, *a, **k):
             pass
         def get_positions(self):
-            return {"data": {"payload": [{"netPositions": [{"tradingSymbol": "SBIN", "netQty": 1}]}]}}
+            return {
+                "data": {
+                    "payload": [
+                        {"netPositions": [{"tradingSymbol": "SBIN", "netQty": 1}]}
+                    ]
+                }
+            }
+
         def place_order(self, **kwargs):
             placed.update(kwargs)
             return {"status": "success"}
@@ -831,7 +959,13 @@ def test_exit_all_positions_handles_wrapped_position_list(client, monkeypatch):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, role="child", broker="dhan", client_id="CX", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            role="child",
+            broker="dhan",
+            client_id="CX",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -841,7 +975,9 @@ def test_exit_all_positions_handles_wrapped_position_list(client, monkeypatch):
     assert results and all(r["status"] == "SUCCESS" for r in results)
 
 
-@pytest.mark.parametrize("broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"])
+@pytest.mark.parametrize(
+    "broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"]
+)
 def test_exit_child_positions_endpoint(client, monkeypatch, broker):
     login(client)
     app = app_module.app
@@ -857,7 +993,12 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
         def __init__(self, *a, **k):
             pass
         def get_positions(self):
-            return {"positions": [{"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}]}
+            return {
+                "positions": [
+                    {"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}
+                ]
+            }
+
         def place_order(self, **kwargs):
             placed.update(kwargs)
             return {"status": "success"}
@@ -871,7 +1012,13 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        acc = Account(user_id=user.id, role="child", broker=broker, client_id="C1", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            role="child",
+            broker=broker,
+            client_id="C1",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
 
@@ -885,7 +1032,9 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
         assert placed.get("product") == "CNC"
 
 
-@pytest.mark.parametrize("broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"])
+@pytest.mark.parametrize(
+    "broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"]
+)
 def test_exit_all_children_endpoint(client, monkeypatch, broker):
     login(client)
     app = app_module.app
@@ -901,7 +1050,12 @@ def test_exit_all_children_endpoint(client, monkeypatch, broker):
         def __init__(self, *a, **k):
             pass
         def get_positions(self):
-            return {"positions": [{"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}]}
+            return {
+                "positions": [
+                    {"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}
+                ]
+            }
+
         def place_order(self, **kwargs):
             placed_orders.append(kwargs)
             return {"status": "success"}
@@ -915,8 +1069,21 @@ def test_exit_all_children_endpoint(client, monkeypatch, broker):
 
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
-        master = Account(user_id=user.id, role="master", broker=broker, client_id="M1", credentials={"access_token": "x"})
-        child = Account(user_id=user.id, role="child", broker=broker, client_id="C1", linked_master_id="M1", credentials={"access_token": "x"})
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker=broker,
+            client_id="M1",
+            credentials={"access_token": "x"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker=broker,
+            client_id="C1",
+            linked_master_id="M1",
+            credentials={"access_token": "x"},
+        )
         db.session.add_all([master, child])
         db.session.commit()
 
@@ -1070,7 +1237,12 @@ def test_create_strategy_invalid_account(client):
     login(client)
     resp = client.post(
         "/api/strategies",
-        json={"name": "Bad", "asset_class": "Stocks", "style": "Systematic", "account_id": 999},
+        json={
+            "name": "Bad",
+            "asset_class": "Stocks",
+            "style": "Systematic",
+            "account_id": 999,
+        },
     )
     assert resp.status_code == 400
 
@@ -1095,11 +1267,7 @@ def test_strategy_list_and_delete(client):
     assert resp.status_code == 200
     assert resp.get_json() == []
 
-    data = {
-        "name": "ListTest",
-        "asset_class": "Stocks",
-        "style": "Systematic"
-    }
+    data = {"name": "ListTest", "asset_class": "Stocks", "style": "Systematic"}
     create = client.post("/api/strategies", json=data)
     sid = create.get_json()["id"]
 
@@ -1111,7 +1279,6 @@ def test_strategy_list_and_delete(client):
         user = User.query.filter_by(email="test@example.com").first()
         s = Strategy.query.get(sid)
         assert s.user_id == user.id
-
 
     resp = client.get("/api/strategies")
     assert resp.status_code == 200
@@ -1127,11 +1294,7 @@ def test_strategy_list_and_delete(client):
 
 def test_strategy_user_scoping(client):
     login(client)
-    data = {
-        "name": "U1",
-        "asset_class": "Stocks",
-        "style": "Systematic"
-    }
+    data = {"name": "U1", "asset_class": "Stocks", "style": "Systematic"}
     resp = client.post("/api/strategies", json=data)
     sid1 = resp.get_json()["id"]
 
@@ -1223,6 +1386,49 @@ def test_strategy_logs_endpoint(client):
     logs = resp.get_json()
     assert any(l["id"] == lid for l in logs)
 
+def test_strategy_orders_endpoint(client):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    Trade = app_module.Trade
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(user_id=user.id, broker="dhan", client_id="T1")
+        db.session.add(acc)
+        db.session.commit()
+        strategy = Strategy(
+            user_id=user.id,
+            name="SOrd",
+            asset_class="Stocks",
+            style="Systematic",
+            master_accounts=str(acc.id),
+        )
+        db.session.add(strategy)
+        db.session.commit()
+        trade = Trade(
+            user_id=user.id,
+            symbol="A",
+            action="BUY",
+            qty=1,
+            price=10.0,
+            status="SUCCESS",
+            broker="dhan",
+            client_id="T1",
+        )
+        db.session.add(trade)
+        db.session.commit()
+        sid = strategy.id
+
+    resp = client.get(f"/api/strategies/{sid}/orders")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "dhan" in data
+    assert any(o["symbol"] == "A" for o in data["dhan"])
+
+
 def test_webhook_secret_enforced(client, monkeypatch):
     login(client)
     app = app_module.app
@@ -1233,7 +1439,12 @@ def test_webhook_secret_enforced(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "tok1"
-        acc = Account(user_id=user.id, broker="dhan", client_id="C1", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="C1",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         strategy = Strategy(
             user_id=user.id,
@@ -1248,7 +1459,12 @@ def test_webhook_secret_enforced(client, monkeypatch):
         db.session.commit()
     import brokers
     class DummyBroker(brokers.base.BrokerBase):
-        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
         def place_order(self, *a, **k):
             return {"status": "success", "order_id": "1"}
         def get_order_list(self):
@@ -1258,9 +1474,13 @@ def test_webhook_secret_enforced(client, monkeypatch):
         def cancel_order(self, order_id):
             pass
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
-    resp = client.post(f"/webhook/tok1", json={"symbol": "A", "action": "BUY", "quantity": 1})
+    resp = client.post(
+        f"/webhook/tok1", json={"symbol": "A", "action": "BUY", "quantity": 1}
+    )
     assert resp.status_code == 403
     resp = client.post(
         f"/webhook/tok1",
@@ -1280,7 +1500,12 @@ def test_webhook_accepts_ticker_field(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "tok1a"
-        acc = Account(user_id=user.id, broker="dhan", client_id="C1a", credentials={"access_token": "x"})
+       acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="C1a",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         strategy = Strategy(
             user_id=user.id,
@@ -1295,7 +1520,12 @@ def test_webhook_accepts_ticker_field(client, monkeypatch):
         db.session.commit()
     import brokers
     class DummyBroker(brokers.base.BrokerBase):
-        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
         def place_order(self, *a, **k):
             return {"status": "success", "order_id": "1"}
         def get_order_list(self):
@@ -1305,9 +1535,13 @@ def test_webhook_accepts_ticker_field(client, monkeypatch):
         def cancel_order(self, order_id):
             pass
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
-    resp = client.post(f"/webhook/tok1a", json={"ticker": "A", "action": "BUY", "quantity": 1})
+    resp = client.post(
+        f"/webhook/tok1a", json={"ticker": "A", "action": "BUY", "quantity": 1}
+    )
     assert resp.status_code == 403
     resp = client.post(
         f"/webhook/tok1a",
@@ -1327,7 +1561,12 @@ def test_webhook_tradingview_payload(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "toktv"
-        acc = Account(user_id=user.id, broker="dhan", client_id="CTV", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CTV",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         strategy = Strategy(
             user_id=user.id,
@@ -1342,7 +1581,12 @@ def test_webhook_tradingview_payload(client, monkeypatch):
         db.session.commit()
     import brokers
     class DummyBroker(brokers.base.BrokerBase):
-        BUY = "BUY"; SELL = "SELL"; MARKET = "MARKET"; INTRA = "INTRADAY"; NSE = "NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
         def place_order(self, *a, **k):
             return {"status": "success", "order_id": "1"}
         def get_order_list(self):
@@ -1352,7 +1596,9 @@ def test_webhook_tradingview_payload(client, monkeypatch):
         def cancel_order(self, order_id):
             pass
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
     payload = {
         "strategyName": "new",
@@ -1384,7 +1630,12 @@ def test_risk_limit_max_positions(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "tok2"
-        acc = Account(user_id=user.id, broker="dhan", client_id="C2", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="C2",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         strategy = Strategy(
             user_id=user.id,
@@ -1400,7 +1651,12 @@ def test_risk_limit_max_positions(client, monkeypatch):
         db.session.commit()
     import brokers
     class DummyBroker(brokers.base.BrokerBase):
-        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
         def __init__(self, *a, **k):
             pass
         def place_order(self, *a, **k):
@@ -1412,7 +1668,9 @@ def test_risk_limit_max_positions(client, monkeypatch):
         def cancel_order(self, order_id):
             pass
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
     resp = client.post(
         "/webhook/tok2",
@@ -1432,7 +1690,12 @@ def test_schedule_enforced(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "tok3"
-        acc = Account(user_id=user.id, broker="dhan", client_id="C3", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="C3",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         strategy = Strategy(
             user_id=user.id,
@@ -1448,7 +1711,12 @@ def test_schedule_enforced(client, monkeypatch):
         db.session.commit()
     import brokers
     class DummyBroker(brokers.base.BrokerBase):
-        BUY="BUY"; SELL="SELL"; MARKET="MARKET"; INTRA="INTRADAY"; NSE="NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
         def place_order(self, *a, **k):
             return {"status": "success", "order_id": "1"}
         def get_order_list(self):
@@ -1458,7 +1726,9 @@ def test_schedule_enforced(client, monkeypatch):
         def cancel_order(self, order_id):
             pass
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
     resp = client.post(
         "/webhook/tok3",
@@ -1472,7 +1742,12 @@ def test_strategy_performance_page(client):
     login(client)
     sid = client.post(
         "/api/strategies",
-        json={"name": "Perf", "asset_class": "Stocks", "style": "Systematic", "track_performance": True},
+        json={
+            "name": "Perf",
+            "asset_class": "Stocks",
+            "style": "Systematic",
+            "track_performance": True,
+        },
     ).get_json()["id"]
     client.post(
         f"/api/strategies/{sid}/logs",
@@ -1488,7 +1763,12 @@ def test_regenerate_webhook_secret(client):
     login(client)
     sid = client.post(
         "/api/strategies",
-        json={"name": "Sec", "asset_class": "Stocks", "style": "Systematic", "webhook_secret": "old"},
+        json={
+            "name": "Sec",
+            "asset_class": "Stocks",
+            "style": "Systematic",
+            "webhook_secret": "old",
+        },
     ).get_json()["id"]
 
     resp = client.post(f"/api/strategies/{sid}/regenerate-secret")
@@ -1511,7 +1791,12 @@ def test_test_webhook_endpoint(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "toktest"
-        acc = Account(user_id=user.id, broker="dhan", client_id="C4", credentials={"access_token": "x"})
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="C4",
+            credentials={"access_token": "x"},
+        )
         db.session.add(acc)
         db.session.commit()
         strategy = db.session.get(app_module.Strategy, sid)
@@ -1523,7 +1808,11 @@ def test_test_webhook_endpoint(client, monkeypatch):
     import brokers
 
     class DummyBroker(brokers.base.BrokerBase):
-        BUY = "BUY"; SELL = "SELL"; MARKET = "MARKET"; INTRA = "INTRADAY"; NSE = "NSE"
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
 
         def place_order(self, *a, **k):
             return {"status": "success", "order_id": "1"}
@@ -1538,7 +1827,9 @@ def test_test_webhook_endpoint(client, monkeypatch):
             pass
 
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
 
     resp = client.post(f"/api/strategies/{sid}/test-webhook")
@@ -1552,7 +1843,12 @@ def test_strategy_subscription_and_clone(client):
     login(client)
     sid = client.post(
         "/api/strategies",
-        json={"name": "Orig", "asset_class": "Stocks", "style": "Systematic", "is_public": True},
+        json={
+            "name": "Orig",
+            "asset_class": "Stocks",
+            "style": "Systematic",
+            "is_public": True,
+        },
     ).get_json()["id"]
 
     client.get("/logout")
