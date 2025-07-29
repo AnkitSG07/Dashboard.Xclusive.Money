@@ -711,10 +711,28 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
             response = api.place_order(**order_params)
             if isinstance(response, dict) and response.get("status") == "failure":
                 reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
-                record_trade(sub_user.id, symbol, action.upper(), qty_use, order_params.get('price'), "FAILED")
+                record_trade(
+                    sub_user.id,
+                    symbol,
+                    action.upper(),
+                    qty_use,
+                    order_params.get('price'),
+                    "FAILED",
+                    broker=account.broker,
+                    client_id=account.client_id,
+                )
                 results.append({"subscription_id": sub.id, "status": "FAILED", "reason": reason})
                 continue
-            record_trade(sub_user.id, symbol, action.upper(), qty_use, order_params.get('price'), "SUCCESS")
+            record_trade(
+                sub_user.id,
+                symbol,
+                action.upper(),
+                qty_use,
+                order_params.get('price'),
+                "SUCCESS",
+                broker=account.broker,
+                client_id=account.client_id,
+            )
             results.append({"subscription_id": sub.id, "status": "SUCCESS", "order_id": response.get("order_id")})
         except Exception as e:
             results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
@@ -1315,10 +1333,21 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
 
 
 
-def record_trade(user_identifier, symbol, action, qty, price, status):
+def record_trade(
+    user_identifier,
+    symbol,
+    action,
+    qty,
+    price,
+    status,
+    broker=None,
+    client_id=None,
+):
     """Persist a trade record to the database.
 
     ``user_identifier`` may be a ``User`` object, user id or email string.
+    Optional ``broker`` and ``client_id`` allow associating the trade with a
+    specific account.
     """
     if isinstance(user_identifier, User):
         user = user_identifier
@@ -1335,7 +1364,9 @@ def record_trade(user_identifier, symbol, action, qty, price, status):
         qty=int(qty),
         price=float(price or 0),
         status=status,
-        timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp=datetime.utcnow(),
+        broker=broker,
+        client_id=client_id,
     )
     db.session.add(trade)
     db.session.commit()
@@ -2148,7 +2179,9 @@ def poll_and_copy_trades():
                                         transaction_type,
                                         copied_qty,
                                         price,
-                                        'FAILED'
+                                        'FAILED',
+                                        broker=child_broker,
+                                        client_id=child_id,
                                     )
                                 else:
                                     # Extract child order ID
@@ -2192,7 +2225,9 @@ def poll_and_copy_trades():
                                         transaction_type,
                                         copied_qty,
                                         price,
-                                        'SUCCESS'
+                                        'SUCCESS',
+                                        broker=child_broker,
+                                        client_id=child_id,
                                     )
                             else:
                                 logger.warning(f"Unexpected response format for child {child_id}: {type(response)}")
@@ -2929,9 +2964,27 @@ def webhook(user_id):
                 response = broker_api_instance.place_order(**order_params)
                 if isinstance(response, dict) and response.get("status") == "failure":
                     reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
-                    record_trade(user_obj.id, symbol, action.upper(), quantity, order_params.get('price'), "FAILED")
+                    record_trade(
+                        user_obj.id,
+                        symbol,
+                        action.upper(),
+                        quantity,
+                        order_params.get('price'),
+                        "FAILED",
+                        broker=account.broker,
+                        client_id=account.client_id,
+                    )
                     return {"account_id": account.id, "symbol": symbol, "status": "FAILED", "reason": reason}
-                record_trade(user_obj.id, symbol, action.upper(), quantity, order_params.get('price'), "SUCCESS")
+                record_trade(
+                    user_obj.id,
+                    symbol,
+                    action.upper(),
+                    quantity,
+                    order_params.get('price'),
+                    "SUCCESS",
+                    broker=account.broker,
+                    client_id=account.client_id,
+                )
                 try:
                     poll_and_copy_trades()
                 except Exception as e:
@@ -5651,7 +5704,16 @@ def place_group_order():
                 status = "SUCCESS"
                 results.append({"client_id": acc.get("client_id"), "status": status})
 
-            record_trade(user_email, symbol, action.upper(), quantity, order_params.get('price'), status)
+            record_trade(
+                user_email,
+                symbol,
+                action.upper(),
+                quantity,
+                order_params.get('price'),
+                status,
+                broker=broker_name,
+                client_id=acc.get('client_id'),
+            )
         except Exception as e:
             results.append({"client_id": acc.get("client_id"), "status": "ERROR", "reason": str(e)})
 
