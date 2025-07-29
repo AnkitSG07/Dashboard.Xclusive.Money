@@ -23,6 +23,7 @@ from flask_limiter.util import get_remote_address
 from apscheduler.schedulers.background import BackgroundScheduler
 import io
 from datetime import datetime, timedelta, date
+from dateutil import parser
 import requests
 from bs4 import BeautifulSoup
 import tempfile
@@ -877,6 +878,8 @@ TIME_FORMATS = [
     "%Y-%m-%d %H:%M:%S",
     "%d-%b-%Y %H:%M",
     "%d-%m-%Y %H:%M",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d %H:%M:%S.%f",
 ]
 
 
@@ -891,16 +894,21 @@ def parse_timestamp(value):
             return None
     if isinstance(value, str):
         value = value.strip()
-        if value.isdigit():
+        numeric_str = re.fullmatch(r"\d+(?:\.\d+)?", value)
+        if numeric_str:
             try:
                 ts = float(value)
-                if len(value) > 10:  # milliseconds precision
+                if len(value.split(".")[0]) > 10:
                     ts /= 1000.0
                 return datetime.fromtimestamp(ts)
             except Exception:
                 pass
         try:
             return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except Exception:
+            pass
+        try:
+            return parser.parse(value)
         except Exception:
             pass
     for fmt in TIME_FORMATS:
