@@ -5,7 +5,7 @@ from helpers import (
     order_mappings_for_user,
     normalize_position,
 )
-from models import Account, db, Strategy, StrategyLog, StrategySubscription
+from models import Account, db, Strategy, StrategyLog, StrategySubscription, Trade
 from dhanhq import dhanhq
 from functools import wraps
 from datetime import datetime
@@ -19,7 +19,8 @@ def login_required_api(fn):
         if not session.get("user"):
             return jsonify({"error": "Unauthorized"}), 401
         return fn(*args, **kwargs)
-        
+
+    
     return wrapper
 
 
@@ -141,12 +142,15 @@ def account_stats():
     try:
         stats_resp = dhan.get_fund_limits()
         if not isinstance(stats_resp, dict) or "data" not in stats_resp:
-            return jsonify({"error": "Unexpected response format", "details": stats_resp}), 500
+            return (
+                jsonify({"error": "Unexpected response format", "details": stats_resp}),
+                500,
+            )
         stats = stats_resp["data"]
         mapped_stats = {
             "total_funds": stats.get("availabelBalance", 0),
             "available_margin": stats.get("withdrawableBalance", 0),
-            "used_margin": stats.get("utilizedAmount", 0)
+            "used_margin": stats.get("utilizedAmount", 0),
         }
         return jsonify(mapped_stats)
     except Exception as e:
@@ -211,9 +215,7 @@ def list_strategies():
     """Return all strategies for the logged-in user."""
     user = current_user()
     strategies = (
-        Strategy.query.filter_by(user_id=user.id)
-        .order_by(Strategy.id.desc())
-        .all()
+        Strategy.query.filter_by(user_id=user.id).order_by(Strategy.id.desc()).all()
     )
     data = [
         {
@@ -299,7 +301,7 @@ def create_strategy():
         allowed_tickers=data.get("allowed_tickers"),
         notification_emails=data.get("notification_emails"),
         notify_failures_only=bool(data.get("notify_failures_only", False)),
-        is_active=bool(data.get("is_active", False)),        
+        is_active=bool(data.get("is_active", False)),
         signal_source=data.get("signal_source"),
         risk_max_positions=_to_int(data.get("risk_max_positions")),
         risk_max_allocation=_to_float(data.get("risk_max_allocation")),
@@ -326,33 +328,35 @@ def strategy_detail(strategy_id):
     strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
 
     if request.method == "GET":
-        return jsonify({
-            "id": strategy.id,
-            "name": strategy.name,
-            "description": strategy.description,
-            "asset_class": strategy.asset_class,
-            "style": strategy.style,
-            "allow_auto_submit": strategy.allow_auto_submit,
-            "allow_live_trading": strategy.allow_live_trading,
-            "allow_any_ticker": strategy.allow_any_ticker,
-            "allowed_tickers": strategy.allowed_tickers,
-            "notification_emails": strategy.notification_emails,
-            "notify_failures_only": strategy.notify_failures_only,
-            "account_id": strategy.account_id,
-            "is_active": strategy.is_active,
-            "last_run_at": strategy.last_run_at,
-            "signal_source": strategy.signal_source,
-            "risk_max_positions": strategy.risk_max_positions,
-            "risk_max_allocation": strategy.risk_max_allocation,
-            "schedule": strategy.schedule,
-            "webhook_secret": strategy.webhook_secret,
-            "track_performance": strategy.track_performance,
-            "log_retention_days": strategy.log_retention_days,
-            "is_public": strategy.is_public,
-            "icon": strategy.icon,
-            "brokers": strategy.brokers,
-            "master_accounts": strategy.master_accounts,
-        })
+        return jsonify(
+            {
+                "id": strategy.id,
+                "name": strategy.name,
+                "description": strategy.description,
+                "asset_class": strategy.asset_class,
+                "style": strategy.style,
+                "allow_auto_submit": strategy.allow_auto_submit,
+                "allow_live_trading": strategy.allow_live_trading,
+                "allow_any_ticker": strategy.allow_any_ticker,
+                "allowed_tickers": strategy.allowed_tickers,
+                "notification_emails": strategy.notification_emails,
+                "notify_failures_only": strategy.notify_failures_only,
+                "account_id": strategy.account_id,
+                "is_active": strategy.is_active,
+                "last_run_at": strategy.last_run_at,
+                "signal_source": strategy.signal_source,
+                "risk_max_positions": strategy.risk_max_positions,
+                "risk_max_allocation": strategy.risk_max_allocation,
+                "schedule": strategy.schedule,
+                "webhook_secret": strategy.webhook_secret,
+                "track_performance": strategy.track_performance,
+                "log_retention_days": strategy.log_retention_days,
+                "is_public": strategy.is_public,
+                "icon": strategy.icon,
+                "brokers": strategy.brokers,
+                "master_accounts": strategy.master_accounts,
+            }
+        )
 
     if request.method == "PUT":
         data = request.get_json() or {}
@@ -395,7 +399,9 @@ def strategy_detail(strategy_id):
         ]:
             if field in data:
                 if field == "account_id" and data[field] is not None:
-                    acc = Account.query.filter_by(id=data[field], user_id=user.id).first()
+                    acc = Account.query.filter_by(
+                        id=data[field], user_id=user.id
+                    ).first()
                     if not acc:
                         return jsonify({"error": "Invalid account_id"}), 400
                     setattr(strategy, field, _to_int(data[field]))
@@ -404,7 +410,9 @@ def strategy_detail(strategy_id):
                 elif field == "risk_max_allocation":
                     setattr(strategy, field, _to_float(data[field]))
                 else:
-                    if field in ["brokers", "master_accounts"] and isinstance(data[field], list):
+                    if field in ["brokers", "master_accounts"] and isinstance(
+                        data[field], list
+                    ):
                         setattr(strategy, field, ",".join(str(v) for v in data[field]))
                     else:
                         setattr(strategy, field, data[field])
@@ -500,7 +508,9 @@ def subscribe_strategy(strategy_id):
         return jsonify({"error": "Cannot subscribe to your own strategy"}), 400
     data = request.get_json(silent=True) or {}
     
-    sub = StrategySubscription.query.filter_by(strategy_id=strategy_id, subscriber_id=user.id).first()
+    sub = StrategySubscription.query.filter_by(
+        strategy_id=strategy_id, subscriber_id=user.id
+    ).first()
     if not sub:
         sub = StrategySubscription(strategy_id=strategy_id, subscriber_id=user.id)
         if strategy.is_public:
@@ -518,11 +528,15 @@ def subscribe_strategy(strategy_id):
     sub.auto_submit = bool(data.get("auto_submit", True))
     sub.order_type = data.get("order_type") or sub.order_type
     sub.qty_mode = data.get("qty_mode") or sub.qty_mode
-    sub.fixed_qty = data.get("fixed_qty") if data.get("fixed_qty") is not None else sub.fixed_qty
+    sub.fixed_qty = (
+        data.get("fixed_qty") if data.get("fixed_qty") is not None else sub.fixed_qty
+    )
 
     db.session.commit()
 
-    return jsonify({"message": "Subscription saved", "id": sub.id, "approved": sub.approved})
+    return jsonify(
+        {"message": "Subscription saved", "id": sub.id, "approved": sub.approved}
+    )
 
 
 @api_bp.route("/strategies/<int:strategy_id>/subscribers", methods=["GET"])
@@ -531,7 +545,12 @@ def list_subscribers(strategy_id):
     user = current_user()
     strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
     subs = [
-        {"id": s.id, "subscriber_id": s.subscriber_id, "approved": s.approved, "created_at": s.created_at}
+        {
+            "id": s.id,
+            "subscriber_id": s.subscriber_id,
+            "approved": s.approved,
+            "created_at": s.created_at,
+        }
         for s in StrategySubscription.query.filter_by(strategy_id=strategy_id).all()
     ]
     return jsonify(subs)
@@ -599,9 +618,59 @@ def strategy_logs(strategy_id):
             "message": l.message,
             "performance": l.performance,
         }
-        for l in StrategyLog.query.filter_by(strategy_id=strategy.id).order_by(StrategyLog.timestamp.desc()).all()
+        for l in StrategyLog.query.filter_by(strategy_id=strategy.id)
+        .order_by(StrategyLog.timestamp.desc())
+        .all()
     ]
     return jsonify(logs)
+
+
+api_bp.route("/strategies/<int:strategy_id>/orders", methods=["GET"])
+@login_required_api
+def strategy_orders(strategy_id):
+    """Return trade logs grouped by broker for a strategy."""
+    user = current_user()
+    strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
+
+    if not strategy.master_accounts:
+        return jsonify({})
+
+    try:
+        ids = [int(s) for s in str(strategy.master_accounts).split(",") if s.strip()]
+    except ValueError:
+        ids = []
+    if not ids:
+        return jsonify({})
+
+    accounts = Account.query.filter(
+        Account.user_id == user.id, Account.id.in_(ids)
+    ).all()
+    result = {}
+    for acc in accounts:
+        trades = (
+            Trade.query.filter_by(user_id=user.id, client_id=acc.client_id)
+            .order_by(Trade.timestamp.desc())
+            .all()
+        )
+        if not trades:
+            continue
+        broker = acc.broker or "Unknown"
+        result[broker] = [
+            {
+                "id": t.id,
+                "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+                "symbol": t.symbol,
+                "action": t.action,
+                "qty": t.qty,
+                "price": t.price,
+                "status": t.status,
+                "order_id": t.order_id,
+                "client_id": t.client_id,
+            }
+            for t in trades
+        ]
+
+    return jsonify(result)
 
 
 @api_bp.route("/subscriptions", methods=["GET"])
@@ -612,18 +681,20 @@ def list_subscriptions():
     subs = StrategySubscription.query.filter_by(subscriber_id=user.id).all()
     out = []
     for s in subs:
-        out.append({
-            "id": s.id,
-            "strategy_id": s.strategy_id,
-            "strategy_name": s.strategy.name if s.strategy else None,
-            "account_id": s.account_id,
-            "account_client_id": s.account.client_id if s.account else None,
-            "order_type": s.order_type,
-            "qty_mode": s.qty_mode,
-            "fixed_qty": s.fixed_qty,
-            "auto_submit": s.auto_submit,
-            "approved": s.approved,
-        })
+        out.append(
+            {
+                "id": s.id,
+                "strategy_id": s.strategy_id,
+                "strategy_name": s.strategy.name if s.strategy else None,
+                "account_id": s.account_id,
+                "account_client_id": s.account.client_id if s.account else None,
+                "order_type": s.order_type,
+                "qty_mode": s.qty_mode,
+                "fixed_qty": s.fixed_qty,
+                "auto_submit": s.auto_submit,
+                "approved": s.approved,
+            }
+        )
     return jsonify(out)
 
 
@@ -632,7 +703,9 @@ def list_subscriptions():
 def update_subscription(sub_id):
     """Update or delete a subscription."""
     user = current_user()
-    sub = StrategySubscription.query.filter_by(id=sub_id, subscriber_id=user.id).first_or_404()
+    sub = StrategySubscription.query.filter_by(
+        id=sub_id, subscriber_id=user.id
+    ).first_or_404()
 
     if request.method == "DELETE":
         db.session.delete(sub)
