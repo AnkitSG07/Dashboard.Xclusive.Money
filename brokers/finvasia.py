@@ -75,8 +75,8 @@ class FinvasiaBroker(BrokerBase):
 
     def _normalize_product(self, product_type):
         """Normalize product type for Finvasia API."""
-        product_type = product_type.upper()
-        if product_type in ["MIS", "INTRA"]:
+        product_type = str(product_type).strip().upper()
+        if product_type in ["MIS", "INTRA", "INTRADAY", "INTRA DAY"]:
             return "M"  # Margin Intraday Square Off
         elif product_type in ["CNC", "CARRYFORWARD"]:
             return "C"  # Cash & Carry / Delivery
