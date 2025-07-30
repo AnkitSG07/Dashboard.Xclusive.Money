@@ -908,7 +908,10 @@ def parse_timestamp(value):
         return None
     if isinstance(value, (int, float)):
         try:
-            return datetime.fromtimestamp(float(value))
+            ts = float(value)
+            if ts > 1e11:  # assume milliseconds if very large
+                ts /= 1000.0
+            return datetime.fromtimestamp(ts)
         except Exception:
             return None
     if isinstance(value, str):
@@ -2560,12 +2563,15 @@ def get_order_book(client_id):
                 # Extract and format order time
                 order_time_raw = (
                     order.get("orderTimestamp")
+                    or order.get("order_timestamp")
                     or order.get("order_time")
                     or order.get("create_time")
+                    or order.get("createTime")
                     or order.get("orderDateTime")
                     or order.get("ExchConfrmtime")  # AliceBlue
                     or order.get("norentm")         # Finvasia
                     or order.get("exchtime")        # Finvasia
+                    or order.get("ft")              # Finvasia/AliceBlue
                     or ""
                 )
                 
