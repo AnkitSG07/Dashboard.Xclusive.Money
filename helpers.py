@@ -221,6 +221,33 @@ def extract_product_type(position: dict) -> str | None:
     return None
 
 
+def canonical_product_type(product: str | None) -> str | None:
+    """Return a normalized product string like ``MIS`` or ``CNC``."""
+    if not product:
+        return None
+    prod = str(product).strip().upper()
+    if prod in {"MIS", "INTRADAY", "INTRA", "I"}:
+        return "MIS"
+    if prod in {"CNC", "C"}:
+        return "CNC"
+    if prod in {"DELIVERY", "DELIVER"}:
+        return "DELIVERY"
+    if prod in {"NRML", "NORMAL", "MARGIN", "H"}:
+        return "NRML"
+    return prod
+
+
+def map_product_for_broker(product: str | None, broker: str) -> str | None:
+    """Return product string appropriate for the given broker."""
+    base = canonical_product_type(product)
+    if base is None:
+        return None
+    b = (broker or "").lower()
+    if b == "dhan" and base == "MIS":
+        return "INTRADAY"
+    return base
+
+
 def normalize_position(position: dict, broker: str) -> dict | None:
     """Return a standardized position dict for the front-end.
 
