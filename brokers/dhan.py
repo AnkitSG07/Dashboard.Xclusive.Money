@@ -220,25 +220,91 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "An unexpected error occurred while canceling order: {}".format(str(e))}
 
     def get_positions(self):
-        """
-        Fetch current positions.
-        """
+        """Fetch current positions and enrich them with LTP and P/L."""
         try:
             r = self._request(
                 "get",
-                "{}/positions".format(self.api_base),
+                f"{self.api_base}/positions",
                 headers=self.headers,
-                timeout=self.timeout, # Pass timeout
+                timeout=self.timeout,
             )
-            return {"status": "success", "data": r.json()}
+            data = r.json()
+            if isinstance(data, dict):
+                positions = (
+                    data.get("data")
+                    or data.get("positions")
+                    or data.get("net")
+                    or data.get("netPositions")
+                    or data.get("net_positions")
+                    or []
+                )
+            else:
+                positions = data or []
+
+            if not isinstance(positions, list):
+                positions = []
+
+            securities = {}
+            for p in positions:
+                seg = self._normalize_segment(p.get("exchangeSegment") or p.get("exchange"))
+                sid = p.get("securityId") or p.get("security_id")
+                if seg and sid:
+                    try:
+                        securities.setdefault(seg, []).append(int(sid))
+                    except Exception:
+                        pass
+
+            quotes = {}
+            if securities:
+                try:
+                    qr = self._request(
+                        "post",
+                        f"{self.api_base}/marketfeed/ltp",
+                        json=securities,
+                        headers=self.headers,
+                        timeout=self.timeout,
+                    )
+                    qdata = qr.json()
+                    if isinstance(qdata, dict):
+                        quotes = qdata.get("data", {})
+                except Exception:
+                    quotes = {}
+
+            for p in positions:
+                seg = self._normalize_segment(p.get("exchangeSegment") or p.get("exchange"))
+                sid = str(p.get("securityId") or p.get("security_id"))
+                quote = quotes.get(seg, {}).get(sid)
+                ltp = None
+                if isinstance(quote, dict):
+                    ltp = quote.get("last_price") or quote.get("ltp")
+                if ltp is None and p.get("lastTradedPrice") not in (None, ""):
+                    ltp = p.get("lastTradedPrice")
+                if ltp is not None:
+                    try:
+                        ltp_val = float(ltp)
+                        p["last_price"] = ltp_val
+                        p.setdefault("ltp", ltp_val)
+                        buy_qty = float(p.get("buyQty") or p.get("buyqty") or 0)
+                        sell_qty = float(p.get("sellQty") or p.get("sellqty") or 0)
+                        net_qty = float(p.get("netQty") or p.get("netqty") or (buy_qty - sell_qty))
+                        avg_buy = float(p.get("buyAvg") or p.get("buyavg") or 0)
+                        avg_sell = float(p.get("sellAvg") or p.get("sellavg") or 0)
+                        avg = avg_buy if net_qty > 0 else avg_sell
+                        pnl = round((ltp_val - avg) * net_qty, 2)
+                        p.setdefault("unrealizedProfit", pnl)
+                        p.setdefault("profitAndLoss", pnl)
+                    except Exception:
+                        pass
+
+            return {"status": "success", "data": positions}
         except requests.exceptions.Timeout:
             return {"status": "failure", "error": "Request to Dhan API timed out while fetching positions."}
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": "Failed to fetch positions from Dhan API: {}".format(str(e))}
+            return {"status": "failure", "error": f"Failed to fetch positions from Dhan API: {str(e)}"}
         except json.JSONDecodeError:
-            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
+            return {"status": "failure", "error": f"Invalid JSON response from Dhan API: {r.text}"}
         except Exception as e:
-            return {"status": "failure", "error": "An unexpected error occurred while fetching positions: {}".format(str(e))}
+            return {"status": "failure", "error": f"An unexpected error occurred while fetching positions: {str(e)}"}
 
     def get_holdings(self):
         """Fetch portfolio holdings and enrich with LTP and P/L."""
