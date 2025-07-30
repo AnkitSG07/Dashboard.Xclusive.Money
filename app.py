@@ -837,6 +837,27 @@ def get_account_by_client_id(client_id: str):
     return Account.query.filter_by(client_id=client_id, user_id=user.id).first()
 
 
+def orphan_children_without_master(user: User) -> None:
+    """Reset role for child accounts whose master no longer exists."""
+    if not user:
+        return
+    masters = {
+        acc.client_id
+        for acc in Account.query.filter_by(user_id=user.id, role="master").all()
+    }
+    children = Account.query.filter_by(user_id=user.id, role="child").all()
+    updated = False
+    for child in children:
+        if child.linked_master_id not in masters:
+            child.role = None
+            child.linked_master_id = None
+            child.copy_status = "Off"
+            child.multiplier = 1.0
+            child.last_copied_trade_id = None
+            updated = True
+    if updated:
+        db.session.commit()
+
 
 def _group_to_dict(g: Group) -> dict:
     return {
@@ -5424,6 +5445,9 @@ def get_accounts():
         user = current_user()  # Use current_user() helper
         if not user:
             return jsonify({"error": "User not found"}), 404
+
+        # Ensure any children whose master was deleted are marked unassigned
+        orphan_children_without_master(user)
             
         cache_only = request.args.get("cache_only") in ("1", "true", "True")
         
