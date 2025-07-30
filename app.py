@@ -60,6 +60,7 @@ from helpers import (
     order_mappings_for_user,
     active_children_for_master,
     extract_product_type,
+    map_product_for_broker,
     log_connection_error,
     clear_init_error_logs,
     clear_connection_error_logs,
@@ -1466,6 +1467,7 @@ def exit_all_positions_for_account(account):
         qty = abs(net_qty)
         broker_name = (account.broker or "").lower()
         product = extract_product_type(pos) or None
+        mapped_product = map_product_for_broker(product, broker_name)
 
         if broker_name == "dhan":
             order_params = {
@@ -1477,7 +1479,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product_type": product or "INTRADAY",
+                "product_type": mapped_product or "INTRADAY",
                 "price": 0,
             }
         elif broker_name == "aliceblue":
@@ -1488,7 +1490,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MKT",
-                "product": product or "MIS",
+                "product": mapped_product or "MIS",
                 "price": 0,
             }
         elif broker_name == "finvasia":
@@ -1498,7 +1500,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MKT",
-                "product": product or "MIS",
+                "product": mapped_product or "MIS",
                 "price": 0,
                 "token": pos.get("token", ""),
             }
@@ -1509,7 +1511,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product": product or "MIS",
+                "product": mapped_product or "MIS",
                 "price": 0,
             }
         else:
@@ -1519,7 +1521,7 @@ def exit_all_positions_for_account(account):
                 "transaction_type": direction,
                 "quantity": qty,
                 "order_type": "MARKET",
-                "product": product or "MIS",
+                "product": mapped_product or "MIS",
                 "price": 0,
             }
 
@@ -1987,6 +1989,8 @@ def poll_and_copy_trades():
                         if not symbol:
                             continue
 
+                        master_product = extract_product_type(order)
+
                         # Calculate quantity with multiplier
                         try:
                             multiplier = float(child.multiplier or 1)
@@ -2096,7 +2100,8 @@ def poll_and_copy_trades():
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": "MARKET",
-                                    "product_type": getattr(child_api, "INTRA", "INTRADAY"),
+                                    "product_type": map_product_for_broker(master_product, child_broker)
+                                    or getattr(child_api, "INTRA", "INTRADAY"),
                                     "price": price or 0,
                                 }
                             elif child_broker == "aliceblue":
@@ -2110,7 +2115,7 @@ def poll_and_copy_trades():
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": "MKT",
-                                    "product": "MIS",
+                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
                                     "price": price or 0
                                 }
                             elif child_broker == "finvasia":
@@ -2123,7 +2128,7 @@ def poll_and_copy_trades():
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": "MKT",
-                                    "product": "MIS",
+                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
                                     "price": price or 0,
                                     "token": token
                                 }
@@ -2134,7 +2139,7 @@ def poll_and_copy_trades():
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": "MARKET",
-                                    "product": "MIS",
+                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
                                     "price": price or 0
                                 }
 
