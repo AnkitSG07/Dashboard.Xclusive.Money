@@ -174,11 +174,13 @@ def clear_connection_error_logs(account: Account) -> None:
     try:
         pattern_plain = f'%"client_id": "{account.client_id}"%'
         pattern_escaped = f'%\\"client_id\\": \\"{account.client_id}\\"%'
+        client_match = db.func.json_extract(SystemLog.details, '$.client_id') == str(account.client_id)
         (
             SystemLog.query.filter(
                 cast(SystemLog.user_id, db.String) == str(account.user_id),
                 SystemLog.level == "ERROR",
                 db.or_(
+                    client_match,
                     cast(SystemLog.details, db.Text).ilike(pattern_plain),
                     cast(SystemLog.details, db.Text).ilike(pattern_escaped),
                 ),
