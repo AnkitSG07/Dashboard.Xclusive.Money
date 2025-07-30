@@ -762,7 +762,7 @@ window.pageScripts["copy-trading"] = function () {
                               ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this.checked)\"` }>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
-                        <div class="d-inline-flex align-items-center gap-2 me-3">
+                        <div class="multiplier-control me-3">
                           <input type="number" min="0.1" step="0.1"
                                  class="form-control form-control-sm"
                                  id="mult-${child.client_id}"
