@@ -2571,12 +2571,16 @@ def get_order_book(client_id):
                 
                 parsed_dt = parse_timestamp(order_time_raw)
                 if parsed_dt:
-                    order_time = parsed_dt.isoformat()
+                   order_time = parsed_dt.isoformat(timespec="seconds")
                 else:
                     try:
-                        order_time = datetime.fromisoformat(str(order_time_raw)).isoformat()
+                        order_time = datetime.fromisoformat(str(order_time_raw)).isoformat(timespec="seconds")
                     except Exception:
-                        order_time = str(order_time_raw).replace("T", " ").split(".")[0] if order_time_raw else "—"
+                        order_time = (
+                            str(order_time_raw).replace("T", " ").split(".")[0]
+                            if order_time_raw
+                            else None
+                        )
 
                 # Extract remarks
                 remarks = (
