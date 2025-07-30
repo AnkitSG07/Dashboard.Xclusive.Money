@@ -172,21 +172,13 @@ def clear_connection_error_logs(account: Account) -> None:
     """Remove previous connection/order error logs for an account."""
     logger = logging.getLogger(__name__)
     try:
-        logs = (
+        (
             SystemLog.query.filter(
                 cast(SystemLog.user_id, db.String) == str(account.user_id),
                 SystemLog.level == "ERROR",
-            ).all()
+                SystemLog.details["client_id"].astext == str(account.client_id),
+            ).delete(synchronize_session=False)
         )
-        for log in logs:
-            details = log.details
-            if isinstance(details, str):
-                try:
-                    details = json.loads(details)
-                except Exception:
-                    details = {}
-            if isinstance(details, dict) and str(details.get("client_id")) == account.client_id:
-                db.session.delete(log)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
