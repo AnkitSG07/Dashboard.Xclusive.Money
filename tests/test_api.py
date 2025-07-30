@@ -1968,7 +1968,6 @@ def test_strategy_subscription_and_clone(client):
     subs = resp.get_json()
     assert any(s["subscriber_id"] for s in subs)
 
-
 def test_webhook_token_generated_on_page_load(client):
     email = "tokgen@example.com"
     client.post("/signup", data={"email": email, "password": "x"})
@@ -1983,3 +1982,33 @@ def test_webhook_token_generated_on_page_load(client):
     with app.app_context():
         user = User.query.filter_by(email=email).first()
         assert user.webhook_token
+
+
+
+def test_orphaned_child_account_shown_as_unassigned(client):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        orphan = Account(
+            user_id=user.id,
+            role="child",
+            client_id="ORP",
+            linked_master_id="MISSING",
+            copy_status="On",
+        )
+        db.session.add(orphan)
+        db.session.commit()
+
+    resp = client.get("/api/accounts")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    orp = next(a for a in data["accounts"] if a["client_id"] == "ORP")
+    assert orp["role"] is None
+    with app.app_context():
+        acc = Account.query.filter_by(client_id="ORP").first()
+        assert acc.role is None
+        assert acc.linked_master_id is None
