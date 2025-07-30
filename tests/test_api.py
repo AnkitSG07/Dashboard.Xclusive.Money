@@ -2012,3 +2012,28 @@ def test_orphaned_child_account_shown_as_unassigned(client):
         acc = Account.query.filter_by(client_id="ORP").first()
         assert acc.role is None
         assert acc.linked_master_id is None
+
+def test_clear_connection_error_logs_handles_string_details(client):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    SystemLog = app_module.SystemLog
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(user_id=user.id, role="master", client_id="STR1")
+        db.session.add(acc)
+        db.session.commit()
+        log = SystemLog(
+            timestamp=datetime.utcnow(),
+            level="ERROR",
+            message="Failed",
+            user_id=str(user.id),
+            details=json.dumps({"client_id": "STR1"}),
+        )
+        db.session.add(log)
+        db.session.commit()
+        assert SystemLog.query.count() == 1
+        app_module.clear_connection_error_logs(acc)
+        assert SystemLog.query.count() == 0
