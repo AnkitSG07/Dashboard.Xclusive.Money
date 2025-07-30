@@ -625,7 +625,7 @@ def strategy_logs(strategy_id):
     return jsonify(logs)
 
 
-api_bp.route("/strategies/<int:strategy_id>/orders", methods=["GET"])
+@api_bp.route("/strategies/<int:strategy_id>/orders", methods=["GET"])
 @login_required_api
 def strategy_orders(strategy_id):
     """Return trade logs grouped by broker for a strategy."""
