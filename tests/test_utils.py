@@ -1,4 +1,11 @@
+import os
+import sys
 import datetime
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+os.environ.setdefault("SECRET_KEY", "test")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 from app import parse_timestamp
 
 
