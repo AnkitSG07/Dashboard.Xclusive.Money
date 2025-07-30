@@ -4820,7 +4820,39 @@ def delete_account():
     acc_db = Account.query.filter_by(user_id=db_user.id, client_id=client_id).first()
     if not acc_db:
         return jsonify({"error": "Account not found"}), 404
+        
     try:
+        # If deleting a master, orphan all linked children so they appear as unassigned
+        if acc_db.role == "master":
+            linked_children = Account.query.filter_by(
+                role="child",
+                linked_master_id=client_id,
+                user_id=db_user.id,
+            ).all()
+            for child in linked_children:
+                child.role = None
+                child.linked_master_id = None
+                child.copy_status = "Off"
+                child.multiplier = 1.0
+                child.last_copied_trade_id = None
+
+            # Mark any active order mappings for this master as removed
+            mappings = OrderMapping.query.filter_by(
+                master_client_id=client_id,
+                status="ACTIVE",
+            ).all()
+            for mapping in mappings:
+                mapping.status = "MASTER_REMOVED"
+
+        elif acc_db.role == "child":
+            # Remove references if deleting a child account
+            mappings = OrderMapping.query.filter_by(
+                child_client_id=client_id,
+                status="ACTIVE",
+            ).all()
+            for mapping in mappings:
+                mapping.status = "CHILD_REMOVED"
+
         db.session.delete(acc_db)
         db.session.commit()
     except Exception as e:
