@@ -192,23 +192,20 @@
     }
 
     @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
+        /* Updated: Use flex-nowrap to keep elements on one line, and adjust spacing. */
         .accordion-button .d-flex.w-100.pe-3 {
-            flex-wrap: wrap; /* Allow elements in accordion header to wrap */
-            justify-content: center;
-            text-align: center;
+            flex-wrap: nowrap; /* Prevent wrapping to keep controls on one line */
+            justify-content: flex-start; /* Align content to the start */
+            text-align: left;
+            overflow-x: auto; /* Add horizontal scroll if necessary */
         }
         .accordion-button .d-flex.w-100.pe-3 > * {
-            margin-bottom: .5rem;
-            width: 100%; /* Make each element take full width if wrapped */
-        }
-        .accordion-button .d-flex.w-100.pe-3 .ms-auto,
-        .accordion-button .d-flex.w-100.pe-3 .ms-2,
-        .accordion-button .d-flex.w-100.pe-3 .ms-3 {
-            margin-left: 0 !important;
-            margin-right: 0 !important;
+            flex-shrink: 0; /* Prevent elements from shrinking */
+            margin-bottom: 0;
         }
         .accordion-button .d-flex.w-100.pe-3 .ms-auto {
-            margin-top: .5rem;
+            margin-left: auto !important;
+            margin-right: 0 !important;
         }
 
         .accordion-button .d-none.d-md-inline-block {
@@ -216,9 +213,9 @@
             font-size: 0.85rem;
         }
 
+        /* Remove the width 100% rule for multiplier control on mobile */
         .accordion-button .multiplier-control {
-            width: 100%; /* Take full width on mobile */
-            justify-content: center;
+            width: auto;
         }
 
         .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
