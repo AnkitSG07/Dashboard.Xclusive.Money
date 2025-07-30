@@ -2741,8 +2741,17 @@ def zerodha_redirect_handler(client_id):
             # Save account data
             try:
                 save_account_to_user(cred.get("owner", username), account)
-                set_pending_zerodha(pending)
+
+                # Clear any previous connection error logs for this account
                 
+                user_obj = User.query.filter_by(email=cred.get("owner", username)).first()
+                if user_obj:
+                    acc_obj = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
+                    if acc_obj:
+                        clear_connection_error_logs(acc_obj)
+
+                set_pending_zerodha(pending)
+
                 logger.info(f"Successfully connected Zerodha account for {client_id}")
                 flash("Zerodha account connected successfully!", "success")
                 
