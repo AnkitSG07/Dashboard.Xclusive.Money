@@ -1500,7 +1500,7 @@ def test_webhook_accepts_ticker_field(client, monkeypatch):
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         user.webhook_token = "tok1a"
-       acc = Account(
+        acc = Account(
             user_id=user.id,
             broker="dhan",
             client_id="C1a",
