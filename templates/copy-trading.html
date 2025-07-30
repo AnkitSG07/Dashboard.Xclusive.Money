@@ -987,9 +987,16 @@ window.pageScripts["copy-trading"] = function () {
           positions.forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
-            const netQty = pos.netQty || pos.net_quantity || 0;
-            const type = netQty >= 0 ? "BUY" : "SELL";
-            const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
+          const netQty = pos.netQty || pos.net_quantity || 0;
+          let type = 'CLOSED';
+          if (netQty > 0) {
+            type = 'BUY';
+          } else if (netQty < 0) {
+            type = 'SELL';
+          }
+          const typeClass = type === 'BUY' ? 'bg-success'
+                             : type === 'SELL' ? 'bg-danger'
+                             : 'bg-secondary';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
@@ -1164,9 +1171,16 @@ window.pageScripts["copy-trading"] = function () {
           positions.forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
-            const netQty = pos.netQty || pos.net_quantity || 0;
-            const type = netQty >= 0 ? 'BUY' : 'SELL';
-            const typeClass = type === 'BUY' ? 'bg-success' : 'bg-danger';
+          const netQty = pos.netQty || pos.net_quantity || 0;
+          let type = 'CLOSED';
+          if (netQty > 0) {
+            type = 'BUY';
+          } else if (netQty < 0) {
+            type = 'SELL';
+          }
+          const typeClass = type === 'BUY' ? 'bg-success'
+                             : type === 'SELL' ? 'bg-danger'
+                             : 'bg-secondary';
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
