@@ -172,11 +172,16 @@ def clear_connection_error_logs(account: Account) -> None:
     """Remove previous connection/order error logs for an account."""
     logger = logging.getLogger(__name__)
     try:
+        pattern_plain = f'%"client_id": "{account.client_id}"%'
+        pattern_escaped = f'%\\"client_id\\": \\"{account.client_id}\\"%'
         (
             SystemLog.query.filter(
                 cast(SystemLog.user_id, db.String) == str(account.user_id),
                 SystemLog.level == "ERROR",
-                SystemLog.details["client_id"].astext == str(account.client_id),
+                db.or_(
+                    cast(SystemLog.details, db.Text).ilike(pattern_plain),
+                    cast(SystemLog.details, db.Text).ilike(pattern_escaped),
+                ),
             ).delete(synchronize_session=False)
         )
         db.session.commit()
