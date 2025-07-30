@@ -587,13 +587,20 @@ window.pageScripts["Add-Account"] = function() {
     
   // === Utility Functions ===
   function fetchJson(url, options = {}) {
-    return fetch(url, options).then(response => {
-      if (!response.ok) {
-        return response.json().then(errorData => {
-          throw new Error(errorData.error || 'An unknown error occurred.');
-        });
+    options.credentials = options.credentials || 'same-origin';
+    return fetch(url, options).then(async response => {
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = { error: text };
       }
-      return response.json();
+      if (!response.ok) {
+        const msg = data.error || data.message || response.statusText || 'An unknown error occurred.';
+        throw new Error(msg);
+      }
+      return data;
     });
   }
 
