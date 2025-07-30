@@ -189,6 +189,12 @@ class ZerodhaBroker(BrokerBase):
         self.ensure_token()
         try:
             orders = self.kite.orders()
+            # In some cases an expired session may return a profile dict
+            if isinstance(orders, dict) and "profile" in orders:
+                # Force token refresh and retry once
+                self.access_token = None
+                self.ensure_token()
+                orders = self.kite.orders()
             return {"status": "success", "data": orders}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": []}
