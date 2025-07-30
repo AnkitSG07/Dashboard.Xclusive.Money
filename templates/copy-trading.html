@@ -1001,10 +1001,10 @@ window.pageScripts["copy-trading"] = function () {
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
-                <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
+                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
               </div>
             `;
           });
@@ -1185,10 +1185,10 @@ window.pageScripts["copy-trading"] = function () {
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss || pos.pnl || '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
-                <small class="text-muted">Avg Buy Price: ${pos.buyAvg || pos.buy_avg_price || '-'} | Avg Sell Price: ${pos.sellAvg || pos.sell_avg_price || '-'} | LTP: ${pos.ltp || pos.last_price || '-'}</small>
+                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
               </div>
             `;
           });
