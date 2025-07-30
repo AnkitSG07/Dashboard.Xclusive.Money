@@ -159,11 +159,12 @@
 
     /* Multiplier input and button on the same line and responsive */
     .multiplier-control {
-        display: flex;
+        display: inline-flex; /* Prevent block-level expansion */
         align-items: center;
         gap: .5rem; /* Space between input and button */
         flex-wrap: nowrap; /* Keep them on one line */
         width: auto; /* Allow content to dictate width */
+        flex-shrink: 0; /* Avoid shrinking that can cause wrapping */
     }
 
     .multiplier-control .form-control {
