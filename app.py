@@ -2859,6 +2859,9 @@ def webhook(user_id):
             if not strategy:
                 logger.error("Webhook secret mismatch")
                 return jsonify({"error": "Invalid webhook secret"}), 403
+            if not strategy.is_active:
+                logger.error("Strategy inactive")
+                return jsonify({"error": "Strategy inactive"}), 403
         else:
             if (
                 Strategy.query.filter(
