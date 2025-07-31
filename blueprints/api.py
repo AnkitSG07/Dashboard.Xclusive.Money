@@ -632,13 +632,14 @@ def strategy_orders(strategy_id):
     user = current_user()
     strategy = Strategy.query.filter_by(id=strategy_id, user_id=user.id).first_or_404()
 
-    if not strategy.master_accounts:
-        return jsonify({})
-
-    try:
-        ids = [int(s) for s in str(strategy.master_accounts).split(",") if s.strip()]
-    except ValueError:
-        ids = []
+    ids = []
+    if strategy.master_accounts:
+        try:
+            ids = [int(s) for s in str(strategy.master_accounts).split(",") if s.strip()]
+        except ValueError:
+            ids = []
+    if not ids and strategy.account_id:
+        ids = [strategy.account_id]
     if not ids:
         return jsonify({})
 
