@@ -310,11 +310,52 @@ def ensure_trade_schema():
                 logger.debug(f'Column "{col_name}" already exists in "{table_name}".')
 
         logger.info(f"Schema check for {table_name} completed.")
+
+
+def ensure_account_schema():
+    """Ensure the account table has copy trading columns."""
+    logger.info("Ensuring account table schema is up-to-date...")
+    with app.app_context():
+        insp = inspect(db.engine)
+        table_name = 'account'
+
+        # 1. Create table if missing
+        if table_name not in insp.get_table_names():
+            try:
+                db.metadata.create_all(bind=db.engine, tables=[Account.__table__])
+                logger.info(f'Created {table_name} table as it was missing.')
+            except Exception as exc:
+                logger.error(f'Failed to create {table_name} table: {exc}')
+                return
+
+        # 2. Add missing columns
+        existing_columns = {col['name'] for col in insp.get_columns(table_name)}
+
+        columns_to_add = {
+            'copy_value_limit': 'FLOAT',
+            'copied_value': 'FLOAT DEFAULT 0'
+        }
+
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in existing_columns:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_def}'))
+                    logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(
+                        f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.'
+                    )
+            else:
+                logger.debug(f'Column "{col_name}" already exists in "{table_name}" table.')
+
+        logger.info(f"Schema check for {table_name} completed.")
         
 # The original duplicate function has been removed.
 # This ensures that schema checks are done consistently.
 ensure_system_log_schema()
 ensure_trade_schema()
+ensure_account_schema()
 
 def ensure_setting_schema():
     """Ensure the setting table exists and has a TEXT value column."""
