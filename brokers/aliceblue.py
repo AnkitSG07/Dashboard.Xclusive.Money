@@ -27,7 +27,10 @@ class AliceBlueBroker(BrokerBase):
         url = self.BASE_URL + "customer/getAPIEncpkey"
         payload = {"userId": self.client_id}
         headers = {'Content-Type': 'application/json'}
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+        try:
+            resp = self._request("POST", url, headers=headers, data=json.dumps(payload))
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"AliceBlue getAPIEncpkey connection error: {e}")
         try:
             data = resp.json()
         except Exception:
@@ -64,7 +67,10 @@ class AliceBlueBroker(BrokerBase):
 
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getUserSID"
         headers = {"Content-Type": "application/json"}
-        resp = requests.post(url, headers=headers, data=json.dumps(payload))
+        try:
+            resp = self._request("POST", url, headers=headers, data=json.dumps(payload))
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"AliceBlue getUserSID connection error: {e}")
         logger.debug("getUserSID raw response: %s", resp.text)
 
         # Step 3: Get Session ID
@@ -74,7 +80,10 @@ class AliceBlueBroker(BrokerBase):
             "userData": user_data
         }
         headers = {'Content-Type': 'application/json'}
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+        try:
+            resp = self._request("POST", url, headers=headers, data=json.dumps(payload))
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"AliceBlue getUserSID connection error: {e}")
         try:
             data = resp.json()
         except Exception:
@@ -157,7 +166,7 @@ class AliceBlueBroker(BrokerBase):
             'Content-Type': 'application/json'
         }
         try:
-            r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+            r = self._request("POST", url, headers=headers, data=json.dumps(payload))
             try:
                 resp = r.json()
             except Exception:
@@ -182,9 +191,11 @@ class AliceBlueBroker(BrokerBase):
     def get_order_list(self):
         self.ensure_session()
         url = self.BASE_URL + "placeOrder/fetchOrderBook"
-        r = requests.get(url, headers=self.headers, timeout=10)
         try:
+            r = self._request("GET", url, headers=self.headers)
             resp = r.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": str(e)}
         except Exception:
             return {"status": "failure", "error": r.text}
         if isinstance(resp, list):
@@ -208,9 +219,11 @@ class AliceBlueBroker(BrokerBase):
         """Fetch the trade book which includes filled quantity information."""
         self.ensure_session()
         url = self.BASE_URL + "placeOrder/fetchTradeBook"
-        r = requests.get(url, headers=self.headers, timeout=10)
         try:
+            r = self._request("GET", url, headers=self.headers)
             resp = r.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": str(e)}
         except Exception:
             return {"status": "failure", "error": r.text}
         if isinstance(resp, list):
@@ -235,7 +248,10 @@ class AliceBlueBroker(BrokerBase):
         payload = {"NOrdNo": order_id}
         r = requests.post(url, json=payload, headers=self.headers, timeout=10)
         try:
+            r = self._request("POST", url, json=payload, headers=self.headers)
             resp = r.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": str(e)}
         except Exception:
             return {"status": "failure", "error": r.text}
         if resp.get("stat") == "Ok":
@@ -256,11 +272,11 @@ class AliceBlueBroker(BrokerBase):
         self.ensure_session()
         url = self.BASE_URL + "positionAndHoldings/positionBook"
         payload = {"ret": retention}
-        r = requests.post(
-            url, headers=self.headers, json=payload, timeout=10
-        )
         try:
+            r = self._request("POST", url, headers=self.headers, json=payload)
             resp = r.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": str(e)}
         except Exception:
             return {"status": "failure", "error": r.text}
         if isinstance(resp, list):
@@ -287,9 +303,11 @@ class AliceBlueBroker(BrokerBase):
         """Fetch account holdings."""
         self.ensure_session()
         url = self.BASE_URL + "positionAndHoldings/holdings"
-        r = requests.get(url, headers=self.headers, timeout=10)
         try:
+            r = self._request("GET", url, headers=self.headers)
             resp = r.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "failure", "error": str(e)}
         except Exception:
             return {"status": "failure", "error": r.text}
         if isinstance(resp, list):
@@ -359,10 +377,11 @@ class AliceBlueBroker(BrokerBase):
             return None
     
         try:
-            # This block was incorrectly indented
-            r = requests.get(url, headers=self.headers, timeout=10)
+            r = self._request("GET", url, headers=self.headers)
             data = r.json()
             return _find_balance(data)
+        except requests.exceptions.RequestException:
+            return None
         except Exception:
             return None
 
@@ -372,7 +391,7 @@ class AliceBlueBroker(BrokerBase):
             url = self.BASE_URL + "customer/accountDetails"
             # According to Alice Blue docs, GET is supported, but POST is safer if you ever add a body.
             # We'll use GET since the docs specify it and it works for most users.
-            r = requests.get(url, headers=self.headers, timeout=10)
+            r = self._request("GET", url, headers=self.headers)
             content_type = r.headers.get("Content-Type", "").lower()
             data = None
             if "json" in content_type:
@@ -403,6 +422,9 @@ class AliceBlueBroker(BrokerBase):
             )
             return False
 
+        except requests.exceptions.RequestException as e:
+            self._last_auth_error = str(e)
+            return False
         except Exception as e:
             self._last_auth_error = str(e)
             return False
