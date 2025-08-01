@@ -579,6 +579,14 @@ window.pageScripts["copy-trading"] = function () {
               ${masters.map(m => `<option value="${m.client_id || ''}">${m.username || m.client_id || 'N/A'}</option>`).join("")}
             </select>
           </div>
+          <div class="mb-3">
+            <label class="form-label">Multiplier</label>
+            <input type="number" class="form-control" id="newChildMultiplier" value="1" min="0.1" step="0.1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Value Limit (₹)</label>
+            <input type="number" class="form-control" id="newChildValueLimit" placeholder="Leave blank for no limit" min="1" step="0.01">
+          </div>
         `;
         // Use Bootstrap modal directly instead of manually creating divs
         const modalElement = document.getElementById('manualSetChildModal') || (() => {
@@ -612,10 +620,13 @@ window.pageScripts["copy-trading"] = function () {
   
         document.getElementById("confirmSetAsChildBtn").onclick = function() {
           const linked_master_id = document.getElementById("setChildMasterSelect").value;
+          const multiplier = parseFloat(document.getElementById("newChildMultiplier").value || "1")
+          const value_limit_raw = document.getElementById("newChildValueLimit").value
+          const value_limit = value_limit_raw ? parseFloat(value_limit_raw) : null
           fetch("/api/set-child", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ client_id: clientId, linked_master_id })
+            body: JSON.stringify({ client_id: clientId, linked_master_id, multiplier, value_limit })
           })
           .then(res => res.json())
           .then(data => {
@@ -766,6 +777,7 @@ window.pageScripts["copy-trading"] = function () {
               const linkedMasterId = master.client_id || "-";
               const linkedMasterUsername = master.username || "-";
               const childMultiplier = child.multiplier || 1;
+              const valueLimit = child.copy_value_limit;
 
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
@@ -792,6 +804,7 @@ window.pageScripts["copy-trading"] = function () {
                             <i class="bi bi-info-circle"></i>
                           </span>
                         </div>
+                        ${child.copy_value_limit ? `<span class="badge bg-secondary me-3">Limit ₹${child.copy_value_limit}</span>` : ''}
                       </div>
                     </button>
                   </h2>
@@ -917,6 +930,7 @@ window.pageScripts["copy-trading"] = function () {
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
                 <span class="me-3 mt-2 mt-md-0">Mult: ${childMultiplier}</span>
+                ${valueLimit ? `<span class="me-3 mt-2 mt-md-0">Value Limit: ₹${valueLimit}</span>` : ''}
                 <button class="btn btn-sm btn-danger mt-2 mt-md-0" onclick="window.removeChild('${childClientId}')">Remove</button>
               </div>
           `}).join('');
