@@ -580,16 +580,22 @@ window.pageScripts["copy-trading"] = function () {
             </select>
           </div>
           <div class="mb-3">
-            <div class="form-check">
+            <div class="form-check d-flex align-items-center gap-1">
               <input class="form-check-input" type="radio" name="copyOption" id="copyOptMultiplier" value="multiplier" checked>
               <label class="form-check-label" for="copyOptMultiplier">Multiplier</label>
+              <span data-bs-toggle="tooltip" title="Child order quantity = Master order quantity × Multiplier.">
+                <i class="bi bi-info-circle"></i>
+              </span>
             </div>
             <div id="multiplierContainer" class="mt-2">
               <input type="number" class="form-control" id="newChildMultiplier" value="1" min="0.1" step="0.1">
             </div>
-            <div class="form-check mt-3">
+            <div class="form-check mt-3 d-flex align-items-center gap-1">
               <input class="form-check-input" type="radio" name="copyOption" id="copyOptValue" value="value">
               <label class="form-check-label" for="copyOptValue">Value Limit (₹)</label>
+              <span data-bs-toggle="tooltip" title="Copies orders until the total value reaches this limit, ignoring the multiplier.">
+                <i class="bi bi-info-circle"></i>
+              </span>
             </div>
             <div id="valueContainer" class="mt-2" style="display:none;">
               <input type="number" class="form-control" id="newChildValueLimit" placeholder="Amount in rupees" min="1" step="0.01">
@@ -623,6 +629,8 @@ window.pageScripts["copy-trading"] = function () {
         })();
 
         modalElement.querySelector('.modal-body').innerHTML = selectHtml;
+        const tooltipList = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipList.forEach(el => new bootstrap.Tooltip(el));
         const optMultiplier = modalElement.querySelector('#copyOptMultiplier');
         const optValue = modalElement.querySelector('#copyOptValue');
         const multiplierContainer = modalElement.querySelector('#multiplierContainer');
