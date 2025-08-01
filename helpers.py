@@ -220,6 +220,24 @@ def extract_product_type(position: dict) -> str | None:
     return None
 
 
+def extract_order_type(order: dict) -> str | None:
+    """Attempt to extract an order type from a raw order dict."""
+    lower = {k.lower(): v for k, v in order.items()}
+    for key in (
+        "order_type",
+        "ordertype",
+        "type",
+        "pricetype",
+        "order_type_desc",
+        "order_type_str",
+    ):
+        if key in lower and lower[key] is not None:
+            otype = str(lower[key]).strip()
+            if otype:
+                return otype.upper()
+    return None
+
+
 def canonical_product_type(product: str | None) -> str | None:
     """Return a normalized product string like ``MIS`` or ``CNC``."""
     if not product:
@@ -227,7 +245,7 @@ def canonical_product_type(product: str | None) -> str | None:
     prod = str(product).strip().upper()
     if prod in {"MIS", "INTRADAY", "INTRA", "I"}:
         return "MIS"
-    if prod in {"CNC", "C"}:
+    if prod in {"CNC", "C", "LONG TERM", "LONGTERM", "LT"}:
         return "CNC"
     if prod in {"DELIVERY", "DELIVER"}:
         return "DELIVERY"
