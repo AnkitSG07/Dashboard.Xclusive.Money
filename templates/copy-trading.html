@@ -950,6 +950,7 @@ window.pageScripts["copy-trading"] = function () {
               const childClientId = child.client_id || 'N/A';
               const childUsername = child.username || "-";
               const childMultiplier = child.multiplier || 1;
+              const valueLimit = child.copy_value_limit;
 
               return `
               <div class="list-group-item list-group-item-action py-3 d-flex align-items-center flex-wrap">
