@@ -60,6 +60,7 @@ from helpers import (
     order_mappings_for_user,
     active_children_for_master,
     extract_product_type,
+    extract_order_type,
     map_product_for_broker,
     log_connection_error,
     clear_init_error_logs,
@@ -2080,6 +2081,7 @@ def poll_and_copy_trades():
                             continue
 
                         master_product = extract_product_type(order)
+                        master_order_type = extract_order_type(order) or "MARKET"
 
                         # Determine quantity based on value limit or multiplier
                         try:
@@ -2115,6 +2117,8 @@ def poll_and_copy_trades():
                             child_broker = (child.broker or "Unknown").lower()
                             child_credentials = child.credentials or {}
                             ChildBrokerClass = get_broker_class(child_broker)
+                            child_product = map_product_for_broker(master_product, child_broker)
+                            child_order_type = map_order_type(master_order_type, child_broker)    
                             
                             if child_broker == "aliceblue":
                                 api_key = child_credentials.get("api_key")
@@ -2208,9 +2212,8 @@ def poll_and_copy_trades():
                                     ),
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
-                                    "order_type": "MARKET",
-                                    "product_type": map_product_for_broker(master_product, child_broker)
-                                    or getattr(child_api, "INTRA", "INTRADAY"),
+                                    "order_type": child_order_type,
+                                    "product_type": child_product or getattr(child_api, "INTRA", "INTRADAY"),
                                     "price": price or 0,
                                 }
                             elif child_broker == "aliceblue":
@@ -2223,8 +2226,8 @@ def poll_and_copy_trades():
                                     "exchange": "NSE",
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
-                                    "order_type": "MKT",
-                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
+                                    "order_type": child_order_type,
+                                    "product": child_product or "MIS",
                                     "price": price or 0
                                 }
                             elif child_broker == "finvasia":
@@ -2236,8 +2239,8 @@ def poll_and_copy_trades():
                                     "exchange": mapping_child.get("exchange", "NSE"),
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
-                                    "order_type": "MKT",
-                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
+                                    "order_type": child_order_type,
+                                    "product": child_product or "MIS",
                                     "price": price or 0,
                                     "token": token
                                 }
@@ -2247,8 +2250,8 @@ def poll_and_copy_trades():
                                     "exchange": "NSE",
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
-                                    "order_type": "MARKET",
-                                    "product": map_product_for_broker(master_product, child_broker) or "MIS",
+                                    "order_type": child_order_type,
+                                    "product": child_product or "MIS",
                                     "price": price or 0
                                 }
 
