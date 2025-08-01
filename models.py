@@ -61,6 +61,8 @@ class Account(db.Model):
     linked_master_id = db.Column(db.String(50), index=True)
     copy_status = db.Column(db.String(10), default="Off", index=True)
     multiplier = db.Column(db.Float, default=1.0)
+    copy_value_limit = db.Column(db.Float)
+    copied_value = db.Column(db.Float, default=0.0)
     credentials = db.Column(db.JSON)
     last_copied_trade_id = db.Column(db.String(50))
     
