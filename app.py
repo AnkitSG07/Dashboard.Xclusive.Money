@@ -790,6 +790,8 @@ def _account_to_dict(acc: Account) -> dict:
         "linked_master_id": acc.linked_master_id,
         "copy_status": acc.copy_status,
         "multiplier": acc.multiplier,
+        "copy_value_limit": acc.copy_value_limit,
+        "copied_value": acc.copied_value,
         "credentials": acc.credentials,
         "last_copied_trade_id": acc.last_copied_trade_id,
         "auto_login": acc.auto_login,
@@ -853,6 +855,8 @@ def orphan_children_without_master(user: User) -> None:
             child.linked_master_id = None
             child.copy_status = "Off"
             child.multiplier = 1.0
+            child.copy_value_limit = None
+            child.copied_value = 0.0
             child.last_copied_trade_id = None
             updated = True
     if updated:
@@ -1169,6 +1173,8 @@ def save_account_to_user(owner: str, account: dict):
         acc.linked_master_id = account.get("linked_master_id", acc.linked_master_id)
         acc.copy_status = account.get("copy_status", acc.copy_status)
         acc.multiplier = account.get("multiplier", acc.multiplier)
+        acc.copy_value_limit = account.get("copy_value_limit", acc.copy_value_limit)
+        acc.copied_value = account.get("copied_value", acc.copied_value)
         acc.credentials = account.get("credentials", acc.credentials)
         acc.last_copied_trade_id = account.get("last_copied_trade_id", acc.last_copied_trade_id)
         if account.get("auto_login") is not None:
@@ -1193,6 +1199,8 @@ def save_account_to_user(owner: str, account: dict):
             linked_master_id=account.get("linked_master_id"),
             copy_status=account.get("copy_status", "Off"),
             multiplier=account.get("multiplier", 1.0),
+            copy_value_limit=account.get("copy_value_limit"),
+            copied_value=account.get("copied_value", 0.0),
             credentials=account.get("credentials"),
             last_copied_trade_id=account.get("last_copied_trade_id"),
             auto_login=account.get("auto_login", True),
@@ -2015,12 +2023,31 @@ def poll_and_copy_trades():
 
                         master_product = extract_product_type(order)
 
-                        # Calculate quantity with multiplier
+                        # Determine quantity based on value limit or multiplier
                         try:
-                            multiplier = float(child.multiplier or 1)
-                            if multiplier <= 0:
-                                continue
-                            copied_qty = max(1, int(float(filled_qty) * multiplier))
+                            value_limit = child.copy_value_limit
+                            copied_total = float(child.copied_value or 0)
+                            if value_limit is not None:
+                                remaining = float(value_limit) - copied_total
+                                if remaining < price:
+                                    child.copy_status = "Off"
+                                    db.session.commit()
+                                    logger.info(
+                                        f"[{master_id}->{child_id}] Value limit reached")
+                                    break
+                                qty_limit = int(remaining // price)
+                                if qty_limit <= 0:
+                                    child.copy_status = "Off"
+                                    db.session.commit()
+                                    logger.info(
+                                        f"[{master_id}->{child_id}] Value limit reached")
+                                    break
+                                copied_qty = min(int(filled_qty), qty_limit)
+                            else:
+                                multiplier = float(child.multiplier or 1)
+                                if multiplier <= 0:
+                                    continue
+                                copied_qty = max(1, int(float(filled_qty) * multiplier))
                         except Exception as e:
                             logger.debug(f"Failed to calculate quantity: {e}")
                             continue
@@ -2258,6 +2285,13 @@ def poll_and_copy_trades():
                                         broker=child_broker,
                                         client_id=child_id,
                                     )
+                                    if child.copy_value_limit is not None:
+                                        try:
+                                            child.copied_value = float(child.copied_value or 0) + (copied_qty * price)
+                                            if child.copied_value >= child.copy_value_limit:
+                                                child.copy_status = 'Off'
+                                        except Exception:
+                                            pass
                             else:
                                 logger.warning(f"Unexpected response format for child {child_id}: {type(response)}")
                                 continue
@@ -4295,6 +4329,8 @@ def remove_child():
         child_account.linked_master_id = None
         child_account.copy_status = "Off"
         child_account.multiplier = 1.0
+        child_account.copy_value_limit = None
+        child_account.copied_value = 0.0
         child_account.last_copied_trade_id = None
 
         current_time_iso = datetime.utcnow().isoformat()
@@ -4470,6 +4506,8 @@ def remove_master():
                 child.linked_master_id = None  # Remove master link
                 child.copy_status = "Off"  # Stop copying
                 child.multiplier = 1.0  # Reset multiplier
+                child.copy_value_limit = None
+                child.copied_value = 0.0
                 child.last_copied_trade_id = None  # Clear marker
 
                 children_processed.append({
@@ -5362,6 +5400,8 @@ def add_account():
             linked_master_id=None,
             multiplier=1.0,
             copy_status='Off',
+            copy_value_limit=None,
+            copied_value=0.0,
             device_number=credentials.get('device_number') if broker == 'aliceblue' else None
         )
 
@@ -5848,6 +5888,8 @@ def set_child():
     try:
         client_id = request.json.get('client_id')
         linked_master_id = request.json.get('linked_master_id')
+        value_limit = request.json.get('value_limit')
+        multiplier = request.json.get('multiplier', 1.0)
         
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
@@ -5868,7 +5910,15 @@ def set_child():
         account.role = "child"
         account.linked_master_id = linked_master_id
         account.copy_status = "Off"
-        account.multiplier = 1.0
+        try:
+            account.multiplier = float(multiplier)
+        except (TypeError, ValueError):
+            account.multiplier = 1.0
+        try:
+            account.copy_value_limit = float(value_limit) if value_limit is not None else None
+        except (TypeError, ValueError):
+            account.copy_value_limit = None
+        account.copied_value = 0.0
         try:
             db.session.commit()
         except Exception as e:
