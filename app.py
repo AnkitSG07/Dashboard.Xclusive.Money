@@ -631,9 +631,26 @@ def map_order_type(order_type: str, broker: str) -> str:
         return "MKT"
     return str(order_type)
 
-def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str, qty: int, order_type: str, api) -> dict:
+def map_product_type(product_type: str | None, broker: str) -> str:
+    """Normalize product type from payload to broker-specific value."""
+    broker = broker.lower() if broker else ""
+    pt = str(product_type or "").strip().lower()
+    if pt in ("cnc", "long term", "longterm", "delivery"):
+        base = "CNC"
+    elif pt in ("mis", "intraday"):
+        base = "MIS"
+    else:
+        base = None
+    if base is None:
+        return "INTRADAY" if broker in ("dhan", "fyers") else "MIS"
+    if base == "MIS":
+        return "INTRADAY" if broker in ("dhan", "fyers") else "MIS"
+    return "CNC"
+
+def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str, qty: int, order_type: str, api, product_type: str | None = None) -> dict:
     """Return broker specific order parameters."""
     order_type_mapped = map_order_type(order_type, broker_name)
+    product_type_mapped = map_product_type(product_type, broker_name)
     if broker_name == "dhan":
         security_id = mapping.get("security_id")
         if not security_id:
@@ -645,7 +662,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": api.BUY if action.upper() == "BUY" else api.SELL,
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product_type": api.INTRA,
+            "product_type": product_type_mapped,
             "price": 0,
         }
     elif broker_name == "zerodha":
@@ -656,7 +673,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": action.upper(),
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product": "MIS",
+            "product_type": product_type_mapped,
             "price": None,
         }
     elif broker_name == "fyers":
@@ -668,7 +685,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": action.upper(),
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product": "INTRADAY",
+            "product_type": product_type_mapped,
             "price": None,
         }
     elif broker_name == "aliceblue":
@@ -684,7 +701,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": action.upper(),
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product": "MIS",
+            "product_type": product_type_mapped,
             "price": 0,
         }
     elif broker_name == "finvasia":
@@ -696,7 +713,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": action.upper(),
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product": "MIS",
+            "product_type": product_type_mapped,
             "price": 0,
         }
     else:
@@ -708,11 +725,11 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
             "transaction_type": action.upper(),
             "quantity": int(qty),
             "order_type": order_type_mapped,
-            "product": "MIS",
+            "product_type": product_type_mapped,
             "price": None,
         }
 
-def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quantity: int):
+def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quantity: int, product_type: str | None = None):
     """Execute orders for all approved subscriptions of a strategy."""
     results = []
     subs = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).all()
@@ -740,7 +757,7 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
             api = broker_api(acc_dict)
             mapping = get_symbol_for_broker(symbol, broker_name)
             qty_use = sub.fixed_qty if sub.qty_mode == "fixed" and sub.fixed_qty else quantity
-            order_params = build_order_params(broker_name, mapping, symbol, action, qty_use, sub.order_type or "MARKET", api)
+            order_params = build_order_params(broker_name, mapping, symbol, action, qty_use, sub.order_type or "MARKET", api, product_type)
         except Exception as e:
             results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
             continue
@@ -2990,6 +3007,12 @@ def webhook(user_id):
         except (TypeError, ValueError):
             quantity = None
 
+        product_type = (
+            data.get("productType")
+            or data.get("product_type")
+            or data.get("product")
+        )
+
         if not symbols or action is None or quantity is None:
             logger.error(f"Missing required fields: {data}")
             return jsonify({
@@ -3041,7 +3064,7 @@ def webhook(user_id):
                 return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to initialize broker"}
             try:
                 mapping = get_symbol_for_broker(symbol, broker_name)
-                order_params = build_order_params(broker_name, mapping, symbol, action, int(quantity), "MARKET", broker_api_instance)
+                order_params = build_order_params(broker_name, mapping, symbol, action, int(quantity), "MARKET", broker_api_instance, product_type)
             except Exception as e:
                 logger.error(f"Error building order parameters: {str(e)}")
                 return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to build order parameters"}
@@ -3120,7 +3143,7 @@ def webhook(user_id):
         all_results = []
         for sym in symbols:
             if sub_count:
-                all_results.extend(execute_for_subscriptions(strategy, sym, action, int(quantity)))
+                all_results.extend(execute_for_subscriptions(strategy, sym, action, int(quantity), product_type))
                 continue
             results = [process_account(acc, sym) for acc in accounts]
             all_results.extend(results)
