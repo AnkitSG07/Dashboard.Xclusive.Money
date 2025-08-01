@@ -1715,6 +1715,90 @@ def test_webhook_tradingview_payload(client, monkeypatch):
     )
     assert resp.status_code == 200
 
+
+@pytest.mark.parametrize(
+    "payload_pt,expected",
+    [
+        ("cnc", "CNC"),
+        ("mis", "INTRADAY"),
+    ],
+)
+def test_webhook_product_type_mapping(client, monkeypatch, payload_pt, expected):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    token = f"tok{payload_pt}"
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = token
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id=f"C{payload_pt}",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name=f"S{payload_pt}",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="secret",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+
+    captured = {}
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, *a, **k):
+            captured.update(k)
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    payload = {
+        "strategyName": "new",
+        "exchange": "NSE",
+        "transactionType": "le",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": payload_pt,
+        "masterAccounts": ["36"],
+        "orderQty": 5,
+        "tradingSymbols": ["IDEA"],
+    }
+    resp = client.post(
+        f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
+    )
+    assert resp.status_code == 200
+    assert captured.get("product_type") == expected
+
 def test_webhook_requires_active_strategy(client, monkeypatch):
     login(client)
     app = app_module.app
