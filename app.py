@@ -5889,7 +5889,7 @@ def set_child():
         client_id = request.json.get('client_id')
         linked_master_id = request.json.get('linked_master_id')
         value_limit = request.json.get('value_limit')
-        multiplier = request.json.get('multiplier', 1.0)
+        multiplier = request.json.get('multiplier')
         
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
@@ -5910,14 +5910,21 @@ def set_child():
         account.role = "child"
         account.linked_master_id = linked_master_id
         account.copy_status = "Off"
-        try:
-            account.multiplier = float(multiplier)
-        except (TypeError, ValueError):
+        # Value limit takes priority over multiplier. If a value limit is
+        # provided we store it and reset the multiplier to 1.0 so it is
+        # effectively ignored during copying.
+        if value_limit is not None:
+            try:
+                account.copy_value_limit = float(value_limit)
+            except (TypeError, ValueError):
+                account.copy_value_limit = None
             account.multiplier = 1.0
-        try:
-            account.copy_value_limit = float(value_limit) if value_limit is not None else None
-        except (TypeError, ValueError):
+        else:
             account.copy_value_limit = None
+            try:
+                account.multiplier = float(multiplier or 1.0)
+            except (TypeError, ValueError):
+                account.multiplier = 1.0
         account.copied_value = 0.0
         try:
             db.session.commit()
@@ -5996,10 +6003,18 @@ def start_copy():
             return jsonify({"error": "Master account not accessible"}), 403
 
         # ✅ STEP 6: Update child account configuration
+        previous_status = child_account.copy_status
         child_account.role = "child"
         child_account.linked_master_id = master_id
         child_account.copy_status = "On"
-        
+
+        # Reset copied value when copying is re-enabled
+        if previous_status != "On":
+            child_account.copied_value = 0.0
+            logger.debug(
+                f"Reset copied value for {client_id} as copying was re-enabled"
+            )
+
         logger.info(f"Setting up child {client_id} to copy from master {master_id}")
 
         # ✅ STEP 7: Get latest order ID from master to set initial marker
