@@ -1020,7 +1020,7 @@ window.pageScripts["copy-trading"] = function () {
                   <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
                 </div>
-                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
+                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
                 <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
               </div>
             `;
@@ -1204,7 +1204,7 @@ window.pageScripts["copy-trading"] = function () {
                   <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
                 </div>
-                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Avg Price: ${order.avg_price || '-'}</p>
+                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
                 <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
               </div>
             `;
