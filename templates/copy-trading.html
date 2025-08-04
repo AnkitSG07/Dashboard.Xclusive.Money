@@ -431,7 +431,7 @@ window.pageScripts["copy-trading"] = function () {
     if (broker === 'dhan') {
       const showErr = normalized.some(e => e.includes('short margin') || e.includes('market closed'));
       if (!showErr) {
-        return '<span class="badge bg-success">Connected</span>';
+        return '<span class="badge bg-success">LIVE</span>';
       }
     }
     if (broker === 'zerodha') {
@@ -441,7 +441,7 @@ window.pageScripts["copy-trading"] = function () {
         e.includes('profile')
       );
       if (ignoreErr) {
-        return '<span class="badge bg-success">Connected</span>';
+        return '<span class="badge bg-success">LIVE</span>';
       }
     }
     
@@ -451,15 +451,15 @@ window.pageScripts["copy-trading"] = function () {
       return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${sanitized}"></i>`;
     }
 
-    if (st && st !== 'connected') {
+    if (st && st !== 'LIVE') {
       if (broker === 'dhan') {
-        return '<span class="badge bg-success">Connected</span>';
+        return '<span class="badge bg-success">LIVE</span>';
       }
       if (st === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
       return `<span class="badge bg-warning text-dark">${status}</span>`;
     }
 
-    return '<span class="badge bg-success">Connected</span>';
+    return '<span class="badge bg-success">LIVE</span>';
   }
 
   function childHasError(acc) {
@@ -486,7 +486,7 @@ window.pageScripts["copy-trading"] = function () {
     
     if (errList.length > 0) return true;
     if (st === 'failed') return true;
-    if (st && st !== 'connected' && st !== 'pending') return true;
+    if (st && st !== 'LIVE' && st !== 'pending') return true;
     return false;
   }
 
