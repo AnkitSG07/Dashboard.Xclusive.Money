@@ -77,24 +77,14 @@
                             <div class="col-md-6">
                                 <label for="transaction-type" class="form-label">Type of Transaction <span class="text-danger">*</span></label>
                                 <select class="form-select" id="transaction-type" name="transactionType">
-                                    <option value="le">le - Long Entry</option>
-                                    <option value="lx">lx - Long Exit</option>
-                                    <option value="se">se - Short Entry</option>
-                                    <option value="sx">sx - Short Exit</option>
-                                    <option value="lxse">lxse - Long Exit &amp; Short Entry</option>
-                                    <option value="sxle">sxle - Short Exit &amp; Long Entry</option>
                                     <option value="BUY">BUY</option>
-                                    <option value="SELL">SELL</option>    
+                                    <option value="SELL">SELL</option>
                                 </select>
-                                <div class="form-text">le=Long Entry, lx=Long Exit, se=Short Entry, sx=Short Exit, BUY/SELL also supported</div>
-                            </div>
                             <div class="col-md-6">
                                 <label for="order-type" class="form-label">Order Type <span class="text-danger">*</span></label>
                                 <select class="form-select" id="order-type" name="orderType">
                                     <option value="limit">limit</option>
                                     <option value="market">market</option>
-                                    <option value="sll">sll</option>
-                                    <option value="slm">slm</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -107,13 +97,10 @@
                             <div class="col-md-6">
                                 <label for="product-type" class="form-label">Type of Product <span class="text-danger">*</span></label>
                                 <select class="form-select" id="product-type" name="productType">
-                                    <option value="bo">bo</option>
-                                    <option value="cnc">cnc</option>
-                                    <option value="co">co</option>
                                     <option value="intraday">intraday</option>
-                                    <option value="margin">margin</option>
+                                    <option value="cnc">cnc</option>
                                 </select>
-                                <div class="form-text">intraday/CNC etc depend on broker's terminology.</div>
+                                <div class="form-text">intraday/MIS are equivalent, as are CNC/longterm.</div>
                             </div>
                             <div class="col-md-6">
                                 <label for="order-qty" class="form-label">Order Quantity</label>
