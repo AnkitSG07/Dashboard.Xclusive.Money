@@ -1646,6 +1646,87 @@ def test_webhook_accepts_ticker_field(client, monkeypatch):
     assert resp.status_code == 200
 
 
+def test_webhook_handles_both_exchange_and_transaction(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "tokboth"
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CB",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            id=42,
+            user_id=user.id,
+            name="strat",
+            webhook_secret="secboth",
+            is_active=True,
+            asset_class="Stocks",
+            style="Systematic",
+        )
+        db.session.add(strategy)
+        db.session.commit()
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRADAY = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"})
+
+    def dummy_build_order_params(broker_name, mapping, symbol, action, qty, order_type, api, product_type):
+        return {
+            "tradingsymbol": symbol,
+            "exchange": symbol.split(":")[0],
+            "transaction_type": action.upper(),
+            "quantity": int(qty),
+            "order_type": order_type,
+            "product_type": product_type,
+            "price": 0,
+        }
+
+    monkeypatch.setattr(app_module, "build_order_params", dummy_build_order_params)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    payload = {
+        "symbol": "A",
+        "exchange": ["NSE", "BSE"],
+        "transactionType": ["BUY", "SELL"],
+        "quantity": 1,
+    }
+    resp = client.post(
+        f"/webhook/tokboth", json=payload, headers={"X-Webhook-Secret": "secboth"}
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "results" in data
+    assert len(data["results"]) == 4
+
+
 def test_webhook_tradingview_payload(client, monkeypatch):
     login(client)
     app = app_module.app
