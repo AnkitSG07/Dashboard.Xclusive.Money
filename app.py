@@ -2536,6 +2536,12 @@ def get_order_book(client_id):
             # Check for API errors
             if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
                 error_msg = orders_resp.get("error", "Failed to fetch orders")
+
+                # Gracefully handle "no data" responses from broker APIs
+                if isinstance(error_msg, str) and "no data" in error_msg.lower():
+                    logger.info("Broker returned no order data; responding with empty list")
+                    return jsonify([]), 200
+
                 logger.error(f"API error: {error_msg}")
                 return jsonify({"error": error_msg}), 500
                 
