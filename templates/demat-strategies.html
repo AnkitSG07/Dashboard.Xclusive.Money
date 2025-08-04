@@ -706,12 +706,14 @@ window.pageScripts["demat-strategies"] = function() {
             strategyNameForDB = name; // Keep original name for dynamic watchlist
         }
 
+        const exchVal = form.exchange.value;
+        const ttypeVal = form.transactionType.value;
         const commonPayload = {
             name: strategyNameForDB,
             master_accounts: selectedAccounts.join(','), // Store as comma-separated string
             allowed_tickers: tradingSymbolsForDb,
-            exchange: form.exchange.value,
-            transaction_type: form.transactionType.value,
+            exchange: exchVal === 'BOTH' ? ['NSE','BSE'] : exchVal,
+            transaction_type: ttypeVal === 'BOTH' ? ['BUY','SELL'] : ttypeVal,
             order_type: form.orderType.value,
             order_validity: form.orderValidity.value,
             product_type: form.productType.value,
