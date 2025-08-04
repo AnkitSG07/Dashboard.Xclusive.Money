@@ -89,6 +89,7 @@
                                 <select class="form-select" id="exchange" name="exchange">
                                     <option value="NSE">NSE</option>
                                     <option value="BSE">BSE</option>
+                                    <option value="BOTH">Both (NSE &amp; BSE)</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -125,6 +126,7 @@
                                 <select class="form-select" id="transaction-type" name="transactionType">
                                     <option value="BUY">BUY</option>
                                     <option value="SELL">SELL</option>
+                                   <option value="BOTH">Both (BUY &amp; SELL)</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -374,9 +376,11 @@ window.pageScripts["demat-strategies"] = function() {
         const name = form.strategyName.value.trim();
         const selectedAccounts = getSelectedAccounts();
 
+        const exch = form.exchange.value;
+        const ttype = form.transactionType.value;
         const previewPayload = {
-            strategyName: name,
-            exchange: form.exchange.value,
+            exchange: exch === 'BOTH' ? ['NSE','BSE'] : exch,
+            transactionType: ttype === 'BOTH' ? ['BUY','SELL'] : ttype,
             transactionType: form.transactionType.value,
             orderType: form.orderType.value,
             orderValidity: form.orderValidity.value,
@@ -725,10 +729,12 @@ window.pageScripts["demat-strategies"] = function() {
 
         apiCall.then(res=>{
             const strategyId = editingId || res.id; // Get ID for local storage
+            const exchVal = form.exchange.value;
+            const ttypeVal = form.transactionType.value;
             const cp = {
                 strategyName: strategyNameForDB,
-                exchange: form.exchange.value,
-                transactionType: form.transactionType.value,
+                exchange: exchVal === 'BOTH' ? ['NSE','BSE'] : exchVal,
+                transactionType: ttypeVal === 'BOTH' ? ['BUY','SELL'] : ttypeVal,
                 orderType: form.orderType.value,
                 orderValidity: form.orderValidity.value,
                 productType: form.productType.value,
