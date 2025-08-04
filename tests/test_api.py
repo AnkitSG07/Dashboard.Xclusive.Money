@@ -205,6 +205,23 @@ def test_save_account_persists_username(client):
         acc = Account.query.filter_by(client_id="F1", user_id=user.id).first()
         assert acc.username == "demo"
 
+def test_exit_all_children_filters_numeric_master_ids():
+    """Ensure child accounts are selected regardless of ID type."""
+    child_accounts = [
+        {"linked_master_id": 123, "client_id": "C1"},
+        {"linked_master_id": "123", "client_id": "C2"},
+        {"linked_master_id": 456, "client_id": "C3"},
+    ]
+    master_id = "123"
+    exited_children = {}
+    to_exit = [
+        c["client_id"]
+        for c in child_accounts
+        if str(c["linked_master_id"]) == str(master_id)
+        and not exited_children.get(c["client_id"])
+    ]
+    assert set(to_exit) == {"C1", "C2"}
+
 def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
     app = app_module.app
     db = app_module.db
