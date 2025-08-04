@@ -282,6 +282,7 @@ window.pageScripts["demat-strategies"] = function() {
             const masters = Array.isArray(data.masters) ? data.masters : [];
             container.innerHTML = masters.map(m => {
                 const id = `acc-${m.id}`;
+                const name = m.username ? `${m.username} (${m.client_id})` : m.client_id;
                 // Add to filter options
                 filterAccountSelect.insertAdjacentHTML('beforeend', `<option value="${m.id}">${m.broker || ''} - ${name}</option>`);
                 return `<div class="form-check">
