@@ -1916,6 +1916,9 @@ def poll_and_copy_trades():
 
                     logger.debug(f"Processing child {child_id}, last copied: {last_copied_trade_id}")
 
+                    # Track how much value has been copied for this child during this cycle
+                    copied_total = float(child.copied_value or 0)
+
                     # Process each order from newest to oldest
                     for order in order_list:
                         order_id = (
@@ -2080,29 +2083,59 @@ def poll_and_copy_trades():
                         if not symbol:
                             continue
 
+                        if price <= 0:
+                            try:
+                                mapping_master = get_symbol_for_broker(symbol, master_broker)
+                                price_lookup = None
+                                if hasattr(master_api, 'get_quote'):
+                                    q = master_api.get_quote(symbol)
+                                    if isinstance(q, dict):
+                                        price_lookup = (
+                                            q.get('last_price')
+                                            or q.get('ltp')
+                                            or q.get('price')
+                                        )
+                                elif master_broker == 'dhan':
+                                    sid = mapping_master.get('security_id')
+                                    seg = mapping_master.get('exchange_segment', getattr(master_api, 'NSE', 'NSE_EQ'))
+                                    if sid:
+                                        resp = master_api._request(
+                                            'post',
+                                            f"{master_api.api_base}/marketfeed/ltp",
+                                            json={seg: [int(sid)]},
+                                            headers=master_api.headers,
+                                            timeout=getattr(master_api, 'timeout', 5),
+                                        )
+                                        data = resp.json()
+                                        price_lookup = (
+                                            data.get('data', {})
+                                            .get(seg, {})
+                                            .get(str(sid), {})
+                                            .get('ltp')
+                                        )
+                                if price_lookup:
+                                    price = float(price_lookup)
+                            except Exception as e:
+                                logger.debug(f"Failed to fetch price for {symbol}: {e}")
+                        if price <= 0:
+                            logger.debug(f"Skipping {symbol} due to missing price")
+                            continue
+
                         master_product = extract_product_type(order)
                         master_order_type = extract_order_type(order) or "MARKET"
 
                         # Determine quantity based on value limit or multiplier
                         try:
                             value_limit = child.copy_value_limit
-                            copied_total = float(child.copied_value or 0)
                             if value_limit is not None:
                                 remaining = float(value_limit) - copied_total
-                                if remaining < price:
-                                    child.copy_status = "Off"
-                                    db.session.commit()
-                                    logger.info(
-                                        f"[{master_id}->{child_id}] Value limit reached")
-                                    break
                                 qty_limit = int(remaining // price)
                                 if qty_limit <= 0:
-                                    child.copy_status = "Off"
-                                    db.session.commit()
                                     logger.info(
-                                        f"[{master_id}->{child_id}] Value limit reached")
-                                    break
-                                copied_qty = min(int(filled_qty), qty_limit)
+                                        f"[{master_id}->{child_id}] Insufficient balance for {symbol}")
+                                    continue
+                                copied_qty = qty_limit
+
                             else:
                                 multiplier = float(child.multiplier or 1)
                                 if multiplier <= 0:
@@ -2348,7 +2381,9 @@ def poll_and_copy_trades():
                                     )
                                     if child.copy_value_limit is not None:
                                         try:
-                                            child.copied_value = float(child.copied_value or 0) + (copied_qty * price)
+                                            trade_value = copied_qty * price
+                                            child.copied_value = float(child.copied_value or 0) + trade_value
+                                            copied_total += trade_value
                                             if child.copied_value >= child.copy_value_limit:
                                                 child.copy_status = 'Off'
                                         except Exception:
@@ -3016,21 +3051,40 @@ def webhook(user_id):
         except (TypeError, ValueError):
             quantity = None
 
+        value_amount = data.get("value") or data.get("amount")
+        price = (
+            data.get("price")
+            or data.get("ltp")
+            or data.get("tradePrice")
+            or data.get("tradedPrice")
+        )
+        try:
+            if value_amount is not None:
+                value_amount = float(value_amount)
+        except (TypeError, ValueError):
+            value_amount = None
+        try:
+            if price is not None:
+                price = float(price)
+        except (TypeError, ValueError):
+            price = None
+
         product_type = (
             data.get("productType")
             or data.get("product_type")
             or data.get("product")
         )
 
-        if not symbols or action is None or quantity is None:
+        if not symbols or action is None or (quantity is None and value_amount is None):
             logger.error(f"Missing required fields: {data}")
             return jsonify({
                 "error": "Missing required fields",
-                "required": ["symbol/ticker", "action", "quantity"],
+                "required": ["symbol/ticker", "action", "quantity or value"],
                 "received": {
                     "symbol_or_ticker": bool(symbols),
                     "action": bool(action),
-                    "quantity": bool(quantity)
+                    "quantity": bool(quantity),
+                    "value": bool(value_amount)
                 }
             }), 400
             
@@ -3058,7 +3112,51 @@ def webhook(user_id):
                 logger.error("Account not configured")
                 return jsonify({"error": "Account not configured"}), 403
 
-        def process_account(account, symbol):
+        def _price_from_account(acc):
+            try:
+                acc_dict = _account_to_dict(acc)
+                api = broker_api(acc_dict)
+                broker_name = (acc.broker or 'dhan').lower()
+                mapping = get_symbol_for_broker(symbol, broker_name)
+                if broker_name == 'dhan':
+                    sid = mapping.get('security_id')
+                    seg = mapping.get('exchange_segment', api.NSE)
+                    if sid:
+                        resp = api._request(
+                            'post',
+                            f"{api.api_base}/marketfeed/ltp",
+                            json={seg: [int(sid)]},
+                            headers=api.headers,
+                            timeout=api.timeout,
+                        )
+                        data = resp.json()
+                        return (
+                            data.get('data', {})
+                            .get(seg, {})
+                            .get(str(sid), {})
+                            .get('ltp')
+                        )
+                elif hasattr(api, 'get_quote'):
+                    q = api.get_quote(symbol)
+                    if isinstance(q, dict):
+                        return q.get('last_price') or q.get('ltp') or q.get('price')
+            except Exception as e:
+                logger.error(f"Failed to fetch price for {symbol}: {e}")
+            return None
+
+        if value_amount is not None and quantity is None:
+            if price is None and accounts:
+                price = _price_from_account(accounts[0])
+            if price is None:
+                return jsonify({"error": "Price required to compute quantity"}), 400
+            try:
+                quantity = int(float(value_amount) // float(price))
+            except Exception:
+                quantity = 0
+            if quantity <= 0:
+                return jsonify({"error": "Insufficient funds for at least one share"}), 400
+
+        def process_account(account, symbol, trade_price):
             broker_name = (account.broker or "dhan").lower()
             if strategy and strategy.brokers:
                 allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
@@ -3124,7 +3222,7 @@ def webhook(user_id):
                         symbol,
                         action.upper(),
                         quantity,
-                        order_params.get('price'),
+                        trade_price,
                         "FAILED",
                         broker=account.broker,
                         client_id=account.client_id,
@@ -3135,7 +3233,7 @@ def webhook(user_id):
                     symbol,
                     action.upper(),
                     quantity,
-                    order_params.get('price'),
+                    trade_price,
                     "SUCCESS",
                     broker=account.broker,
                     client_id=account.client_id,
@@ -3154,7 +3252,7 @@ def webhook(user_id):
             if sub_count:
                 all_results.extend(execute_for_subscriptions(strategy, sym, action, int(quantity), product_type))
                 continue
-            results = [process_account(acc, sym) for acc in accounts]
+            results = [process_account(acc, sym, price) for acc in accounts]
             all_results.extend(results)
 
         if len(all_results) == 1:
