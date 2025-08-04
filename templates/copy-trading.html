@@ -972,7 +972,7 @@ window.pageScripts["copy-trading"] = function () {
                     ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this.checked)\"` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
-                <span class="me-3 mt-2 mt-md-0">Mult: ${childMultiplier}</span>
+                <span class="me-3 mt-2 mt-md-0">Mult: ${multiplier}</span>
                 ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
                 <button class="btn btn-sm btn-danger mt-2 mt-md-0" onclick="window.removeChild('${childClientId}')">Remove</button>
               </div>
