@@ -1709,7 +1709,7 @@ window.pageScripts["copy-trading"] = function () {
 
   window.exitAllChildren = function(masterId) {
     const toExit = (window.childAccounts || [])
-      .filter(c => c.linked_master_id === masterId && !window.exitedChildren[c.client_id])
+      .filter(c => String(c.linked_master_id) === String(masterId) && !window.exitedChildren[c.client_id])
       .map(c => c.client_id);
     if (toExit.length === 0) {
       showMessage('All linked children for this master are already exited or have no positions to exit.', 'info');
