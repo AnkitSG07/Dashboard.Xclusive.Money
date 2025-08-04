@@ -744,14 +744,14 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
         if not account:
             account = sub_user.accounts[0] if sub_user.accounts else None
         if not account or not account.credentials:
-            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": "Account not configured"})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "ERROR", "reason": "Account not configured"})
             continue
         broker_name = (account.broker or "dhan").lower()
         if allowed and broker_name not in allowed:
-            results.append({"subscription_id": sub.id, "status": "SKIPPED", "reason": "Broker not allowed"})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"})
             continue
         if allowed and broker_name not in allowed:
-            results.append({"subscription_id": sub.id, "status": "SKIPPED", "reason": "Broker not allowed"})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"})
             continue
         try:
             acc_dict = _account_to_dict(account)
@@ -760,11 +760,11 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
             qty_use = sub.fixed_qty if sub.qty_mode == "fixed" and sub.fixed_qty else quantity
             order_params = build_order_params(broker_name, mapping, symbol, action, qty_use, sub.order_type or "MARKET", api, product_type)
         except Exception as e:
-            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "ERROR", "reason": str(e)})
             continue
 
         if not sub.auto_submit:
-            results.append({"subscription_id": sub.id, "status": "PENDING", "reason": "Auto submit disabled"})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "PENDING", "reason": "Auto submit disabled"})
             continue
 
         try:
@@ -781,7 +781,7 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
                     broker=account.broker,
                     client_id=account.client_id,
                 )
-                results.append({"subscription_id": sub.id, "status": "FAILED", "reason": reason})
+                results.append({"subscription_id": sub.id, "action": action.upper(), "status": "FAILED", "reason": reason})
                 continue
             record_trade(
                 sub_user.id,
@@ -793,9 +793,9 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
                 broker=account.broker,
                 client_id=account.client_id,
             )
-            results.append({"subscription_id": sub.id, "status": "SUCCESS", "order_id": response.get("order_id")})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "SUCCESS", "order_id": response.get("order_id")})
         except Exception as e:
-            results.append({"subscription_id": sub.id, "status": "ERROR", "reason": str(e)})
+            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "ERROR", "reason": str(e)})
     return results
 
 def _resolve_data_path(path: str) -> str:
@@ -3010,7 +3010,7 @@ def webhook(user_id):
                 return jsonify({"error": "Webhook secret required"}), 403
 
         # Validate required fields
-        symbols = []
+        symbols: list[str] = []
         base_symbol = data.get("symbol") or data.get("ticker")
         trading_symbols = data.get("tradingSymbols") or data.get("tradingSymbol")
         if base_symbol:
@@ -3021,15 +3021,42 @@ def webhook(user_id):
             else:
                 symbols = [trading_symbols]
         exchange = data.get("exchange")
+        exchanges: list[str] = []
         if exchange:
-            symbols = [s if ":" in str(s) else f"{exchange}:{s}" for s in symbols]
+            if isinstance(exchange, list):
+                exchanges = exchange
+            else:
+                exch_str = str(exchange).upper()
+                if exch_str == "BOTH":
+                    exchanges = ["NSE", "BSE"]
+                else:
+                    exchanges = [exch_str]
+        if exchanges:
+            new_symbols = []
+            for s in symbols:
+                if ":" in str(s):
+                    new_symbols.append(s)
+                else:
+                    for ex in exchanges:
+                        new_symbols.append(f"{ex}:{s}")
+            symbols = new_symbols
         symbol = symbols[0] if symbols else None
 
-        action = data.get("action")
-        if not action:
+        actions: list[str] = []
+        action_val = data.get("action")
+        if action_val:
+            if isinstance(action_val, list):
+                actions = [str(a).upper() for a in action_val]
+            else:
+                action_str = str(action_val).upper()
+                if action_str == "BOTH":
+                    actions = ["BUY", "SELL"]
+                else:
+                    actions = [action_str]
+        else:
             ttype = data.get("transactionType")
             if ttype:
-                ttype = str(ttype).lower()
+                ttypes = ttype if isinstance(ttype, list) else [ttype]
                 mapping = {
                     "le": "BUY",
                     "sxle": "BUY",
@@ -3038,9 +3065,18 @@ def webhook(user_id):
                     "lxse": "SELL",
                     "sx": "BUY",
                     "buy": "BUY",
-                    "sell": "SELL",    
+                    "sell": "SELL",
+                    "both": "BOTH",  
                 }
-                action = mapping.get(ttype)
+                for t in ttypes:
+                    t_low = str(t).lower()
+                    mapped = mapping.get(t_low)
+                    if mapped == "BOTH":
+                        actions = ["BUY", "SELL"]
+                        break
+                    if mapped:
+                        actions.append(mapped)
+
 
         quantity = data.get("quantity")
         if quantity is None:
@@ -3075,14 +3111,14 @@ def webhook(user_id):
             or data.get("product")
         )
 
-        if not symbols or action is None or (quantity is None and value_amount is None):
+        if not symbols or not actions or (quantity is None and value_amount is None):
             logger.error(f"Missing required fields: {data}")
             return jsonify({
                 "error": "Missing required fields",
                 "required": ["symbol/ticker", "action", "quantity or value"],
                 "received": {
                     "symbol_or_ticker": bool(symbols),
-                    "action": bool(action),
+                    "action": bool(actions),
                     "quantity": bool(quantity),
                     "value": bool(value_amount)
                 }
@@ -3156,25 +3192,25 @@ def webhook(user_id):
             if quantity <= 0:
                 return jsonify({"error": "Insufficient funds for at least one share"}), 400
 
-        def process_account(account, symbol, trade_price):
+        def process_account(account, symbol, trade_price, action):
             broker_name = (account.broker or "dhan").lower()
             if strategy and strategy.brokers:
                 allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
                 if allowed and broker_name not in allowed:
-                    return {"account_id": account.id, "symbol": symbol, "status": "SKIPPED", "reason": "Broker not allowed"}
+                    return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"}
 
             try:
                 acc_dict = _account_to_dict(account)
                 broker_api_instance = broker_api(acc_dict)
             except Exception as e:
                 logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to initialize broker"}
+                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to initialize broker"}
             try:
                 mapping = get_symbol_for_broker(symbol, broker_name)
                 order_params = build_order_params(broker_name, mapping, symbol, action, int(quantity), "MARKET", broker_api_instance, product_type)
             except Exception as e:
                 logger.error(f"Error building order parameters: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Failed to build order parameters"}
+                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to build order parameters"}
 
             if strategy:
                 if strategy.schedule:
@@ -3184,7 +3220,7 @@ def webhook(user_id):
                         start_t = datetime.strptime(start.strip(), "%H:%M").time()
                         end_t = datetime.strptime(end.strip(), "%H:%M").time()
                         if not (start_t <= now <= end_t):
-                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Outside allowed schedule"}
+                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Outside allowed schedule"}
                     except Exception as e:
                         logger.error(f"Schedule parse error: {e}")
 
@@ -3207,9 +3243,9 @@ def webhook(user_id):
                             pricep = norm.get("ltp") or norm.get("buyAvg") or 0
                             allocation += qtyp * pricep
                         if strategy.risk_max_positions is not None and count >= strategy.risk_max_positions:
-                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Max positions exceeded"}
+                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Max positions exceeded"}
                         if strategy.risk_max_allocation is not None and allocation >= strategy.risk_max_allocation:
-                            return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": "Max allocation exceeded"}
+                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Max allocation exceeded"}
                     except Exception as e:
                         logger.error(f"Risk check failed: {e}")
 
@@ -3227,7 +3263,7 @@ def webhook(user_id):
                         broker=account.broker,
                         client_id=account.client_id,
                     )
-                    return {"account_id": account.id, "symbol": symbol, "status": "FAILED", "reason": reason}
+                    return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "FAILED", "reason": reason}
                 record_trade(
                     user_obj.id,
                     symbol,
@@ -3242,18 +3278,19 @@ def webhook(user_id):
                     poll_and_copy_trades()
                 except Exception as e:
                     logger.error(f"Failed to trigger copy trading: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "status": "SUCCESS", "order_id": response.get("order_id"), "result": response.get("remarks", "Trade placed successfully")}
+                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "SUCCESS", "order_id": response.get("order_id"), "result": response.get("remarks", "Trade placed successfully")}
             except Exception as e:
                 logger.error(f"Error placing order: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "status": "ERROR", "reason": str(e)}
+                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": str(e)}
 
         all_results = []
         for sym in symbols:
-            if sub_count:
-                all_results.extend(execute_for_subscriptions(strategy, sym, action, int(quantity), product_type))
-                continue
-            results = [process_account(acc, sym, price) for acc in accounts]
-            all_results.extend(results)
+            for act in actions:
+                if sub_count:
+                    all_results.extend(execute_for_subscriptions(strategy, sym, act, int(quantity), product_type))
+                    continue
+                results = [process_account(acc, sym, price, act) for acc in accounts]
+                all_results.extend(results)
 
         if len(all_results) == 1:
             r = all_results[0]
