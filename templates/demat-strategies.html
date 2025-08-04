@@ -1,693 +1,625 @@
 {% extends "demat-trading.html" %}
 {% block title %}Strategies - DhanBot{% endblock %}
 {% block content %}
-<div class="content-section">
-    <div class="row">
-        <div class="col-12">
-            <div class="page-header d-flex justify-content-between align-items-center">
-                <h2>Strategies</h2>
-                <button id="create-strategy-btn-alt" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Create Strategy
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Page Header -->
+        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-gray-200">
+            <div class="mb-4 sm:mb-0">
+                <h1 class="text-3xl font-bold text-gray-900">Trading Strategies</h1>
+                <p class="mt-1 text-base text-gray-500">Manage and monitor your automated trading strategies.</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-sm text-gray-500">
+                    <span class="font-semibold text-gray-700">User ID:</span> <span id="user-id"></span>
+                </div>
+                <button id="create-strategy-btn-alt" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i> Create Strategy
                 </button>
             </div>
-        </div>
-    </div>
+        </header>
 
-    <div id="no-strategies-state" class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-chart-bar"></i>
-        </div>
-        <h3>No Strategies</h3>
-        <p>Create your first trading strategy to get started.</p>
-        <button id="create-strategy-btn" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Create Strategy
-        </button>
-    </div>
+        <!-- Strategy Grid Container -->
+        <main class="mt-8">
+            <!-- Loading State -->
+            <div id="loading-state" class="flex justify-center items-center h-64">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-900"></div>
+            </div>
 
-    <div id="strategies-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 my-4" style="display:none;">
-        </div>
+            <!-- Empty State -->
+            <div id="no-strategies-state" class="hidden text-center p-12 bg-white rounded-xl shadow-sm border border-gray-200">
+                <i class="fas fa-chart-bar text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-2xl font-semibold text-gray-900">No Strategies Found</h3>
+                <p class="mt-2 text-gray-500">Create your first trading strategy to get started.</p>
+                <button id="create-strategy-btn" class="mt-6 inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i> Create Strategy
+                </button>
+            </div>
 
-    <div class="modal fade" id="strategyModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form id="strategyForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Create Strategy</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="strategy-name" class="form-label">Strategy Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="strategy-name" name="strategyName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Master Accounts</label>
-                            <div id="strategy-accounts" class="d-flex flex-column gap-1"></div>
-                            <div class="form-text">Select connected master accounts for this strategy.</div>
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="exchange" class="form-label">Exchange <span class="text-danger">*</span></label>
-                                <select class="form-select" id="exchange" name="exchange">
-                                    <option value="NSE">NSE</option>
-                                    <option value="BSE">BSE</option>
-                                </select>
+            <!-- Strategies Grid -->
+            <div id="strategies-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Strategy cards will be dynamically inserted here -->
+            </div>
+        </main>
+
+        <!-- Modals -->
+
+        <!-- Create/Edit Strategy Modal -->
+        <div id="strategyModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-10 mx-auto w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-xl bg-white transition-transform duration-300 transform scale-95">
+                <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-indigo-600 rounded-t-xl">
+                    <h3 id="modal-title" class="text-2xl font-bold text-white">Create Strategy</h3>
+                    <button id="modal-close-btn" class="text-indigo-200 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="strategyForm" class="p-6">
+                    <!-- Section: Strategy Details -->
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="strategy-name" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Strategy Name <span class="text-red-500 ml-1">*</span>
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">A unique name for your strategy.</span>
+                                    </span>
+                                </label>
+                                <input type="text" id="strategy-name" name="strategyName" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g., My Trend-Following Strategy">
                             </div>
-                            <div class="col-md-6">
-                                <label for="symbol-token" class="form-label">Symbol Token</label>
-                                <input type="text" class="form-control" id="symbol-token" name="symbolToken" placeholder="Auto" />
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Trading Symbols <span class="text-danger">*</span></label>
-                                <div class="mb-2">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="singleSymbolMode" value="single" checked>
-                                        <label class="form-check-label" for="singleSymbolMode">Single Symbol</label>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Trading Symbols <span class="text-red-500 ml-1">*</span>
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">The symbols you want to trade. For TradingView alerts, use dynamic mode.</span>
+                                    </span>
+                                </label>
+                                <div class="mt-1 flex items-center space-x-4">
+                                    <div class="flex items-center">
+                                        <input type="radio" id="singleSymbolMode" name="symbolInputMode" value="single" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300" checked>
+                                        <label for="singleSymbolMode" class="ml-2 block text-sm font-medium text-gray-700">Single Symbol</label>
                                     </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="watchlistMode" value="watchlist">
-                                        <label class="form-check-label" for="watchlistMode">Watchlist (TradingView Alert)</label>
+                                    <div class="flex items-center">
+                                        <input type="radio" id="watchlistMode" name="symbolInputMode" value="watchlist" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                        <label for="watchlistMode" class="ml-2 block text-sm font-medium text-gray-700">Watchlist (TradingView)</label>
                                     </div>
                                 </div>
-                                <textarea class="form-control" id="trading-symbols" name="tradingSymbols" rows="1" placeholder="Enter single symbol" required></textarea>
-                                <div class="form-text" id="symbol-input-help">Enter the trading symbol.</div>
-                                <div id="tokens-list" class="small text-muted mt-1"></div>
+                                <textarea id="trading-symbols" name="tradingSymbols" rows="1" required
+                                    class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter single symbol, e.g., RELIANCE"></textarea>
+                                <p id="symbol-input-help" class="mt-2 text-sm text-gray-500">Enter the trading symbol.</p>
                             </div>
-                            <div class="col-md-6">
-                                <label for="transaction-type" class="form-label">Type of Transaction <span class="text-danger">*</span></label>
-                                <select class="form-select" id="transaction-type" name="transactionType">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-200 mt-6 pt-6 space-y-6">
+                        <h4 class="text-xl font-semibold text-gray-800">Order Parameters</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="transaction-type" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Transaction Type <span class="text-red-500 ml-1">*</span>
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">Whether to place a BUY or SELL order.</span>
+                                    </span>
+                                </label>
+                                <select id="transaction-type" name="transactionType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="BUY">BUY</option>
                                     <option value="SELL">SELL</option>
                                 </select>
-                            <div class="col-md-6">
-                                <label for="order-type" class="form-label">Order Type <span class="text-danger">*</span></label>
-                                <select class="form-select" id="order-type" name="orderType">
-                                    <option value="limit">limit</option>
-                                    <option value="market">market</option>
+                            </div>
+                            <div>
+                                <label for="order-type" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Order Type <span class="text-red-500 ml-1">*</span>
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">MARKET orders execute at the best available price. LIMIT orders execute at a specified price or better.</span>
+                                    </span>
+                                </label>
+                                <select id="order-type" name="orderType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="market">MARKET</option>
+                                    <option value="limit">LIMIT</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="order-validity" class="form-label">Order Validity</label>
-                                <select class="form-select" id="order-validity" name="orderValidity">
-                                    <option value="day" selected>day</option>
-                                    <option value="IOC">IOC</option>
+                            <div>
+                                <label for="product-type" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Product Type <span class="text-red-500 ml-1">*</span>
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">INTRADAY orders must be squared off on the same day. CNC/long-term orders are for holding.</span>
+                                    </span>
+                                </label>
+                                <select id="product-type" name="productType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="intraday">INTRADAY</option>
+                                    <option value="cnc">CNC</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="product-type" class="form-label">Type of Product <span class="text-danger">*</span></label>
-                                <select class="form-select" id="product-type" name="productType">
-                                    <option value="intraday">intraday</option>
-                                    <option value="cnc">cnc</option>
-                                </select>
-                                <div class="form-text">intraday/MIS are equivalent, as are CNC/longterm.</div>
+                            <div>
+                                <label for="order-qty" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Order Quantity
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">The number of shares or lots to trade. Leave empty if specifying Order Value.</span>
+                                    </span>
+                                </label>
+                                <input type="number" id="order-qty" name="orderQty" min="1"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g., 10">
                             </div>
-                            <div class="col-md-6">
-                                <label for="order-qty" class="form-label">Order Quantity</label>
-                                <input type="number" class="form-control" id="order-qty" name="orderQty" min="1">
-                                <div class="form-text">Leave empty if specifying Order Value.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="order-value" class="form-label">Order Value</label>
-                                <input type="number" class="form-control" id="order-value" name="orderValue" min="1" step="0.01">
-                                <div class="form-text">Auto-calculates quantity from live price.</div>
-                            </div>
-                            <div class="col-md-12">
-                                <label for="webhook-preview" class="form-label">Webhook Payload</label>
-                                <textarea class="form-control" id="webhook-preview" rows="3" readonly></textarea>
+                            <div>
+                                <label for="order-value" class="block text-sm font-medium text-gray-700 flex items-center">
+                                    Order Value
+                                    <span class="tooltip-container">
+                                        <i class="fas fa-info-circle tooltip-icon"></i>
+                                        <span class="tooltip-box">The total monetary value of the order. Quantity will be auto-calculated.</span>
+                                    </span>
+                                </label>
+                                <input type="number" id="order-value" name="orderValue" min="1" step="0.01"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g., 5000">
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Save Strategy</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    
+                    <div class="border-t border-gray-200 mt-6 pt-6">
+                        <h4 class="text-xl font-semibold text-gray-800 mb-4">Webhook Payload Preview</h4>
+                        <div>
+                            <label for="webhook-preview" class="block text-sm font-medium text-gray-700 flex items-center">
+                                Generated JSON Payload
+                                <span class="tooltip-container">
+                                    <i class="fas fa-info-circle tooltip-icon"></i>
+                                    <span class="tooltip-box">The JSON payload that will be sent with your webhook.</span>
+                                </span>
+                            </label>
+                            <textarea id="webhook-preview" rows="5" readonly
+                                class="mt-1 block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex justify-end space-x-3">
+                        <button type="button" id="form-cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit" id="form-submit-btn" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200">
+                            Save Strategy
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
 
-    <div class="modal fade" id="payloadModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Strategy Payload</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <!-- Payload Modal -->
+        <div id="payloadModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-10 mx-auto p-5 w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-xl bg-white transition-transform duration-300 transform scale-95">
+                <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-indigo-600 rounded-t-xl">
+                    <h3 class="text-2xl font-bold text-white">Strategy Webhook</h3>
+                    <button id="payload-modal-close-btn" class="text-indigo-200 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Webhook URL</label>
-                        <div class="input-group">
-                            <input id="payload-webhook" type="text" class="form-control" readonly>
-                            <button class="btn btn-outline-secondary" id="copy-webhook-btn" title="Copy Webhook"><i class="bi bi-clipboard"></i></button>
+                <div class="p-6 mt-6 space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Webhook URL</label>
+                        <div class="flex">
+                            <input id="payload-webhook" type="text" readonly class="flex-1 rounded-l-lg border-gray-300 bg-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <button id="copy-webhook-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300 transition-colors duration-200" title="Copy URL">
+                                <i class="fas fa-clipboard"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">JSON Payload</label>
-                        <div class="input-group">
-                            <textarea id="payload-json" class="form-control" rows="5" readonly></textarea>
-                            <button class="btn btn-outline-secondary" id="copy-payload-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">JSON Payload</label>
+                        <div class="flex">
+                            <textarea id="payload-json" rows="5" readonly class="flex-1 rounded-l-lg border-gray-300 bg-gray-100 shadow-sm resize-none"></textarea>
+                            <button id="copy-payload-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300 transition-colors duration-200" title="Copy Payload">
+                                <i class="fas fa-clipboard"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
+        <!-- Custom Alert/Confirmation Modal -->
+        <div id="customAlertModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-[100]">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+                <h4 id="customAlertTitle" class="text-lg font-bold"></h4>
+                <p id="customAlertMessage" class="mt-2 text-sm text-gray-700"></p>
+                <div class="mt-4 text-right">
+                    <button id="customAlertConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 hidden">Confirm</button>
+                    <button id="customAlertCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200 ml-2">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-if (!window.pageScripts) window.pageScripts = {};
-window.pageScripts["demat-strategies"] = function() {
-    const createStrategyBtn = document.getElementById('create-strategy-btn');
-    const createStrategyBtnAlt = document.getElementById('create-strategy-btn-alt');
-    const strategiesGrid = document.getElementById('strategies-grid');
-    const noStrategiesState = document.getElementById('no-strategies-state');
-    const modalEl = document.getElementById('strategyModal');
-    const form = document.getElementById('strategyForm');
-    const tokensList = document.getElementById('tokens-list');
-    const modal = new bootstrap.Modal(modalEl);
-    const payloadModal = new bootstrap.Modal(document.getElementById('payloadModal'));
-    const payloadWebhook = document.getElementById('payload-webhook');
-    const payloadJson = document.getElementById('payload-json');
-    const userToken = '{{ logged_in_user.webhook_token }}';
-    let symbolMap = {};
-    let editingId = null;
-    const BROKER_KEYS = ['dhan','aliceblue','angelone','iifl','kotak','upstox'];
-    document.getElementById('copy-webhook-btn').addEventListener('click',()=>navigator.clipboard.writeText(payloadWebhook.value));
-    document.getElementById('copy-payload-btn').addEventListener('click',()=>navigator.clipboard.writeText(payloadJson.value));
-    function fetchJson(url, opts={}) {
-        return fetch(url, opts).then(r => {
-            if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Request failed'); });
-            return r.json();
-        });
-    }
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    function loadSymbols(){
-        fetchJson('/api/symbols').then(list => {
-            list.forEach(item => {
-                symbolMap[item.symbol.toUpperCase()] = item;
+        // Firebase Configuration and Initialization
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let userId = null;
+        let isAuthReady = false;
+
+        // UI Elements
+        const createStrategyBtn = document.getElementById('create-strategy-btn');
+        const createStrategyBtnAlt = document.getElementById('create-strategy-btn-alt');
+        const strategiesGrid = document.getElementById('strategies-grid');
+        const noStrategiesState = document.getElementById('no-strategies-state');
+        const loadingState = document.getElementById('loading-state');
+        const userIdDisplay = document.getElementById('user-id');
+
+        // Modals
+        const strategyModal = document.getElementById('strategyModal');
+        const payloadModal = document.getElementById('payloadModal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const payloadModalCloseBtn = document.getElementById('payload-modal-close-btn');
+        
+        // Forms
+        const strategyForm = document.getElementById('strategyForm');
+        const formCancelBtn = document.getElementById('form-cancel-btn');
+        const formSubmitBtn = document.getElementById('form-submit-btn');
+        const payloadWebhook = document.getElementById('payload-webhook');
+        const payloadJson = document.getElementById('payload-json');
+        const copyWebhookBtn = document.getElementById('copy-webhook-btn');
+        const copyPayloadBtn = document.getElementById('copy-payload-btn');
+
+        // Form Fields with Tooltips
+        const strategyNameInput = document.getElementById('strategy-name');
+        const singleSymbolModeRadio = document.getElementById('singleSymbolMode');
+        const watchlistModeRadio = document.getElementById('watchlistMode');
+        const tradingSymbolsTextarea = document.getElementById('trading-symbols');
+        const symbolInputHelp = document.getElementById('symbol-input-help');
+        const transactionTypeSelect = document.getElementById('transaction-type');
+        const orderTypeSelect = document.getElementById('order-type');
+        const productTypeSelect = document.getElementById('product-type');
+        const orderQtyInput = document.getElementById('order-qty');
+        const orderValueInput = document.getElementById('order-value');
+        const webhookPreviewTextarea = document.getElementById('webhook-preview');
+
+        // Custom Alert UI
+        const customAlertModal = document.getElementById('customAlertModal');
+        const customAlertTitle = document.getElementById('customAlertTitle');
+        const customAlertMessage = document.getElementById('customAlertMessage');
+        const customAlertConfirmBtn = document.getElementById('customAlertConfirmBtn');
+        const customAlertCancelBtn = document.getElementById('customAlertCancelBtn');
+
+        let editingId = null;
+
+        // Custom alert and confirmation box
+        function showCustomAlert(title, message, isConfirm = false) {
+            return new Promise((resolve) => {
+                customAlertTitle.textContent = title;
+                customAlertMessage.textContent = message;
+                customAlertConfirmBtn.style.display = isConfirm ? 'inline-block' : 'none';
+                customAlertModal.classList.remove('hidden');
+
+                const onConfirm = () => {
+                    customAlertModal.classList.add('hidden');
+                    customAlertConfirmBtn.removeEventListener('click', onConfirm);
+                    customAlertCancelBtn.removeEventListener('click', onCancel);
+                    resolve(true);
+                };
+                const onCancel = () => {
+                    customAlertModal.classList.add('hidden');
+                    customAlertConfirmBtn.removeEventListener('click', onConfirm);
+                    customAlertCancelBtn.removeEventListener('click', onCancel);
+                    resolve(false);
+                };
+
+                customAlertConfirmBtn.addEventListener('click', onConfirm);
+                customAlertCancelBtn.addEventListener('click', onCancel);
             });
-        }).catch(() => {});
-    }
+        }
 
-    function loadMasterAccounts(selected){
-        const container = document.getElementById('strategy-accounts');
-        return fetchJson('/api/accounts?cache_only=1').then(data=>{
-            const masters = Array.isArray(data.masters) ? data.masters : [];
-            container.innerHTML = masters.map(m => {
-                const id = `acc-${m.id}`;
-                return `<div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="masterAccounts" value="${m.id}" id="${id}">
-                            <label class="form-check-label" for="${id}">${m.broker || ''} - ${m.client_id}</label>
-                        </div>`;
-            }).join('');
-            if(selected){
-                const vals = Array.isArray(selected) ? selected : String(selected).split(',');
-                vals.forEach(v => {
-                    const cb = container.querySelector(`input[value="${v}"]`);
-                    if(cb) cb.checked = true;
+        // Helper for copying text to clipboard
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showCustomAlert('Success', 'Copied to clipboard!');
+            } catch (err) {
+                showCustomAlert('Error', 'Failed to copy text.');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Functions to show/hide modals
+        const showModal = (modal) => modal.classList.remove('hidden');
+        const hideModal = (modal) => modal.classList.add('hidden');
+
+        // Event Listeners for modals
+        modalCloseBtn.addEventListener('click', () => hideModal(strategyModal));
+        formCancelBtn.addEventListener('click', () => hideModal(strategyModal));
+        payloadModalCloseBtn.addEventListener('click', () => hideModal(payloadModal));
+
+        // Event listener for opening create strategy modal
+        createStrategyBtn && createStrategyBtn.addEventListener('click', () => { resetForm(); showModal(strategyModal); });
+        createStrategyBtnAlt && createStrategyBtnAlt.addEventListener('click', () => { resetForm(); showModal(strategyModal); });
+
+        // Listen for authentication state changes
+        onAuthStateChanged(auth, async (user) => {
+            try {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    await (initialAuthToken ? signInWithCustomToken(auth, initialAuthToken) : signInAnonymously(auth));
+                    userId = auth.currentUser.uid;
+                }
+                isAuthReady = true;
+                userIdDisplay.textContent = userId;
+                // Set up real-time listener for strategies
+                setupStrategiesListener();
+            } catch (error) {
+                console.error("Authentication Error:", error);
+                loadingState.classList.add('hidden');
+                noStrategiesState.classList.remove('hidden');
+                noStrategiesState.innerHTML = `<h3 class="text-2xl font-semibold text-red-500">Authentication Error</h3><p class="mt-2 text-gray-500">Could not authenticate. Please try again.</p>`;
+            }
+        });
+
+        // Real-time listener for strategies
+        function setupStrategiesListener() {
+            if (!isAuthReady || !userId) return;
+            
+            const strategiesColRef = collection(db, `artifacts/${appId}/users/${userId}/strategies`);
+            
+            onSnapshot(strategiesColRef, (snapshot) => {
+                loadingState.classList.add('hidden');
+                const strategies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderStrategies(strategies);
+            }, (error) => {
+                console.error("Error fetching strategies: ", error);
+                loadingState.classList.add('hidden');
+                strategiesGrid.classList.add('hidden');
+                noStrategiesState.classList.remove('hidden');
+                noStrategiesState.innerHTML = `<h3 class="text-2xl font-semibold text-red-500">Error</h3><p class="mt-2 text-gray-500">Failed to load strategies.</p>`;
+            });
+        }
+        
+        // Render strategy cards
+        function renderStrategies(strategies) {
+            strategiesGrid.innerHTML = '';
+            if (strategies.length === 0) {
+                strategiesGrid.classList.add('hidden');
+                noStrategiesState.classList.remove('hidden');
+            } else {
+                noStrategiesState.classList.add('hidden');
+                strategiesGrid.classList.remove('hidden');
+                strategies.forEach(s => {
+                    const status = s.isActive ? 'Active' : 'Inactive';
+                    const statusColor = s.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                    const toggleIcon = s.isActive ? 'fas fa-pause-circle' : 'fas fa-play-circle';
+                    const toggleText = s.isActive ? 'Deactivate' : 'Activate';
+                    
+                    const cardHtml = `
+                        <div class="bg-white p-6 rounded-xl shadow-md flex flex-col transition-transform hover:scale-[1.02] duration-200">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <h4 class="text-xl font-bold text-gray-900">${s.name}</h4>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">${status}</span>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button class="text-gray-500 hover:text-indigo-600 transition-colors" onclick="handleEdit('${s.id}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="text-red-500 hover:text-red-700 transition-colors" onclick="handleDelete('${s.id}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
+                                <button class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors" onclick="handleWebhookPayload('${s.id}', '${s.webhookSecret}')">
+                                    <i class="fas fa-link mr-2"></i> Webhook
+                                </button>
+                                <button class="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" onclick="handleToggleStatus('${s.id}', ${s.isActive})">
+                                    <i class="${toggleIcon} mr-2"></i> ${toggleText}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    strategiesGrid.insertAdjacentHTML('beforeend', cardHtml);
                 });
             }
-        }).catch(()=>{});
-    }
-
-    function getSelectedAccounts(){
-        const container = document.getElementById('strategy-accounts');
-        return Array.from(container.querySelectorAll('input[name="masterAccounts"]:checked')).map(cb => cb.value);
-    }
-
-    function getSymbols(){
-        if (singleSymbolModeRadio.checked) {
-            return [tradingSymbolsTextarea.value.trim()].filter(Boolean);
-        } else { // watchlistModeRadio.checked
-           return ["{% raw %}{{ticker}}{% endraw %}"]; // For display/preview purposes in the UI
         }
-    }
 
-
-    function updateTokens(){
-        const syms = getSymbols();
-        const tokenText = syms.map(s => {
-            if (s === "{% raw %}{{ticker}}{% endraw %}") {
-                return "Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})";
-            }
-            const info = symbolMap[s.toUpperCase()];
-            if(!info) return s;
-            const parts = BROKER_KEYS.map(k => info[k] ? `${k}:${info[k]}` : null).filter(Boolean);
-            return parts.length ? `${s} (${parts.join(', ')})` : s;
-        }).join(', ');
-        tokensList.textContent = tokenText;
-
-        if(singleSymbolModeRadio.checked && syms.length === 1){
-            const info = symbolMap[syms[0].toUpperCase()];
-            if(info){
-                for(const k of BROKER_KEYS){
-                    if(info[k]){ form.symbolToken.value = info[k]; break; }
+        // Form logic
+        function updateSymbolInputMode() {
+            if (singleSymbolModeRadio.checked) {
+                tradingSymbolsTextarea.placeholder = "Enter single symbol, e.g., RELIANCE";
+                tradingSymbolsTextarea.disabled = false;
+                symbolInputHelp.textContent = "Enter the trading symbol.";
+                // Clear any dynamic placeholder text if switching from watchlist mode
+                if (tradingSymbolsTextarea.value.includes('{{ticker}}')) {
+                    tradingSymbolsTextarea.value = '';
                 }
             } else {
-                form.symbolToken.value = '';
+                tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({{ticker}})";
+                tradingSymbolsTextarea.value = '{{ticker}}'; // Set placeholder text as value for preview
+                tradingSymbolsTextarea.disabled = true;
+                symbolInputHelp.textContent = "For TradingView alerts, symbols will be passed dynamically.";
             }
-        } else {
-            form.symbolToken.value = '';
+            updateWebhookPreview();
         }
-        updateQtyFromValue();
-    }
-    form.tradingSymbols.addEventListener('input', updateTokens);
-
-    const singleSymbolModeRadio = document.getElementById('singleSymbolMode');
-    const watchlistModeRadio = document.getElementById('watchlistMode');
-    const tradingSymbolsTextarea = document.getElementById('trading-symbols');
-    const symbolInputHelp = document.getElementById('symbol-input-help');
-
-    function updateSymbolInputMode() {
-        if (singleSymbolModeRadio.checked) {
-            tradingSymbolsTextarea.rows = 1;
-            tradingSymbolsTextarea.placeholder = "Enter single symbol (e.g., RELIANCE)";
-            tradingSymbolsTextarea.disabled = false;
-            tradingSymbolsTextarea.name = "tradingSymbols"; // Ensure name is correct for single mode
-            symbolInputHelp.textContent = "Enter the trading symbol.";
-            // If switching from watchlist mode, clear dynamic placeholder value
-            if (tradingSymbolsTextarea.value === "{% raw %}{{ticker}}{% endraw %}") {
-                tradingSymbolsTextarea.value = "";
+        
+        singleSymbolModeRadio.addEventListener('change', updateSymbolInputMode);
+        watchlistModeRadio.addEventListener('change', updateSymbolInputMode);
+        
+        function updateWebhookPreview() {
+            const previewPayload = {
+                strategyName: strategyNameInput.value,
+                transactionType: transactionTypeSelect.value,
+                orderType: orderTypeSelect.value,
+                productType: productTypeSelect.value,
+                tradingSymbols: singleSymbolModeRadio.checked ? (tradingSymbolsTextarea.value ? [tradingSymbolsTextarea.value] : []) : ['{{ticker}}']
+            };
+            if (orderQtyInput.value) {
+                previewPayload.orderQty = parseFloat(orderQtyInput.value);
             }
-        } else { // watchlistModeRadio.checked
-            tradingSymbolsTextarea.rows = 1;
-            tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({% raw %}{{ticker}}{% endraw %})";
-            tradingSymbolsTextarea.value = ""; // Explicitly clear any content
-            tradingSymbolsTextarea.disabled = true; // Disable the input
-            tradingSymbolsTextarea.name = "disabledTradingSymbols"; // Change name to prevent accidental submission
-            symbolInputHelp.textContent = "For TradingView Watchlist alerts, symbols will be passed dynamically. No input needed here.";
-        }
-        updateTokens();
-        updateWebhookPreview();
-    }
-
-    singleSymbolModeRadio.addEventListener('change', updateSymbolInputMode);
-    watchlistModeRadio.addEventListener('change', updateSymbolInputMode);
-
-    function updateWebhookPreview() {
-        const name = form.strategyName.value.trim();
-        const selectedAccounts = getSelectedAccounts();
-
-        const previewPayload = {
-            strategyName: name,
-            exchange: form.exchange.value,
-            transactionType: form.transactionType.value,
-            orderType: form.orderType.value,
-            orderValidity: form.orderValidity.value,
-            productType: form.productType.value,
-            masterAccounts: selectedAccounts,
-        };
-        if(form.orderQty.value){
-            previewPayload.orderQty = parseFloat(form.orderQty.value);
-        } else if(form.orderValue.value){
-            previewPayload.orderValue = parseFloat(form.orderValue.value);
-        }
-
-        if (singleSymbolModeRadio.checked) {
-            const currentSymbol = tradingSymbolsTextarea.value.trim();
-            previewPayload.tradingSymbols = currentSymbol ? [currentSymbol] : [];
-        } else { // Watchlist mode
-            previewPayload.tradingSymbols = ["{% raw %}{{ticker}}{% endraw %}"];
-        }
-
-        document.getElementById('webhook-preview').value = JSON.stringify(previewPayload, null, 2);
-    }
-
-    form.strategyName.addEventListener('input', updateWebhookPreview);
-    form.exchange.addEventListener('change', updateWebhookPreview);
-    form.transactionType.addEventListener('change', updateWebhookPreview);
-    form.orderType.addEventListener('change', updateWebhookPreview);
-    form.orderValidity.addEventListener('change', updateWebhookPreview);
-    form.productType.addEventListener('change', updateWebhookPreview);
-    form.orderQty.addEventListener('input', updateWebhookPreview);
-    form.orderValue.addEventListener('input', updateWebhookPreview);
-
-
-    updateSymbolInputMode();
-
-
-    function resetForm(){
-        editingId = null;
-        form.reset();
-        tokensList.textContent = '';
-        form.orderValue.disabled = false;
-        form.orderQty.disabled = false;
-        singleSymbolModeRadio.checked = true;
-        updateSymbolInputMode();
-        updateTokens();
-        loadMasterAccounts();
-        modalEl.querySelector('.modal-title').textContent = 'Create Strategy';
-        updateWebhookPreview();
-    }
-    form.orderQty.addEventListener('input', ()=>{ form.orderValue.disabled = !!form.orderQty.value; });
-    form.orderValue.addEventListener('input', ()=>{ form.orderQty.disabled = !!form.orderValue.value; });
-
-    async function updateQtyFromValue(){
-        if(!form.orderValue.value || (singleSymbolModeRadio.checked && getSymbols().length !== 1)) return;
-
-        if (!singleSymbolModeRadio.checked) {
-            form.orderQty.value = '';
-            return;
-        }
-
-        try{
-            const sym = getSymbols()[0];
-            const data = await fetchJson(`/api/quote/${encodeURIComponent(sym)}`);
-            const price = parseFloat(data.price);
-            if(price>0){
-                const qty = parseFloat(form.orderValue.value) / price;
-                form.orderQty.value = qty.toFixed(2);
+            if (orderValueInput.value) {
+                previewPayload.orderValue = parseFloat(orderValueInput.value);
             }
-        }catch(e){/* ignore */}
-    }
+            webhookPreviewTextarea.value = JSON.stringify(previewPayload, null, 2);
+        }
 
-    form.orderValue.addEventListener('change', updateQtyFromValue);
+        // Add event listeners to form inputs to update preview
+        strategyForm.addEventListener('input', updateWebhookPreview);
 
-    function loadStrategies(){
-        Promise.all([
-            fetchJson('/api/strategies'),
-            fetchJson('/api/accounts?cache_only=1')
-        ]).then(([list, accData]) => {
-            const accMap = {};
-            (accData.accounts || []).forEach(a => {
-                const name = a.username || a.client_id;
-                accMap[a.id] = `${name} (${a.broker})`;
-            });
-            strategiesGrid.innerHTML='';
-            if(!list || list.length===0){
-                strategiesGrid.style.display='none';
-                noStrategiesState.style.display='block';
-                return;
-            }
-            strategiesGrid.style.display='flex';
-            noStrategiesState.style.display='none';
-            list.forEach(s => {
-                const accText = s.master_accounts ? s.master_accounts.split(',').map(id=>accMap[id.trim()]||id.trim()).join(', ') : 'All';
-                const webhookUrl = `${window.location.origin}/webhook/${userToken}?secret=${encodeURIComponent(s.webhook_secret || '')}`;
-                const cardHtml = `
-                <div class="col">
-                  <div class="card h-100 shadow-sm strategy-card">
-                    <div class="card-body d-flex flex-column">
-                      <div class="d-flex align-items-center mb-3">
-                        ${s.icon ? `<img src="${s.icon}" class="rounded-circle me-3" style="width:48px;height:48px;object-fit:contain;" alt="${s.name} icon">` : '<div class="me-3" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;background-color:var(--bs-light);border-radius:50%;"><i class="fas fa-chart-bar text-muted fa-lg"></i></div>'}
-                        <div>
-                          <h5 class="card-title mb-0">${s.name}</h5>
-                        </div>
-                        <span class="badge ${s.is_active ? 'bg-success':'bg-secondary'} ms-auto">${s.is_active ? 'Active':'Inactive'}</span>
-                      </div>
-                      <p class="card-text text-muted mb-3">${s.description || 'No description provided.'}</p>
-                      <p class="small text-muted">Accounts: ${accText}</p>
-                      <div class="mb-3">
-                        <label class="form-label small text-muted mb-1">Webhook URL</label>
-                        <div class="input-group input-group-sm">
-                          <input type="text" class="form-control" value="${webhookUrl}" readonly>
-                          <button class="btn btn-outline-secondary copy-btn" data-clipboard-text="${webhookUrl}" title="Copy Webhook URL"><i class="bi bi-clipboard"></i></button>
-                          <button class="btn btn-outline-secondary regen-btn" data-strategy-id="${s.id}" title="Regenerate Secret"><i class="bi bi-arrow-clockwise"></i></button>
-                          <button class="btn btn-outline-secondary test-btn" data-strategy-id="${s.id}" title="Test Webhook"><i class="bi bi-play-circle"></i></button>
-                        </div>
-                      </div>
-                      <div class="mt-auto d-flex flex-wrap justify-content-end gap-2">
-                        <button class="btn btn-sm ${s.is_active?'btn-warning':'btn-success'} activate-toggle-btn" data-strategy-id="${s.id}">
-                          <i class="bi ${s.is_active ? 'bi-pause-circle':'bi-play-circle'}"></i> ${s.is_active ? 'Deactivate':'Activate'}
-                        </button>
-                        <button class="btn btn-sm btn-info clone-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-copy"></i> Clone
-                        </button>
-                        <button class="btn btn-sm btn-secondary payload-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-file-earmark-text"></i> Payload
-                        </button>    
-                        <a href="/strategy-performance/${s.id}" class="btn btn-sm btn-outline-secondary">
-                          <i class="bi bi-graph-up"></i> Logs
-                        </a>
-                        <button class="btn btn-sm btn-primary edit-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-pencil"></i> Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-trash"></i> Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
-                strategiesGrid.insertAdjacentHTML('beforeend', cardHtml);
-            });
+        function resetForm() {
+            editingId = null;
+            strategyForm.reset();
+            updateSymbolInputMode();
+            modalTitle.textContent = 'Create Strategy';
+            formSubmitBtn.textContent = 'Save Strategy';
+            orderQtyInput.disabled = false;
+            orderValueInput.disabled = false;
+            updateWebhookPreview();
+        }
 
-            document.querySelectorAll('.copy-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>navigator.clipboard.writeText(btn.dataset.clipboardText));
-            });
-            document.querySelectorAll('.regen-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    if(!confirm('Regenerate secret for this strategy?')) return;
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}/regenerate-secret`,{method:'POST'}).then(loadStrategies);
-                });
-
-            });
-            document.querySelectorAll('.test-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}/test-webhook`,{method:'POST'}).then(o=>alert('Webhook test status: '+o.status));
-                });
-
-            });
-            document.querySelectorAll('.activate-toggle-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    const action=btn.textContent.includes('Deactivate')?'deactivate':'activate';
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}/${action}`,{method:'POST'}).then(loadStrategies);
-                });
-
-            });
-            document.querySelectorAll('.clone-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}/clone`,{method:'POST'}).then(loadStrategies);
-                });
-            });
-            document.querySelectorAll('.payload-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    const sid = btn.dataset.strategyId;
-                    const webhookUrl = btn.closest('.card').querySelector('input.form-control').value;
-                    const payload = localStorage.getItem('strategyPayload_'+sid) || '';
-                    payloadWebhook.value = webhookUrl;
-                    payloadJson.value = payload;
-                    payloadModal.show();
-                });
-            });
-            document.querySelectorAll('.edit-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}`).then(data=>{
-                        editingId = data.id;
-                        modalEl.querySelector('.modal-title').textContent = 'Edit Strategy';
-                        form.strategyName.value = data.name;
-                        loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
-                        
-                        const storedAllowedTickers = data.allowed_tickers || '';
-                        if (storedAllowedTickers === '__WATCHLIST_DYNAMIC__') {
-                            watchlistModeRadio.checked = true;
-                        } else {
-                            singleSymbolModeRadio.checked = true;
-                            tradingSymbolsTextarea.value = storedAllowedTickers;
-                        }
-                        updateSymbolInputMode();
-                        updateWebhookPreview();
-                        modal.show();
-                    });
-                });
-
-            });
-            document.querySelectorAll('.delete-btn').forEach(btn=>{
-                btn.addEventListener('click',()=>{
-                    if(!confirm('Are you sure you want to delete this strategy? This action cannot be undone.')) return;
-                    fetchJson(`/api/strategies/${btn.dataset.strategyId}`,{method:'DELETE'}).then(()=>{
-                        localStorage.removeItem('strategyPayload_'+btn.dataset.strategyId);
-                        loadStrategies();
-                    });
-                });
-
-            });
+        // Handle quantity/value input interdependence
+        orderQtyInput.addEventListener('input', () => {
+            orderValueInput.disabled = !!orderQtyInput.value;
         });
-    }
+        orderValueInput.addEventListener('input', () => {
+            orderQtyInput.disabled = !!orderValueInput.value;
+        });
 
-    createStrategyBtn && createStrategyBtn.addEventListener('click', ()=>{ resetForm(); modal.show(); });
-    createStrategyBtnAlt && createStrategyBtnAlt.addEventListener('click', ()=>{ resetForm(); modal.show(); });
+        // Form submission handler
+        strategyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = strategyNameInput.value.trim();
+            const webhookSecret = editingId ? null : crypto.randomUUID(); // Generate new secret only for new strategies
 
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        const name = form.strategyName.value.trim();
-        const selectedAccounts = getSelectedAccounts();
+            const strategyData = {
+                name: name,
+                transactionType: transactionTypeSelect.value,
+                orderType: orderTypeSelect.value,
+                productType: productTypeSelect.value,
+                isActive: editingId ? false : true, // New strategies are active by default
+                tradingSymbols: singleSymbolModeRadio.checked ? tradingSymbolsTextarea.value : '__WATCHLIST_DYNAMIC__',
+                webhookSecret: webhookSecret,
+                webhookPayload: JSON.parse(webhookPreviewTextarea.value) // Store the generated payload
+            };
+            if (orderQtyInput.value) {
+                strategyData.orderQty = parseFloat(orderQtyInput.value);
+            }
+            if (orderValueInput.value) {
+                strategyData.orderValue = parseFloat(orderValueInput.value);
+            }
 
-        if(!name){ alert('Strategy Name is required'); return; }
-
-        const isSingleSymbolMode = singleSymbolModeRadio.checked;
-        let symbolsToProcessForPreview = [];
-        let strategyNameForDB = name;
-        let tradingSymbolsForDb = '';
-
-        if (isSingleSymbolMode) {
-            const singleSymbol = tradingSymbolsTextarea.value.trim();
-            if (!singleSymbol) {
-                alert('Enter a trading symbol for single symbol mode');
+            try {
+                if (editingId) {
+                    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/strategies`, editingId), strategyData);
+                } else {
+                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/strategies`), strategyData);
+                }
+                hideModal(strategyModal);
+                resetForm();
+            } catch (error) {
+                console.error("Error saving strategy:", error);
+                showCustomAlert('Error', 'Failed to save strategy. Please try again.');
+            }
+        });
+        
+        // Global functions for card actions
+        window.handleEdit = async (id) => {
+            if (!isAuthReady || !userId) {
+                showCustomAlert('Error', 'Authentication not ready. Please wait.');
                 return;
             }
-            symbolsToProcessForPreview = [singleSymbol];
-            tradingSymbolsForDb = singleSymbol;
-            strategyNameForDB = `${name}-${singleSymbol}`;
-        } else {
-            symbolsToProcessForPreview = ["{% raw %}{{ticker}}{% endraw %}"];
-            tradingSymbolsForDb = "__WATCHLIST_DYNAMIC__";
-            strategyNameForDB = name;
-        }
+            try {
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/strategies`, id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    editingId = id;
+                    modalTitle.textContent = 'Edit Strategy';
+                    formSubmitBtn.textContent = 'Update Strategy';
+                    strategyNameInput.value = data.name;
+                    transactionTypeSelect.value = data.transactionType;
+                    orderTypeSelect.value = data.orderType;
+                    productTypeSelect.value = data.productType;
 
+                    if (data.tradingSymbols === '__WATCHLIST_DYNAMIC__') {
+                        watchlistModeRadio.checked = true;
+                    } else {
+                        singleSymbolModeRadio.checked = true;
+                        tradingSymbolsTextarea.value = data.tradingSymbols || '';
+                    }
+                    updateSymbolInputMode();
 
-        if(editingId){
-            const payload = {
-                name: strategyNameForDB,
-                master_accounts: selectedAccounts,
-                allowed_tickers: tradingSymbolsForDb
-            };
-            fetchJson(`/api/strategies/${editingId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(()=>{
-                const stored = localStorage.getItem('strategyPayload_'+editingId);
-                if(stored){
-                    try{
-                        const obj = JSON.parse(stored);
-                        obj.strategyName = strategyNameForDB;
-                        obj.masterAccounts = selectedAccounts;
-                        obj.tradingSymbols = symbolsToProcessForPreview;
-                        localStorage.setItem('strategyPayload_'+editingId, JSON.stringify(obj));
-                    }catch(e){/* ignore */}
+                    orderQtyInput.value = data.orderQty || '';
+                    orderValueInput.value = data.orderValue || '';
+                    orderQtyInput.disabled = !!data.orderValue;
+                    orderValueInput.disabled = !!data.orderQty;
+
+                    updateWebhookPreview();
+                    showModal(strategyModal);
+                } else {
+                    showCustomAlert('Error', 'Strategy not found.');
                 }
-                modal.hide();
-                loadStrategies();
-            });
-        } else {
-            const payload = {
-                name: strategyNameForDB,
-                asset_class:'Stocks',
-                style:'Systematic',
-                master_accounts: selectedAccounts,
-                allowed_tickers: tradingSymbolsForDb
-            };
+            } catch (error) {
+                console.error("Error fetching strategy for edit:", error);
+                showCustomAlert('Error', 'Failed to load strategy details.');
+            }
+        };
 
-            fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-            .then(res=>{
-                const cp = {
-                    strategyName: strategyNameForDB,
-                    exchange: form.exchange.value,
-                    transactionType: form.transactionType.value,
-                    orderType: form.orderType.value,
-                    orderValidity: form.orderValidity.value,
-                    productType: form.productType.value,
-                    masterAccounts: selectedAccounts,
-                    tradingSymbols: symbolsToProcessForPreview
-                };
-                if(form.orderQty.value){
-                    cp.orderQty = parseFloat(form.orderQty.value);
-                } else if(form.orderValue.value){
-                    cp.orderValue = parseFloat(form.orderValue.value);
+        window.handleDelete = async (id) => {
+            const confirmed = await showCustomAlert('Confirm Deletion', 'Are you sure you want to delete this strategy? This action cannot be undone.', true);
+            if (confirmed && isAuthReady && userId) {
+                try {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/strategies`, id));
+                } catch (error) {
+                    console.error("Error deleting strategy:", error);
+                    showCustomAlert('Error', 'Failed to delete strategy.');
                 }
-                localStorage.setItem('strategyPayload_'+res.id, JSON.stringify(cp));
-                modal.hide();
-                loadStrategies();
-            })
-            .catch(error => {
-                alert('Error creating strategy: ' + error.message);
-                console.error('Error creating strategy:', error);
-            });
-        }
+            }
+        };
 
-        updateWebhookPreview();
-    });
+        window.handleToggleStatus = async (id, currentStatus) => {
+            if (!isAuthReady || !userId) return;
+            try {
+                await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/strategies`, id), {
+                    isActive: !currentStatus
+                });
+            } catch (error) {
+                console.error("Error toggling strategy status:", error);
+                showCustomAlert('Error', 'Failed to change strategy status.');
+            }
+        };
 
-    loadSymbols();
-    loadMasterAccounts();
-    loadStrategies();
-};
-</script>
-{% endblock %}
+        window.handleWebhookPayload = async (id, secret) => {
+            if (!isAuthReady || !userId) return;
+            const docRef = doc(db, `artifacts/${appId}/users/${userId}/strategies`, id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const webhookUrl = `${window.location.origin}/webhook/${userId}/${id}?secret=${encodeURIComponent(secret)}`;
+                payloadWebhook.value = webhookUrl;
+                payloadJson.value = JSON.stringify(data.webhookPayload, null, 2);
+                showModal(payloadModal);
+            }
+        };
 
-{% block style %}
-<style>
-/* General card shadows and rounded corners */
-.card {
-    border-radius: 0.75rem; /* Larger rounded corners */
-}
-.card.shadow-lg {
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175) !important; /* Deeper shadow for main sections */
-}
-.card.shadow-sm {
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important; /* Lighter shadow for small cards */
-}
+        // Clipboard copy functionality
+        copyWebhookBtn.addEventListener('click', () => copyToClipboard(payloadWebhook.value));
+        copyPayloadBtn.addEventListener('click', () => copyToClipboard(payloadJson.value));
 
-/* Page header adjustments */
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-/* Empty state styling */
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    background-color: var(--bs-light);
-    border-radius: 0.75rem;
-    border: 1px dashed var(--bs-gray-400);
-    margin-top: 2rem;
-    color: var(--bs-gray-600);
-}
-.empty-state-icon {
-    font-size: 4rem;
-    color: var(--bs-gray-500);
-    margin-bottom: 1rem;
-}
-.empty-state h3 {
-    color: var(--bs-dark);
-    margin-bottom: 0.5rem;
-}
-
-/* Strategy Card specific styling */
-.strategy-card {
-    transition: transform 0.2s ease-in-out;
-}
-.strategy-card:hover {
-    transform: translateY(-5px);
-}
-.strategy-card .card-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-.strategy-card .badge {
-    font-size: 0.8em;
-    padding: 0.4em 0.6em;
-}
-.strategy-card .input-group-sm .form-control,
-.strategy-card .input-group-sm .btn {
-    font-size: 0.875rem;
-    padding: 0.25rem 0.5rem;
-}
-
-/* Ensure buttons are contained within the card */
-.strategy-card .card-body .mt-auto {
-    flex-wrap: wrap; 
-    padding-top: 0.5rem; 
-    padding-bottom: 0.5rem;
-}
-
-/* Adjust button margins for better spacing within the card */
-.strategy-card .card-body .mt-auto .btn {
-    margin-bottom: 0.5rem;
-}
-
-/* Form styling */
-.form-group {
-    margin-bottom: 1rem;
-}
-.card-header h4 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-</style>
+        // Initial setup for form
+        updateSymbolInputMode();
+    </script>
 {% endblock %}
