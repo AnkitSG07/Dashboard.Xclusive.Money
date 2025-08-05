@@ -7049,6 +7049,24 @@ def user_profile():
                 flash(f"Failed to update profile: {str(e)}", "error")
                 logger.error(f"Failed to update user profile {username}: {str(e)}")
 
+        elif action == "change_password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if not user.check_password(current_password):
+                message = "Current password is incorrect"
+            elif not new_password or new_password != confirm_password:
+                message = "New passwords do not match"
+            else:
+                user.set_password(new_password)
+                try:
+                    db.session.commit()
+                    message = "Password updated"
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Failed to update password: {str(e)}", "error")
+                    logger.error(f"Failed to update password for {username}: {str(e)}")
 
     profile_data = {
         "email": username,
