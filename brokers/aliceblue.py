@@ -189,31 +189,19 @@ class AliceBlueBroker(BrokerBase):
             return {"status": "failure", "error": str(e)}
 
     def get_order_list(self):
-        self.ensure_session()
-        url = self.BASE_URL + "placeOrder/fetchOrderBook"
-        try:
-            r = self._request("GET", url, headers=self.headers)
-            resp = r.json()
-        except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": str(e)}
-        except Exception:
-            return {"status": "failure", "error": r.text}
-        if isinstance(resp, list):
-            orders = resp
-        elif isinstance(resp, dict):
-            if resp.get("stat") and resp.get("stat") != "Ok":
-                return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order book."), "raw": resp}
-            orders = (
-                resp.get("data")
-                or resp.get("OrderBookDetail")
-                or resp.get("orderBook")
-                or resp.get("OrderBook")
-                or resp.get("orders")
-                or []
-            )
-        else:
-            orders = []
-        return {"status": "success", "orders": orders}
+        """Fetch Alice Blue trade book and return it as an order list.
+
+        Alice Blue's "order book" endpoint often leaves completed trades in a
+        pending state, which causes confusion in the dashboard.  Instead of
+        using the order book API we call ``fetchTradeBook`` and expose the
+        resulting trades under the ``orders`` key so the rest of the
+        application can treat them like an order book.
+        """
+
+        trade_resp = self.get_trade_book()
+        if isinstance(trade_resp, dict) and trade_resp.get("status") == "success":
+            return {"status": "success", "orders": trade_resp.get("trades", [])}
+        return trade_resp
 
     def get_trade_book(self):
         """Fetch the trade book which includes filled quantity information."""
