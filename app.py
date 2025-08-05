@@ -2777,7 +2777,10 @@ def get_order_book(client_id):
 
         # ✅ STEP 7: Sort orders by time (newest first)
         try:
-            formatted.sort(key=lambda x: x.get('order_time', ''), reverse=True)
+            formatted.sort(
+                key=lambda x: x.get("order_time") or "",
+                reverse=True,
+            )
         except Exception as e:
             logger.warning(f"Failed to sort orders: {str(e)}")
 
@@ -3801,7 +3804,10 @@ def get_master_orders():
             else:
                 master_summary[mid]['status'] = 'PARTIAL'
         orders = list(master_summary.values())
-        orders.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        orders.sort(
+            key=lambda x: x.get("timestamp") or "",
+            reverse=True,
+        )
         overall_summary = {
             'total_orders': len(orders),
             'active_orders': sum(1 for o in orders if o['status'] == 'ACTIVE'),
