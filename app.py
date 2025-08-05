@@ -1833,20 +1833,8 @@ def poll_and_copy_trades():
 
                 # Fetch orders from master account
                 try:
-                    if master_broker == "aliceblue" and hasattr(master_api, "get_trade_book"):
-                        orders_resp = master_api.get_trade_book()
-                    else:
-                        orders_resp = master_api.get_order_list()
+                    orders_resp = master_api.get_order_list()
                     order_list = parse_order_list(orders_resp)
-                    
-                    # Fallback for AliceBlue if trade book is empty
-                    if (
-                        master_broker == "aliceblue"
-                        and not order_list
-                        and hasattr(master_api, "get_order_list")
-                    ):
-                        orders_resp = master_api.get_order_list()
-                        order_list = parse_order_list(orders_resp)
                 except Exception as e:
                     err = f"Failed to fetch orders for master {master_id}: {str(e)}"
                     logger.error(err)
@@ -2555,18 +2543,8 @@ def get_order_book(client_id):
         try:
             broker_name = account_data.get('broker', '').lower()
 
-            # Use appropriate method based on broker
-            if broker_name == "aliceblue" and hasattr(api, "get_trade_book"):
-                logger.debug("Using AliceBlue trade book")
-                orders_resp = api.get_trade_book()
-                if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
-                    logger.warning(
-                        "Trade book failed for AliceBlue, falling back to order list"
-                    )
-                    orders_resp = api.get_order_list()
-            else:
-                logger.debug("Using standard order list")
-                orders_resp = api.get_order_list()
+            logger.debug(f"Fetching order list for broker {broker_name}")
+            orders_resp = api.get_order_list()
 
             # Check for API errors
             if isinstance(orders_resp, dict) and orders_resp.get("status") == "failure":
@@ -4364,18 +4342,8 @@ def change_master():
             # Get orders based on broker type
             broker_name = new_master_account.broker.lower() if new_master_account.broker else "unknown"
             
-            if broker_name == "aliceblue" and hasattr(new_master_api, "get_trade_book"):
-                logger.debug("Using AliceBlue trade book for new master marker")
-                orders_resp = new_master_api.get_trade_book()
-                order_list = parse_order_list(orders_resp)
-                
-                # Fallback to order list if trade book is empty
-                if not order_list and hasattr(new_master_api, "get_order_list"):
-                    orders_resp = new_master_api.get_order_list()
-                    order_list = parse_order_list(orders_resp)
-            else:
-                orders_resp = new_master_api.get_order_list()
-                order_list = parse_order_list(orders_resp)
+            orders_resp = new_master_api.get_order_list()
+            order_list = parse_order_list(orders_resp)
             
             # Process orders
             order_list = strip_emojis_from_obj(order_list or [])
@@ -6233,23 +6201,12 @@ def start_copy():
             master_dict = _account_to_dict(master_account)
             master_api = broker_api(master_dict)
             
-            # Get orders based on broker type
+            # Get orders from broker
             broker_name = master_account.broker.lower() if master_account.broker else "unknown"
             
-            if broker_name == "aliceblue" and hasattr(master_api, "get_trade_book"):
-                logger.debug("Using AliceBlue trade book for marker")
-                orders_resp = master_api.get_trade_book()
-                order_list = parse_order_list(orders_resp)
-                
-                # Fallback to order list if trade book is empty
-                if not order_list and hasattr(master_api, "get_order_list"):
-                    logger.debug("Trade book empty, falling back to order list")
-                    orders_resp = master_api.get_order_list()
-                    order_list = parse_order_list(orders_resp)
-            else:
-                logger.debug("Using standard order list for marker")
-                orders_resp = master_api.get_order_list()
-                order_list = parse_order_list(orders_resp)
+            logger.debug("Fetching order list for marker")
+            orders_resp = master_api.get_order_list()
+            order_list = parse_order_list(orders_resp)
             
             # Clean and process orders
             order_list = strip_emojis_from_obj(order_list or [])
@@ -6568,23 +6525,12 @@ def start_copy_all():
             master_dict = _account_to_dict(master_account)
             master_api = broker_api(master_dict)
             
-            # Get orders based on broker type
+            # Get orders from broker
             broker_name = master_account.broker.lower() if master_account.broker else "unknown"
             
-            if broker_name == "aliceblue" and hasattr(master_api, "get_trade_book"):
-                logger.debug("Using AliceBlue trade book for bulk marker")
-                orders_resp = master_api.get_trade_book()
-                order_list = parse_order_list(orders_resp)
-                
-                # Fallback to order list if trade book is empty
-                if not order_list and hasattr(master_api, "get_order_list"):
-                    logger.debug("Trade book empty, falling back to order list")
-                    orders_resp = master_api.get_order_list()
-                    order_list = parse_order_list(orders_resp)
-            else:
-                logger.debug("Using standard order list for bulk marker")
-                orders_resp = master_api.get_order_list()
-                order_list = parse_order_list(orders_resp)
+            logger.debug("Fetching order list for bulk marker")
+            orders_resp = master_api.get_order_list()
+            order_list = parse_order_list(orders_resp)
             
             # Clean and process orders
             order_list = strip_emojis_from_obj(order_list or [])
