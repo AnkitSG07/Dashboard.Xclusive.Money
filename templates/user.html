@@ -3,138 +3,72 @@
 {% block title %}User Profile - DhanBot{% endblock %}
 
 {% block styles %}
+<!-- Your layout.html should already be loading Bootstrap CSS. -->
+<!-- These links are here as a fallback, but can be removed if your layout handles them. -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    :root {
-        --primary: #4f46e5;
-        --primary-dark: #3730a3;
-        --secondary: #f8fafc;
-        --success: #10b981;
-        --danger: #ef4444;
-        --border: #e2e8f0;
-        --text-primary: #0f172a;
-        --text-secondary: #64748b;
-        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    }
-
-    .user-profile-page {
-        font-family: 'Inter', sans-serif;
-    }
-
-    .card {
-        border-radius: 16px;
-        border: none;
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-    }
-
-    .card-header {
-        background: var(--secondary);
-        border-bottom: 1px solid var(--border);
-        padding: 1.5rem 2rem;
-    }
-    
-    .card-footer {
-        background: var(--secondary);
-        border-top: 1px solid var(--border);
-    }
-
+    /* Minimal styles to ensure avatar looks correct */
     .profile-avatar {
         width: 120px;
         height: 120px;
-        border-radius: 50%;
-        border: 4px solid white;
-        box-shadow: var(--shadow-lg);
         object-fit: cover;
     }
-
     .avatar-placeholder {
         width: 120px;
         height: 120px;
-        border-radius: 50%;
-        background: var(--secondary);
-        border: 3px dashed var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-muted);
-        font-size: 2.5rem;
-    }
-    
-    .file-upload-btn input[type="file"] {
-        display: none;
-    }
-
-    .form-control:read-only {
-        background: var(--secondary);
-    }
-    
-    .nav-tabs .nav-link {
-        color: var(--text-secondary);
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: var(--primary);
-        font-weight: 500;
-    }
-
-    .fade-in {
-        animation: fadeIn 0.6s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5 user-profile-page">
+<div class="container py-5">
     <!-- Page Header -->
-    <div class="mb-5 fade-in">
+    <div class="mb-4">
         <h2 class="fw-bold">User Profile</h2>
         <p class="text-muted">Manage your account settings and personal information.</p>
     </div>
 
     {% if message %}
-        <div class="alert alert-info fade-in">{{ message }}</div>
+        <div class="alert alert-info">{{ message }}</div>
     {% endif %}
 
-    <div class="card fade-in">
-        <ul class="nav nav-tabs nav-tabs-bordered p-3" id="profileTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#profile-info" type="button" role="tab" aria-controls="profile-info" aria-selected="true">
-                    <i class="bi bi-person-fill me-2"></i>Profile Information
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">
-                    <i class="bi bi-shield-lock-fill me-2"></i>Security
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content pt-2">
-            <!-- Profile Information Tab -->
-            <div class="tab-pane fade show active" id="profile-info" role="tabpanel" aria-labelledby="info-tab">
-                <form method="post" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="save_profile">
-                    <div class="card-body p-4">
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="profileTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#profile-info" type="button" role="tab" aria-controls="profile-info" aria-selected="true">
+                        <i class="bi bi-person-fill me-2"></i>Profile Information
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">
+                        <i class="bi bi-shield-lock-fill me-2"></i>Security
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content pt-3" id="profileTabContent">
+                <!-- Profile Information Tab -->
+                <div class="tab-pane fade show active" id="profile-info" role="tabpanel" aria-labelledby="info-tab">
+                    <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="save_profile">
                         <div class="row g-4 align-items-center">
                             <div class="col-md-3 text-center">
                                 <div id="profileImageContainer" class="mb-3">
                                     {% if user.profile_image %}
-                                        <img src="{{ user.profile_image }}" alt="Profile" class="profile-avatar" id="profileAvatar">
+                                        <img src="{{ user.profile_image }}" alt="Profile" class="rounded-circle profile-avatar" id="profileAvatar">
                                     {% else %}
-                                        <div class="avatar-placeholder mx-auto" id="avatarPlaceholder"><i class="bi bi-person-fill"></i></div>
-                                        <img src="" alt="Profile" class="profile-avatar d-none" id="profileAvatar">
+                                        <div class="d-flex justify-content-center align-items-center bg-light rounded-circle avatar-placeholder" id="avatarPlaceholder">
+                                            <i class="bi bi-person-fill fs-1 text-secondary"></i>
+                                        </div>
+                                        <img src="" alt="Profile" class="rounded-circle profile-avatar d-none" id="profileAvatar">
                                     {% endif %}
                                 </div>
-                                <label for="profileImageInput" class="btn btn-sm btn-outline-primary file-upload-btn">
+                                <label for="profileImageInput" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-camera-fill"></i> Upload Photo
-                                    <input type="file" id="profileImageInput" name="profile_image" accept="image/*">
+                                    <input type="file" id="profileImageInput" name="profile_image" accept="image/*" class="d-none">
                                 </label>
                             </div>
                             <div class="col-md-9">
@@ -158,18 +92,16 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="card-footer text-end">
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill"></i> Save Changes</button>
-                    </div>
-                </form>
-            </div>
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i> Save Changes</button>
+                        </div>
+                    </form>
+                </div>
 
-            <!-- Security Tab -->
-            <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
-                <form method="post">
-                    <input type="hidden" name="action" value="change_password">
-                    <div class="card-body p-4">
+                <!-- Security Tab -->
+                <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                    <form method="post">
+                        <input type="hidden" name="action" value="change_password">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="currentPassword" class="form-label">Current Password</label>
@@ -184,11 +116,11 @@
                                 <input type="password" id="confirmPassword" name="confirm_password" class="form-control" required>
                             </div>
                         </div>
-                    </div>
-                    <div class="card-footer text-end">
-                        <button type="submit" class="btn btn-success"><i class="bi bi-shield-check"></i> Update Password</button>
-                    </div>
-                </form>
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-success"><i class="bi bi-shield-check me-1"></i> Update Password</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -196,6 +128,8 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Your layout.html should already be loading Bootstrap JS. -->
+<!-- This link is here as a fallback, but can be removed if your layout handles it. -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
