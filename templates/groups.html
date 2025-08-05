@@ -1,373 +1,453 @@
 {% extends "layout.html" %}
-{% block title %}Groups - DhanBot{% endblock %}
+
+{% block title %}Groups Management - DhanBot{% endblock %}
+
+{% block styles %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #4f46e5;
+        --primary-dark: #3730a3;
+        --secondary: #f8fafc;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #06b6d4;
+        --border: #e2e8f0;
+        --text-primary: #0f172a;
+        --text-secondary: #64748b;
+        --text-muted: #94a3b8;
+        --bg-card: #ffffff;
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        line-height: 1.6;
+    }
+
+    .page-container {
+        padding: 2rem 0;
+    }
+
+    .page-header h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .page-header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+
+    .card {
+        background: var(--bg-card);
+        border-radius: 16px;
+        border: none;
+        box-shadow: var(--shadow-lg);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .card-header {
+        background: var(--secondary);
+        border-bottom: 1px solid var(--border);
+        padding: 1.5rem 2rem;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+    
+    .table thead th {
+        background: var(--secondary);
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--text-muted);
+    }
+
+    .fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    <h2 class="text-center mb-5 fw-bold text-dark">Account Group Management</h2>
-
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card h-100 shadow-lg border-0 rounded-3">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-4 text-primary d-flex align-items-center">
-                        <i class="bi bi-plus-circle-fill me-2"></i> Create New Group
-                    </h5>
-                    <form id="createGroupForm">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control form-control-lg border-primary" id="groupName" placeholder="Enter unique group name" aria-label="Group Name" required>
-                            <button class="btn btn-primary btn-lg" type="submit">Create</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<div class="page-container">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header text-center mb-5 fade-in text-white">
+            <h1><i class="bi bi-people-fill"></i> Groups Management</h1>
+            <p>Organize and manage your account groups for efficient trading operations</p>
         </div>
 
-        <div class="col-lg-6">
-            <div class="card h-100 shadow-lg border-0 rounded-3">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-4 text-secondary d-flex align-items-center">
-                        <i class="bi bi-pencil-square me-2"></i> Manage Groups
-                    </h5>
-                    <div class="mb-4">
-                        <label for="renameGroupSelect" class="form-label text-muted">Rename Group</label>
-                        <form id="renameGroupForm" class="row gx-2 gy-2 align-items-center">
-                            <div class="col-md-6">
-                                <select class="form-select" id="renameGroupSelect" aria-label="Select group to rename"></select>
-                            </div>
-                            <div class="col-md-4">
-                                <input type="text" class="form-control" id="newGroupName" placeholder="New name for group" required>
-                            </div>
-                            <div class="col-md-2">
-                                <button class="btn btn-outline-secondary w-100" type="submit">Rename</button>
-                            </div>
-                        </form>
-                    </div>
+        <!-- Alert Container -->
+        <div id="alertContainer" class="mb-4"></div>
 
-                    <div>
-                        <label for="deleteGroupSelect" class="form-label text-muted">Delete Group</label>
-                        <form id="deleteGroupForm" class="row gx-2 gy-2 align-items-center">
-                            <div class="col-md-8">
-                                <select class="form-select" id="deleteGroupSelect" aria-label="Select group to delete"></select>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" type="submit">Delete</button>
+        <!-- Action Cards Row -->
+        <div class="row g-4 mb-4">
+            <!-- Create Group -->
+            <div class="col-lg-12">
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h5 class="card-title"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Create New Group</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="createGroupForm">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="groupName" placeholder="Enter a unique name for the new group" required>
+                                <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Create</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card shadow-lg border-0 rounded-3 my-5">
-        <div class="card-body p-4">
-            <h5 class="card-title mb-4 text-dark d-flex align-items-center">
-                <i class="bi bi-people-fill me-2"></i> Current Account Groups
-            </h5>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle" id="groupsTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col">Group Name</th>
-                            <th scope="col">Members</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="2" class="text-center text-muted py-4">Loading groups...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- Groups Table -->
+        <div class="card mb-4 fade-in">
+            <div class="card-header">
+                <h5 class="card-title"><i class="bi bi-list-ul text-primary me-2"></i>Current Account Groups</h5>
             </div>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card h-100 shadow-lg border-0 rounded-3">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-4 text-info d-flex align-items-center">
-                        <i class="bi bi-person-plus-fill me-2"></i> Add Account to Group
-                    </h5>
-                    <form id="addMemberForm">
-                        <div class="mb-3">
-                            <label for="addGroupSelect" class="form-label">Select Group</label>
-                            <select class="form-select" id="addGroupSelect" aria-label="Select group"></select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="accountSelect" class="form-label">Select Account</label>
-                            <select class="form-select" id="accountSelect" aria-label="Select account"></select>
-                        </div>
-                        <button class="btn btn-info w-100 mt-2" type="submit">Add Account</button>
-                    </form>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="groupsTable">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Group Name</th>
+                                <th>Members</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="3" class="text-center p-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-6">
-            <div class="card h-100 shadow-lg border-0 rounded-3">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-4 text-warning d-flex align-items-center">
-                        <i class="bi bi-person-dash-fill me-2"></i> Remove Account From Group
-                    </h5>
-                    <form id="removeMemberForm">
-                        <div class="mb-3">
-                            <label for="removeGroupSelect" class="form-label">Select Group</label>
-                            <select class="form-select" id="removeGroupSelect" aria-label="Select group"></select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="removeAccountSelect" class="form-label">Select Account to Remove</label>
-                            <select class="form-select" id="removeAccountSelect" aria-label="Select account to remove"></select>
-                        </div>
-                        <button class="btn btn-warning w-100 mt-2" type="submit">Remove Account</button>
-                    </form>
+        <!-- Management Actions Row -->
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card fade-in">
+                    <div class="card-header"><h5 class="card-title"><i class="bi bi-person-plus-fill text-primary me-2"></i>Add Account to Group</h5></div>
+                    <div class="card-body">
+                        <form id="addMemberForm">
+                            <div class="mb-3">
+                                <label for="addGroupSelect" class="form-label">Select Group</label>
+                                <select class="form-select" id="addGroupSelect" required></select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="accountSelect" class="form-label">Select Account</label>
+                                <select class="form-select" id="accountSelect" required></select>
+                            </div>
+                            <button type="submit" class="btn btn-info w-100"><i class="bi bi-person-plus"></i> Add to Group</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card fade-in">
+                    <div class="card-header"><h5 class="card-title"><i class="bi bi-person-dash-fill text-primary me-2"></i>Remove Account from Group</h5></div>
+                    <div class="card-body">
+                        <form id="removeMemberForm">
+                            <div class="mb-3">
+                                <label for="removeGroupSelect" class="form-label">Select Group</label>
+                                <select class="form-select" id="removeGroupSelect" required></select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="removeAccountSelect" class="form-label">Select Member to Remove</label>
+                                <select class="form-select" id="removeAccountSelect" required></select>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100"><i class="bi bi-person-dash"></i> Remove from Group</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="card shadow-lg border-0 rounded-3 mt-5 mb-3">
-        <div class="card-body p-4">
-            <h5 class="card-title mb-4 text-success d-flex align-items-center">
-                <i class="bi bi-box-arrow-in-right me-2"></i> Place Group Order
-            </h5>
-            <form id="groupOrderForm" class="row gx-3 gy-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="orderGroupSelect" class="form-label">Group</label>
-                    <select class="form-select" id="orderGroupSelect" aria-label="Select group for order"></select>
+        
+        <!-- Other Actions -->
+        <div class="row g-4 mt-0">
+            <div class="col-lg-6">
+                 <div class="card fade-in">
+                    <div class="card-header"><h5 class="card-title"><i class="bi bi-pencil-square text-primary me-2"></i>Rename Group</h5></div>
+                    <div class="card-body">
+                        <form id="renameGroupForm">
+                            <div class="mb-3">
+                                <label for="renameGroupSelect" class="form-label">Select Group</label>
+                                <select class="form-select" id="renameGroupSelect" required></select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="newGroupName" class="form-label">New Name</label>
+                                <input type="text" class="form-control" id="newGroupName" placeholder="Enter the new name" required>
+                            </div>
+                            <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-pencil"></i> Rename</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label for="orderSymbol" class="form-label">Symbol</label>
-                    <input type="text" class="form-control" id="orderSymbol" list="symbolList" placeholder="e.g., AAPL" required>
-                    <datalist id="symbolList"></datalist>
+            </div>
+            <div class="col-lg-6">
+                <div class="card fade-in">
+                    <div class="card-header"><h5 class="card-title"><i class="bi bi-trash-fill text-primary me-2"></i>Delete Group</h5></div>
+                    <div class="card-body">
+                        <form id="deleteGroupForm">
+                             <div class="mb-3">
+                                <label for="deleteGroupSelect" class="form-label">Select Group</label>
+                                <select class="form-select" id="deleteGroupSelect" required></select>
+                            </div>
+                            <p class="text-muted small">This action is permanent and cannot be undone.</p>
+                            <button type="submit" class="btn btn-danger w-100"><i class="bi bi-trash"></i> Delete Group</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label for="orderAction" class="form-label">Action</label>
-                    <select class="form-select" id="orderAction" aria-label="Order action">
-                        <option value="BUY">BUY</option>
-                        <option value="SELL">SELL</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="orderQty" class="form-label">Quantity</label>
-                    <input type="number" class="form-control" id="orderQty" placeholder="Qty" min="1" required>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-success w-100" type="submit">Send Order</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-window.pageScripts = window.pageScripts || {};
-window.pageScripts["groups"] = function() {
-  let groupsCache = [];
+document.addEventListener('DOMContentLoaded', () => {
+    let groupsCache = [];
 
-  // --- Utility Functions ---
-  function fetchJson(url, options = {}) {
-    return fetch(url, options).then(response => {
-      if (!response.ok) {
-        return response.json().then(errorData => {
-          throw new Error(errorData.error || 'An unknown error occurred.');
-        });
-      }
-      return response.json();
-    });
-  }
-
-  // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
-  function showToast(message, type = 'success') {
-    // In a production SAAS app, you'd replace this with a non-blocking toast or similar.
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    alert(message); // Using alert for immediate demo purposes
-  }
-
-  // --- Load Data Functions ---
-  function loadGroups() {
-    fetchJson('/api/groups')
-      .then(groups => {
-        groupsCache = groups || [];
-        const tbody = document.querySelector('#groupsTable tbody');
-        tbody.innerHTML = ''; // Clear existing rows
-        if (groups.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-4">No account groups have been created yet.</td></tr>';
-        } else {
-          groups.forEach(g => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${g.name}</td><td>${(g.members || []).join(', ')}</td>`;
-            tbody.appendChild(tr);
-          });
+    // --- Utility Functions ---
+    async function fetchJson(url, options = {}) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'An unknown error occurred.');
+            }
+            return response.json();
+        } catch (error) {
+            showAlert(`API Error: ${error.message}`, 'danger');
+            throw error;
         }
+    }
+    
+    function showAlert(message, type = 'success') {
+        const alertContainer = document.getElementById('alertContainer');
+        const icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.role = 'alert';
+        alert.innerHTML = `
+            <i class="bi bi-${icons[type]} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(alert);
+    }
+
+    // --- UI Update Functions ---
+    function renderGroupsTable() {
+        const tbody = document.querySelector('#groupsTable tbody');
+        tbody.innerHTML = '';
+        if (groupsCache.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center p-5"><div class="empty-state"><h3>No Groups Yet</h3><p>Use the form above to create your first group.</p></div></td></tr>`;
+            return;
+        }
+
+        groupsCache.forEach(g => {
+            const tr = document.createElement('tr');
+            const membersHtml = (g.members && g.members.length > 0)
+                ? g.members.map(m => `<span class="badge bg-secondary me-1">${m}</span>`).join('')
+                : '<span class="text-muted">No members</span>';
+            
+            tr.innerHTML = `
+                <td class="ps-4"><strong>${g.name}</strong></td>
+                <td>${membersHtml}</td>
+                <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-primary" onclick="window.pageFuncs.editGroup('${g.name}')">Edit</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function populateSelects(selectIds, options, placeholder) {
+        selectIds.forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            
+            const currentVal = select.value;
+            select.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+            select.innerHTML += options;
+            
+            if (select.querySelector(`option[value="${currentVal}"]`)) {
+                select.value = currentVal;
+            }
+        });
+    }
+
+    // --- Data Loading ---
+    async function loadGroups() {
+        try {
+            const groups = await fetchJson('/api/groups');
+            groupsCache = groups || [];
+            renderGroupsTable();
+            const groupOpts = groupsCache.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+            populateSelects(['addGroupSelect', 'removeGroupSelect', 'renameGroupSelect', 'deleteGroupSelect'], groupOpts, 'Select a group...');
+            updateRemoveAccountOptions();
+        } catch (error) {
+            console.error("Failed to load groups:", error);
+        }
+    }
+
+    async function loadAccounts() {
+        try {
+            const data = await fetchJson('/api/accounts');
+            const accounts = data.accounts || [];
+            const accOpts = accounts.map(a => `<option value="${a.client_id}">${a.client_id}</option>`).join('');
+            populateSelects(['accountSelect'], accOpts, 'Select an account...');
+        } catch (error) {
+            console.error("Failed to load accounts:", error);
+        }
+    }
+    
+    function updateRemoveAccountOptions() {
+        const groupName = document.getElementById('removeGroupSelect').value;
+        const group = groupsCache.find(g => g.name === groupName);
+        const members = group ? group.members : [];
+        const memberOpts = members.map(m => `<option value="${m}">${m}</option>`).join('');
+        populateSelects(['removeAccountSelect'], memberOpts, 'Select a member...');
+    }
+
+    // --- Event Handlers ---
+    document.getElementById('createGroupForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = document.getElementById('groupName').value.trim();
+        if (!name) { showAlert('Group name cannot be empty.', 'warning'); return; }
         
-        // Populate select dropdowns for all relevant forms
-        const opts = groups.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
-        const noGroupsOption = groups.length === 0 ? '<option value="" disabled selected>No groups available</option>' : '';
+        try {
+            await fetchJson('/api/create-group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            showAlert(`Group "${name}" created successfully!`, 'success');
+            document.getElementById('createGroupForm').reset();
+            loadGroups();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
 
-        document.getElementById('addGroupSelect').innerHTML = noGroupsOption + opts;
-        document.getElementById('orderGroupSelect').innerHTML = noGroupsOption + opts;
-        document.getElementById('renameGroupSelect').innerHTML = noGroupsOption + opts;
-        document.getElementById('deleteGroupSelect').innerHTML = noGroupsOption + opts;
-        document.getElementById('removeGroupSelect').innerHTML = noGroupsOption + opts;
+    document.getElementById('addMemberForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const group = document.getElementById('addGroupSelect').value;
+        const client_id = document.getElementById('accountSelect').value;
+        if (!group || !client_id) { showAlert('Please select both a group and an account.', 'warning'); return; }
         
-        // Ensure initial state for remove account dropdown
-        updateRemoveAccountOptions();
-      })
-      .catch(error => showToast(`Failed to load groups: ${error.message}`, 'error'));
-  }
-
-  function updateRemoveAccountOptions() {
-    const gname = document.getElementById('removeGroupSelect').value;
-    const group = groupsCache.find(x => x.name === gname) || {members: []};
-    const opts = (group.members || []).map(m => `<option value="${m}">${m}</option>`).join('');
-    const noMembersOption = (group.members || []).length === 0 ? '<option value="" disabled selected>No members in this group</option>' : '';
-    document.getElementById('removeAccountSelect').innerHTML = noMembersOption + opts;
-  }
-  
-  function loadAccounts() {
-    fetchJson('/api/accounts')
-      .then(data => {
-        const accounts = data.accounts || [];
-        const opts = accounts.map(a => `<option value="${a.client_id}">${a.client_id}</option>`).join('');
-        const noAccountsOption = accounts.length === 0 ? '<option value="" disabled selected>No accounts available</option>' : '';
-        document.getElementById('accountSelect').innerHTML = noAccountsOption + opts;
-      })
-      .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
-  }
-
-  function loadSymbols(){
-    fetchJson('/api/symbols')
-      .then(data => {
-        const opts = data.map(s => `<option value="${s.symbol}">${s.symbol} (${s.security_id})</option>`).join('');
-        document.getElementById('symbolList').innerHTML = opts;
-      })
-      .catch(error => showToast(`Failed to load symbols: ${error.message}`, 'error'));
-  }
-
-  // --- Event Listeners ---
-
-  // Create Group
-  document.getElementById('createGroupForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const name = document.getElementById('groupName').value.trim();
-    if(!name) { showToast('Group name cannot be empty.', 'warning'); return; }
+        try {
+            const resp = await fetchJson(`/api/groups/${encodeURIComponent(group)}/add`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id })
+            });
+            showAlert(resp.message || 'Account added successfully!', 'success');
+            loadGroups();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
     
-    fetchJson('/api/create-group', { 
-      method:'POST', 
-      headers:{'Content-Type':'application/json'}, 
-      body:JSON.stringify({name}) 
-    })
-    .then(() => { 
-      document.getElementById('groupName').value = ''; 
-      showToast('Group created successfully!');
-      loadGroups(); 
-    })
-    .catch(error => showToast(`Failed to create group: ${error.message}`, 'error'));
-  });
+    document.getElementById('removeGroupSelect').addEventListener('change', updateRemoveAccountOptions);
 
-  // Add Member to Group
-  document.getElementById('addMemberForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const group = document.getElementById('addGroupSelect').value;
-    const client_id = document.getElementById('accountSelect').value;
-    if(!group || !client_id) { showToast('Please select both a group and an account.', 'warning'); return; }
+    document.getElementById('removeMemberForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const group = document.getElementById('removeGroupSelect').value;
+        const client_id = document.getElementById('removeAccountSelect').value;
+        if (!group || !client_id) { showAlert('Please select a group and a member to remove.', 'warning'); return; }
+        
+        try {
+            const resp = await fetchJson(`/api/groups/${encodeURIComponent(group)}/remove`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id })
+            });
+            showAlert(resp.message || 'Account removed successfully!', 'success');
+            loadGroups();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
     
-    fetchJson(`/api/groups/${encodeURIComponent(group)}/add`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_id})
-    })
-    .then(resp => { 
-      showToast(resp.message || 'Account added to group successfully!'); 
-      loadGroups(); 
-    })
-    .catch(error => showToast(`Failed to add account: ${error.message}`, 'error'));
-  });
+    document.getElementById('renameGroupForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const oldName = document.getElementById('renameGroupSelect').value;
+        const newName = document.getElementById('newGroupName').value.trim();
+        if (!oldName || !newName) { showAlert('Please select a group and provide a new name.', 'warning'); return; }
+        
+        try {
+            const resp = await fetchJson(`/api/groups/${encodeURIComponent(oldName)}/rename`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_name: newName })
+            });
+            showAlert(resp.message || 'Group renamed successfully!', 'success');
+            document.getElementById('renameGroupForm').reset();
+            loadGroups();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
 
-  // Place Group Order
-  document.getElementById('groupOrderForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const group_name = document.getElementById('orderGroupSelect').value;
-    const symbol = document.getElementById('orderSymbol').value.trim();
-    const action = document.getElementById('orderAction').value;
-    const quantity = document.getElementById('orderQty').value;
+    document.getElementById('deleteGroupForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = document.getElementById('deleteGroupSelect').value;
+        if (!name) { showAlert('Please select a group to delete.', 'warning'); return; }
+        if (!confirm(`Are you sure you want to delete the group "${name}"? This action cannot be undone.`)) return;
+        
+        try {
+            const resp = await fetchJson(`/api/groups/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            showAlert(resp.message || 'Group deleted successfully!', 'success');
+            loadGroups();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
+
+    // --- Initial Load ---
+    loadGroups();
+    loadAccounts();
     
-    if(!group_name || !symbol || !quantity) { showToast('Please fill all order details.', 'warning'); return; }
-    if(isNaN(quantity) || parseInt(quantity) <= 0) { showToast('Quantity must be a positive number.', 'warning'); return; }
-
-    fetchJson('/api/group-order', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({group_name, symbol, action, quantity: parseInt(quantity)})
-    })
-    .then(data => showToast('Order placed successfully: ' + JSON.stringify(data, null, 2)))
-    .catch(error => showToast(`Failed to place order: ${error.message}`, 'error'));
-  });
-
-  // Update remove account options when group selection changes
-  document.getElementById('removeGroupSelect').addEventListener('change', updateRemoveAccountOptions);
-
-  // Remove Member from Group
-  document.getElementById('removeMemberForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    const group = document.getElementById('removeGroupSelect').value;
-    const client_id = document.getElementById('removeAccountSelect').value;
-    if(!group || !client_id) { showToast('Please select both a group and an account to remove.', 'warning'); return; }
-    
-    fetchJson(`/api/groups/${encodeURIComponent(group)}/remove`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_id})
-    })
-    .then(resp => { 
-      showToast(resp.message || 'Account removed from group successfully!'); 
-      loadGroups(); 
-    })
-    .catch(error => showToast(`Failed to remove account: ${error.message}`, 'error'));
-  });
-
-  // Rename Group
-  document.getElementById('renameGroupForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    const oldName = document.getElementById('renameGroupSelect').value;
-    const newName = document.getElementById('newGroupName').value.trim();
-    if(!oldName || !newName) { showToast('Please select a group and enter a new name.', 'warning'); return; }
-    
-    fetchJson(`/api/groups/${encodeURIComponent(oldName)}/rename`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({new_name:newName})
-    })
-    .then(resp => { 
-      showToast(resp.message || 'Group renamed successfully!'); 
-      loadGroups(); 
-      document.getElementById('newGroupName').value = ''; 
-    })
-    .catch(error => showToast(`Failed to rename group: ${error.message}`, 'error'));
-  });
-
-  // Delete Group
-  document.getElementById('deleteGroupForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    const name = document.getElementById('deleteGroupSelect').value;
-    if(!name) { showToast('Please select a group to delete.', 'warning'); return; }
-    if(!confirm(`Are you sure you want to delete the group "${name}"? This action cannot be undone.`)) return;
-    
-    fetchJson(`/api/groups/${encodeURIComponent(name)}`, { method:'DELETE' })
-      .then(resp => { 
-        showToast(resp.message || 'Group deleted successfully!'); 
-        loadGroups(); 
-      })
-      .catch(error => showToast(`Failed to delete group: ${error.message}`, 'error'));
-  });
-
-  // --- Initial Load ---
-  loadGroups();
-  loadAccounts();
-  loadSymbols();
-};
+    // Make functions globally accessible for inline onclick
+    window.pageFuncs = {
+        editGroup: (groupName) => {
+            document.getElementById('renameGroupSelect').value = groupName;
+            document.getElementById('newGroupName').value = groupName;
+            document.getElementById('newGroupName').focus();
+        }
+    };
+});
 </script>
 {% endblock %}
