@@ -2284,3 +2284,43 @@ def test_clear_connection_error_logs_handles_string_details(client):
         assert SystemLog.query.count() == 1
         app_module.clear_connection_error_logs(acc)
         assert SystemLog.query.count() == 0
+
+def test_order_book_infers_status_from_filled_qty(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(
+            user_id=user.id,
+            client_id="AB1",
+            broker="aliceblue",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        db.session.commit()
+
+    sample_trade = {
+        "Filledqty": 1,
+        "Avgprc": 100,
+        "Nstordno": "123",
+        "Tsym": "IDEA-EQ",
+    }
+
+    class DummyBroker:
+        def get_order_list(self):
+            return {"status": "success", "trades": [sample_trade]}
+
+    monkeypatch.setattr(app_module, "broker_api", lambda acc: DummyBroker())
+
+    resp = client.get("/api/order-book/AB1")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, list) and len(data) == 1
+    order = data[0]
+    assert order["status"] == "FILLED"
+    assert order["filled_qty"] == 1
+    assert order["avg_price"] == 100.0
