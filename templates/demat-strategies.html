@@ -575,9 +575,22 @@ window.pageScripts["demat-strategies"] = function() {
             btn.addEventListener('click',()=>{
                 const sid = btn.dataset.strategyId;
                 const webhookUrl = btn.closest('.card').querySelector('input.form-control').value;
-                const payload = localStorage.getItem('strategyPayload_'+sid) || '';
+
+                let payloadObj = {};
+                try {
+                    payloadObj = JSON.parse(localStorage.getItem('strategyPayload_'+sid) || '{}');
+                } catch(e) {}
+
+                if(payloadObj.exchange === 'BOTH'){
+                    payloadObj.exchange = ['NSE','BSE'];
+                }
+                if(payloadObj.transactionType === 'BOTH'){
+                    payloadObj.transactionType = ['BUY','SELL'];
+                }
+                localStorage.setItem('strategyPayload_'+sid, JSON.stringify(payloadObj));
+
                 payloadWebhook.value = webhookUrl;
-                payloadJson.value = payload;
+                payloadJson.value = JSON.stringify(payloadObj, null, 2);
                 payloadModal.show();
             });
         });
