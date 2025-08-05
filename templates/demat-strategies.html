@@ -304,6 +304,11 @@ window.pageScripts["demat-strategies"] = function() {
         const container = document.getElementById('strategy-accounts');
         return Array.from(container.querySelectorAll('input[name="masterAccounts"]:checked')).map(cb => cb.value);
     }
+    
+    function expandBoth(value, bothValues){
+        if (Array.isArray(value)) return value;
+        return String(value).toUpperCase() === 'BOTH' ? bothValues : value;
+    }
 
     function getSymbols(){
         if (singleSymbolModeRadio.checked) {
@@ -377,11 +382,11 @@ window.pageScripts["demat-strategies"] = function() {
         const name = form.strategyName.value.trim();
         const selectedAccounts = getSelectedAccounts();
 
-        const exch = form.exchange.value;
-        const ttype = form.transactionType.value;
+        const exch = expandBoth(form.exchange.value, ['NSE','BSE']);
+        const ttype = expandBoth(form.transactionType.value, ['BUY','SELL']);
         const previewPayload = {
-            exchange: exch === 'BOTH' ? ['NSE','BSE'] : exch,
-            transactionType: ttype === 'BOTH' ? ['BUY','SELL'] : ttype,
+            exchange: exch,
+            transactionType: ttype,
             transactionType: form.transactionType.value,
             orderType: form.orderType.value,
             orderValidity: form.orderValidity.value,
@@ -581,12 +586,8 @@ window.pageScripts["demat-strategies"] = function() {
                     payloadObj = JSON.parse(localStorage.getItem('strategyPayload_'+sid) || '{}');
                 } catch(e) {}
 
-                if(payloadObj.exchange === 'BOTH'){
-                    payloadObj.exchange = ['NSE','BSE'];
-                }
-                if(payloadObj.transactionType === 'BOTH'){
-                    payloadObj.transactionType = ['BUY','SELL'];
-                }
+                payloadObj.exchange = expandBoth(payloadObj.exchange, ['NSE','BSE']);
+                payloadObj.transactionType = expandBoth(payloadObj.transactionType, ['BUY','SELL']);
                 localStorage.setItem('strategyPayload_'+sid, JSON.stringify(payloadObj));
 
                 payloadWebhook.value = webhookUrl;
@@ -610,8 +611,20 @@ window.pageScripts["demat-strategies"] = function() {
                         tradingSymbolsTextarea.value = storedAllowedTickers;
                     }
                     // Set other form fields
-                    form.exchange.value = data.exchange || 'NSE';
-                    form.transactionType.value = data.transaction_type || 'BUY';
+                    const exchField = data.exchange;
+                    if (Array.isArray(exchField)) {
+                        form.exchange.value = exchField.length === 2 ? 'BOTH' : exchField[0];
+                    } else {
+                        const val = String(exchField || 'NSE').toUpperCase();
+                        form.exchange.value = val === 'BOTH' ? 'BOTH' : (exchField || 'NSE');
+                    }
+                    const tTypeField = data.transaction_type;
+                    if (Array.isArray(tTypeField)) {
+                        form.transactionType.value = tTypeField.length === 2 ? 'BOTH' : tTypeField[0];
+                    } else {
+                        const val = String(tTypeField || 'BUY').toUpperCase();
+                        form.transactionType.value = val === 'BOTH' ? 'BOTH' : (tTypeField || 'BUY');
+                    }
                     form.orderType.value = data.order_type || 'limit';
                     form.orderValidity.value = data.order_validity || 'day';
                     form.productType.value = data.product_type || 'intraday';
@@ -719,14 +732,14 @@ window.pageScripts["demat-strategies"] = function() {
             strategyNameForDB = name; // Keep original name for dynamic watchlist
         }
 
-        const exchVal = form.exchange.value;
-        const ttypeVal = form.transactionType.value;
+        const exchVal = expandBoth(form.exchange.value, ['NSE','BSE']);
+        const ttypeVal = expandBoth(form.transactionType.value, ['BUY','SELL']);
         const commonPayload = {
             name: strategyNameForDB,
             master_accounts: selectedAccounts.join(','), // Store as comma-separated string
             allowed_tickers: tradingSymbolsForDb,
-            exchange: exchVal === 'BOTH' ? ['NSE','BSE'] : exchVal,
-            transaction_type: ttypeVal === 'BOTH' ? ['BUY','SELL'] : ttypeVal,
+            exchange: exchVal,
+            transaction_type: ttypeVal,
             order_type: form.orderType.value,
             order_validity: form.orderValidity.value,
             product_type: form.productType.value,
@@ -745,12 +758,10 @@ window.pageScripts["demat-strategies"] = function() {
 
         apiCall.then(res=>{
             const strategyId = editingId || res.id; // Get ID for local storage
-            const exchVal = form.exchange.value;
-            const ttypeVal = form.transactionType.value;
             const cp = {
                 strategyName: strategyNameForDB,
-                exchange: exchVal === 'BOTH' ? ['NSE','BSE'] : exchVal,
-                transactionType: ttypeVal === 'BOTH' ? ['BUY','SELL'] : ttypeVal,
+                exchange: exchVal,
+                transactionType: ttypeVal,
                 orderType: form.orderType.value,
                 orderValidity: form.orderValidity.value,
                 productType: form.productType.value,
