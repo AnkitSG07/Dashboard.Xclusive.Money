@@ -2611,12 +2611,27 @@ def get_order_book(client_id):
                 )
                 
                 # Extract status with fallbacks
+                # Some brokers (e.g. Alice Blue trade book) do not provide a
+                # dedicated status field.  In such cases we infer "FILLED" if
+                # any filled quantity field is greater than zero.
+                qty_for_status = (
+                    order.get("tradedQty")
+                    or order.get("filled_qty")
+                    or order.get("filledQty")
+                    or order.get("Filledqty")
+                    or order.get("Fillshares")
+                )
+                try:
+                    qty_for_status_val = float(qty_for_status or 0)
+                except (TypeError, ValueError):
+                    qty_for_status_val = 0
+
                 status_raw = (
                     order.get("orderStatus")
                     or order.get("report_type")
                     or order.get("status")
                     or order.get("Status")
-                    or ("FILLED" if order.get("tradedQty") else "PENDING")
+                    or ("FILLED" if qty_for_status_val > 0 else "PENDING")
                 )
                 
                 # Normalize status
