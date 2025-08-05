@@ -24,28 +24,9 @@
         --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
     }
 
-    body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        line-height: 1.6;
-    }
-
-    .page-container {
-        padding: 2rem 0;
-    }
-
-    .page-header h1 {
-        font-size: 3rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .page-header p {
-        font-size: 1.2rem;
-        opacity: 0.9;
+    /* Styles adapted for an existing layout */
+    .groups-page-container {
+        font-family: 'Inter', sans-serif;
     }
 
     .card {
@@ -101,139 +82,173 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-container">
-    <div class="container">
-        <!-- Page Header -->
-        <div class="page-header text-center mb-5 fade-in text-white">
-            <h1><i class="bi bi-people-fill"></i> Groups Management</h1>
-            <p>Organize and manage your account groups for efficient trading operations</p>
-        </div>
+<div class="container py-5 groups-page-container">
+    <!-- Page Header -->
+    <div class="mb-5 fade-in">
+        <h2 class="fw-bold">Groups Management</h2>
+        <p class="text-muted">Organize and manage your account groups for efficient trading operations.</p>
+    </div>
 
-        <!-- Alert Container -->
-        <div id="alertContainer" class="mb-4"></div>
+    <!-- Alert Container -->
+    <div id="alertContainer" class="mb-4"></div>
 
-        <!-- Action Cards Row -->
-        <div class="row g-4 mb-4">
-            <!-- Create Group -->
-            <div class="col-lg-12">
-                <div class="card fade-in">
-                    <div class="card-header">
-                        <h5 class="card-title"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Create New Group</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="createGroupForm">
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="groupName" placeholder="Enter a unique name for the new group" required>
-                                <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Create</button>
-                            </div>
-                        </form>
-                    </div>
+    <!-- Action Cards Row -->
+    <div class="row g-4 mb-4">
+        <!-- Create Group -->
+        <div class="col-lg-12">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Create New Group</h5>
+                </div>
+                <div class="card-body">
+                    <form id="createGroupForm">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="groupName" placeholder="Enter a unique name for the new group" required>
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Create</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Groups Table -->
-        <div class="card mb-4 fade-in">
-            <div class="card-header">
-                <h5 class="card-title"><i class="bi bi-list-ul text-primary me-2"></i>Current Account Groups</h5>
+    <!-- Groups Table -->
+    <div class="card mb-4 fade-in">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-list-ul text-primary me-2"></i>Current Account Groups</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="groupsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Group Name</th>
+                            <th>Members</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3" class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle" id="groupsTable">
-                        <thead>
-                            <tr>
-                                <th class="ps-4">Group Name</th>
-                                <th>Members</th>
-                                <th class="text-end pe-4">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="3" class="text-center p-5">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        </div>
+    </div>
+
+    <!-- Management Actions Row -->
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card fade-in">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-plus-fill text-primary me-2"></i>Add Account to Group</h5></div>
+                <div class="card-body">
+                    <form id="addMemberForm">
+                        <div class="mb-3">
+                            <label for="addGroupSelect" class="form-label">Select Group</label>
+                            <select class="form-select" id="addGroupSelect" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="accountSelect" class="form-label">Select Account</label>
+                            <select class="form-select" id="accountSelect" required></select>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100"><i class="bi bi-person-plus"></i> Add to Group</button>
+                    </form>
                 </div>
             </div>
         </div>
-
-        <!-- Management Actions Row -->
-        <div class="row g-4">
-            <div class="col-lg-6">
-                <div class="card fade-in">
-                    <div class="card-header"><h5 class="card-title"><i class="bi bi-person-plus-fill text-primary me-2"></i>Add Account to Group</h5></div>
-                    <div class="card-body">
-                        <form id="addMemberForm">
-                            <div class="mb-3">
-                                <label for="addGroupSelect" class="form-label">Select Group</label>
-                                <select class="form-select" id="addGroupSelect" required></select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="accountSelect" class="form-label">Select Account</label>
-                                <select class="form-select" id="accountSelect" required></select>
-                            </div>
-                            <button type="submit" class="btn btn-info w-100"><i class="bi bi-person-plus"></i> Add to Group</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card fade-in">
-                    <div class="card-header"><h5 class="card-title"><i class="bi bi-person-dash-fill text-primary me-2"></i>Remove Account from Group</h5></div>
-                    <div class="card-body">
-                        <form id="removeMemberForm">
-                            <div class="mb-3">
-                                <label for="removeGroupSelect" class="form-label">Select Group</label>
-                                <select class="form-select" id="removeGroupSelect" required></select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="removeAccountSelect" class="form-label">Select Member to Remove</label>
-                                <select class="form-select" id="removeAccountSelect" required></select>
-                            </div>
-                            <button type="submit" class="btn btn-warning w-100"><i class="bi bi-person-dash"></i> Remove from Group</button>
-                        </form>
-                    </div>
+        <div class="col-lg-6">
+            <div class="card fade-in">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-dash-fill text-primary me-2"></i>Remove Account from Group</h5></div>
+                <div class="card-body">
+                    <form id="removeMemberForm">
+                        <div class="mb-3">
+                            <label for="removeGroupSelect" class="form-label">Select Group</label>
+                            <select class="form-select" id="removeGroupSelect" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="removeAccountSelect" class="form-label">Select Member to Remove</label>
+                            <select class="form-select" id="removeAccountSelect" required></select>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100"><i class="bi bi-person-dash"></i> Remove from Group</button>
+                    </form>
                 </div>
             </div>
         </div>
-        
-        <!-- Other Actions -->
-        <div class="row g-4 mt-0">
-            <div class="col-lg-6">
-                 <div class="card fade-in">
-                    <div class="card-header"><h5 class="card-title"><i class="bi bi-pencil-square text-primary me-2"></i>Rename Group</h5></div>
-                    <div class="card-body">
-                        <form id="renameGroupForm">
-                            <div class="mb-3">
-                                <label for="renameGroupSelect" class="form-label">Select Group</label>
-                                <select class="form-select" id="renameGroupSelect" required></select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="newGroupName" class="form-label">New Name</label>
-                                <input type="text" class="form-control" id="newGroupName" placeholder="Enter the new name" required>
-                            </div>
-                            <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-pencil"></i> Rename</button>
-                        </form>
-                    </div>
+    </div>
+    
+    <!-- Other Actions -->
+    <div class="row g-4 mt-4">
+        <div class="col-lg-6">
+             <div class="card fade-in">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-pencil-square text-primary me-2"></i>Rename Group</h5></div>
+                <div class="card-body">
+                    <form id="renameGroupForm">
+                        <div class="mb-3">
+                            <label for="renameGroupSelect" class="form-label">Select Group</label>
+                            <select class="form-select" id="renameGroupSelect" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newGroupName" class="form-label">New Name</label>
+                            <input type="text" class="form-control" id="newGroupName" placeholder="Enter the new name" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-pencil"></i> Rename</button>
+                    </form>
                 </div>
             </div>
-            <div class="col-lg-6">
-                <div class="card fade-in">
-                    <div class="card-header"><h5 class="card-title"><i class="bi bi-trash-fill text-primary me-2"></i>Delete Group</h5></div>
-                    <div class="card-body">
-                        <form id="deleteGroupForm">
-                             <div class="mb-3">
-                                <label for="deleteGroupSelect" class="form-label">Select Group</label>
-                                <select class="form-select" id="deleteGroupSelect" required></select>
-                            </div>
-                            <p class="text-muted small">This action is permanent and cannot be undone.</p>
-                            <button type="submit" class="btn btn-danger w-100"><i class="bi bi-trash"></i> Delete Group</button>
-                        </form>
-                    </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card fade-in">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-trash-fill text-primary me-2"></i>Delete Group</h5></div>
+                <div class="card-body">
+                    <form id="deleteGroupForm">
+                         <div class="mb-3">
+                            <label for="deleteGroupSelect" class="form-label">Select Group</label>
+                            <select class="form-select" id="deleteGroupSelect" required></select>
+                        </div>
+                        <p class="text-muted small">This action is permanent and cannot be undone.</p>
+                        <button type="submit" class="btn btn-danger w-100"><i class="bi bi-trash"></i> Delete Group</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Place Order Card -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="card fade-in">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-send-fill text-primary me-2"></i>Place Group Order</h5></div>
+                <div class="card-body">
+                    <form id="groupOrderForm" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="orderGroupSelect" class="form-label">Group</label>
+                            <select class="form-select" id="orderGroupSelect" required></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="orderSymbol" class="form-label">Symbol</label>
+                            <input type="text" class="form-control" id="orderSymbol" list="symbolList" placeholder="e.g., NIFTY" required>
+                            <datalist id="symbolList"></datalist>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="orderAction" class="form-label">Action</label>
+                            <select class="form-select" id="orderAction">
+                                <option value="BUY">BUY</option>
+                                <option value="SELL">SELL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <label for="orderQty" class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="orderQty" placeholder="Qty" min="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-success w-100" type="submit">Send Order</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -325,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
             groupsCache = groups || [];
             renderGroupsTable();
             const groupOpts = groupsCache.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
-            populateSelects(['addGroupSelect', 'removeGroupSelect', 'renameGroupSelect', 'deleteGroupSelect'], groupOpts, 'Select a group...');
+            populateSelects(['addGroupSelect', 'removeGroupSelect', 'renameGroupSelect', 'deleteGroupSelect', 'orderGroupSelect'], groupOpts, 'Select a group...');
             updateRemoveAccountOptions();
         } catch (error) {
             console.error("Failed to load groups:", error);
@@ -340,6 +355,16 @@ document.addEventListener('DOMContentLoaded', () => {
             populateSelects(['accountSelect'], accOpts, 'Select an account...');
         } catch (error) {
             console.error("Failed to load accounts:", error);
+        }
+    }
+
+    async function loadSymbols() {
+        try {
+            const symbols = await fetchJson('/api/symbols');
+            const symbolList = document.getElementById('symbolList');
+            symbolList.innerHTML = (symbols || []).map(s => `<option value="${s.symbol}">${s.security_id}</option>`).join('');
+        } catch(error) {
+            console.error("Failed to load symbols:", error);
         }
     }
     
@@ -436,9 +461,31 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { /* showAlert is called in fetchJson */ }
     });
 
+    document.getElementById('groupOrderForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const group_name = document.getElementById('orderGroupSelect').value;
+        const symbol = document.getElementById('orderSymbol').value.trim();
+        const action = document.getElementById('orderAction').value;
+        const quantity = document.getElementById('orderQty').value;
+
+        if(!group_name || !symbol || !quantity) { showAlert('Please fill all order details.', 'warning'); return; }
+        if(isNaN(quantity) || parseInt(quantity) <= 0) { showAlert('Quantity must be a positive number.', 'warning'); return; }
+
+        try {
+            const data = await fetchJson('/api/group-order', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({group_name, symbol, action, quantity: parseInt(quantity)})
+            });
+            showAlert('Order placed successfully: ' + JSON.stringify(data, null, 2), 'success');
+            document.getElementById('groupOrderForm').reset();
+        } catch (error) { /* showAlert is called in fetchJson */ }
+    });
+
     // --- Initial Load ---
     loadGroups();
     loadAccounts();
+    loadSymbols();
     
     // Make functions globally accessible for inline onclick
     window.pageFuncs = {
