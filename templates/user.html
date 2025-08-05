@@ -56,40 +56,27 @@
     </div>
   </form>
 
-  <!-- Mobile Number Section -->
-  {% if not user.mobile %}
-  <form method="post" class="mt-4">
-    <input type="hidden" name="action" value="send_otp">
-    <div class="row g-3 align-items-end">
-      <div class="col-md-8">
-        <label class="form-label">Mobile Number</label>
-        <input type="text" name="mobile" class="form-control" placeholder="Enter mobile number">
+  <!-- Change Password Section -->
+  <form method="post" class="card p-4 mb-4">
+    <input type="hidden" name="action" value="change_password">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Current Password</label>
+        <input type="password" name="current_password" class="form-control">
       </div>
       <div class="col-md-4">
-        <button type="submit" class="btn btn-primary w-100">Send OTP</button>
-      </div>
-    </div>
-  </form>
-
-  {% elif not user.mobile_verified %}
-  <form method="post" class="mt-4">
-    <input type="hidden" name="action" value="verify_otp">
-    <p class="mb-2">OTP sent to {{ user.pending_mobile }}</p>
-    <div class="row g-3 align-items-end">
-      <div class="col-md-8">
-        <label class="form-label">Enter OTP</label>
-        <input type="text" name="otp" class="form-control">
+        <label class="form-label">New Password</label>
+        <input type="password" name="new_password" class="form-control">
       </div>
       <div class="col-md-4">
-        <button type="submit" class="btn btn-primary w-100">Verify OTP</button>
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" name="confirm_password" class="form-control">
       </div>
     </div>
+    <div class="mt-4 text-end">
+      <button type="submit" class="btn btn-primary px-4">Update Password</button>
+    </div>  
   </form>
-
-  {% else %}
-  <p class="mt-4"><strong>Mobile:</strong> {{ user.mobile }}</p>
-  {% endif %}
-
 </div>
 
 {% endblock %}
