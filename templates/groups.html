@@ -3,88 +3,16 @@
 {% block title %}Groups Management - DhanBot{% endblock %}
 
 {% block styles %}
+<!-- Your layout.html should already be loading Bootstrap CSS. -->
+<!-- These links are here as a fallback, but can be removed if your layout handles them. -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-    :root {
-        --primary: #4f46e5;
-        --primary-dark: #3730a3;
-        --secondary: #f8fafc;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --info: #06b6d4;
-        --border: #e2e8f0;
-        --text-primary: #0f172a;
-        --text-secondary: #64748b;
-        --text-muted: #94a3b8;
-        --bg-card: #ffffff;
-        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    }
-
-    /* Styles adapted for an existing layout */
-    .groups-page-container {
-        font-family: 'Inter', sans-serif;
-    }
-
-    .card {
-        background: var(--bg-card);
-        border-radius: 16px;
-        border: none;
-        box-shadow: var(--shadow-lg);
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-xl);
-    }
-
-    .card-header {
-        background: var(--secondary);
-        border-bottom: 1px solid var(--border);
-        padding: 1.5rem 2rem;
-    }
-
-    .card-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-    }
-    
-    .table thead th {
-        background: var(--secondary);
-        border: none;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: var(--text-muted);
-    }
-
-    .fade-in {
-        animation: fadeIn 0.6s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5 groups-page-container">
+<div class="container py-5">
     <!-- Page Header -->
-    <div class="mb-5 fade-in">
+    <div class="mb-4">
         <h2 class="fw-bold">Groups Management</h2>
         <p class="text-muted">Organize and manage your account groups for efficient trading operations.</p>
     </div>
@@ -92,30 +20,25 @@
     <!-- Alert Container -->
     <div id="alertContainer" class="mb-4"></div>
 
-    <!-- Action Cards Row -->
-    <div class="row g-4 mb-4">
-        <!-- Create Group -->
-        <div class="col-lg-12">
-            <div class="card fade-in">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Create New Group</h5>
+    <!-- Create Group -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-plus-circle-fill me-2"></i>Create New Group</h5>
+        </div>
+        <div class="card-body">
+            <form id="createGroupForm">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="groupName" placeholder="Enter a unique name for the new group" required>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Create</button>
                 </div>
-                <div class="card-body">
-                    <form id="createGroupForm">
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="groupName" placeholder="Enter a unique name for the new group" required>
-                            <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Create</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
     <!-- Groups Table -->
-    <div class="card mb-4 fade-in">
+    <div class="card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0"><i class="bi bi-list-ul text-primary me-2"></i>Current Account Groups</h5>
+            <h5 class="card-title mb-0"><i class="bi bi-list-ul me-2"></i>Current Account Groups</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -144,8 +67,8 @@
     <!-- Management Actions Row -->
     <div class="row g-4">
         <div class="col-lg-6">
-            <div class="card fade-in">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-plus-fill text-primary me-2"></i>Add Account to Group</h5></div>
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-plus-fill me-2"></i>Add Account to Group</h5></div>
                 <div class="card-body">
                     <form id="addMemberForm">
                         <div class="mb-3">
@@ -162,8 +85,8 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card fade-in">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-dash-fill text-primary me-2"></i>Remove Account from Group</h5></div>
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-person-dash-fill me-2"></i>Remove Account from Group</h5></div>
                 <div class="card-body">
                     <form id="removeMemberForm">
                         <div class="mb-3">
@@ -184,8 +107,8 @@
     <!-- Other Actions -->
     <div class="row g-4 mt-4">
         <div class="col-lg-6">
-             <div class="card fade-in">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-pencil-square text-primary me-2"></i>Rename Group</h5></div>
+             <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-pencil-square me-2"></i>Rename Group</h5></div>
                 <div class="card-body">
                     <form id="renameGroupForm">
                         <div class="mb-3">
@@ -202,8 +125,8 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <div class="card fade-in">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-trash-fill text-primary me-2"></i>Delete Group</h5></div>
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-trash-fill me-2"></i>Delete Group</h5></div>
                 <div class="card-body">
                     <form id="deleteGroupForm">
                          <div class="mb-3">
@@ -221,8 +144,8 @@
     <!-- Place Order Card -->
     <div class="row g-4 mt-4">
         <div class="col-12">
-            <div class="card fade-in">
-                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-send-fill text-primary me-2"></i>Place Group Order</h5></div>
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-send-fill me-2"></i>Place Group Order</h5></div>
                 <div class="card-body">
                     <form id="groupOrderForm" class="row g-3 align-items-end">
                         <div class="col-md-4">
@@ -257,6 +180,8 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Your layout.html should already be loading Bootstrap JS. -->
+<!-- This link is here as a fallback, but can be removed if your layout handles it. -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -297,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.querySelector('#groupsTable tbody');
         tbody.innerHTML = '';
         if (groupsCache.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="text-center p-5"><div class="empty-state"><h3>No Groups Yet</h3><p>Use the form above to create your first group.</p></div></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center p-5"><div><h3>No Groups Yet</h3><p class="text-muted">Use the form above to create your first group.</p></div></td></tr>`;
             return;
         }
 
