@@ -34,6 +34,7 @@ import random
 import string
 from urllib.parse import quote
 from time import time
+from mail import mail
 from models import (
     db,
     User,
@@ -78,6 +79,16 @@ if not secret_key:
     raise RuntimeError("SECRET_KEY environment variable is required")
 app.secret_key = secret_key
 CORS(app)
+# Email configuration
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "localhost")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 25))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "1") == "1"
+app.config["MAIL_USE_SSL"] = os.environ.get("MAIL_USE_SSL") == "1"
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@example.com")
+app.config["MAIL_SUPPRESS_SEND"] = os.environ.get("MAIL_SUPPRESS_SEND") == "1"
+mail.init_app(app)
 # Allow required external resources while keeping a restrictive default CSP
 csp = {
     'default-src': ["'self'"],
