@@ -1949,6 +1949,7 @@ def poll_and_copy_trades():
                                 or order.get("fillshares")    # Finvasia
                                 or 0
                             )
+                            filled_qty = abs(filled_qty)    
 
                             # Extract and validate order status
                             order_status_raw = (
@@ -1981,12 +1982,12 @@ def poll_and_copy_trades():
                             # Handle AliceBlue special case for filled quantity
                             if filled_qty <= 0:
                                 if master_broker == "aliceblue" and status == "COMPLETE":
-                                    filled_qty = int(
+                                    filled_qty = abs(int(
                                         order.get("placed_qty")
                                         or order.get("quantity")
                                         or 0
-                                    )
-                                    if filled_qty <= 0:
+                                    ))
+                                    if filled_qty == 0:
                                         continue
                                 else:
                                     continue
