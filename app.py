@@ -87,7 +87,7 @@ app.config["MAIL_USE_SSL"] = os.environ.get("MAIL_USE_SSL") == "1"
 app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@example.com")
-app.config["MAIL_SUPPRESS_SEND"] = os.environ.get("MAIL_SUPPRESS_SEND") == "1"
+app.config["MAIL_SUPPRESS_SEND"] = os.environ.get("MAIL_SUPPRESS_SEND", "1") == "1"
 mail.init_app(app)
 # Allow required external resources while keeping a restrictive default CSP
 csp = {
