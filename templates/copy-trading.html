@@ -692,8 +692,34 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.loadAccounts = function() {
+    let errorHandled = false;
     fetch("/api/accounts")
-      .then(res => res.json())
+      .then(async response => {
+        if (!response.ok) {
+          errorHandled = true;
+          let message = "";
+          try {
+            const errData = await response.json();
+            message = errData.message || JSON.stringify(errData);
+          } catch (_) {
+            message = response.statusText;
+          }
+          const alertMsg = `Error ${response.status}: ${message}`;
+          console.error(alertMsg);
+          showMessage(alertMsg, 'danger');
+          const fallbackMsg = response.status === 401
+            ? "You appear to be logged out. Please log in to view your accounts."
+            : "The server returned an error while loading accounts.";
+          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+            }
+          });
+          throw new Error(alertMsg);
+        }
+        return response.json();
+      })
       .then(data => {
         // 1. Masters
         // Ensure data.masters is an array before mapping
@@ -939,8 +965,17 @@ window.pageScripts["copy-trading"] = function () {
         // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
-        console.error("Failed to load accounts:", err); // Keep this for overall fetch errors
-        showMessage("Failed to load accounts. Please check your API connection or data structure.", 'danger');
+        console.error("Failed to load accounts:", err);
+        if (!errorHandled) {
+          showMessage(`Failed to load accounts: ${err.message}`, 'danger');
+          const fallbackMsg = "The server returned an error while loading accounts.";
+          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+            }
+          });
+        }
       });
   };
 
