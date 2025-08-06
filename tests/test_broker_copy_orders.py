@@ -1,0 +1,284 @@
+import os
+import sys
+import pytest
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+os.environ.setdefault("SECRET_KEY", "test")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("ADMIN_EMAIL", "a@a.com")
+os.environ.setdefault("ADMIN_PASSWORD", "pass")
+os.environ.setdefault("RUN_SCHEDULER", "0")
+
+import app as app_module
+import brokers
+
+from .test_api import client  # reuse fixture
+
+
+def make_dummy_broker(broker_name, master_id, child_id, orders, placed):
+    class DummyBroker(brokers.base.BrokerBase):
+        BROKER = broker_name
+
+        def __init__(self, client_id, access_token=None, *args, **kwargs):
+            if access_token is None and "access_token" in kwargs:
+                access_token = kwargs.pop("access_token")
+            super().__init__(client_id, access_token or "", **kwargs)
+
+        def place_order(self, **kwargs):
+            if self.client_id == child_id:
+                placed.append(kwargs)
+                return {"status": "success", "order_id": "child1"}
+            return {"status": "success"}
+
+        def get_order_list(self):
+            if self.client_id == master_id:
+                return orders
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    return DummyBroker
+
+
+BROKER_CASES = [
+    (
+        "zerodha",
+        [
+            {
+                "orderId": "1",
+                "status": "COMPLETE",
+                "filledQuantity": 10,
+                "price": 100,
+                "tradingSymbol": "IDEA",
+                "transactionType": "BUY",
+            },
+            {
+                "orderId": "2",
+                "status": "COMPLETE",
+                "filledQuantity": 5,
+                "price": 90,
+                "tradingSymbol": "IDEA",
+                "transactionType": "SELL",
+            },
+        ],
+        {"access_token": "x"},
+        {"access_token": "y"},
+    ),
+    (
+        "aliceblue",
+        [
+            {
+                "Nstordno": "1",
+                "Status": "COMPLETE",
+                "Filledqty": 10,
+                "price": 100,
+                "Tsym": "IDEA-EQ",
+                "Trantype": "B",
+            },
+            {
+                "Nstordno": "2",
+                "Status": "COMPLETE",
+                "Filledqty": 5,
+                "price": 90,
+                "Tsym": "IDEA-EQ",
+                "Trantype": "S",
+            },
+        ],
+        {"api_key": "k"},
+        {"api_key": "k"},
+    ),
+    (
+        "dhan",
+        [
+            {
+                "orderId": "1",
+                "status": "COMPLETE",
+                "filledQuantity": 10,
+                "price": 100,
+                "tradingSymbol": "IDEA",
+                "transactionType": "BUY",
+            },
+            {
+                "orderId": "2",
+                "status": "COMPLETE",
+                "filledQuantity": 5,
+                "price": 90,
+                "tradingSymbol": "IDEA",
+                "transactionType": "SELL",
+            },
+        ],
+        {"access_token": "x"},
+        {"access_token": "y"},
+    ),
+    (
+        "finvasia",
+        [
+            {
+                "norenordno": "1",
+                "status": "COMPLETE",
+                "fillshares": 10,
+                "price": 100,
+                "tsym": "IDEA-EQ",
+                "buyOrSell": "B",
+            },
+            {
+                "norenordno": "2",
+                "status": "COMPLETE",
+                "fillshares": 5,
+                "price": 90,
+                "tsym": "IDEA-EQ",
+                "buyOrSell": "S",
+            },
+        ],
+        {
+            "password": "p",
+            "totp_secret": "t",
+            "vendor_code": "v",
+            "api_key": "a",
+            "imei": "i",
+        },
+        {
+            "password": "p",
+            "totp_secret": "t",
+            "vendor_code": "v",
+            "api_key": "a",
+            "imei": "i",
+        },
+    ),
+    (
+        "fyers",
+        [
+            {
+                "id": "1",
+                "status": "FILLED",
+                "filledQuantity": 10,
+                "price": 100,
+                "symbol": "NSE:IDEA-EQ",
+                "side": 1,
+            },
+            {
+                "id": "2",
+                "status": "FILLED",
+                "filledQuantity": 5,
+                "price": 90,
+                "symbol": "NSE:IDEA-EQ",
+                "side": -1,
+            },
+        ],
+        {"access_token": "x"},
+        {"access_token": "y"},
+    ),
+    (
+        "flattrade",
+        [
+            {
+                "orderId": "1",
+                "status": "COMPLETE",
+                "filledQuantity": 10,
+                "price": 100,
+                "tradingSymbol": "IDEA",
+                "transactionType": "BUY",
+            },
+            {
+                "orderId": "2",
+                "status": "COMPLETE",
+                "filledQuantity": 5,
+                "price": 90,
+                "tradingSymbol": "IDEA",
+                "transactionType": "SELL",
+            },
+        ],
+        {"access_token": "x"},
+        {"access_token": "y"},
+    ),
+    (
+        "groww",
+        [
+            {
+                "orderId": "1",
+                "status": "COMPLETE",
+                "filledQuantity": 10,
+                "price": 100,
+                "tradingSymbol": "IDEA",
+                "transaction_type": "BUY",
+            },
+            {
+                "orderId": "2",
+                "status": "COMPLETE",
+                "filledQuantity": 5,
+                "price": 90,
+                "tradingSymbol": "IDEA",
+                "transaction_type": "SELL",
+            },
+        ],
+        {"access_token": "x"},
+        {"access_token": "y"},
+    ),
+]
+
+
+@pytest.mark.parametrize("broker, orders, master_creds, child_creds", BROKER_CASES)
+def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, master_creds, child_creds):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    master_id = f"M_{broker}"
+    child_id = f"C_{broker}"
+    placed = []
+
+    DummyBroker = make_dummy_broker(broker, master_id, child_id, orders, placed)
+
+    def fake_get_broker_class(name):
+        return DummyBroker
+
+    monkeypatch.setattr(brokers.factory, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "get_broker_class", fake_get_broker_class)
+    assert (
+        app_module.poll_and_copy_trades.__globals__["get_broker_class"]
+        is fake_get_broker_class
+    )
+
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker=broker,
+            client_id=master_id,
+            credentials=master_creds,
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker=broker,
+            client_id=child_id,
+            linked_master_id=master_id,
+            copy_status="On",
+            credentials=child_creds,
+            last_copied_trade_id="0",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        if broker == "groww":
+            mapping = brokers.symbol_map.SYMBOL_MAP.get("IDEA", {}).copy()
+            mapping["groww"] = {"trading_symbol": "IDEA", "exchange": "NSE"}
+            monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, "IDEA", mapping)
+
+        app_module.poll_and_copy_trades()
+
+        assert len(placed) == 2
+        result = {p["transaction_type"]: p["quantity"] for p in placed}
+        assert result["BUY"] == 10
+        assert result["SELL"] == 5
