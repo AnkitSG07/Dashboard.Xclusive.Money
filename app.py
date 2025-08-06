@@ -87,6 +87,7 @@ csp = {
         "'unsafe-inline'",
         'https://cdn.jsdelivr.net',
         'https://s3.tradingview.com',
+        'https://cdn.tailwindcss.com',
     ],
     'style-src': [
         "'self'",
@@ -102,6 +103,7 @@ csp = {
     'connect-src': [
         "'self'",
         'https://latest-stock-price.p.rapidapi.com',
+        'https://cdn.tailwindcss.com',
     ],
 }
 Talisman(app, content_security_policy=csp, force_https=os.environ.get("FORCE_HTTPS") == "1")
