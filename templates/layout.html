@@ -11,6 +11,10 @@
   <!-- Tailwind CSS CDN for utility classes -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+      /* Reset Tailwind's collapse utility so Bootstrap accordions work */
+    .collapse:not(.tw-collapse) {
+      visibility: visible !important;
+    }
     /* Custom CSS for a modern SaaS look */
     :root {
       --bs-primary: #4F46E5; /* Indigo 600 */
