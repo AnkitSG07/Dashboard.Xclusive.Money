@@ -54,3 +54,17 @@ def test_password_reset_sends_email(client):
             assert len(outbox) == 1
             assert outbox[0].recipients == ["test@example.com"]
             assert expected_url in outbox[0].body
+
+
+def test_password_reset_handles_send_failure(client, monkeypatch):
+    """A failure to dispatch email should not raise an error."""
+    app = app_module.app
+    mail = app_module.mail
+
+    def fail_send(msg):
+        raise ConnectionRefusedError
+
+    monkeypatch.setattr(mail, "send", fail_send)
+    resp = client.post("/request-password-reset", data={"email": "test@example.com"})
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/login")
