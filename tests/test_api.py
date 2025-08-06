@@ -2324,3 +2324,73 @@ def test_order_book_infers_status_from_filled_qty(client, monkeypatch):
     assert order["status"] == "FILLED"
     assert order["filled_qty"] == 1
     assert order["avg_price"] == 100.0
+
+def test_poll_and_copy_trades_handles_negative_filled_qty(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    orders = []
+
+    class DummyBroker:
+        NSE = "NSE_EQ"
+        INTRA = "INTRADAY"
+
+        def __init__(self, client_id, access_token, **kwargs):
+            self.client_id = client_id
+
+        def get_order_list(self):
+            if self.client_id == "M1":
+                return [{
+                    "orderId": "2",
+                    "filledQuantity": -1,
+                    "orderStatus": "COMPLETE",
+                    "transactionType": "SELL",
+                    "price": 100,
+                    "tradingSymbol": "ABC",
+                }]
+            return []
+
+        def place_order(self, **params):
+            orders.append(params)
+            return {"status": "success", "orderId": "child1"}
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda symbol, broker: {
+        "security_id": 123,
+        "exchange_segment": "NSE_EQ",
+        "tradingsymbol": symbol,
+    })
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "log_connection_error", lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            client_id="M1",
+            broker="dhan",
+            credentials={"access_token": "t"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            client_id="C1",
+            broker="dhan",
+            credentials={"access_token": "ct"},
+            copy_status="On",
+            linked_master_id="M1",
+            multiplier=1,
+            last_copied_trade_id="1",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        app_module.poll_and_copy_trades()
+
+        assert orders and orders[0]["transaction_type"] == "SELL"
+        assert orders[0]["quantity"] == 1
