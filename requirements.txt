@@ -9,6 +9,7 @@ werkzeug>=3.1.0
 Flask-Limiter==3.5.0
 Flask-Talisman==1.1.0
 cryptography==41.0.7
+Flask-Mail==0.9.1
 
 # Trading APIs
 dhanhq==2.0.2
