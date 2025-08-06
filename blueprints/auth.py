@@ -66,7 +66,10 @@ def request_password_reset():
                 recipients=[user.email],
                 body=f"Click the link to reset your password: {reset_url}",
             )
-            mail.send(msg)
+            try:
+                mail.send(msg)
+            except Exception:
+                current_app.logger.exception("Failed to send password reset email")
         flash('If that email address exists, a reset link has been sent.')
         return redirect(url_for('auth.login'))
     return render_template('forgot-password.html')
