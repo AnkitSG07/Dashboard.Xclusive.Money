@@ -282,3 +282,64 @@ def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, ma
         result = {p["transaction_type"]: p["quantity"] for p in placed}
         assert result["BUY"] == 10
         assert result["SELL"] == 5
+
+def test_aliceblue_market_order_without_price_copies(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    master_id = "M_AB_ZERO"
+    child_id = "C_AB_ZERO"
+    placed = []
+
+    orders = [
+        {
+            "order_id": "1",
+            "status": "FILLED",
+            "filled_qty": 1,
+            "avg_price": 0,
+            "placed_qty": 1,
+            "symbol": "IDEA-EQ",
+            "side": "B",
+        }
+    ]
+
+    DummyBroker = make_dummy_broker("aliceblue", master_id, child_id, orders, placed)
+
+    def fake_get_broker_class(name):
+        return DummyBroker
+
+    monkeypatch.setattr(brokers.factory, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="aliceblue",
+            client_id=master_id,
+            credentials={"api_key": "k"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="aliceblue",
+            client_id=child_id,
+            linked_master_id=master_id,
+            copy_status="On",
+            credentials={"api_key": "k"},
+            last_copied_trade_id="0",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        app_module.poll_and_copy_trades()
+
+        assert len(placed) == 1
+        assert placed[0]["price"] == 0
+        assert placed[0]["quantity"] == 1
