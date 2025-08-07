@@ -2083,6 +2083,9 @@ def poll_and_copy_trades():
                         if not symbol:
                             continue
 
+                        master_product = extract_product_type(order)
+                        master_order_type = extract_order_type(order) or "MARKET"
+
                         if price <= 0:
                             try:
                                 mapping_master = get_symbol_for_broker(symbol, master_broker)
@@ -2118,11 +2121,12 @@ def poll_and_copy_trades():
                             except Exception as e:
                                 logger.debug(f"Failed to fetch price for {symbol}: {e}")
                         if price <= 0:
-                            logger.debug(f"Skipping {symbol} due to missing price")
-                            continue
-
-                        master_product = extract_product_type(order)
-                        master_order_type = extract_order_type(order) or "MARKET"
+                            if master_order_type == "MARKET":
+                                logger.debug(f"No price for {symbol}, proceeding with market order")
+                                price = 0
+                            else:
+                                logger.debug(f"Skipping {symbol} due to missing price")
+                                continue
 
                         # Determine quantity based on value limit or multiplier
                         try:
