@@ -260,8 +260,11 @@ def map_product_for_broker(product: str | None, broker: str) -> str | None:
     if base is None:
         return None
     b = (broker or "").lower()
-    if b == "dhan" and base == "MIS":
-        return "INTRADAY"
+    if b == "dhan":
+        if base == "MIS":
+            return "INTRADAY"
+        if base == "CNC":
+            return "DELIVERY"
     return base
 
 
