@@ -119,7 +119,25 @@
                         </div>
 
                         <div class="row g-3 mb-4 border-top pt-3">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
+                                <label class="form-label fw-semibold">Alert Type</label>
+                                <div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="alertType" id="alertTypeStrategy" value="strategy" checked>
+                                        <label class="form-check-label" for="alertTypeStrategy">Strategy alert</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="alertType" id="alertTypeManual" value="manual">
+                                        <label class="form-check-label" for="alertTypeManual">Manual alert</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="strategyActionGroup">
+                                <label for="action-placeholder" class="form-label fw-semibold">Action</label>
+                                <input type="text" class="form-control" id="action-placeholder" value="{% raw %}{{strategy.order.action}}{% endraw %}" readonly>
+                                <div class="form-text">TradingView will replace this with BUY or SELL.</div>
+                            </div>
+                            <div class="col-md-6" id="manualTypeGroup" style="display:none;">
                                 <label for="transaction-type" class="form-label fw-semibold">Type of Transaction <span class="text-danger">*</span>
                                     <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Whether the strategy will BUY or SELL the specified symbols."></i>
                                 </label>
@@ -242,7 +260,12 @@ window.pageScripts["demat-strategies"] = function() {
     const payloadWebhook = document.getElementById('payload-webhook');
     const payloadJson = document.getElementById('payload-json');
     const webhookPreview = document.getElementById('webhook-preview');
+    const alertTypeStrategy = document.getElementById('alertTypeStrategy');
+    const alertTypeManual = document.getElementById('alertTypeManual');
+    const strategyActionGroup = document.getElementById('strategyActionGroup');
+    const manualTypeGroup = document.getElementById('manualTypeGroup');
     const userToken = '{{ logged_in_user.webhook_token }}';
+    const bothOption = document.getElementById('transaction-type').querySelector('option[value="BOTH"]');
     let symbolMap = {};
     let editingId = null;
     const BROKER_KEYS = ['dhan','aliceblue','angelone','iifl','kotak','upstox'];
@@ -377,21 +400,45 @@ window.pageScripts["demat-strategies"] = function() {
 
     singleSymbolModeRadio.addEventListener('change', updateSymbolInputMode);
     watchlistModeRadio.addEventListener('change', updateSymbolInputMode);
-
+    function updateAlertMode() {
+        if (alertTypeStrategy.checked) {
+            strategyActionGroup.style.display = '';
+            manualTypeGroup.style.display = 'none';
+            if (bothOption) {
+                bothOption.hidden = false;
+                form.transactionType.value = 'BOTH';
+            }
+        } else {
+            strategyActionGroup.style.display = 'none';
+            manualTypeGroup.style.display = '';
+            if (bothOption) {
+                bothOption.hidden = true;
+                if (form.transactionType.value === 'BOTH') {
+                    form.transactionType.value = 'BUY';
+                }
+            }
+        }
+        updateWebhookPreview();
+    }
+    alertTypeStrategy.addEventListener('change', updateAlertMode);
+    alertTypeManual.addEventListener('change', updateAlertMode);
+    
     function updateWebhookPreview() {
-        const name = form.strategyName.value.trim();
         const selectedAccounts = getSelectedAccounts();
 
         const exch = expandBoth(form.exchange.value, ['NSE','BSE']);
-        const ttype = expandBoth(form.transactionType.value, ['BUY','SELL']);
         const previewPayload = {
             exchange: exch,
-            transactionType: ttype,
             orderType: form.orderType.value,
             orderValidity: form.orderValidity.value,
             productType: form.productType.value,
             masterAccounts: selectedAccounts,
         };
+        if (alertTypeStrategy.checked) {
+            previewPayload.action = "{% raw %}{{strategy.order.action}}{% endraw %}";
+        } else {
+            previewPayload.transactionType = form.transactionType.value;
+        }
         if(form.orderQty.value){
             previewPayload.orderQty = parseFloat(form.orderQty.value);
         } else if(form.orderValue.value){
@@ -419,8 +466,8 @@ window.pageScripts["demat-strategies"] = function() {
 
 
     updateSymbolInputMode();
-
-
+    updateAlertMode();
+    
     function resetForm(){
         editingId = null;
         form.reset();
@@ -428,7 +475,9 @@ window.pageScripts["demat-strategies"] = function() {
         form.orderValue.disabled = false;
         form.orderQty.disabled = false;
         singleSymbolModeRadio.checked = true;
+        alertTypeStrategy.checked = true;
         updateSymbolInputMode();
+        updateAlertMode();
         updateTokens();
         loadMasterAccounts(); // Reload accounts to ensure all are unchecked
         modalEl.querySelector('.modal-title').textContent = 'Create New Strategy';
