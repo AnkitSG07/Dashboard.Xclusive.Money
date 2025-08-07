@@ -670,7 +670,7 @@ def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str
         return {
             "tradingsymbol": symbol,
             "security_id": security_id,
-            "exchange_segment": api.NSE,
+            "exchange_segment": mapping.get("exchange_segment", api.NSE),
             "transaction_type": api.BUY if action.upper() == "BUY" else api.SELL,
             "quantity": int(qty),
             "order_type": order_type_mapped,
