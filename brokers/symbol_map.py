@@ -15,6 +15,22 @@ SYMBOL_MAP = {
         "zebu":         {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
         "enrichmoney":  {"symbol": "IDEA-EQ",            "token": "926241", "exchange": "NSE"},
     },
+
+    "RKFORGE": {
+        "zerodha":      {"trading_symbol": "RKFORGE",         "exchange": "NSE", "token": "2939"},
+        "aliceblue":    {"trading_symbol": "RKFORGE-EQ",      "symbol_id":  "2939", "exch": "NSE"},
+        "fyers":        {"symbol": "NSE:RKFORGE-EQ",          "token": "2939"},
+        "finvasia":     {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+        "dhan":         {"security_id": "2939",            "exchange_segment": "NSE_EQ"},
+        "flattrade":    {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+        "acagarwal":    {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+        "motilaloswal": {"symbol": "RKFORGE",             "token": "2939", "exchange": "NSE"},
+        "kotakneo":     {"symbol": "RKFORGE",             "token": "2939", "exchange": "NSE"},
+        "tradejini":    {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+        "zebu":         {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+        "enrichmoney":  {"symbol": "RKFORGE-EQ",          "token": "2939", "exchange": "NSE"},
+    },
+    
     "ADANIPORTS": {
         "zerodha": {"trading_symbol": "ADANIPORTS", "exchange": "NSE", "token": "15083"},
         "aliceblue": {"trading_symbol": "ADANIPORTS-EQ", "symbol_id": "15083", "exch": "NSE"},
