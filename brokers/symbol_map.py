@@ -61,13 +61,13 @@ def _load_dhan() -> Dict[Key, str]:
     reader = csv.DictReader(StringIO(resp.text))
     data: Dict[Key, str] = {}
     for row in reader:
-        if (
-            row["SEM_EXM_EXCH_ID"] in {"NSE", "BSE"}
-            and row["SEM_SEGMENT"] == "E"
-            and row["SEM_SERIES"] == "EQ"
-        ):
+        if row["SEM_EXM_EXCH_ID"] in {"NSE", "BSE"} and row["SEM_SEGMENT"] == "E":
             key = (row["SEM_TRADING_SYMBOL"], row["SEM_EXM_EXCH_ID"].upper())
-            data[key] = row["SEM_SMST_SECURITY_ID"]
+            # prefer the EQ series when available but fall back to any
+            # other equity series so that newly listed or less common
+            # scrips (e.g. BSE "X" group) are still included
+            if key not in data or row["SEM_SERIES"] == "EQ":
+                data[key] = row["SEM_SMST_SECURITY_ID"]
     return data
 
 
