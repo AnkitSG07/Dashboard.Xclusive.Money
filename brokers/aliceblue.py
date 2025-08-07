@@ -110,7 +110,7 @@ class AliceBlueBroker(BrokerBase):
         transaction_type="BUY",
         quantity=1,
         order_type="MKT",
-        product="MIS",
+        product_type="MIS",
         price=0,
         symbol_id="",
         deviceNumber=None,
@@ -118,9 +118,15 @@ class AliceBlueBroker(BrokerBase):
         complexty="regular",
         disclosed_qty=0,
         retention="DAY",
-        trigger_price=""
+        trigger_price="",
+        **kwargs,
     ):
-        """Place an order on Alice Blue using the official API contract."""
+        """Place an order on Alice Blue using the official API contract.
+
+        Accepts ``product_type`` to match the interface used throughout the
+        application.  ``product`` is still accepted for backward compatibility.
+        """
+        product = product_type or kwargs.get("product") or "MIS"
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not symbol_id:
             symbol_id = mapping.get("symbol_id")
