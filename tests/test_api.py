@@ -580,6 +580,98 @@ def test_poll_and_copy_trades_copies_cnc_sell_orders(client, monkeypatch):
         assert placed[0]["transaction_type"] == "SELL"
         assert placed[0]["product_type"] == "DELIVERY"
 
+def test_poll_and_copy_trades_copies_cnc_buy_orders(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    import brokers
+
+    placed = []
+
+    class DummyMaster(brokers.base.BrokerBase):
+        def place_order(self, *a, **k):
+            pass
+
+        def get_order_list(self):
+            return [
+                {
+                    "orderId": "21",
+                    "status": "COMPLETE",
+                    "filledQuantity": 1,
+                    "price": 100,
+                    "tradingSymbol": "XYZ",
+                    "transactionType": "BUY",
+                    "productType": "CNC",
+                }
+            ]
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    class DummyChild(brokers.base.BrokerBase):
+        def place_order(self, **kwargs):
+            placed.append(kwargs)
+            return {"status": "success", "order_id": "c21"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    def fake_get_broker_class(name):
+        if name == "master_broker":
+            return DummyMaster
+        return DummyChild
+
+    monkeypatch.setattr(brokers.factory, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    monkeypatch.setattr(
+        app_module,
+        "get_symbol_for_broker",
+        lambda s, b: {"security_id": "1", "exchange_segment": "NSE_EQ", "tradingsymbol": s},
+    )
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="master_broker",
+            client_id="M4",
+            credentials={"access_token": "x"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="dhan",
+            client_id="C4",
+            linked_master_id="M4",
+            copy_status="On",
+            credentials={"access_token": "y"},
+            last_copied_trade_id="0",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        app_module.poll_and_copy_trades()
+
+        assert placed
+        assert placed[0]["transaction_type"] == "BUY"
+        assert placed[0]["product_type"] == "DELIVERY"
+
+
 def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
     app = app_module.app
     db = app_module.db
