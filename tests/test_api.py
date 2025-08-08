@@ -1108,7 +1108,7 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
 
         results = app_module.exit_all_positions_for_account(acc)
 
-    assert placed.get("product_type") == "CNC"
+    assert placed.get("product_type") == "DELIVERY"
     assert results[0]["status"] == "SUCCESS"
 
 
@@ -1322,7 +1322,7 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
     data = resp.get_json()
     assert data["exited"]
     if broker == "dhan":
-        assert placed.get("product_type") == "CNC"
+        assert placed.get("product_type") == "DELIVERY"
     else:
         assert placed.get("product") == "CNC"
 
@@ -1388,7 +1388,7 @@ def test_exit_all_children_endpoint(client, monkeypatch, broker):
     assert "C1" in data["exited_children"]
     assert len(placed_orders) == 1
     if broker == "dhan":
-        assert placed_orders[0].get("product_type") == "CNC"
+        assert placed_orders[0].get("product_type") == "DELIVERY"
     else:
         assert placed_orders[0].get("product") == "CNC"
 
