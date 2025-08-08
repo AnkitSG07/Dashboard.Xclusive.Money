@@ -405,7 +405,30 @@ window.pageScripts["copy-trading"] = function () {
   window.masterAccounts = [];
   window.childAccounts = [];
   window.exitedChildren = window.exitedChildren || {};
+  // Order book caches to support incremental loading
+  window.masterOrderBooks = {};
+  window.masterOrderIndex = {};
+  window.childOrderBooks = {};
+  window.childOrderIndex = {};
+  const ORDER_PAGE_SIZE = 20;
 
+  function orderItemHtml(order) {
+    const status = String(order.status || '').toUpperCase();
+    const statusClass = status === 'TRADED' ? 'bg-success'
+                     : status === 'REJECTED' ? 'bg-danger'
+                     : 'bg-primary';
+    return `
+      <div class="list-group-item list-group-item-action py-3">
+        <div class="d-flex w-100 justify-content-between flex-wrap">
+          <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
+          <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+        </div>
+        <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
+        <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
+      </div>
+    `;
+  }
+  
   function brokerIconHTML(broker) {
     const name = broker ? broker.charAt(0).toUpperCase() + broker.slice(1) : '';
     const url = brokerIcons[broker] || '/static/images/logo.png';
@@ -815,6 +838,9 @@ window.pageScripts["copy-trading"] = function () {
                           <div class="tab-pane fade" id="master-orders-book-${masterClientId}" role="tabpanel" aria-labelledby="tab-orders-${masterClientId}-tab">
                             <div id="orders-body-${masterClientId}" class="list-group"></div>
                             <div id="orders-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                            <div class="text-center mt-2">
+                              <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterClientId}" style="display:none;">Load More</button>
+                            </div>
                           </div>
                       </div>
                     </div>
@@ -905,6 +931,9 @@ window.pageScripts["copy-trading"] = function () {
                             <div class="tab-pane fade show active" id="child-orders-${childClientId}" role="tabpanel" aria-labelledby="tab-child-orders-${childClientId}-tab">
                                 <div id="child-orders-body-${childClientId}" class="list-group"></div>
                                 <div id="child-orders-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                                <div class="text-center mt-2">
+                                  <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childClientId}" style="display:none;">Load More</button>
+                                </div>
                             </div>
                             <div class="tab-pane fade" id="child-positions-${childClientId}" role="tabpanel" aria-labelledby="tab-child-positions-${childClientId}-tab">
                                 <div id="child-positions-body-${childClientId}" class="list-group"></div>
@@ -1045,7 +1074,21 @@ window.pageScripts["copy-trading"] = function () {
     }
   };
 
-
+  function appendMasterOrders(clientId) {
+    const orders = window.masterOrderBooks[clientId] || [];
+    const listGroup = document.getElementById(`orders-body-${clientId}`);
+    const loadMoreBtn = document.getElementById(`orders-load-more-${clientId}`);
+    let idx = window.masterOrderIndex[clientId] || 0;
+    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
+    for (let i = idx; i < end; i++) {
+      listGroup.innerHTML += orderItemHtml(orders[i]);
+    }
+    window.masterOrderIndex[clientId] = end;
+    if (end >= orders.length && loadMoreBtn) {
+      loadMoreBtn.style.display = 'none';
+    }
+  }
+  
   function loadMasterOrderBook(clientId) {
     const listGroup = document.getElementById(`orders-body-${clientId}`);
     const emptyState = document.getElementById(`orders-empty-${clientId}`);
@@ -1053,29 +1096,23 @@ window.pageScripts["copy-trading"] = function () {
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
-
+    loadMoreBtn.style.display = 'none';
+    
     fetch(`/api/order-book/${clientId}`)
       .then(res => res.json())
       .then(data => {
         listGroup.innerHTML = "";
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(order => {
-            const status = String(order.status || '').toUpperCase();
-            const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
-                </div>
-                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
-                <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
-              </div>
-            `;
-          });
+        const orders = Array.isArray(data) ? data : [];
+        if (orders.length > 0) {
+          window.masterOrderBooks[clientId] = orders;
+          window.masterOrderIndex[clientId] = 0;
+          appendMasterOrders(clientId);
+          if (orders.length > ORDER_PAGE_SIZE) {
+            loadMoreBtn.style.display = 'inline-block';
+            loadMoreBtn.onclick = () => appendMasterOrders(clientId);
+          }
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
@@ -1230,36 +1267,47 @@ window.pageScripts["copy-trading"] = function () {
     }
   };
 
+  function appendChildOrders(childId) {
+    const orders = window.childOrderBooks[childId] || [];
+    const listGroup = document.getElementById(`child-orders-body-${childId}`);
+    const loadMoreBtn = document.getElementById(`child-orders-load-more-${childId}`);
+    let idx = window.childOrderIndex[childId] || 0;
+    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
+    for (let i = idx; i < end; i++) {
+      listGroup.innerHTML += orderItemHtml(orders[i]);
+    }
+    window.childOrderIndex[childId] = end;
+    if (end >= orders.length && loadMoreBtn) {
+      loadMoreBtn.style.display = 'none';
+    }
+  }
+
+
   function loadChildOrderBook(childId) {
     const listGroup = document.getElementById(`child-orders-body-${childId}`);
     const emptyState = document.getElementById(`child-orders-empty-${childId}`);
-    if (!listGroup || !emptyState) return;
+    const loadMoreBtn = document.getElementById(`child-orders-load-more-${childId}`);
+    if (!listGroup || !emptyState || !loadMoreBtn) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
-
+    loadMoreBtn.style.display = 'none';
+    
     fetch(`/api/order-book/${childId}`)
       .then(res => res.json())
       .then(data => {
         listGroup.innerHTML = "";
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(order => {
-            const status = String(order.status || '').toUpperCase();
-            const statusClass = status === 'TRADED' ? 'bg-success' : status === 'REJECTED' ? 'bg-danger' : 'bg-primary';
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
-                </div>
-                <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
-                <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
-              </div>
-            `;
-          });
+        const orders = Array.isArray(data) ? data : [];
+        if (orders.length > 0) {
+          window.childOrderBooks[childId] = orders;
+          window.childOrderIndex[childId] = 0;
+          appendChildOrders(childId);
+          if (orders.length > ORDER_PAGE_SIZE) {
+            loadMoreBtn.style.display = 'inline-block';
+            loadMoreBtn.onclick = () => appendChildOrders(childId);
+          }
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
