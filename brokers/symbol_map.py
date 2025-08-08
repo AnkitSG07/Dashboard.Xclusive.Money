@@ -154,11 +154,30 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, str]]]:
     return mapping
 
 
-# Public symbol map used throughout the application.
+# Public symbol map used throughout the application.  It can be
+# refreshed at runtime if newly listed symbols appear on the exchanges
+# after the process has started.
 SYMBOL_MAP = build_symbol_map()
 
 
-__all__ = ["SYMBOL_MAP", "build_symbol_map"]
+def refresh_symbol_map() -> None:
+    """Reload the global :data:`SYMBOL_MAP` from upstream sources.
+
+    The symbol map is constructed from instrument dumps published by
+    brokers.  These dumps are updated periodically and new symbols may
+    become available after the application has already started.  Calling
+    this function clears the internal caches and rebuilds the mapping so
+    that lookups for recently listed symbols succeed without requiring a
+    full application restart.
+    """
+
+    _load_zerodha.cache_clear()
+    _load_dhan.cache_clear()
+    global SYMBOL_MAP
+    SYMBOL_MAP = build_symbol_map()
+
+
+__all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map"]
 
 
 def get_symbol_for_broker(symbol: str, broker: str) -> Dict[str, str]:
@@ -178,6 +197,16 @@ def get_symbol_for_broker(symbol: str, broker: str) -> Dict[str, str]:
     if not mapping:
         base2 = base.split("-")[0]
         mapping = SYMBOL_MAP.get(base2, {})
+
+    # If the symbol was not found we may be dealing with a newly listed
+    # scrip.  Refresh the symbol map once so that recently added tokens are
+    # picked up without requiring an application restart.
+    if not mapping:
+        refresh_symbol_map()
+        mapping = SYMBOL_MAP.get(symbol) or SYMBOL_MAP.get(base)
+        if not mapping:
+            base2 = base.split("-")[0]
+            mapping = SYMBOL_MAP.get(base2, {})
 
     return mapping.get(broker, {}) if mapping else {}
 
