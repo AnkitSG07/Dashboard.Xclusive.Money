@@ -5,9 +5,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-# Default request timeout for broker HTTP calls. Can be overridden via the
-# ``BROKER_TIMEOUT`` environment variable.
-DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "30"))
+# Default request timeout for broker HTTP calls. Gunicorn workers will be
+# killed after 30s by default, so we keep a small safety margin to ensure the
+# request fails before the worker does.  This value can still be overridden via
+# the ``BROKER_TIMEOUT`` environment variable.
+DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "25"))
 
 class BrokerBase(ABC):
     """
