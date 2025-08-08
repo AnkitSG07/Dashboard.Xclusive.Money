@@ -2225,8 +2225,15 @@ def poll_and_copy_trades():
                         try:
                             mapping_child = get_symbol_for_broker(symbol, child_broker)
                             if not mapping_child:
-                                logger.warning(f"Symbol mapping not found for {symbol} on {child_broker}")
-                                continue
+                                if child_broker == "dhan" and (
+                                    order.get("securityId") or order.get("security_id")
+                                ):
+                                    mapping_child = {}
+                                else:
+                                    logger.warning(
+                                        f"Symbol mapping not found for {symbol} on {child_broker}"
+                                    )
+                                    continue
                         except Exception as e:
                             logger.warning(f"Symbol mapping error for {symbol}: {e}")
                             continue
@@ -2235,18 +2242,23 @@ def poll_and_copy_trades():
                         try:
                             if child_broker == "dhan":
                                 security_id = (
-                                    mapping_child.get("security_id")
+                                    order.get("securityId")
+                                    or order.get("security_id")
+                                    or mapping_child.get("security_id")
                                     or mapping_child.get("securityId")
                                 )
                                 if not security_id:
                                     continue
+                                exchange_segment = (
+                                    order.get("exchangeSegment")
+                                    or order.get("exchange_segment")
+                                    or mapping_child.get("exchange_segment")
+                                    or getattr(child_api, "NSE", "NSE_EQ")
+                                )    
                                 order_params = {
                                     "tradingsymbol": symbol,
                                     "security_id": security_id,
-                                    "exchange_segment": (
-                                        mapping_child.get("exchange_segment")
-                                        or getattr(child_api, "NSE", "NSE_EQ")
-                                    ),
+                                    "exchange_segment": exchange_segment,
                                     "transaction_type": transaction_type,
                                     "quantity": copied_qty,
                                     "order_type": child_order_type,
