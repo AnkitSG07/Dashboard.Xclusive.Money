@@ -149,6 +149,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 _scheduler = None
 
+# Centralized commit helper
+def safe_commit():
+    """Commit the current database session with rollback on failure."""
+    try:
+        db.session.commit()
+    except Exception as e:  # pragma: no cover - defensive programming
+        db.session.rollback()
+        logger.error(f"Database commit failed: {e}")
+        raise
+
 # Cache for broker opening balances
 OPENING_BALANCE_CACHE = {}
 # Seconds to keep a cached balance before refreshing
@@ -1416,7 +1426,7 @@ def save_log(user_id, symbol, action, quantity, status, response):
         response=str(response)
     )
     db.session.add(log)
-    db.session.commit()
+    safe_commit()
 
 def save_order_mapping(master_order_id, child_order_id, master_id, master_broker, child_id, child_broker, symbol):
     """Persist order mapping to the database instead of JSON."""
@@ -1432,7 +1442,7 @@ def save_order_mapping(master_order_id, child_order_id, master_id, master_broker
         timestamp=datetime.utcnow().isoformat()
     )
     db.session.add(mapping)
-    db.session.commit()
+    safe_commit()
 
 
 
@@ -1472,7 +1482,7 @@ def record_trade(
         client_id=client_id,
     )
     db.session.add(trade)
-    db.session.commit()
+    safe_commit()
 
 def _find_position_list(obj):
     """Recursively search *obj* for a list of position dicts."""
