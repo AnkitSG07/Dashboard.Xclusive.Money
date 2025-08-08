@@ -40,13 +40,22 @@ class BrokerBase(ABC):
 
 
     def _request(self, method, url, *, timeout=None, **kwargs):
-        """Perform an HTTP request with a simple timeout retry."""
+        """Perform an HTTP request with a hard timeout.
+
+        Gunicorn kills workers that run longer than its configured timeout
+        (30s by default).  The previous implementation retried once with
+        double the timeout on ``ReadTimeout`` which could easily exceed the
+        worker limit and crash the process.  Instead we make a single request
+        and propagate any ``requests`` exceptions so callers can handle them
+        gracefully.
+        """
         timeout = timeout or self.timeout
         try:
             return self.session.request(method, url, timeout=timeout, **kwargs)
-        except requests.exceptions.ReadTimeout:
-            # Retry once with double the timeout for slow APIs
-            return self.session.request(method, url, timeout=timeout * 2, **kwargs)
+        except requests.exceptions.RequestException:
+            # Propagate network errors (including Timeouts) to the caller so
+            # they can decide how to handle failures without hanging.
+            raise
             
     @abstractmethod
     def place_order(
