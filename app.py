@@ -2451,6 +2451,7 @@ def start_scheduler():
             seconds=10,
             id="poll_trades",
             replace_existing=True,
+            max_instances=2,  # permit a second run if the previous one is still executing
         )
         _scheduler.start()
         logger.info("Scheduler started")
