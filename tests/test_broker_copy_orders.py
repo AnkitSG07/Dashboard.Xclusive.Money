@@ -283,6 +283,73 @@ def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, ma
         assert result["BUY"] == 10
         assert result["SELL"] == 5
 
+
+def test_dhan_copy_without_symbol_map(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    master_id = "M_DHAN_NOMAP"
+    child_id = "C_DHAN_NOMAP"
+    placed = []
+
+    orders = [
+        {
+            "orderId": "1",
+            "status": "COMPLETE",
+            "filledQuantity": 10,
+            "price": 100,
+            "tradingSymbol": "IDEA",
+            "transactionType": "BUY",
+            "securityId": "12345",
+            "exchangeSegment": "NSE_EQ",
+        }
+    ]
+
+    DummyBroker = make_dummy_broker("dhan", master_id, child_id, orders, placed)
+
+    def fake_get_broker_class(name):
+        return DummyBroker
+
+    monkeypatch.setattr(brokers.factory, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "get_broker_class", fake_get_broker_class)
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "save_order_mapping", lambda *a, **k: None)
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    monkeypatch.setattr(brokers.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
+    monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda *a, **k: {})
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker="dhan",
+            client_id=master_id,
+            credentials={"access_token": "x"},
+        )
+        child = Account(
+            user_id=user.id,
+            role="child",
+            broker="dhan",
+            client_id=child_id,
+            linked_master_id=master_id,
+            copy_status="On",
+            credentials={"access_token": "y"},
+            last_copied_trade_id="0",
+        )
+        db.session.add_all([master, child])
+        db.session.commit()
+
+        app_module.poll_and_copy_trades()
+
+        assert len(placed) == 1
+        params = placed[0]
+        assert params["security_id"] == "12345"
+        assert params["exchange_segment"] == "NSE_EQ"
+
 def test_aliceblue_market_order_without_price_copies(client, monkeypatch):
     app = app_module.app
     db = app_module.db
