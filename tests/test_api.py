@@ -1364,6 +1364,79 @@ def test_exit_all_positions_handles_wrapped_position_list(client, monkeypatch):
     assert placed.get("tradingsymbol") == "SBIN"
     assert results and all(r["status"] == "SUCCESS" for r in results)
 
+@pytest.mark.parametrize(
+    "broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"]
+)
+def test_exit_master_positions_endpoint(client, monkeypatch, broker):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    placed = {}
+
+    import brokers
+
+    class DummyBroker(brokers.base.BrokerBase):
+        def __init__(self, *a, **k):
+            pass
+        def get_positions(self):
+            return {
+                "positions": [
+                    {"tradingSymbol": "SBIN", "netQty": 2, "productType": "CNC"}
+                ]
+            }
+
+        def place_order(self, **kwargs):
+            placed.update(kwargs)
+            return {"status": "success"}
+        def get_order_list(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "broker_api", lambda acc: DummyBroker("c", "t"))
+    monkeypatch.setattr(app_module, "save_log", lambda *a, **k: None)
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        master = Account(
+            user_id=user.id,
+            role="master",
+            broker=broker,
+            client_id="M1",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(master)
+        db.session.commit()
+
+    resp = client.post("/api/exit-master-positions", json={"master_id": "M1"})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["exited"]
+    if broker == "dhan":
+        assert placed.get("product_type") == "DELIVERY"
+    else:
+        assert placed.get("product") == "CNC"
+
+
+@pytest.mark.parametrize("payload", [{}, {"master_id": ""}])
+def test_exit_master_positions_missing_master_id(client, payload):
+    login(client)
+    resp = client.post("/api/exit-master-positions", json=payload)
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data.get("error") == "Missing master_id"
+
+
+def test_exit_master_positions_master_not_found(client):
+    login(client)
+    resp = client.post("/api/exit-master-positions", json={"master_id": "M1"})
+    assert resp.status_code == 404
+    data = resp.get_json()
+    assert data.get("error") == "Master account not found"
+
 
 @pytest.mark.parametrize(
     "broker", ["dhan", "aliceblue", "zerodha", "fyers", "finvasia"]
