@@ -251,6 +251,8 @@ def canonical_product_type(product: str | None) -> str | None:
         return "DELIVERY"
     if prod in {"NRML", "NORMAL", "MARGIN", "H"}:
         return "NRML"
+    if prod in {"MTF"}:
+        return "MTF"
     return prod
 
 
