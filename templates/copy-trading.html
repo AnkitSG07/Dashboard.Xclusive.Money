@@ -405,6 +405,7 @@ window.pageScripts["copy-trading"] = function () {
   window.masterAccounts = [];
   window.childAccounts = [];
   window.exitedChildren = window.exitedChildren || {};
+  window.exitedMasters = window.exitedMasters || {};
   // Order book caches to support incremental loading
   window.masterOrderBooks = {};
   window.masterOrderIndex = {};
@@ -784,7 +785,8 @@ window.pageScripts["copy-trading"] = function () {
               // Safely access master properties for rendering
               const masterClientId = master.client_id || 'N/A';
               const masterUsername = master.username || "-";
-
+              const masterExited = window.exitedMasters[masterClientId];
+              
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
                   <h2 class="accordion-header" id="headingMaster${masterClientId}">
@@ -804,6 +806,7 @@ window.pageScripts["copy-trading"] = function () {
                           <div class="vr"></div>
                           <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren('${masterClientId}')">Turn On All Child Copying</button>
                           <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren('${masterClientId}')">Turn Off All Child Copying</button>
+                          ${masterExited ? `<button class="btn btn-sm btn-outline-secondary disabled">Exited Master Positions</button>` : `<button class="btn btn-sm btn-outline-secondary" onclick="window.exitMasterPositions('${masterClientId}')">Exit Master Positions</button>`}
                           <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren('${masterClientId}')">Exit All Child Positions</button>
                       </div>
                       <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterClientId}" role="tablist">
@@ -867,6 +870,8 @@ window.pageScripts["copy-trading"] = function () {
               const exited = window.exitedChildren[child.client_id];
               const disableCopy = childHasError(child) ? 'disabled' : '';
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              const startDisabled = (copyStatus === 'On' || disableCopy) ? 'disabled' : '';
+              const stopDisabled = (copyStatus !== 'On' || disableCopy) ? 'disabled' : '';  
               const childClientId = child.client_id || 'N/A';
               const childUsername = child.username || "-";
               const linkedMasterId = master.client_id || "-";
@@ -907,8 +912,8 @@ window.pageScripts["copy-trading"] = function () {
                   <div id="collapseChild${childClientId}" class="accordion-collapse collapse" aria-labelledby="headingChild${childClientId}" data-bs-parent="#children-accounts-accordion">
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button class="btn btn-sm btn-outline-success ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${disableCopy ? 'disabled' : ''}" ${disableCopy ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}')\"`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}')\"`}>Stop Copying</button>
                             <div class="vr d-none d-md-block"></div>
                             <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${linkedMasterId}', '${childClientId}')">Square Off Specific Symbol</button>
                             <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${childClientId}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
@@ -1566,6 +1571,7 @@ window.pageScripts["copy-trading"] = function () {
     .then(res => res.json())
     .then(data => {
       showMessage(data.message);
+      delete window.exitedMasters[clientId];
       window.loadAccounts();
     })
     .catch(err => {
@@ -1793,6 +1799,29 @@ window.pageScripts["copy-trading"] = function () {
     .catch(err => {
       console.error("Error exiting all positions:", err);
       showMessage("Failed to exit all positions.", 'danger');
+    });
+  };
+
+  window.exitMasterPositions = function(masterId) {
+    if (!confirm(`Are you sure you want to exit ALL open positions for master account ${masterId}?`)) return;
+
+    fetch('/api/exit-master-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_id: masterId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      const err = data.failed_count && data.failed_count > 0;
+      showMessage(data.message, err ? 'danger' : 'success');
+      if (data.exited) {
+        window.exitedMasters[masterId] = true;
+      }
+      window.loadAccounts();
+    })
+    .catch(err => {
+      console.error("Error exiting master positions:", err);
+      showMessage("Failed to exit master positions.", 'danger');
     });
   };
 
