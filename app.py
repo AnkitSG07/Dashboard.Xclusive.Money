@@ -6855,6 +6855,59 @@ def stop_copy_all():
         db.session.rollback()
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
+
+# Exit all open positions for a master account
+@app.route('/api/exit-master-positions', methods=['POST'])
+@login_required
+def exit_master_positions():
+    logger.info("Processing exit master positions request")
+    try:
+        data = request.get_json(silent=True)
+        if isinstance(data, str):
+            try:
+                parsed = json.loads(data)
+                data = parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                data = {}
+        elif not isinstance(data, dict):
+            data = {}
+        if data is None:
+            data = {}
+        master_id = data.get('master_id')
+        if not master_id:
+            return jsonify({'error': 'Missing master_id'}), 400
+
+        user = current_user()
+        master = Account.query.filter_by(role='master', client_id=master_id, user_id=user.id).first()
+        if not master:
+            return jsonify({'error': 'Master account not found'}), 404
+
+        results = exit_all_positions_for_account(master)
+        successes = [
+            r for r in results
+            if str(r.get('status', '')).upper() == 'SUCCESS'
+        ]
+        failures = [
+            r for r in results
+            if str(r.get('status', '')).upper() != 'SUCCESS'
+        ]
+        exited = bool(successes)
+        message = (
+            f"Exited {len(successes)} of {len(results)} positions for {master_id}"
+            if results and successes
+            else f"No positions exited for {master_id}"
+        )
+        return jsonify({
+            'message': message,
+            'master_id': master_id,
+            'results': results,
+            'exited': exited,
+            'failed_count': len(failures)
+        }), 200
+    except Exception as e:
+        logger.error(f"Unexpected error in exit_master_positions: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
 # Exit all open positions for a single child account
 @app.route('/api/exit-child-positions', methods=['POST'])
 @login_required
