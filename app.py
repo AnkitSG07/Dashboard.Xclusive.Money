@@ -661,12 +661,16 @@ def map_product_type(product_type: str | None, broker: str) -> str:
         base = "CNC"
     elif pt in ("mis", "intraday"):
         base = "MIS"
+    elif pt == "mtf":
+        base = "MTF"
     else:
         base = None
     if base is None:
         return "INTRADAY" if broker in ("dhan", "fyers") else "MIS"
     if base == "MIS":
         return "INTRADAY" if broker in ("dhan", "fyers") else "MIS"
+    if base == "MTF":
+        return "MTF"
     return "CNC"
 
 def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str, qty: int, order_type: str, api, product_type: str | None = None) -> dict:
