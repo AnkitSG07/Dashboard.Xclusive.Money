@@ -1077,26 +1077,27 @@ window.pageScripts["copy-trading"] = function () {
   function appendMasterOrders(clientId) {
     const orders = window.masterOrderBooks[clientId] || [];
     const listGroup = document.getElementById(`orders-body-${clientId}`);
-    const loadMoreBtn = document.getElementById(`orders-load-more-${clientId}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);
     let idx = window.masterOrderIndex[clientId] || 0;
     const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
     for (let i = idx; i < end; i++) {
       listGroup.innerHTML += orderItemHtml(orders[i]);
     }
     window.masterOrderIndex[clientId] = end;
-    if (end >= orders.length && loadMoreBtn) {
-      loadMoreBtn.style.display = 'none';
+    if (end >= orders.length && loadMoreButton) {
+      loadMoreButton.style.display = 'none';
     }
   }
   
   function loadMasterOrderBook(clientId) {
     const listGroup = document.getElementById(`orders-body-${clientId}`);
     const emptyState = document.getElementById(`orders-empty-${clientId}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);  
     if (!listGroup || !emptyState) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
-    loadMoreBtn.style.display = 'none';
+    if (loadMoreButton) loadMoreButton.style.display = 'none';
     
     fetch(`/api/order-book/${clientId}`)
       .then(res => res.json())
@@ -1107,9 +1108,9 @@ window.pageScripts["copy-trading"] = function () {
           window.masterOrderBooks[clientId] = orders;
           window.masterOrderIndex[clientId] = 0;
           appendMasterOrders(clientId);
-          if (orders.length > ORDER_PAGE_SIZE) {
-            loadMoreBtn.style.display = 'inline-block';
-            loadMoreBtn.onclick = () => appendMasterOrders(clientId);
+          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
+            loadMoreButton.style.display = 'inline-block';
+            loadMoreButton.onclick = () => appendMasterOrders(clientId);
           }
         } else {
           emptyState.style.display = 'block';
@@ -1119,6 +1120,7 @@ window.pageScripts["copy-trading"] = function () {
         console.error("Order book fetch failed:", err);
         listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
+        if (loadMoreButton) loadMoreButton.style.display = 'none';
         showMessage("Failed to load order book.", 'danger');
       });
   }
@@ -1270,28 +1272,28 @@ window.pageScripts["copy-trading"] = function () {
   function appendChildOrders(childId) {
     const orders = window.childOrderBooks[childId] || [];
     const listGroup = document.getElementById(`child-orders-body-${childId}`);
-    const loadMoreBtn = document.getElementById(`child-orders-load-more-${childId}`);
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${childId}`);
     let idx = window.childOrderIndex[childId] || 0;
     const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
     for (let i = idx; i < end; i++) {
       listGroup.innerHTML += orderItemHtml(orders[i]);
     }
     window.childOrderIndex[childId] = end;
-    if (end >= orders.length && loadMoreBtn) {
-      loadMoreBtn.style.display = 'none';
+    if (end >= orders.length && loadMoreButton) {
+      loadMoreButton.style.display = 'none';
     }
   }
-
 
   function loadChildOrderBook(childId) {
     const listGroup = document.getElementById(`child-orders-body-${childId}`);
     const emptyState = document.getElementById(`child-orders-empty-${childId}`);
-    const loadMoreBtn = document.getElementById(`child-orders-load-more-${childId}`);
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${childId}`);
     if (!listGroup || !emptyState || !loadMoreBtn) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
     loadMoreBtn.style.display = 'none';
+    if (loadMoreButton) loadMoreButton.style.display = 'none';
     
     fetch(`/api/order-book/${childId}`)
       .then(res => res.json())
@@ -1302,9 +1304,9 @@ window.pageScripts["copy-trading"] = function () {
           window.childOrderBooks[childId] = orders;
           window.childOrderIndex[childId] = 0;
           appendChildOrders(childId);
-          if (orders.length > ORDER_PAGE_SIZE) {
-            loadMoreBtn.style.display = 'inline-block';
-            loadMoreBtn.onclick = () => appendChildOrders(childId);
+          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
+            loadMoreButton.style.display = 'inline-block';
+            loadMoreButton.onclick = () => appendChildOrders(childId);
           }
         } else {
           emptyState.style.display = 'block';
@@ -1314,6 +1316,7 @@ window.pageScripts["copy-trading"] = function () {
         console.error('Child order book fetch failed:', err);
         listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
+        if (loadMoreButton) loadMoreButton.style.display = 'none';  
         showMessage('Failed to load order book.', 'danger');
       });
   }
