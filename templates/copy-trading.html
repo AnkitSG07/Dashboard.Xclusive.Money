@@ -419,6 +419,19 @@ window.pageScripts["copy-trading"] = function () {
   window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
   window.loadingAccounts = window.loadingAccounts || false;
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function domId(id) {
+    return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
   function orderItemHtml(order) {
     const status = String(order.status || '').toUpperCase();
     const statusClass = status === 'TRADED' ? 'bg-success'
@@ -427,11 +440,21 @@ window.pageScripts["copy-trading"] = function () {
     return `
       <div class="list-group-item list-group-item-action py-3">
         <div class="d-flex w-100 justify-content-between flex-wrap">
-          <h6 class="mb-1">${order.symbol || '-'} <span class="badge ${statusClass} ms-2">${status}</span></h6>
+          <h6 class="mb-1">${escapeHtml(order.symbol || '-')}
+            <span class="badge ${statusClass} ms-2">${escapeHtml(status)}</span>
+          </h6>
           <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
         </div>
-        <p class="mb-1">Order ID: ${order.order_id || '-'} | Side: ${order.side || '-'} | Qty: ${order.placed_qty || '-'} / ${order.filled_qty || '-'} | Type: ${order.order_type || order.type || '-'} | Avg Price: ${order.avg_price || '-'}</p>
-        <small class="text-muted">Product Type: ${order.product_type || '-'} | Remarks: ${order.remarks || '-'}</small>
+        <p class="mb-1">Order ID: ${escapeHtml(order.order_id || '-')}
+          | Side: ${escapeHtml(order.side || '-')}
+          | Qty: ${escapeHtml(order.placed_qty || '-')}
+          / ${escapeHtml(order.filled_qty || '-')}
+          | Type: ${escapeHtml(order.order_type || order.type || '-')}
+          | Avg Price: ${escapeHtml(order.avg_price || '-')}
+        </p>
+        <small class="text-muted">Product Type: ${escapeHtml(order.product_type || '-')}
+          | Remarks: ${escapeHtml(order.remarks || '-')}
+        </small>
       </div>
     `;
   }
@@ -476,9 +499,8 @@ window.pageScripts["copy-trading"] = function () {
     }
     
     if (hasErr) {
-      const tip = errList.join('\n');
-      const sanitized = tip.replace(/\"/g, '&quot;');
-      return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${sanitized}"></i>`;
+      const tip = escapeHtml(errList.join('\n'));
+      return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${tip}"></i>`;
     }
 
     if (st && !['live', 'connected'].includes(st)) {
@@ -562,7 +584,8 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.viewChildMappings = function(masterOrderId) {
-    fetch(`/api/child-orders?master_order_id=${masterOrderId}`)
+    const id = encodeURIComponent(masterOrderId);
+    fetch(`/api/child-orders?master_order_id=${id}`)
       .then(res => res.json())
       .then(data => {
         const listGroup = document.getElementById("child-mapping-list");
@@ -725,6 +748,12 @@ window.pageScripts["copy-trading"] = function () {
     if (window.loadingAccounts) return;
     window.loadingAccounts = true;
 
+    if (window.accountsAbortController) {
+      window.accountsAbortController.abort();
+    }
+    const controller = new AbortController();
+    window.accountsAbortController = controller;
+  
     const masterAccordionEl = document.getElementById("master-accounts-accordion");
     const childrenAccordionEl = document.getElementById("children-accounts-accordion");
     const openMasters = masterAccordionEl
@@ -759,7 +788,7 @@ window.pageScripts["copy-trading"] = function () {
     }
     
     let errorHandled = false;
-    fetch("/api/accounts")
+    fetch("/api/accounts", { signal: controller.signal })
       .then(async response => {
         if (!response.ok) {
           errorHandled = true;
@@ -858,16 +887,17 @@ window.pageScripts["copy-trading"] = function () {
         } else {
             document.getElementById("master-empty-state").style.display = 'none';
             masters.forEach((master, index) => {
-              // Safely access master properties for rendering
-              const masterClientId = master.client_id || 'N/A';
-              const masterUsername = master.username || "-";
-              const masterExited = window.exitedMasters[masterClientId];
-              const masterOpen = openMasters.has(masterClientId);
+              const rawMasterId = master.client_id || 'N/A';
+              const masterDomId = domId(rawMasterId);
+              const masterClientId = escapeHtml(rawMasterId);
+              const masterUsername = escapeHtml(master.username || "-");
+              const masterExited = window.exitedMasters[rawMasterId];
+              const masterOpen = openMasters.has(masterDomId);
               
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingMaster${masterClientId}">
-                    <button class="accordion-button${masterOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterClientId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterClientId}">
+                  <h2 class="accordion-header" id="headingMaster${masterDomId}">
+                    <button class="accordion-button${masterOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterDomId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterDomId}">
                       <div class="d-flex align-items-center w-100 pe-3">
                         ${brokerIconHTML(master.broker)}
                         <span class="ms-2 fw-semibold">${masterClientId}</span>
@@ -876,50 +906,50 @@ window.pageScripts["copy-trading"] = function () {
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseMaster${masterClientId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterClientId}" data-bs-parent="#master-accounts-accordion">
+                  <div id="collapseMaster${masterDomId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterDomId}" data-bs-parent="#master-accounts-accordion">
                     <div class="accordion-body p-3">
                       <div class="d-flex flex-wrap gap-2 mb-3">
-                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster('${masterClientId}')">Remove Master</button>
+                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster(${JSON.stringify(rawMasterId)})">Remove Master</button>
                           <div class="vr"></div>
-                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren('${masterClientId}')">Turn On All Child Copying</button>
-                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren('${masterClientId}')">Turn Off All Child Copying</button>
-                          ${masterExited ? `<button class="btn btn-sm btn-outline-secondary disabled">Exited Master Positions</button>` : `<button class="btn btn-sm btn-outline-secondary" onclick="window.exitMasterPositions('${masterClientId}')">Exit Master Positions</button>`}
-                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren('${masterClientId}')">Exit All Child Positions</button>
+                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren(${JSON.stringify(rawMasterId)})">Turn On All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren(${JSON.stringify(rawMasterId)})">Turn Off All Child Copying</button>
+                          ${masterExited ? `<button class=\"btn btn-sm btn-outline-secondary disabled\">Exited Master Positions</button>` : `<button class=\"btn btn-sm btn-outline-secondary\" onclick=\"window.exitMasterPositions(${JSON.stringify(rawMasterId)})\">Exit Master Positions</button>`}
+                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren(${JSON.stringify(rawMasterId)})">Exit All Child Positions</button>
                       </div>
-                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterClientId}" role="tablist">
+                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link active" id="tab-children-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterClientId}" type="button" role="tab" aria-controls="master-children-${masterClientId}" aria-selected="true" onclick="window.showMasterTab('${masterClientId}', 'children')">View Children</button>
+                              <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'children')">View Children</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-positions-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterClientId}" type="button" role="tab" aria-controls="master-positions-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'positions')">Positions</button>
+                              <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'positions')">Positions</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-holdings-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterClientId}" type="button" role="tab" aria-controls="master-holdings-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'holdings')">Holdings</button>
+                              <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'holdings')">Holdings</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-orders-${masterClientId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterClientId}" type="button" role="tab" aria-controls="master-orders-book-${masterClientId}" aria-selected="false" onclick="window.showMasterTab('${masterClientId}', 'orders')">Order Book</button>
+                              <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'orders')">Order Book</button>
                           </li>
                       </ul>
                       <div class="tab-content">
-                          <div class="tab-pane fade show active" id="master-children-${masterClientId}" role="tabpanel" aria-labelledby="tab-children-${masterClientId}-tab">
+                          <div class="tab-pane fade show active" id="master-children-${masterDomId}" role="tabpanel" aria-labelledby="tab-children-${masterDomId}-tab">
                               <h6>Linked Child Accounts</h6>
-                              <div id="child-rows-${masterClientId}" class="list-group">
+                              <div id="child-rows-${masterDomId}" class="list-group">
                                   </div>
-                              <div id="child-rows-empty-${masterClientId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
+                              <div id="child-rows-empty-${masterDomId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-positions-${masterClientId}" role="tabpanel" aria-labelledby="tab-positions-${masterClientId}-tab">
-                            <div id="positions-body-${masterClientId}" class="list-group"></div>
-                            <div id="positions-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
+                          <div class="tab-pane fade" id="master-positions-${masterDomId}" role="tabpanel" aria-labelledby="tab-positions-${masterDomId}-tab">
+                            <div id="positions-body-${masterDomId}" class="list-group"></div>
+                            <div id="positions-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-holdings-${masterClientId}" role="tabpanel" aria-labelledby="tab-holdings-${masterClientId}-tab">
-                            <div id="holdings-body-${masterClientId}" class="list-group"></div>
-                            <div id="holdings-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
+                          <div class="tab-pane fade" id="master-holdings-${masterDomId}" role="tabpanel" aria-labelledby="tab-holdings-${masterDomId}-tab">
+                            <div id="holdings-body-${masterDomId}" class="list-group"></div>
+                            <div id="holdings-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
                           </div>
-                          <div class="tab-pane fade" id="master-orders-book-${masterClientId}" role="tabpanel" aria-labelledby="tab-orders-${masterClientId}-tab">
-                            <div id="orders-body-${masterClientId}" class="list-group"></div>
-                            <div id="orders-empty-${masterClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                          <div class="tab-pane fade" id="master-orders-book-${masterDomId}" role="tabpanel" aria-labelledby="tab-orders-${masterDomId}-tab">
+                            <div id="orders-body-${masterDomId}" class="list-group"></div>
+                            <div id="orders-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
                             <div class="text-center mt-2">
-                              <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterClientId}" style="display:none;">Load More</button>
+                              <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
                             </div>
                           </div>
                       </div>
@@ -931,9 +961,10 @@ window.pageScripts["copy-trading"] = function () {
             });
             // Restore previously active tab for each master (default to children)
             masters.forEach(master => {
-                const id = master.client_id || 'N/A';
-                const tab = masterActiveTabs[id] || 'children';
-                window.showMasterTab(id, tab);
+                const rawId = master.client_id || 'N/A';
+                const domIdVal = domId(rawId);
+                const tab = masterActiveTabs[domIdVal] || 'children';
+                window.showMasterTab(rawId, tab);
             });
         }
 
@@ -951,36 +982,37 @@ window.pageScripts["copy-trading"] = function () {
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
               const startDisabled = (copyStatus === 'On' || disableCopy) ? 'disabled' : '';
               const stopDisabled = (copyStatus !== 'On' || disableCopy) ? 'disabled' : '';
-              const childClientId = child.client_id || 'N/A';
-              const childUsername = child.username || "-";
-              const linkedMasterId = master.client_id || "-";
-              const linkedMasterUsername = master.username || "-";
+              const rawChildId = child.client_id || 'N/A';
+              const childDomId = domId(rawChildId);
+              const childClientId = escapeHtml(rawChildId);
+              const childUsername = escapeHtml(child.username || "-");
+              const rawMasterId = master.client_id || "-";
+              const linkedMasterId = escapeHtml(rawMasterId);
+              const linkedMasterUsername = escapeHtml(master.username || "-");
               const childMultiplier = child.multiplier || 1;
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
-              const childOpen = openChildren.has(childClientId);
+              const childOpen = openChildren.has(childDomId);
               
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingChild${childClientId}">
-                    <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childClientId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childClientId}">
+                  <h2 class="accordion-header" id="headingChild${childDomId}">
+                    <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
                       <div class="d-flex align-items-center flex-wrap w-100 pe-3">
                         ${brokerIconHTML(child.broker)}
                         <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
                         <span class="text-muted ms-3 d-block d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
                         <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                         <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
-                            <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this)\"` }>
+                            <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
                         <div class="multiplier-control me-3">
                           <input type="number" min="0.1" step="0.1"
                                  class="form-control form-control-sm"
-                                 id="mult-${child.client_id}"
-                                 value="${child.multiplier || 1}" style="width: 60px;">
-                          <button class="btn btn-sm btn-outline-primary"
-                                  onclick="window.updateMultiplier('${child.client_id}')">Save</button>
+                                 id="mult-${childDomId}"
+                                 value="${childMultiplier}" style="width: 60px;">
+                          <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier(${JSON.stringify(rawChildId)})">Save</button>
                           <span data-bs-toggle="tooltip" title="Set how much larger or smaller you want copied trades to be for this account. For example, 2 means double the trade size, 0.5 means half. Trades copied to this account will use: Master trade size × Multiplier.">
                             <i class="bi bi-info-circle"></i>
                           </span>
@@ -989,44 +1021,44 @@ window.pageScripts["copy-trading"] = function () {
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseChild${childClientId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childClientId}" data-bs-parent="#children-accounts-accordion">
+                  <div id="collapseChild${childDomId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childDomId}" data-bs-parent="#children-accounts-accordion">
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}', null, true)\"`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})\"`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)\"`}>Stop Copying</button>
                             <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${linkedMasterId}', '${childClientId}')">Square Off Specific Symbol</button>
-                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${childClientId}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})">Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions(${JSON.stringify(rawChildId)})\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
                             <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild('${childClientId}')">Remove Child</button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster('${childClientId}')">Change Master</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild(${JSON.stringify(rawChildId)})">Remove Child</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster(${JSON.stringify(rawChildId)})">Change Master</button>
                         </div>
-                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childClientId}" role="tablist">
+                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childDomId}" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-orders-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childClientId}" type="button" role="tab" aria-controls="child-orders-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'orders')">Order Book</button>
+                                <button class="nav-link" id="tab-child-orders-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childDomId}" type="button" role="tab" aria-controls="child-orders-${childDomId}" aria-selected="false" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'orders')">Order Book</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="tab-child-positions-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childClientId}" type="button" role="tab" aria-controls="child-positions-${childClientId}" aria-selected="true" onclick="window.showChildTab('${childClientId}', 'positions')">Positions</button>
+                                <button class="nav-link active" id="tab-child-positions-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childDomId}" type="button" role="tab" aria-controls="child-positions-${childDomId}" aria-selected="true" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'positions')">Positions</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-holdings-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childClientId}" type="button" role="tab" aria-controls="child-holdings-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'holdings')">Holdings</button>
+                                <button class="nav-link" id="tab-child-holdings-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childDomId}" type="button" role="tab" aria-controls="child-holdings-${childDomId}" aria-selected="false" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'holdings')">Holdings</button>
                             </li>
                         </ul>
                         <div class="tab-content">
-                            <div class="tab-pane fade" id="child-orders-${childClientId}" role="tabpanel" aria-labelledby="tab-child-orders-${childClientId}-tab">
-                                <div id="child-orders-body-${childClientId}" class="list-group"></div>
-                                <div id="child-orders-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                            <div class="tab-pane fade" id="child-orders-${childDomId}" role="tabpanel" aria-labelledby="tab-child-orders-${childDomId}-tab">
+                                <div id="child-orders-body-${childDomId}" class="list-group"></div>
+                                <div id="child-orders-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
                                 <div class="text-center mt-2">
-                                  <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childClientId}" style="display:none;">Load More</button>
+                                  <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
                                 </div>
                             </div>
-                            <div class="tab-pane fade show active" id="child-positions-${childClientId}" role="tabpanel" aria-labelledby="tab-child-positions-${childClientId}-tab">
-                                <div id="child-positions-body-${childClientId}" class="list-group"></div>
-                                <div id="child-positions-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                            <div class="tab-pane fade show active" id="child-positions-${childDomId}" role="tabpanel" aria-labelledby="tab-child-positions-${childDomId}-tab">
+                                <div id="child-positions-body-${childDomId}" class="list-group"></div>
+                                <div id="child-positions-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
                             </div>
-                            <div class="tab-pane fade" id="child-holdings-${childClientId}" role="tabpanel" aria-labelledby="tab-child-holdings-${childClientId}-tab">
-                                <div id="child-holdings-body-${childClientId}" class="list-group"></div>
-                                <div id="child-holdings-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                            <div class="tab-pane fade" id="child-holdings-${childDomId}" role="tabpanel" aria-labelledby="tab-child-holdings-${childDomId}-tab">
+                                <div id="child-holdings-body-${childDomId}" class="list-group"></div>
+                                <div id="child-holdings-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
                             </div>
                         </div>
                     </div>
@@ -1037,10 +1069,11 @@ window.pageScripts["copy-trading"] = function () {
             });
             // Restore active tab for each child if necessary
             children.forEach(child => {
-              const id = child.client_id || 'N/A';
-              const tab = childActiveTabs[id] || 'positions';
-              if (openChildren.has(id) || tab !== 'positions') {
-                window.showChildTab(id, tab);
+              const rawId = child.client_id || 'N/A';
+              const domIdVal = domId(rawId);
+              const tab = childActiveTabs[domIdVal] || 'positions';
+              if (openChildren.has(domIdVal) || tab !== 'positions') {
+                window.showChildTab(rawId, tab);
               }
             });
         }
@@ -1055,8 +1088,9 @@ window.pageScripts["copy-trading"] = function () {
         } else {
             document.getElementById("unassigned-empty-state").style.display = 'none';
             unassignedAccounts.forEach(acc => {
-              const accClientId = acc.client_id || 'N/A';
-              const accUsername = acc.username || "-";
+              const accClientIdRaw = acc.client_id || 'N/A';
+              const accClientId = escapeHtml(accClientIdRaw);
+              const accUsername = escapeHtml(acc.username || "-");
 
               unassignedList.innerHTML += `
                 <div class="col">
@@ -1069,8 +1103,8 @@ window.pageScripts["copy-trading"] = function () {
                             <p class="card-text text-muted mb-auto">Username: ${accUsername}</p>
                             <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
                             <div class="d-flex gap-2 mt-auto">
-                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster('${accClientId}')">Set as Master</button>
-                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild('${accClientId}')">Set as Child</button>
+                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster(${JSON.stringify(accClientIdRaw)})">Set as Master</button>
+                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild(${JSON.stringify(accClientIdRaw)})">Set as Child</button>
                             </div>
                         </div>
                     </div>
@@ -1096,7 +1130,8 @@ window.pageScripts["copy-trading"] = function () {
         }
       })
       .finally(() => {
-        window.loadingAccounts = false;  
+        window.loadingAccounts = false;
+        window.accountsAbortController = null;
       });
   };
 
@@ -1141,10 +1176,11 @@ window.pageScripts["copy-trading"] = function () {
 
 
   window.showMasterTab = function(clientId, tabName) {
-    const tabLinks = document.querySelectorAll(`#tabs-${clientId} .nav-link`);
-    const tabPanes = document.querySelectorAll(`#master-children-${clientId}, #master-positions-${clientId}, #master-holdings-${clientId}, #master-orders-book-${clientId}`);
-    const activeTabLink = document.getElementById(`tab-${tabName}-${clientId}-tab`); // Correct ID for tab button
-    const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${clientId}`);
+    const dom = domId(clientId);
+    const tabLinks = document.querySelectorAll(`#tabs-${dom} .nav-link`);
+    const tabPanes = document.querySelectorAll(`#master-children-${dom}, #master-positions-${dom}, #master-holdings-${dom}, #master-orders-book-${dom}`);
+    const activeTabLink = document.getElementById(`tab-${tabName}-${dom}-tab`);
+    const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${dom}`);
     
     // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
@@ -1168,8 +1204,9 @@ window.pageScripts["copy-trading"] = function () {
 
   function appendMasterOrders(clientId) {
     const orders = window.masterOrderBooks[clientId] || [];
-    const listGroup = document.getElementById(`orders-body-${clientId}`);
-    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
     let idx = window.masterOrderIndex[clientId] || 0;
     const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
     for (let i = idx; i < end; i++) {
@@ -1182,9 +1219,10 @@ window.pageScripts["copy-trading"] = function () {
   }
   
   function loadMasterOrderBook(clientId, { force = false } = {}) {
-    const listGroup = document.getElementById(`orders-body-${clientId}`);
-    const emptyState = document.getElementById(`orders-empty-${clientId}`);
-    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
+    const emptyState = document.getElementById(`orders-empty-${dom}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
     if (!listGroup || !emptyState) return;
 
     if (window.masterOrderBooks[clientId] && !force) {
@@ -1204,7 +1242,7 @@ window.pageScripts["copy-trading"] = function () {
     emptyState.style.display = 'none';
     if (loadMoreButton) loadMoreButton.style.display = 'none';
     
-    fetch(`/api/order-book/${clientId}`)
+    fetch('/api/order-book/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(data => {
         listGroup.innerHTML = "";
@@ -1231,14 +1269,15 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function loadMasterPositions(clientId) {
-    const listGroup = document.getElementById(`positions-body-${clientId}`);
-    const emptyState = document.getElementById(`positions-empty-${clientId}`);
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`positions-body-${dom}`);
+    const emptyState = document.getElementById(`positions-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
     emptyState.style.display = 'none';
 
-    fetch(`/api/portfolio/${clientId}`)
+    fetch('/api/portfolio/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(positions => {
         listGroup.innerHTML = "";
@@ -1281,14 +1320,15 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function loadMasterHoldings(clientId) {
-    const listGroup = document.getElementById(`holdings-body-${clientId}`);
-    const emptyState = document.getElementById(`holdings-empty-${clientId}`);
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`holdings-body-${dom}`);
+    const emptyState = document.getElementById(`holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
-    fetch(`/api/holdings/${clientId}`)
+    fetch('/api/holdings/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(holdings => {
         listGroup.innerHTML = "";
@@ -1351,10 +1391,11 @@ window.pageScripts["copy-trading"] = function () {
 
   // --- Child Tabs ---
   window.showChildTab = function(childId, tabName) {
-    const tabLinks = document.querySelectorAll(`#child-tabs-${childId} .nav-link`);
-    const tabPanes = document.querySelectorAll(`#child-orders-${childId}, #child-positions-${childId}, #child-holdings-${childId}`);
-    const activeTabLink = document.getElementById(`tab-child-${tabName}-${childId}-tab`); // Correct ID for tab button
-    const selectedTabPane = document.getElementById(`child-${tabName}-${childId}`);
+    const dom = domId(childId);
+    const tabLinks = document.querySelectorAll(`#child-tabs-${dom} .nav-link`);
+    const tabPanes = document.querySelectorAll(`#child-orders-${dom}, #child-positions-${dom}, #child-holdings-${dom}`);
+    const activeTabLink = document.getElementById(`tab-child-${tabName}-${dom}-tab`);
+    const selectedTabPane = document.getElementById(`child-${tabName}-${dom}`);
     
     // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
@@ -1376,8 +1417,9 @@ window.pageScripts["copy-trading"] = function () {
 
   function appendChildOrders(childId) {
     const orders = window.childOrderBooks[childId] || [];
-    const listGroup = document.getElementById(`child-orders-body-${childId}`);
-    const loadMoreButton = document.getElementById(`child-orders-load-more-${childId}`);
+    const dom = domId(childId);
+    const listGroup = document.getElementById(`child-orders-body-${dom}`);
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
     let idx = window.childOrderIndex[childId] || 0;
     const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
     for (let i = idx; i < end; i++) {
@@ -1390,9 +1432,10 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function loadChildOrderBook(childId, { force = false } = {}) {
-    const listGroup = document.getElementById(`child-orders-body-${childId}`);
-    const emptyState = document.getElementById(`child-orders-empty-${childId}`);
-    const loadMoreButton = document.getElementById(`child-orders-load-more-${childId}`);
+    const dom = domId(childId);
+    const listGroup = document.getElementById(`child-orders-body-${dom}`);
+    const emptyState = document.getElementById(`child-orders-empty-${dom}`);
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
     if (!listGroup || !emptyState || !loadMoreButton) return;
 
     if (window.childOrderBooks[childId] && !force) {
@@ -1412,7 +1455,7 @@ window.pageScripts["copy-trading"] = function () {
     emptyState.style.display = 'none';
     loadMoreButton.style.display = 'none';
     
-    fetch(`/api/order-book/${childId}`)
+    fetch('/api/order-book/' + encodeURIComponent(childId))
       .then(async res => {
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
@@ -1446,14 +1489,15 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function loadChildPositions(childId) {
-    const listGroup = document.getElementById(`child-positions-body-${childId}`);
-    const emptyState = document.getElementById(`child-positions-empty-${childId}`);
+    const dom = domId(childId);
+    const listGroup = document.getElementById(`child-positions-body-${dom}`);
+    const emptyState = document.getElementById(`child-positions-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
     emptyState.style.display = 'none';
 
-    fetch(`/api/portfolio/${childId}`)
+    fetch('/api/portfolio/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(positions => {
         listGroup.innerHTML = "";
@@ -1496,14 +1540,15 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function loadChildHoldings(childId) {
-    const listGroup = document.getElementById(`child-holdings-body-${childId}`);
-    const emptyState = document.getElementById(`child-holdings-empty-${childId}`);
+    const dom = domId(childId);
+    const listGroup = document.getElementById(`child-holdings-body-${dom}`);
+    const emptyState = document.getElementById(`child-holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
-    fetch(`/api/holdings/${childId}`)
+    fetch('/api/holdings/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(holdings => {
         listGroup.innerHTML = "";
@@ -1822,7 +1867,7 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.squareOffPosition = function(masterId, childId) {
-    fetch("/api/portfolio/" + childId)
+    fetch('/api/portfolio/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(data => {
         const positions = data || [];
@@ -2000,7 +2045,7 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.updateMultiplier = function(clientId) {
-    const inputElement = document.getElementById(`mult-${clientId}`);
+    const inputElement = document.getElementById(`mult-${domId(clientId)}`);
     const newMultiplier = parseFloat(inputElement.value);
 
     if (isNaN(newMultiplier) || newMultiplier < 0.1) {
@@ -2044,6 +2089,10 @@ window.pageScripts["copy-trading"] = function () {
       if (window.accountsPoller) {
         clearInterval(window.accountsPoller);
         window.accountsPoller = null;
+      }
+      if (window.accountsAbortController) {
+        window.accountsAbortController.abort();
+        window.accountsAbortController = null;
       }
     } else if (!window.accountsPoller) {
       window.loadAccounts();
