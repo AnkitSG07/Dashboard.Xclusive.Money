@@ -407,13 +407,17 @@ window.pageScripts["copy-trading"] = function () {
   window.exitedChildren = window.exitedChildren || {};
   window.exitedMasters = window.exitedMasters || {};
   window.accountCopyStatus = window.accountCopyStatus || {};
-  window.userToggledOff = window.userToggledOff || {};  
+  window.userToggledOff = window.userToggledOff || {};
   // Order book caches to support incremental loading
   window.masterOrderBooks = {};
   window.masterOrderIndex = {};
   window.childOrderBooks = {};
   window.childOrderIndex = {};
   const ORDER_PAGE_SIZE = 20;
+
+  const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
+  window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
+  window.loadingAccounts = window.loadingAccounts || false;
 
   function orderItemHtml(order) {
     const status = String(order.status || '').toUpperCase();
@@ -718,6 +722,8 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.loadAccounts = function() {
+    if (window.loadingAccounts) return;
+    window.loadingAccounts = true;  
     let errorHandled = false;
     fetch("/api/accounts")
       .then(async response => {
@@ -733,6 +739,13 @@ window.pageScripts["copy-trading"] = function () {
           const alertMsg = `Error ${response.status}: ${message}`;
           console.error(alertMsg);
           showMessage(alertMsg, 'danger');
+          if (response.status === 429) {
+            window.accountsPollInterval = Math.min(window.accountsPollInterval * 2, 60000);
+            if (window.accountsPoller) {
+              clearInterval(window.accountsPoller);
+            }
+            window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+          }
           const fallbackMsg = response.status === 401
             ? "You appear to be logged out. Please log in to view your accounts."
             : "The server returned an error while loading accounts.";
@@ -795,7 +808,14 @@ window.pageScripts["copy-trading"] = function () {
           window.accountCopyStatus[child.client_id] = child.copy_status;
         });
 
-  
+          if (window.accountsPollInterval !== BASE_ACCOUNTS_POLL_INTERVAL) {
+          window.accountsPollInterval = BASE_ACCOUNTS_POLL_INTERVAL;
+          if (window.accountsPoller) {
+            clearInterval(window.accountsPoller);
+            window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+          }
+        }
+
         // --- Master Accounts Display ---
         const masterAccordion = document.getElementById("master-accounts-accordion");
         masterAccordion.innerHTML = "";
@@ -1028,6 +1048,9 @@ window.pageScripts["copy-trading"] = function () {
             }
           });
         }
+      })
+      .finally(() => {
+        window.loadingAccounts = false;  
       });
   };
 
@@ -1968,7 +1991,7 @@ window.pageScripts["copy-trading"] = function () {
   window.loadAccounts();
   window.loadMasterOrders();
   if (!window.accountsPoller) {
-    window.accountsPoller = setInterval(window.loadAccounts, 5000);
+    window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
   }
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -1978,7 +2001,7 @@ window.pageScripts["copy-trading"] = function () {
       }
     } else if (!window.accountsPoller) {
       window.loadAccounts();
-      window.accountsPoller = setInterval(window.loadAccounts, 5000);
+      window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
     }
   });
   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
