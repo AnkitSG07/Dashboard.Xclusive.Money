@@ -54,7 +54,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
 import re
 from blueprints.auth import auth_bp
-from blueprints.api import api_bp
+from blueprints.api import api_bp, login_required_api
 from helpers import (
     current_user,
     user_account_ids,
@@ -2542,7 +2542,7 @@ def connect_zerodha():
         }), 500
 
 @app.route('/api/order-book/<client_id>', methods=['GET'])
-@login_required
+login_required_api
 def get_order_book(client_id):
     """Get order book for a master account - Complete Database Version.
     
