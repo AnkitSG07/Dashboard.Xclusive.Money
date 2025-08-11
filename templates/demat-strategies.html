@@ -196,7 +196,7 @@
                                 </label>
                                 <div class="input-group">
                                     <textarea class="form-control bg-light font-monospace" id="webhook-preview" rows="5" readonly></textarea>
-                                    <button class="btn btn-outline-secondary" id="copy-preview-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary" id="copy-preview-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -225,7 +225,7 @@
                         </label>
                         <div class="input-group">
                             <input id="payload-webhook" type="text" class="form-control bg-light font-monospace" readonly>
-                            <button class="btn btn-outline-secondary" id="copy-webhook-btn" title="Copy Webhook URL"><i class="bi bi-clipboard"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" id="copy-webhook-btn" title="Copy Webhook URL"><i class="bi bi-clipboard"></i></button>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -234,7 +234,7 @@
                         </label>
                         <div class="input-group">
                             <textarea id="payload-json" class="form-control bg-light font-monospace" rows="7" readonly></textarea>
-                            <button class="btn btn-outline-secondary" id="copy-payload-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" id="copy-payload-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
                         </div>
                     </div>
                 </div>
@@ -277,9 +277,9 @@ window.pageScripts["demat-strategies"] = function() {
       return new bootstrap.Tooltip(tooltipTriggerEl)
     })
 
-    document.getElementById('copy-webhook-btn').addEventListener('click',()=>navigator.clipboard.writeText(payloadWebhook.value));
-    document.getElementById('copy-payload-btn').addEventListener('click',()=>navigator.clipboard.writeText(payloadJson.value));
-    document.getElementById('copy-preview-btn').addEventListener('click',()=>navigator.clipboard.writeText(webhookPreview.value));
+    document.getElementById('copy-webhook-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(payloadWebhook.value);});
+    document.getElementById('copy-payload-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(payloadJson.value);});
+    document.getElementById('copy-preview-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(webhookPreview.value);});
     
     function fetchJson(url, opts={}) {
         return fetch(url, opts).then(r => {
@@ -649,10 +649,18 @@ window.pageScripts["demat-strategies"] = function() {
                 fetchJson(`/api/strategies/${btn.dataset.strategyId}`).then(data=>{
                     editingId = data.id;
                     modalEl.querySelector('.modal-title').textContent = 'Edit Strategy';
-                    form.strategyName.value = data.name;
-                    loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
                     
                     const storedAllowedTickers = data.allowed_tickers || '';
+                    let baseName = data.name || '';
+                    if (storedAllowedTickers && storedAllowedTickers !== '__WATCHLIST_DYNAMIC__') {
+                        const suffix = ` (${storedAllowedTickers})`;
+                        if (baseName.endsWith(suffix)) {
+                            baseName = baseName.slice(0, -suffix.length);
+                        }
+                    }
+                    form.strategyName.value = baseName;
+                    loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
+                    
                     if (storedAllowedTickers === '__WATCHLIST_DYNAMIC__') {
                         watchlistModeRadio.checked = true;
                     } else {
@@ -674,6 +682,11 @@ window.pageScripts["demat-strategies"] = function() {
                         const val = String(tTypeField || 'BUY').toUpperCase();
                         form.transactionType.value = val === 'BOTH' ? 'BOTH' : (tTypeField || 'BUY');
                     }
+
+                    const isManualMode = !Array.isArray(tTypeField) && String(tTypeField || '').toUpperCase() !== 'BOTH';
+                    alertTypeManual.checked = isManualMode;
+                    alertTypeStrategy.checked = !isManualMode;
+
                     form.orderType.value = data.order_type || 'limit';
                     form.orderValidity.value = data.order_validity || 'day';
                     form.productType.value = data.product_type || 'intraday';
@@ -685,6 +698,15 @@ window.pageScripts["demat-strategies"] = function() {
                     form.orderValue.disabled = !!form.orderQty.value;
 
                     updateSymbolInputMode(); // This also calls updateTokens and updateWebhookPreview
+                    updateAlertMode();
+
+                    // Reapply quantity/value after updates to avoid recalculation
+                    form.orderQty.value = data.order_qty || '';
+                    form.orderValue.value = data.order_value || '';
+                    form.orderQty.disabled = !!form.orderValue.value;
+                    form.orderValue.disabled = !!form.orderQty.value;
+
+                    updateWebhookPreview();
                     modal.show();
                 });
             });
