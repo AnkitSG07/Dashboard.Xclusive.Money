@@ -1322,7 +1322,14 @@ window.pageScripts["copy-trading"] = function () {
     loadMoreButton.style.display = 'none';
     
     fetch(`/api/order-book/${childId}`)
-      .then(res => res.json())
+      .then(async res => {
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await res.text();
+          throw new Error(text || 'Invalid JSON response');
+        }
+        return res.json();
+      })
       .then(data => {
         listGroup.innerHTML = "";
         const orders = Array.isArray(data) ? data : [];
@@ -1342,7 +1349,7 @@ window.pageScripts["copy-trading"] = function () {
         console.error('Child order book fetch failed:', err);
         listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
-        if (loadMoreButton) loadMoreButton.style.display = 'none';  
+        if (loadMoreButton) loadMoreButton.style.display = 'none';
         showMessage('Failed to load order book.', 'danger');
       });
   }
