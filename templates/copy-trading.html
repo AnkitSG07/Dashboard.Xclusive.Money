@@ -406,6 +406,8 @@ window.pageScripts["copy-trading"] = function () {
   window.childAccounts = [];
   window.exitedChildren = window.exitedChildren || {};
   window.exitedMasters = window.exitedMasters || {};
+  window.accountCopyStatus = window.accountCopyStatus || {};
+  window.userToggledOff = window.userToggledOff || {};  
   // Order book caches to support incremental loading
   window.masterOrderBooks = {};
   window.masterOrderIndex = {};
@@ -761,9 +763,6 @@ window.pageScripts["copy-trading"] = function () {
         for (const master of masters) {
           if (master.children && Array.isArray(master.children)) {
             master.children = master.children.map(child => {
-              if (childHasError(child)) {
-                child.copy_status = 'Off';
-              }
               children.push({
                 ...child,
                 linked_master_id: master.client_id // Master's client_id should be defined here
@@ -774,6 +773,19 @@ window.pageScripts["copy-trading"] = function () {
         }
         window.childAccounts = children; // Store globally
 
+        // Notify user if backend turned off copying for any child
+        children.forEach(child => {
+          const prev = window.accountCopyStatus[child.client_id];
+          if (prev === 'On' && child.copy_status === 'Off') {
+            if (!window.userToggledOff[child.client_id]) {
+              showMessage(`Copy trading for ${child.client_id} was turned off by the system.`);
+            } else {
+              delete window.userToggledOff[child.client_id];
+            }
+          }
+          window.accountCopyStatus[child.client_id] = child.copy_status;
+        });
+  
         // --- Master Accounts Display ---
         const masterAccordion = document.getElementById("master-accounts-accordion");
         masterAccordion.innerHTML = "";
@@ -891,7 +903,7 @@ window.pageScripts["copy-trading"] = function () {
                         <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                         <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                             <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this.checked)\"` }>
+                              ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${linkedMasterId}', this)\"` }>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
                         <div class="multiplier-control me-3">
@@ -913,7 +925,7 @@ window.pageScripts["copy-trading"] = function () {
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}')\"`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying('${childClientId}', '${linkedMasterId}', null, true)\"`}>Stop Copying</button>
                             <div class="vr d-none d-md-block"></div>
                             <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition('${linkedMasterId}', '${childClientId}')">Square Off Specific Symbol</button>
                             <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions('${childClientId}')\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
@@ -1041,7 +1053,7 @@ window.pageScripts["copy-trading"] = function () {
                 <div class="me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                 <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this.checked)\"` }>
+                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this)\"` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
                 <span class="me-3 mt-2 mt-md-0">Mult: ${multiplier}</span>
@@ -1579,45 +1591,67 @@ window.pageScripts["copy-trading"] = function () {
     });
   };
 
-  window.startCopying = function(childId, masterId) {
+  window.startCopying = function(childId, masterId, checkbox) {
     fetch("/api/start-copy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_id: childId, master_id: masterId })
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        const msg = data.error || data.message || "Failed to start copying.";
+        showMessage(msg, 'danger');
+        if (checkbox) checkbox.checked = false;
+        return;
+      }
       showMessage(data.message);
       window.loadAccounts(); // Reload to update UI status
     })
     .catch(err => {
       console.error("Error starting copy:", err);
       showMessage("Failed to start copying.", 'danger');
+      if (checkbox) checkbox.checked = false;
     });
   };
 
-  window.stopCopying = function(childId, masterId) {
+  window.stopCopying = function(childId, masterId, checkbox, userInitiated = false) {
+    if (userInitiated) {
+      window.userToggledOff[childId] = true;
+    }
     fetch("/api/stop-copy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_id: childId, master_id: masterId })
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        const msg = data.error || data.message || "Failed to stop copying.";
+        showMessage(msg, 'danger');
+        if (checkbox) checkbox.checked = true;
+        delete window.userToggledOff[childId];
+        return;
+      }
       showMessage(data.message);
       window.loadAccounts(); // Reload to update UI status
     })
     .catch(err => {
       console.error("Error stopping copy:", err);
       showMessage("Failed to stop copying.", 'danger');
+      if (checkbox) checkbox.checked = true;
+      delete window.userToggledOff[childId];
     });
   };
 
-  window.toggleCopyTrade = function(childId, masterId, isOn) {
+  window.toggleCopyTrade = function(childId, masterId, checkbox) {
+    const isOn = checkbox.checked;
     if (isOn) {
-      window.startCopying(childId, masterId);
+      delete window.userToggledOff[childId];
+      window.startCopying(childId, masterId, checkbox);
     } else {
-      window.stopCopying(childId, masterId);
+      window.userToggledOff[childId] = true;
+      window.stopCopying(childId, masterId, checkbox);
     }
   };
 
@@ -1891,6 +1925,9 @@ window.pageScripts["copy-trading"] = function () {
   // These calls will now fetch and populate the sections
   window.loadAccounts();
   window.loadMasterOrders();
+  if (!window.accountsPoller) {
+    window.accountsPoller = setInterval(window.loadAccounts, 5000);
+  }
   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
   [...tooltipTriggerList].forEach(el => new bootstrap.Tooltip(el));
 };
