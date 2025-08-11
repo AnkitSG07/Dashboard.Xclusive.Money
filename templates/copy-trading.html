@@ -945,24 +945,24 @@ window.pageScripts["copy-trading"] = function () {
                         </div>
                         <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childClientId}" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="tab-child-orders-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childClientId}" type="button" role="tab" aria-controls="child-orders-${childClientId}" aria-selected="true" onclick="window.showChildTab('${childClientId}', 'orders')">Order Book</button>
+                                <button class="nav-link" id="tab-child-orders-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childClientId}" type="button" role="tab" aria-controls="child-orders-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'orders')">Order Book</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-positions-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childClientId}" type="button" role="tab" aria-controls="child-positions-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'positions')">Positions</button>
+                                <button class="nav-link active" id="tab-child-positions-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childClientId}" type="button" role="tab" aria-controls="child-positions-${childClientId}" aria-selected="true" onclick="window.showChildTab('${childClientId}', 'positions')">Positions</button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="tab-child-holdings-${childClientId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childClientId}" type="button" role="tab" aria-controls="child-holdings-${childClientId}" aria-selected="false" onclick="window.showChildTab('${childClientId}', 'holdings')">Holdings</button>
                             </li>
                         </ul>
                         <div class="tab-content">
-                            <div class="tab-pane fade show active" id="child-orders-${childClientId}" role="tabpanel" aria-labelledby="tab-child-orders-${childClientId}-tab">
+                            <div class="tab-pane fade" id="child-orders-${childClientId}" role="tabpanel" aria-labelledby="tab-child-orders-${childClientId}-tab">
                                 <div id="child-orders-body-${childClientId}" class="list-group"></div>
                                 <div id="child-orders-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
                                 <div class="text-center mt-2">
                                   <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childClientId}" style="display:none;">Load More</button>
                                 </div>
                             </div>
-                            <div class="tab-pane fade" id="child-positions-${childClientId}" role="tabpanel" aria-labelledby="tab-child-positions-${childClientId}-tab">
+                            <div class="tab-pane fade show active" id="child-positions-${childClientId}" role="tabpanel" aria-labelledby="tab-child-positions-${childClientId}-tab">
                                 <div id="child-positions-body-${childClientId}" class="list-group"></div>
                                 <div id="child-positions-empty-${childClientId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
                             </div>
@@ -976,10 +976,6 @@ window.pageScripts["copy-trading"] = function () {
                 </div>
               `;
               childrenAccordion.innerHTML += accordionItem;
-            });
-            // Initial load for child tabs
-            children.forEach(child => {
-                window.showChildTab(child.client_id || 'N/A', 'orders');
             });
         }
 
@@ -1116,11 +1112,24 @@ window.pageScripts["copy-trading"] = function () {
     }
   }
   
-  function loadMasterOrderBook(clientId) {
+  function loadMasterOrderBook(clientId, { force = false } = {}) {
     const listGroup = document.getElementById(`orders-body-${clientId}`);
     const emptyState = document.getElementById(`orders-empty-${clientId}`);
-    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);  
+    const loadMoreButton = document.getElementById(`orders-load-more-${clientId}`);
     if (!listGroup || !emptyState) return;
+
+    if (window.masterOrderBooks[clientId] && !force) {
+      listGroup.innerHTML = "";
+      emptyState.style.display = 'none';
+      if (loadMoreButton) loadMoreButton.style.display = 'none';
+      window.masterOrderIndex[clientId] = 0;
+      appendMasterOrders(clientId);
+      if (window.masterOrderBooks[clientId].length > ORDER_PAGE_SIZE && loadMoreButton) {
+        loadMoreButton.style.display = 'inline-block';
+        loadMoreButton.onclick = () => appendMasterOrders(clientId);
+      }
+      return;
+    }
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
@@ -1311,11 +1320,24 @@ window.pageScripts["copy-trading"] = function () {
     }
   }
 
-  function loadChildOrderBook(childId) {
+  function loadChildOrderBook(childId, { force = false } = {}) {
     const listGroup = document.getElementById(`child-orders-body-${childId}`);
     const emptyState = document.getElementById(`child-orders-empty-${childId}`);
     const loadMoreButton = document.getElementById(`child-orders-load-more-${childId}`);
     if (!listGroup || !emptyState || !loadMoreButton) return;
+
+    if (window.childOrderBooks[childId] && !force) {
+      listGroup.innerHTML = "";
+      emptyState.style.display = 'none';
+      loadMoreButton.style.display = 'none';
+      window.childOrderIndex[childId] = 0;
+      appendChildOrders(childId);
+      if (window.childOrderBooks[childId].length > ORDER_PAGE_SIZE) {
+        loadMoreButton.style.display = 'inline-block';
+        loadMoreButton.onclick = () => appendChildOrders(childId);
+      }
+      return;
+    }
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
@@ -1948,6 +1970,17 @@ window.pageScripts["copy-trading"] = function () {
   if (!window.accountsPoller) {
     window.accountsPoller = setInterval(window.loadAccounts, 5000);
   }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (window.accountsPoller) {
+        clearInterval(window.accountsPoller);
+        window.accountsPoller = null;
+      }
+    } else if (!window.accountsPoller) {
+      window.loadAccounts();
+      window.accountsPoller = setInterval(window.loadAccounts, 5000);
+    }
+  });
   const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
   [...tooltipTriggerList].forEach(el => new bootstrap.Tooltip(el));
 };
