@@ -2542,7 +2542,7 @@ def connect_zerodha():
         }), 500
 
 @app.route('/api/order-book/<client_id>', methods=['GET'])
-login_required_api
+@login_required_api  # Ensure unauthorized requests return JSON 401
 def get_order_book(client_id):
     """Get order book for a master account - Complete Database Version.
     
