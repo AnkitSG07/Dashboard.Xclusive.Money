@@ -723,7 +723,17 @@ window.pageScripts["copy-trading"] = function () {
 
   window.loadAccounts = function() {
     if (window.loadingAccounts) return;
-    window.loadingAccounts = true;  
+    window.loadingAccounts = true;
+
+    const masterAccordionEl = document.getElementById("master-accounts-accordion");
+    const childrenAccordionEl = document.getElementById("children-accounts-accordion");
+    const openMasters = masterAccordionEl
+      ? new Set(Array.from(masterAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseMaster','')))
+      : new Set();
+    const openChildren = childrenAccordionEl
+      ? new Set(Array.from(childrenAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseChild','')))
+      : new Set();
+ 
     let errorHandled = false;
     fetch("/api/accounts")
       .then(async response => {
@@ -817,7 +827,7 @@ window.pageScripts["copy-trading"] = function () {
         }
 
         // --- Master Accounts Display ---
-        const masterAccordion = document.getElementById("master-accounts-accordion");
+        const masterAccordion = masterAccordionEl;
         masterAccordion.innerHTML = "";
         if (masters.length === 0) {
             document.getElementById("master-empty-state").style.display = 'block';
@@ -828,11 +838,12 @@ window.pageScripts["copy-trading"] = function () {
               const masterClientId = master.client_id || 'N/A';
               const masterUsername = master.username || "-";
               const masterExited = window.exitedMasters[masterClientId];
+              const masterOpen = openMasters.has(masterClientId);
               
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
                   <h2 class="accordion-header" id="headingMaster${masterClientId}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterClientId}" aria-expanded="false" aria-controls="collapseMaster${masterClientId}">
+                    <button class="accordion-button${masterOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterClientId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterClientId}">
                       <div class="d-flex align-items-center w-100 pe-3">
                         ${brokerIconHTML(master.broker)}
                         <span class="ms-2 fw-semibold">${masterClientId}</span>
@@ -841,7 +852,7 @@ window.pageScripts["copy-trading"] = function () {
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseMaster${masterClientId}" class="accordion-collapse collapse" aria-labelledby="headingMaster${masterClientId}" data-bs-parent="#master-accounts-accordion">
+                  <div id="collapseMaster${masterClientId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterClientId}" data-bs-parent="#master-accounts-accordion">
                     <div class="accordion-body p-3">
                       <div class="d-flex flex-wrap gap-2 mb-3">
                           <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster('${masterClientId}')">Remove Master</button>
@@ -901,7 +912,7 @@ window.pageScripts["copy-trading"] = function () {
         }
 
         // --- Children Accounts Display ---
-        const childrenAccordion = document.getElementById("children-accounts-accordion");
+        const childrenAccordion = childrenAccordionEl;
         childrenAccordion.innerHTML = "";
         if (children.length === 0) {
             document.getElementById("children-empty-state").style.display = 'block';
@@ -913,7 +924,7 @@ window.pageScripts["copy-trading"] = function () {
               const disableCopy = childHasError(child) ? 'disabled' : '';
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
               const startDisabled = (copyStatus === 'On' || disableCopy) ? 'disabled' : '';
-              const stopDisabled = (copyStatus !== 'On' || disableCopy) ? 'disabled' : '';  
+              const stopDisabled = (copyStatus !== 'On' || disableCopy) ? 'disabled' : '';
               const childClientId = child.client_id || 'N/A';
               const childUsername = child.username || "-";
               const linkedMasterId = master.client_id || "-";
@@ -921,11 +932,12 @@ window.pageScripts["copy-trading"] = function () {
               const childMultiplier = child.multiplier || 1;
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
+              const childOpen = openChildren.has(childClientId);
               
               const accordionItem = `
                 <div class="accordion-item shadow-sm mb-3 rounded">
                   <h2 class="accordion-header" id="headingChild${childClientId}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childClientId}" aria-expanded="false" aria-controls="collapseChild${childClientId}">
+                    <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childClientId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childClientId}">
                       <div class="d-flex align-items-center flex-wrap w-100 pe-3">
                         ${brokerIconHTML(child.broker)}
                         <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
@@ -951,7 +963,7 @@ window.pageScripts["copy-trading"] = function () {
                       </div>
                     </button>
                   </h2>
-                  <div id="collapseChild${childClientId}" class="accordion-collapse collapse" aria-labelledby="headingChild${childClientId}" data-bs-parent="#children-accounts-accordion">
+                  <div id="collapseChild${childClientId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childClientId}" data-bs-parent="#children-accounts-accordion">
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying('${childClientId}', '${linkedMasterId}')\"`}>Start Copying</button>
