@@ -733,7 +733,31 @@ window.pageScripts["copy-trading"] = function () {
     const openChildren = childrenAccordionEl
       ? new Set(Array.from(childrenAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseChild','')))
       : new Set();
- 
+
+    // Capture currently active tabs so user selections persist after reload
+    const masterActiveTabs = {};
+    if (masterAccordionEl) {
+      masterAccordionEl.querySelectorAll('.master-tab-links').forEach(tabList => {
+        const id = tabList.id.replace('tabs-','');
+        const activeLink = tabList.querySelector('.nav-link.active');
+        if (id && activeLink) {
+          const match = activeLink.id.match(/tab-(\w+)-/);
+          if (match) masterActiveTabs[id] = match[1];
+        }
+      });
+    }
+    const childActiveTabs = {};
+    if (childrenAccordionEl) {
+      childrenAccordionEl.querySelectorAll('.child-tab-links').forEach(tabList => {
+        const id = tabList.id.replace('child-tabs-','');
+        const activeLink = tabList.querySelector('.nav-link.active');
+        if (id && activeLink) {
+          const match = activeLink.id.match(/tab-child-(\w+)-/);
+          if (match) childActiveTabs[id] = match[1];
+        }
+      });
+    }
+    
     let errorHandled = false;
     fetch("/api/accounts")
       .then(async response => {
@@ -905,9 +929,11 @@ window.pageScripts["copy-trading"] = function () {
               `;
               masterAccordion.innerHTML += accordionItem;
             });
-            // Manually trigger initial tab content load for the first tab (children) for all masters
+            // Restore previously active tab for each master (default to children)
             masters.forEach(master => {
-                window.showMasterTab(master.client_id || 'N/A', 'children'); // Pass potentially 'N/A' but the method expects it
+                const id = master.client_id || 'N/A';
+                const tab = masterActiveTabs[id] || 'children';
+                window.showMasterTab(id, tab);
             });
         }
 
@@ -1008,6 +1034,14 @@ window.pageScripts["copy-trading"] = function () {
                 </div>
               `;
               childrenAccordion.innerHTML += accordionItem;
+            });
+            // Restore active tab for each child if necessary
+            children.forEach(child => {
+              const id = child.client_id || 'N/A';
+              const tab = childActiveTabs[id] || 'positions';
+              if (openChildren.has(id) || tab !== 'positions') {
+                window.showChildTab(id, tab);
+              }
             });
         }
 
