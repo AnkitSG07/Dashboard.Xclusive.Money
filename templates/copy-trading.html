@@ -508,7 +508,7 @@ window.pageScripts["copy-trading"] = function () {
         return '<span class="badge bg-success">LIVE</span>';
       }
       if (st === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
-      return `<span class="badge bg-warning text-dark">${status}</span>`;
+      return `<span class="badge bg-warning text-dark">${escapeHtml(status)}</span>`;
     }
     if (st === 'connected') {
       return '<span class="badge bg-success">Connected</span>';
@@ -1153,8 +1153,9 @@ window.pageScripts["copy-trading"] = function () {
   function renderMasterChildrenList(masterId) {
       const master = window.masterAccounts.find(m => m.client_id === masterId);
       const kids = (master?.children || []);
-      const listGroup = document.getElementById(`child-rows-${masterId}`);
-      const emptyState = document.getElementById(`child-rows-empty-${masterId}`);
+      const dom = domId(masterId);
+      const listGroup = document.getElementById(`child-rows-${dom}`);
+      const emptyState = document.getElementById(`child-rows-empty-${dom}`);
       if (!listGroup || !emptyState) return;
 
       if (kids.length === 0) {
@@ -1165,8 +1166,10 @@ window.pageScripts["copy-trading"] = function () {
           listGroup.innerHTML = kids.map(child => {
               const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
               const disableCopy = childHasError(child) ? 'disabled' : '';
-              const childClientId = child.client_id || 'N/A';
-              const childUsername = child.username || "-";
+              const rawChildId = child.client_id || 'N/A';
+              const rawChildUsername = child.username || "-";
+              const childClientId = escapeHtml(rawChildId);
+              const childUsername = escapeHtml(rawChildUsername);
               const multiplier = child.multiplier || 1;
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
@@ -1178,12 +1181,13 @@ window.pageScripts["copy-trading"] = function () {
                 <div class="me-3 mt-2 mt-md-0">${statusBadge(child.status, child.errors || child.last_error, child.broker)}</div>
                 <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                    ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade('${childClientId}', '${masterId}', this)\"` }>
+                    data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
+                    ${disableCopy ? '' : `onchange="window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)"` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
                 <span class="me-3 mt-2 mt-md-0">Mult: ${multiplier}</span>
                 ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
-                <button class="btn btn-sm btn-danger mt-2 mt-md-0" onclick="window.removeChild('${childClientId}')">Remove</button>
+                <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick="window.removeChild(${JSON.stringify(rawChildId)})">Remove</button>
               </div>
           `}).join('');
       }
@@ -1921,7 +1925,7 @@ window.pageScripts["copy-trading"] = function () {
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p>Select a symbol to square off for child account <strong>${childId}</strong>:</p>
+                            <p>Select a symbol to square off for child account <strong>${escapeHtml(childId)}</strong>:</p>
                             <div class="mb-3">
                                 <label for="squareOffSymbol" class="form-label">Symbol:</label>
                                 <select id="squareOffSymbol" class="form-select"></select>
@@ -1938,8 +1942,11 @@ window.pageScripts["copy-trading"] = function () {
             return div;
         })();
 
-        const symbolOptions = symbols.map(s => `<option value="${s}">${s}</option>`).join('');
-        modalElement.querySelector('#squareOffSymbol').innerHTML = symbolOptions;
+        const symbolOptions = symbols
+          .map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+          .join('');
+        const squareOffSymbolSelect = modalElement.querySelector('#squareOffSymbol');
+        squareOffSymbolSelect.innerHTML = symbolOptions;
         const squareOffModal = new bootstrap.Modal(modalElement);
         squareOffModal.show();
 
