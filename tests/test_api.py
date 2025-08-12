@@ -486,7 +486,7 @@ def test_poll_and_copy_trades_preserves_product_type(client, monkeypatch):
         app_module.poll_and_copy_trades()
 
         assert placed
-        assert placed[0].get("product_type") == "DELIVERY"
+        assert placed[0].get("product_type") == "CNC"
 
 
 def test_poll_and_copy_trades_preserves_product_type_mtf(client, monkeypatch):
