@@ -554,7 +554,13 @@ window.pageScripts["copy-trading"] = function () {
       .then(data => {
         const masters = data.masters || [];
         const dropdown = document.getElementById("newMasterDropdown");
-        dropdown.innerHTML = masters.map(m => `<option value="${m.client_id || ''}">${m.username || m.client_id || 'N/A'}</option>`).join(""); // Added checks
+        dropdown.innerHTML = masters
+          .map(m => {
+            const id = escapeHtml(m.client_id || "");
+            const name = escapeHtml(m.username || m.client_id || "N/A");
+            return `<option value="${id}">${name}</option>`;
+          })
+          .join("");
         new bootstrap.Modal(document.getElementById("changeMasterModal")).show();
       })
       .catch(err => {
@@ -584,8 +590,8 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.viewChildMappings = function(masterOrderId) {
-    const id = encodeURIComponent(masterOrderId);
-    fetch(`/api/child-orders?master_order_id=${id}`)
+    const encoded = encodeURIComponent(masterOrderId);
+    fetch(`/api/child-orders?master_order_id=${encoded}`)
       .then(res => res.json())
       .then(data => {
         const listGroup = document.getElementById("child-mapping-list");
@@ -593,13 +599,16 @@ window.pageScripts["copy-trading"] = function () {
         listGroup.innerHTML = "";
         if (data && data.length > 0) {
           data.forEach(row => {
+            const childId = escapeHtml(row.child_client_id || "N/A");
+            const status = escapeHtml(row.status || "N/A");
+            const orderId = escapeHtml(row.child_order_id || "N/A");
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                   <div class="d-flex w-100 justify-content-between">
-                      <h6 class="mb-1">${row.child_client_id || 'N/A'} <span class="badge bg-secondary ms-2">${row.status || 'N/A'}</span></h6>
+                      <h6 class="mb-1">${childId} <span class="badge bg-secondary ms-2">${status}</span></h6>
                       <small>${brokerIconHTML(row.child_broker)}</small>
                   </div>
-                  <p class="mb-1 text-muted">Order ID: ${row.child_order_id || 'N/A'}</p>
+                  <p class="mb-1 text-muted">Order ID: ${orderId}</p>
               </div>`;
           });
           emptyState.style.display = 'none';
@@ -632,7 +641,13 @@ window.pageScripts["copy-trading"] = function () {
           <div class="mb-3">
             <label for="setChildMasterSelect" class="form-label">Select Master Account</label>
             <select class="form-select" id="setChildMasterSelect">
-              ${masters.map(m => `<option value="${m.client_id || ''}">${m.username || m.client_id || 'N/A'}</option>`).join("")}
+              ${masters
+                .map(m => {
+                  const id = escapeHtml(m.client_id || "");
+                  const name = escapeHtml(m.username || m.client_id || "N/A");
+                  return `<option value="${id}">${name}</option>`;
+                })
+                .join("")}
             </select>
           </div>
           <div class="mb-3">
@@ -1505,24 +1520,26 @@ window.pageScripts["copy-trading"] = function () {
           positions.forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
-          const netQty = pos.netQty || pos.net_quantity || 0;
-          let type = 'CLOSED';
-          if (netQty > 0) {
-            type = 'BUY';
-          } else if (netQty < 0) {
-            type = 'SELL';
-          }
-          const typeClass = type === 'BUY' ? 'bg-success'
-                             : type === 'SELL' ? 'bg-danger'
-                             : 'bg-secondary';
+            const netQty = pos.netQty || pos.net_quantity || 0;
+            let type = 'CLOSED';
+            if (netQty > 0) {
+              type = 'BUY';
+            } else if (netQty < 0) {
+              type = 'SELL';
+            }
+            const typeClass = type === 'BUY' ? 'bg-success'
+                               : type === 'SELL' ? 'bg-danger'
+                               : 'bg-secondary';
+            const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
+            const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
+                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass} ms-2">${escapeHtml(type)}</span></h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
                 </div>
-                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
-                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
+                <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
+                <small class="text-muted">Avg Buy Price: ${escapeHtml(pos.buyAvg ?? pos.buy_avg_price ?? '-')} | Avg Sell Price: ${escapeHtml(pos.sellAvg ?? pos.sell_avg_price ?? '-')} | LTP: ${escapeHtml(pos.ltp ?? pos.last_price ?? '-')}</small>
               </div>
             `;
           });
@@ -1571,15 +1588,19 @@ window.pageScripts["copy-trading"] = function () {
             ]);
             const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
             const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
-            const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
+            const sym = escapeHtml(getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-');
+            const pnlSafe = escapeHtml(pnl !== undefined ? pnl : '-');
+            const qtySafe = escapeHtml(qty);
+            const avgSafe = escapeHtml(avg !== undefined ? avg : '-');
+            const ltpSafe = escapeHtml(ltp !== undefined ? ltp : '-');
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
                   <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnlSafe}</small>
                 </div>
-                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
-                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
+                <p class="mb-1">Qty: ${qtySafe} | Avg Price: ${avgSafe}</p>
+                <small class="text-muted">LTP: ${ltpSafe}</small>
               </div>
             `;
           });
@@ -1607,17 +1628,23 @@ window.pageScripts["copy-trading"] = function () {
         if (Array.isArray(data) && data.length > 0) {
           emptyState.style.display = 'none';
           data.forEach(order => {
+            const id = order.master_order_id || '';
+            const dom = domId(id);
+            const symbol = escapeHtml(order.symbol || '-');
+            const status = escapeHtml(order.status || '-');
+            const children = escapeHtml(order.total_children || 0);
+            const idSafe = escapeHtml(id);
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between align-items-center flex-wrap">
                   <div class="form-check">
-                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${order.master_order_id || ''}" id="masterOrderCheck${order.master_order_id || ''}">
-                    <label class="form-check-label fw-semibold" for="masterOrderCheck${order.master_order_id || ''}">${order.symbol || '-'}</label>
+                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${idSafe}" id="masterOrderCheck${dom}">
+                    <label class="form-check-label fw-semibold" for="masterOrderCheck${dom}">${symbol}</label>
                   </div>
-                  <span class="badge bg-primary mt-1 mt-md-0">${order.status || '-'}</span>
+                  <span class="badge bg-primary mt-1 mt-md-0">${status}</span>
                 </div>
-                <p class="mb-1 text-muted">Order ID: ${order.master_order_id || 'N/A'} | Children: ${order.total_children || 0}</p>
-                <button class="btn btn-sm btn-info mt-2" onclick="window.viewChildMappings('${order.master_order_id || ''}')"><i class="bi bi-eye-fill"></i> View Children</button>
+                <p class="mb-1 text-muted">Order ID: ${idSafe} | Children: ${children}</p>
+                <button class="btn btn-sm btn-info mt-2" data-master-order-id="${idSafe}" onclick="window.viewChildMappings(this.dataset.masterOrderId)"><i class="bi bi-eye-fill"></i> View Children</button>
               </div>`;
           });
         } else {
