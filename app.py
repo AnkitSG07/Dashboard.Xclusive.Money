@@ -6893,10 +6893,17 @@ def exit_master_positions():
         ]
         exited = bool(successes)
         message = (
-            f"Exited {len(successes)} of {len(results)} positions for {master_id}"
-            if results and successes
-            else f"No positions exited for {master_id}"
+        no_positions = all(
+            str(r.get('status', '')).upper() == 'NO_POSITIONS' for r in results
         )
+        if exited:
+            message = (
+                f"Exited {len(successes)} of {len(results)} positions for {master_id}"
+            )
+        elif no_positions:
+            message = f"No positions exited for {master_id}"
+        else:
+            message = f"Failed to exit positions for {master_id}"
         return jsonify({
             'message': message,
             'master_id': master_id,
@@ -6945,10 +6952,17 @@ def exit_child_positions():
         ]
         exited = bool(successes)
         message = (
-            f"Exited {len(successes)} of {len(results)} positions for {child_id}"
-            if results and successes
-            else f"No positions exited for {child_id}"
+        no_positions = all(
+            str(r.get('status', '')).upper() == 'NO_POSITIONS' for r in results
         )
+        if exited:
+            message = (
+                f"Exited {len(successes)} of {len(results)} positions for {child_id}"
+            )
+        elif no_positions:
+            message = f"No positions exited for {child_id}"
+        else:
+            message = f"Failed to exit positions for {child_id}"
         return jsonify({
             'message': message,
             'child_id': child_id,
