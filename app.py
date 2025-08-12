@@ -6892,7 +6892,6 @@ def exit_master_positions():
             if str(r.get('status', '')).upper() != 'SUCCESS'
         ]
         exited = bool(successes)
-        message = (
         no_positions = all(
             str(r.get('status', '')).upper() == 'NO_POSITIONS' for r in results
         )
@@ -6951,7 +6950,6 @@ def exit_child_positions():
             if str(r.get('status', '')).upper() != 'SUCCESS'
         ]
         exited = bool(successes)
-        message = (
         no_positions = all(
             str(r.get('status', '')).upper() == 'NO_POSITIONS' for r in results
         )
