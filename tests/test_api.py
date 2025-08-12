@@ -1415,6 +1415,7 @@ def test_exit_master_positions_endpoint(client, monkeypatch, broker):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["exited"]
+    assert data["message"] == "Exited 1 of 1 positions for M1"
     if broker == "dhan":
         assert placed.get("product_type") == "DELIVERY"
     else:
@@ -1489,6 +1490,7 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["exited"]
+    assert data["message"] == "Exited 1 of 1 positions for C1"
     if broker == "dhan":
         assert placed.get("product_type") == "DELIVERY"
     else:
