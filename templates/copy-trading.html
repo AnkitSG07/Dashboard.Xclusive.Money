@@ -1132,6 +1132,12 @@ window.pageScripts["copy-trading"] = function () {
         // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
+        // If the fetch was intentionally aborted (e.g., due to visibility change),
+        // suppress error notifications as this is expected behavior.
+        if (err.name === 'AbortError') {
+          console.warn('loadAccounts fetch aborted');
+          return;
+        }  
         console.error("Failed to load accounts:", err);
         if (!errorHandled) {
           showMessage(`Failed to load accounts: ${err.message}`, 'danger');
