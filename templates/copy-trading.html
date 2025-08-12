@@ -333,7 +333,7 @@
                         <button class="btn btn-danger btn-sm" id="cancelSelectedOrdersBtn"><i class="bi bi-x-circle me-1"></i> Cancel Selected</button>
                         <button class="btn btn-warning btn-sm" id="squareOffSelectedOrdersBtn"><i class="bi bi-box-arrow-in-up-right me-1"></i> Square Off Selected</button>
                         <div class="form-check form-check-inline ms-auto">
-                            <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange="window.toggleAllMasterOrders(this.checked)">
+                            <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange='window.toggleAllMasterOrders(this.checked)'>
                             <label class="form-check-label" for="toggleAllMasterOrdersCheckbox">Select All</label>
                         </div>
                     </div>
@@ -924,25 +924,25 @@ window.pageScripts["copy-trading"] = function () {
                   <div id="collapseMaster${masterDomId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterDomId}" data-bs-parent="#master-accounts-accordion">
                     <div class="accordion-body p-3">
                       <div class="d-flex flex-wrap gap-2 mb-3">
-                          <button class="btn btn-sm btn-outline-danger" onclick="window.removeMaster(${JSON.stringify(rawMasterId)})">Remove Master</button>
+                          <button class="btn btn-sm btn-outline-danger" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
                           <div class="vr"></div>
-                          <button class="btn btn-sm btn-outline-success" onclick="window.startAllChildren(${JSON.stringify(rawMasterId)})">Turn On All Child Copying</button>
-                          <button class="btn btn-sm btn-outline-warning text-dark" onclick="window.stopAllChildren(${JSON.stringify(rawMasterId)})">Turn Off All Child Copying</button>
-                          ${masterExited ? `<button class=\"btn btn-sm btn-outline-secondary disabled\">Exited Master Positions</button>` : `<button class=\"btn btn-sm btn-outline-secondary\" onclick=\"window.exitMasterPositions(${JSON.stringify(rawMasterId)})\">Exit Master Positions</button>`}
-                          <button class="btn btn-sm btn-outline-secondary" onclick="window.exitAllChildren(${JSON.stringify(rawMasterId)})">Exit All Child Positions</button>
+                          <button class="btn btn-sm btn-outline-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-warning text-dark" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
+                          ${masterExited ? '<button class="btn btn-sm btn-outline-secondary disabled">Exited Master Positions</button>' : `<button class="btn btn-sm btn-outline-secondary" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
+                          <button class="btn btn-sm btn-outline-secondary" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
                       </div>
                       <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'children')">View Children</button>
+                               <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children")'>View Children</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'positions')">Positions</button>
+                              <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions")'>Positions</button>
+                            </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings")'>Holdings</button>
                           </li>
                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'holdings')">Holdings</button>
-                          </li>
-                          <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick="window.showMasterTab(${JSON.stringify(rawMasterId)}, 'orders')">Order Book</button>
+                              <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders")'>Order Book</button>
                           </li>
                       </ul>
                       <div class="tab-content">
@@ -1027,7 +1027,7 @@ window.pageScripts["copy-trading"] = function () {
                                  class="form-control form-control-sm"
                                  id="mult-${childDomId}"
                                  value="${childMultiplier}" style="width: 60px;">
-                          <button class="btn btn-sm btn-outline-primary" onclick="window.updateMultiplier(${JSON.stringify(rawChildId)})">Save</button>
+                          <button class="btn btn-sm btn-outline-primary" onclick='window.updateMultiplier(${JSON.stringify(rawChildId)})'>Save</button>
                           <span data-bs-toggle="tooltip" title="Set how much larger or smaller you want copied trades to be for this account. For example, 2 means double the trade size, 0.5 means half. Trades copied to this account will use: Master trade size × Multiplier.">
                             <i class="bi bi-info-circle"></i>
                           </span>
@@ -1039,24 +1039,24 @@ window.pageScripts["copy-trading"] = function () {
                   <div id="collapseChild${childDomId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childDomId}" data-bs-parent="#children-accounts-accordion">
                     <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick=\"window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})\"`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick=\"window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)\"`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick='window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})'`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick='window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)'`}>Stop Copying</button>
                             <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-info" onclick="window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})">Square Off Specific Symbol</button>
-                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick=\"window.exitAllPositions(${JSON.stringify(rawChildId)})\"`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <button class="btn btn-sm btn-outline-info" onclick='window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})'>Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick='window.exitAllPositions(${JSON.stringify(rawChildId)})'`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
                             <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="window.removeChild(${JSON.stringify(rawChildId)})">Remove Child</button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="window.openChangeMaster(${JSON.stringify(rawChildId)})">Change Master</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove Child</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick='window.openChangeMaster(${JSON.stringify(rawChildId)})'>Change Master</button>
                         </div>
                         <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childDomId}" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-orders-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childDomId}" type="button" role="tab" aria-controls="child-orders-${childDomId}" aria-selected="false" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'orders')">Order Book</button>
+                                <button class="nav-link" id="tab-child-orders-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childDomId}" type="button" role="tab" aria-controls="child-orders-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "orders")'>Order Book</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="tab-child-positions-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childDomId}" type="button" role="tab" aria-controls="child-positions-${childDomId}" aria-selected="true" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'positions')">Positions</button>
+                                <button class="nav-link active" id="tab-child-positions-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childDomId}" type="button" role="tab" aria-controls="child-positions-${childDomId}" aria-selected="true" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "positions")'>Positions</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-holdings-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childDomId}" type="button" role="tab" aria-controls="child-holdings-${childDomId}" aria-selected="false" onclick="window.showChildTab(${JSON.stringify(rawChildId)}, 'holdings')">Holdings</button>
+                                <button class="nav-link" id="tab-child-holdings-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childDomId}" type="button" role="tab" aria-controls="child-holdings-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings")'>Holdings</button>
                             </li>
                         </ul>
                         <div class="tab-content">
@@ -1118,8 +1118,8 @@ window.pageScripts["copy-trading"] = function () {
                             <p class="card-text text-muted mb-auto">Username: ${accUsername}</p>
                             <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
                             <div class="d-flex gap-2 mt-auto">
-                                <button class="btn btn-sm btn-primary flex-grow-1" onclick="window.setAsMaster(${JSON.stringify(accClientIdRaw)})">Set as Master</button>
-                                <button class="btn btn-sm btn-info flex-grow-1" onclick="window.openSetAsChild(${JSON.stringify(accClientIdRaw)})">Set as Child</button>
+                                <button class="btn btn-sm btn-primary flex-grow-1" onclick='window.setAsMaster(${JSON.stringify(accClientIdRaw)})'>Set as Master</button>
+                                <button class="btn btn-sm btn-info flex-grow-1" onclick='window.openSetAsChild(${JSON.stringify(accClientIdRaw)})'>Set as Child</button>
                             </div>
                         </div>
                     </div>
@@ -1182,12 +1182,12 @@ window.pageScripts["copy-trading"] = function () {
                 <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
                     data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
-                    ${disableCopy ? '' : `onchange="window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)"` }>
+                    ${disableCopy ? '' : `onchange='window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)'` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
                 <span class="me-3 mt-2 mt-md-0">Mult: ${multiplier}</span>
                 ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
-                <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick="window.removeChild(${JSON.stringify(rawChildId)})">Remove</button>
+                <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove</button>
               </div>
           `}).join('');
       }
@@ -1648,7 +1648,7 @@ window.pageScripts["copy-trading"] = function () {
                   <span class="badge bg-primary mt-1 mt-md-0">${status}</span>
                 </div>
                 <p class="mb-1 text-muted">Order ID: ${idSafe} | Children: ${children}</p>
-                <button class="btn btn-sm btn-info mt-2" data-master-order-id="${idSafe}" onclick="window.viewChildMappings(this.dataset.masterOrderId)"><i class="bi bi-eye-fill"></i> View Children</button>
+                <button class="btn btn-sm btn-info mt-2" data-master-order-id="${idSafe}" onclick='window.viewChildMappings(this.dataset.masterOrderId)'><i class="bi bi-eye-fill"></i> View Children</button>
               </div>`;
           });
         } else {
