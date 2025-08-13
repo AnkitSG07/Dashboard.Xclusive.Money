@@ -413,6 +413,11 @@ window.pageScripts["copy-trading"] = function () {
   window.masterOrderIndex = {};
   window.childOrderBooks = {};
   window.childOrderIndex = {};
+  // Data caches for manual refresh behavior
+  window.masterPositions = {};
+  window.masterHoldings = {};
+  window.childPositions = {};
+  window.childHoldings = {};
   const ORDER_PAGE_SIZE = 20;
 
   const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
@@ -1163,6 +1168,7 @@ window.pageScripts["copy-trading"] = function () {
     const tabPanes = document.querySelectorAll(`#master-children-${dom}, #master-positions-${dom}, #master-holdings-${dom}, #master-orders-book-${dom}`);
     const activeTabLink = document.getElementById(`tab-${tabName}-${dom}-tab`);
     const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${dom}`);
+    const wasActive = activeTabLink && activeTabLink.classList.contains('active');
     
     // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
@@ -1173,11 +1179,11 @@ window.pageScripts["copy-trading"] = function () {
     if (selectedTabPane) {
       selectedTabPane.classList.add('show', 'active');
       if (tabName === 'positions') {
-        loadMasterPositions(clientId);
+        loadMasterPositions(clientId, { force: wasActive });
       } else if (tabName === 'orders') {
-        loadMasterOrderBook(clientId);
+        loadMasterOrderBook(clientId, { force: wasActive });
       } else if (tabName === 'holdings') {
-        loadMasterHoldings(clientId);
+        loadMasterHoldings(clientId, { force: wasActive });
       } else if (tabName === 'children') {
         renderMasterChildrenList(clientId); // Re-render in case child data changed
       }
@@ -1250,23 +1256,19 @@ window.pageScripts["copy-trading"] = function () {
       });
   }
 
-  function loadMasterPositions(clientId) {
+  function loadMasterPositions(clientId, { force = false } = {}) {
     const dom = domId(clientId);
     const listGroup = document.getElementById(`positions-body-${dom}`);
     const emptyState = document.getElementById(`positions-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
-    emptyState.style.display = 'none';
-
-    fetch('/api/portfolio/' + encodeURIComponent(clientId))
-      .then(res => res.json())
-      .then(positions => {
-        listGroup.innerHTML = "";
-        if (Array.isArray(positions) && positions.length > 0) {
-          positions.forEach(pos => {
-            const buyQty = pos.buyQty || pos.buy_quantity || 0;
-            const sellQty = pos.sellQty || pos.sell_quantity || 0;
+    const cached = window.masterPositions[clientId];
+    if (cached && !force) {
+      listGroup.innerHTML = "";
+      if (cached.length > 0) {
+        cached.forEach(pos => {
+          const buyQty = pos.buyQty || pos.buy_quantity || 0;
+          const sellQty = pos.sellQty || pos.sell_quantity || 0;
           const netQty = pos.netQty || pos.net_quantity || 0;
           let type = 'CLOSED';
           if (netQty > 0) {
@@ -1277,6 +1279,45 @@ window.pageScripts["copy-trading"] = function () {
           const typeClass = type === 'BUY' ? 'bg-success'
                              : type === 'SELL' ? 'bg-danger'
                              : 'bg-secondary';
+          listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
+                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
+              </div>
+            `;
+        });
+      } else {
+        emptyState.style.display = 'block';
+      }
+      return;
+    }
+
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
+    emptyState.style.display = 'none';
+
+    fetch('/api/portfolio/' + encodeURIComponent(clientId))
+      .then(res => res.json())
+      .then(positions => {
+        window.masterPositions[clientId] = Array.isArray(positions) ? positions : [];
+        listGroup.innerHTML = "";
+        if (window.masterPositions[clientId].length > 0) {
+          window.masterPositions[clientId].forEach(pos => {
+            const buyQty = pos.buyQty || pos.buy_quantity || 0;
+            const sellQty = pos.sellQty || pos.sell_quantity || 0;
+            const netQty = pos.netQty || pos.net_quantity || 0;
+            let type = 'CLOSED';
+            if (netQty > 0) {
+              type = 'BUY';
+            } else if (netQty < 0) {
+              type = 'SELL';
+            }
+            const typeClass = type === 'BUY' ? 'bg-success'
+                               : type === 'SELL' ? 'bg-danger'
+                               : 'bg-secondary';  
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
@@ -1290,7 +1331,6 @@ window.pageScripts["copy-trading"] = function () {
           });
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
@@ -1298,14 +1338,67 @@ window.pageScripts["copy-trading"] = function () {
         listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
         emptyState.style.display = 'none';
         showMessage("Failed to load positions.", 'danger');
-    });
+      });
   }
 
-  function loadMasterHoldings(clientId) {
+  function loadMasterHoldings(clientId, { force = false } = {}) {
     const dom = domId(clientId);
     const listGroup = document.getElementById(`holdings-body-${dom}`);
     const emptyState = document.getElementById(`holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
+
+    const cached = window.masterHoldings[clientId];
+    if (cached && !force) {
+      listGroup.innerHTML = "";
+      if (cached.length > 0) {
+        cached.forEach(h => {
+          const getVal = (obj, keys) => {
+            for (const k of keys) {
+              for (const key in obj) {
+                if (key.toLowerCase() === k.toLowerCase()) return obj[key];
+              }
+            }
+            return undefined;
+          };
+          const qty = getVal(h, [
+            'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
+            'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
+          ]) || 0;
+          const avg = getVal(h, [
+            'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
+          ]);
+          const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
+          let pnl = getVal(h, [
+            'profitandloss',
+            'pnl',
+            'unrealizedprofit',
+            'unrealisedprofit'
+          ]);
+          if (pnl === undefined && ltp !== undefined && avg !== undefined) {
+            const qtyNum = parseFloat(qty) || 0;
+            const ltpNum = parseFloat(ltp);
+            const avgNum = parseFloat(avg);
+            if (!isNaN(ltpNum) && !isNaN(avgNum)) {
+              pnl = ((ltpNum - avgNum) * qtyNum).toFixed(2);
+            }
+          }
+          const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
+          listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${sym}</h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
+                </div>
+                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
+                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
+              </div>
+            `;
+        });
+      } else {
+        emptyState.style.display = 'block';
+      }
+      return;
+    }
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
@@ -1313,9 +1406,10 @@ window.pageScripts["copy-trading"] = function () {
     fetch('/api/holdings/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(holdings => {
+        window.masterHoldings[clientId] = Array.isArray(holdings) ? holdings : [];  
         listGroup.innerHTML = "";
-        if (Array.isArray(holdings) && holdings.length > 0) {
-          holdings.forEach(h => {
+        if (window.masterHoldings[clientId].length > 0) {
+          window.masterHoldings[clientId].forEach(h => {
             const getVal = (obj, keys) => {
               for (const k of keys) {
                 for (const key in obj) {
@@ -1360,7 +1454,6 @@ window.pageScripts["copy-trading"] = function () {
           });
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
@@ -1368,7 +1461,7 @@ window.pageScripts["copy-trading"] = function () {
         listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
         emptyState.style.display = 'none';
         showMessage("Failed to load holdings for child account.", 'danger');
-    });
+      });
   }
 
   // --- Child Tabs ---
@@ -1378,7 +1471,8 @@ window.pageScripts["copy-trading"] = function () {
     const tabPanes = document.querySelectorAll(`#child-orders-${dom}, #child-positions-${dom}, #child-holdings-${dom}`);
     const activeTabLink = document.getElementById(`tab-child-${tabName}-${dom}-tab`);
     const selectedTabPane = document.getElementById(`child-${tabName}-${dom}`);
-    
+    const wasActive = activeTabLink && activeTabLink.classList.contains('active');
+
     // Deactivate all
     tabLinks.forEach(link => link.classList.remove('active'));
     tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
@@ -1388,11 +1482,11 @@ window.pageScripts["copy-trading"] = function () {
     if (selectedTabPane) {
       selectedTabPane.classList.add('show', 'active');
       if (tabName === 'positions') {
-        loadChildPositions(childId);
+        loadChildPositions(childId, { force: wasActive });
       } else if (tabName === 'orders') {
-        loadChildOrderBook(childId);
+        loadChildOrderBook(childId, { force: wasActive });
       } else if (tabName === 'holdings') {
-        loadChildHoldings(childId);
+        loadChildHoldings(childId, { force: wasActive });
       }
     }
   };
@@ -1470,11 +1564,47 @@ window.pageScripts["copy-trading"] = function () {
       });
   }
 
-  function loadChildPositions(childId) {
+  function loadChildPositions(childId, { force = false } = {}) {
     const dom = domId(childId);
     const listGroup = document.getElementById(`child-positions-body-${dom}`);
     const emptyState = document.getElementById(`child-positions-empty-${dom}`);
     if (!listGroup || !emptyState) return;
+
+    const cached = window.childPositions[childId];
+    if (cached && !force) {
+      listGroup.innerHTML = "";
+      if (cached.length > 0) {
+        cached.forEach(pos => {
+          const buyQty = pos.buyQty || pos.buy_quantity || 0;
+          const sellQty = pos.sellQty || pos.sell_quantity || 0;
+          const netQty = pos.netQty || pos.net_quantity || 0;
+          let type = 'CLOSED';
+          if (netQty > 0) {
+            type = 'BUY';
+          } else if (netQty < 0) {
+            type = 'SELL';
+          }
+          const typeClass = type === 'BUY' ? 'bg-success'
+                             : type === 'SELL' ? 'bg-danger'
+                             : 'bg-secondary';
+          const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
+          const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
+          listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass} ms-2">${escapeHtml(type)}</span></h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
+                <small class="text-muted">Avg Buy Price: ${escapeHtml(pos.buyAvg ?? pos.buy_avg_price ?? '-')} | Avg Sell Price: ${escapeHtml(pos.sellAvg ?? pos.sell_avg_price ?? '-')} | LTP: ${escapeHtml(pos.ltp ?? pos.last_price ?? '-')}</small>
+              </div>
+            `;
+        });
+      } else {
+        emptyState.style.display = 'block';
+      }
+      return;
+    }
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
     emptyState.style.display = 'none';
@@ -1482,9 +1612,10 @@ window.pageScripts["copy-trading"] = function () {
     fetch('/api/portfolio/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(positions => {
+        window.childPositions[childId] = Array.isArray(positions) ? positions : [];
         listGroup.innerHTML = "";
-        if (Array.isArray(positions) && positions.length > 0) {
-          positions.forEach(pos => {
+        if (window.childPositions[childId].length > 0) {
+          window.childPositions[childId].forEach(pos => {
             const buyQty = pos.buyQty || pos.buy_quantity || 0;
             const sellQty = pos.sellQty || pos.sell_quantity || 0;
             const netQty = pos.netQty || pos.net_quantity || 0;
@@ -1512,7 +1643,6 @@ window.pageScripts["copy-trading"] = function () {
           });
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
@@ -1523,11 +1653,55 @@ window.pageScripts["copy-trading"] = function () {
       });
   }
 
-  function loadChildHoldings(childId) {
+  function loadChildHoldings(childId, { force = false } = {}) {
     const dom = domId(childId);
     const listGroup = document.getElementById(`child-holdings-body-${dom}`);
     const emptyState = document.getElementById(`child-holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
+
+    const cached = window.childHoldings[childId];
+    if (cached && !force) {
+      listGroup.innerHTML = "";
+      if (cached.length > 0) {
+        cached.forEach(h => {
+          const getVal = (obj, keys) => {
+            for (const k of keys) {
+              for (const key in obj) {
+                if (key.toLowerCase() === k.toLowerCase()) return obj[key];
+              }
+            }
+            return undefined;
+          };
+          const qty = getVal(h, [
+            'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
+            'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
+          ]) || 0;
+          const avg = getVal(h, [
+            'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
+          ]);
+          const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
+          const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
+          const sym = escapeHtml(getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-');
+          const pnlSafe = escapeHtml(pnl !== undefined ? pnl : '-');
+          const qtySafe = escapeHtml(qty);
+          const avgSafe = escapeHtml(avg !== undefined ? avg : '-');
+          const ltpSafe = escapeHtml(ltp !== undefined ? ltp : '-');
+          listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${sym}</h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnlSafe}</small>
+                </div>
+                <p class="mb-1">Qty: ${qtySafe} | Avg Price: ${avgSafe}</p>
+                <small class="text-muted">LTP: ${ltpSafe}</small>
+              </div>
+            `;
+        });
+      } else {
+        emptyState.style.display = 'block';
+      }
+      return;
+    }
 
     listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
@@ -1535,9 +1709,10 @@ window.pageScripts["copy-trading"] = function () {
     fetch('/api/holdings/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(holdings => {
+        window.childHoldings[childId] = Array.isArray(holdings) ? holdings : [];  
         listGroup.innerHTML = "";
-        if (Array.isArray(holdings) && holdings.length > 0) {
-          holdings.forEach(h => {
+        if (window.childHoldings[childId].length > 0) {
+          window.childHoldings[childId].forEach(h => {
             const getVal = (obj, keys) => {
               for (const k of keys) {
                 for (const key in obj) {
@@ -1573,7 +1748,6 @@ window.pageScripts["copy-trading"] = function () {
           });
         } else {
           emptyState.style.display = 'block';
-          listGroup.innerHTML = ``; // Clear list if no data
         }
       })
       .catch(err => {
