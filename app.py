@@ -841,6 +841,7 @@ def _account_to_dict(acc: Account) -> dict:
                 user_id=str(acc.user_id),
                 level="ERROR",
             )
+            .filter(SystemLog.module.in_(["system", "copy_trading"]))
             .order_by(SystemLog.timestamp.desc())
             .limit(5)
             .all()
@@ -884,7 +885,8 @@ def _account_to_dict(acc: Account) -> dict:
         "last_login": acc.last_login_time,
         "device_number": acc.device_number,
         "last_error": last_error,
-        "errors": error_list,        
+        "errors": error_list,
+        "system_errors": error_list,
     }
 
 def get_user_by_token(token: str):
