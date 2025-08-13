@@ -113,20 +113,36 @@ class DhanBroker(BrokerBase):
             )
             resp = r.json()
         except requests.exceptions.Timeout:
-            return {"status": "failure", "error": "Request to Dhan API timed out while placing order."}
+            return {
+                "status": "failure",
+                "error": "Request to Dhan API timed out while placing order.",
+                "source": "broker",
+            }
         except requests.exceptions.RequestException as e:
-            return {"status": "failure", "error": "Failed to place order with Dhan API: {}".format(str(e))}
+            return {
+                "status": "failure",
+                "error": "Failed to place order with Dhan API: {}".format(str(e)),
+                "source": "broker",
+            }
         except json.JSONDecodeError:
-            return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
+            return {
+                "status": "failure",
+                "error": "Invalid JSON response from Dhan API: {}".format(r.text),
+                "source": "broker",
+            }
         except Exception as e:
-            return {"status": "failure", "error": "An unexpected error occurred while placing order: {}".format(str(e))}
+            return {
+                "status": "failure",
+                "error": "An unexpected error occurred while placing order: {}".format(str(e)),
+                "source": "broker",
+            }
 
         if "orderId" in resp:
             result = {"status": "success"}
             if isinstance(resp, dict):
                 result.update(resp)
             return result
-        result = {"status": "failure"}
+        result = {"status": "failure", "source": "broker"}
         if isinstance(resp, dict):
             result.update(resp)
         return result
@@ -146,13 +162,29 @@ class DhanBroker(BrokerBase):
                 )
                 return {"status": "success", "data": r.json()}
             except requests.exceptions.Timeout:
-                return {"status": "failure", "error": "Request to Dhan API timed out while fetching order list."}
+                return {
+                    "status": "failure",
+                    "error": "Request to Dhan API timed out while fetching order list.",
+                    "source": "broker",
+                }
             except requests.exceptions.RequestException as e:
-                return {"status": "failure", "error": "Failed to fetch order list from Dhan API: {}".format(str(e))}
+                return {
+                    "status": "failure",
+                    "error": "Failed to fetch order list from Dhan API: {}".format(str(e)),
+                    "source": "broker",
+                }
             except json.JSONDecodeError:
-                return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
+                return {
+                    "status": "failure",
+                    "error": "Invalid JSON response from Dhan API: {}".format(r.text),
+                    "source": "broker",
+                }
             except Exception as e:
-                return {"status": "failure", "error": "An unexpected error occurred while fetching order list: {}".format(str(e))}
+                return {
+                    "status": "failure",
+                    "error": "An unexpected error occurred while fetching order list: {}".format(str(e)),
+                    "source": "broker",
+                }
 
         # Paginated fetch for large accounts
         all_orders = []
@@ -175,6 +207,7 @@ class DhanBroker(BrokerBase):
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "Request to Dhan API timed out during pagination.",
                     "data": all_orders,
+                    "source": "broker",    
                 }
             except requests.exceptions.RequestException as e:
                 # Return partial results if other request error occurs
@@ -182,12 +215,14 @@ class DhanBroker(BrokerBase):
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "Failed to fetch order list from Dhan API during pagination: {}".format(str(e)),
                     "data": all_orders,
+                    "source": "broker",
                 }
             except json.JSONDecodeError:
                 return {
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "Invalid JSON response from Dhan API during pagination: {}".format(r.text),
                     "data": all_orders,
+                    "source": "broker",
                 }
             except Exception as e:
                 # Return partial results if unexpected error occurs
@@ -195,6 +230,7 @@ class DhanBroker(BrokerBase):
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "An unexpected error occurred during pagination: {}".format(str(e)),
                     "data": all_orders,
+                    "source": "broker",
                 }
         return {"status": "success", "data": all_orders}
 
