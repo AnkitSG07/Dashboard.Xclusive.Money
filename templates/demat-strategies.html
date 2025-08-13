@@ -334,6 +334,28 @@ window.pageScripts["demat-strategies"] = function() {
         return String(value).toUpperCase() === 'BOTH' ? bothValues : value;
     }
 
+    function buildPayloadFromStrategy(strategy){
+        if(!strategy) return {};
+        const payload = {
+            exchange: expandBoth(strategy.exchange || 'NSE', ['NSE','BSE']),
+            transactionType: expandBoth(strategy.transaction_type || 'BUY', ['BUY','SELL']),
+            orderType: strategy.order_type || 'limit',
+            orderValidity: strategy.order_validity || 'day',
+            productType: strategy.product_type || 'intraday',
+            masterAccounts: strategy.master_accounts ? String(strategy.master_accounts).split(',') : []
+        };
+        if(strategy.order_qty) payload.orderQty = strategy.order_qty;
+        if(strategy.order_value) payload.orderValue = strategy.order_value;
+        if(strategy.allowed_tickers === '__WATCHLIST_DYNAMIC__'){
+            payload.tradingSymbols = ["{% raw %}{{ticker}}{% endraw %}"];
+        } else if(strategy.allowed_tickers){
+            payload.tradingSymbols = String(strategy.allowed_tickers).split(',').map(s=>s.trim()).filter(Boolean);
+        } else {
+            payload.tradingSymbols = [];
+        }
+        return payload;
+    }
+
     function getSymbols(){
         if (singleSymbolModeRadio.checked) {
             return [tradingSymbolsTextarea.value.trim()].filter(Boolean);
@@ -629,11 +651,18 @@ window.pageScripts["demat-strategies"] = function() {
             btn.addEventListener('click',()=>{
                 const sid = btn.dataset.strategyId;
                 const webhookUrl = btn.closest('.card').querySelector('input.form-control').value;
-
                 let payloadObj = {};
                 try {
                     payloadObj = JSON.parse(localStorage.getItem('strategyPayload_'+sid) || '{}');
                 } catch(e) {}
+
+                const strategy = allStrategies.find(s => String(s.id) === String(sid));
+                const freshPayload = buildPayloadFromStrategy(strategy);
+                const coreKeys = ['exchange','transactionType','orderType','orderValidity','productType','masterAccounts'];
+                const needsRefresh = Object.keys(payloadObj).length === 0 || coreKeys.some(k => JSON.stringify(payloadObj[k]) !== JSON.stringify(freshPayload[k]));
+                if(needsRefresh) {
+                    payloadObj = freshPayload;
+                }
 
                 payloadObj.exchange = expandBoth(payloadObj.exchange, ['NSE','BSE']);
                 payloadObj.transactionType = expandBoth(payloadObj.transactionType, ['BUY','SELL']);
