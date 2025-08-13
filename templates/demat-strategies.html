@@ -656,16 +656,15 @@ window.pageScripts["demat-strategies"] = function() {
                     payloadObj = JSON.parse(localStorage.getItem('strategyPayload_'+sid) || '{}');
                 } catch(e) {}
 
-                const strategy = allStrategies.find(s => String(s.id) === String(sid));
-                const freshPayload = buildPayloadFromStrategy(strategy);
-                const coreKeys = ['exchange','transactionType','orderType','orderValidity','productType','masterAccounts'];
-                const needsRefresh = Object.keys(payloadObj).length === 0 || coreKeys.some(k => JSON.stringify(payloadObj[k]) !== JSON.stringify(freshPayload[k]));
-                if(needsRefresh) {
-                    payloadObj = freshPayload;
+                if(Object.keys(payloadObj).length === 0){
+                    const strategy = allStrategies.find(s => String(s.id) === String(sid));
+                    payloadObj = buildPayloadFromStrategy(strategy);
                 }
 
                 payloadObj.exchange = expandBoth(payloadObj.exchange, ['NSE','BSE']);
-                payloadObj.transactionType = expandBoth(payloadObj.transactionType, ['BUY','SELL']);
+                if(payloadObj.transactionType){
+                    payloadObj.transactionType = expandBoth(payloadObj.transactionType, ['BUY','SELL']);
+                }
                 localStorage.setItem('strategyPayload_'+sid, JSON.stringify(payloadObj));
 
                 payloadWebhook.value = webhookUrl;
@@ -864,21 +863,10 @@ window.pageScripts["demat-strategies"] = function() {
 
         apiCall.then(res=>{
             const strategyId = editingId || res.id; // Get ID for local storage
-            const cp = {
-                strategyName: strategyNameForDB,
-                exchange: exchVal,
-                transactionType: ttypeVal,
-                orderType: form.orderType.value,
-                orderValidity: form.orderValidity.value,
-                productType: form.productType.value,
-                masterAccounts: selectedAccounts,
-                tradingSymbols: symbolsToProcessForPreview
-            };
-            if(form.orderQty.value){
-                cp.orderQty = parseFloat(form.orderQty.value);
-            } else if(form.orderValue.value){
-                cp.orderValue = parseFloat(form.orderValue.value);
-            }
+            let cp = {};
+            try {
+                cp = JSON.parse(webhookPreview.value || '{}');
+            } catch(e) {}
             localStorage.setItem('strategyPayload_'+strategyId, JSON.stringify(cp));
             modal.hide();
             loadStrategies();
