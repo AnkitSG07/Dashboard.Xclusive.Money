@@ -266,7 +266,7 @@ def map_product_for_broker(product: str | None, broker: str) -> str | None:
         if base == "MIS":
             return "INTRADAY"
         if base in {"CNC", "DELIVERY"}:
-            return "CNC"
+            return "DELIVERY"
     return base
 
 
