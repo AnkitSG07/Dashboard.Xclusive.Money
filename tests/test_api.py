@@ -2205,7 +2205,8 @@ def test_webhook_tradingview_payload(client, monkeypatch):
 @pytest.mark.parametrize(
     "payload_pt,expected",
     [
-        ("cnc", "CNC"),
+        # Dhan treats CNC (cash-and-carry) orders as DELIVERY
+        ("cnc", "DELIVERY"),
         ("mis", "INTRADAY"),
     ],
 )
