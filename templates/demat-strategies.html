@@ -717,7 +717,7 @@ window.pageScripts["demat-strategies"] = function() {
                         form.transactionType.value = val === 'BOTH' ? 'BOTH' : (tTypeField || 'BUY');
                     }
 
-                    const isManualMode = !Array.isArray(tTypeField) && String(tTypeField || '').toUpperCase() !== 'BOTH';
+                    const isManualMode = !savedPayload.action && !Array.isArray(tTypeField) && String(tTypeField || '').toUpperCase() !== 'BOTH';
                     alertTypeManual.checked = isManualMode;
                     alertTypeStrategy.checked = !isManualMode;
 
