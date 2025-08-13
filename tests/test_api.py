@@ -1601,9 +1601,9 @@ def test_account_to_dict_filters_broker_logs(client):
         db.session.add(acc)
         db.session.commit()
 
-        sys_log = SystemLog(
+        copy_log = SystemLog(
             level="ERROR",
-            message="internal issue",
+            message="copy issue",
             user_id=str(user.id),
             module="copy_trading",
             details={"client_id": "X2"},
@@ -1615,12 +1615,23 @@ def test_account_to_dict_filters_broker_logs(client):
             module="broker",
             details={"client_id": "X2"},
         )
-        db.session.add_all([sys_log, broker_log])
+        system_log = SystemLog(
+            level="ERROR",
+            message="system issue",
+            user_id=str(user.id),
+            module="system",
+            details={"client_id": "X2"},
+        )
+        db.session.add_all([copy_log, broker_log, system_log])
         db.session.commit()
 
         result = app_module._account_to_dict(acc)
-        assert "internal issue" in result["system_errors"]
+        assert "copy issue" in result["errors"]
+        assert "broker issue" in result["errors"]
+        assert "system issue" in result["system_errors"]
+        assert "system issue" not in result["errors"]
         assert "broker issue" not in result["system_errors"]
+        assert "copy issue" not in result["system_errors"]
 
 def test_broker_api_does_not_pass_duplicate_client_id(monkeypatch):
     app = app_module.app
