@@ -1587,6 +1587,41 @@ def test_account_to_dict_rolls_back_on_log_error(client, monkeypatch):
         # Session should still be usable after failure
         assert Account.query.count() >= 1
 
+def test_account_to_dict_filters_broker_logs(client):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    SystemLog = app_module.SystemLog
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(user_id=user.id, role="child", broker="dhan", client_id="X2")
+        db.session.add(acc)
+        db.session.commit()
+
+        sys_log = SystemLog(
+            level="ERROR",
+            message="internal issue",
+            user_id=str(user.id),
+            module="copy_trading",
+            details={"client_id": "X2"},
+        )
+        broker_log = SystemLog(
+            level="ERROR",
+            message="broker issue",
+            user_id=str(user.id),
+            module="broker",
+            details={"client_id": "X2"},
+        )
+        db.session.add_all([sys_log, broker_log])
+        db.session.commit()
+
+        result = app_module._account_to_dict(acc)
+        assert "internal issue" in result["system_errors"]
+        assert "broker issue" not in result["system_errors"]
+
 def test_broker_api_does_not_pass_duplicate_client_id(monkeypatch):
     app = app_module.app
 
