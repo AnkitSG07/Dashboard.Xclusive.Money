@@ -423,7 +423,38 @@ window.pageScripts["copy-trading"] = function () {
   const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
   window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
   window.loadingAccounts = window.loadingAccounts || false;
+  window.accountsPoller = window.accountsPoller || null;
 
+  function pauseAccountsPolling() {
+    if (window.accountsPoller) {
+      clearInterval(window.accountsPoller);
+      window.accountsPoller = null;
+    }
+    if (window.accountsAbortController) {
+      window.accountsAbortController.abort();
+    }
+  }
+
+  function resumeAccountsPolling() {
+    if (!window.accountsPoller) {
+      window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+    }
+  }
+
+  function updatePollingState() {
+    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-accordion .accordion-collapse.show'))
+      .some(panel => {
+        const id = panel.id.replace('collapseMaster', '');
+        const active = document.querySelector(`#tabs-${id} .nav-link.active`);
+        return active && !active.id.includes('children');
+      });
+    const childDataOpen = !!document.querySelector('#children-accounts-accordion .accordion-collapse.show');
+    if (masterDataOpen || childDataOpen) {
+      pauseAccountsPolling();
+    } else {
+      resumeAccountsPolling();
+    }
+  }
   function escapeHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -1188,6 +1219,7 @@ window.pageScripts["copy-trading"] = function () {
         renderMasterChildrenList(clientId); // Re-render in case child data changed
       }
     }
+    updatePollingState();
   };
 
   function appendMasterOrders(clientId) {
@@ -1489,6 +1521,7 @@ window.pageScripts["copy-trading"] = function () {
         loadChildHoldings(childId, { force: wasActive });
       }
     }
+    updatePollingState();  
   };
 
   function appendChildOrders(childId) {
@@ -2249,6 +2282,17 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   // --- INIT ON LOAD ---
+  const masterAccEl = document.getElementById('master-accounts-accordion');
+  if (masterAccEl) {
+    masterAccEl.addEventListener('shown.bs.collapse', updatePollingState);
+    masterAccEl.addEventListener('hidden.bs.collapse', updatePollingState);
+  }
+  const childAccEl = document.getElementById('children-accounts-accordion');
+  if (childAccEl) {
+    childAccEl.addEventListener('shown.bs.collapse', updatePollingState);
+    childAccEl.addEventListener('hidden.bs.collapse', updatePollingState);
+  }
+
   // These calls will now fetch and populate the sections
   window.loadAccounts();
   window.loadMasterOrders();
