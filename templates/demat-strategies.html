@@ -660,6 +660,12 @@ window.pageScripts["demat-strategies"] = function() {
                     }
                     form.strategyName.value = baseName;
                     loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
+
+                    // Load any locally stored payload details
+                    let savedPayload = {};
+                    try {
+                        savedPayload = JSON.parse(localStorage.getItem('strategyPayload_'+data.id) || '{}');
+                    } catch(e) {}
                     
                     if (storedAllowedTickers === '__WATCHLIST_DYNAMIC__') {
                         watchlistModeRadio.checked = true;
@@ -667,15 +673,15 @@ window.pageScripts["demat-strategies"] = function() {
                         singleSymbolModeRadio.checked = true;
                         tradingSymbolsTextarea.value = storedAllowedTickers;
                     }
-                    // Set other form fields
-                    const exchField = data.exchange;
+                    // Set other form fields, preferring saved payload values
+                    const exchField = savedPayload.exchange ?? data.exchange;
                     if (Array.isArray(exchField)) {
                         form.exchange.value = exchField.length === 2 ? 'BOTH' : exchField[0];
                     } else {
                         const val = String(exchField || 'NSE').toUpperCase();
                         form.exchange.value = val === 'BOTH' ? 'BOTH' : (exchField || 'NSE');
                     }
-                    const tTypeField = data.transaction_type;
+                    const tTypeField = savedPayload.transactionType ?? data.transaction_type;
                     if (Array.isArray(tTypeField)) {
                         form.transactionType.value = tTypeField.length === 2 ? 'BOTH' : tTypeField[0];
                     } else {
@@ -687,11 +693,11 @@ window.pageScripts["demat-strategies"] = function() {
                     alertTypeManual.checked = isManualMode;
                     alertTypeStrategy.checked = !isManualMode;
 
-                    form.orderType.value = data.order_type || 'limit';
-                    form.orderValidity.value = data.order_validity || 'day';
-                    form.productType.value = data.product_type || 'intraday';
-                    form.orderQty.value = data.order_qty || '';
-                    form.orderValue.value = data.order_value || '';
+                    form.orderType.value = savedPayload.orderType || data.order_type || 'limit';
+                    form.orderValidity.value = savedPayload.orderValidity || data.order_validity || 'day';
+                    form.productType.value = savedPayload.productType || data.product_type || 'intraday';
+                    form.orderQty.value = savedPayload.orderQty ?? data.order_qty || '';
+                    form.orderValue.value = savedPayload.orderValue ?? data.order_value || '';
 
                     // Disable/enable quantity/value fields based on which one has a value
                     form.orderQty.disabled = !!form.orderValue.value;
@@ -701,8 +707,8 @@ window.pageScripts["demat-strategies"] = function() {
                     updateAlertMode();
 
                     // Reapply quantity/value after updates to avoid recalculation
-                    form.orderQty.value = data.order_qty || '';
-                    form.orderValue.value = data.order_value || '';
+                    form.orderQty.value = savedPayload.orderQty ?? data.order_qty || '';
+                    form.orderValue.value = savedPayload.orderValue ?? data.order_value || '';
                     form.orderQty.disabled = !!form.orderValue.value;
                     form.orderValue.disabled = !!form.orderQty.value;
 
