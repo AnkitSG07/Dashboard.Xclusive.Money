@@ -725,8 +725,8 @@ window.pageScripts["demat-strategies"] = function() {
                     form.orderType.value = savedPayload.orderType || data.order_type || 'limit';
                     form.orderValidity.value = savedPayload.orderValidity || data.order_validity || 'day';
                     form.productType.value = savedPayload.productType || data.product_type || 'intraday';
-                    form.orderQty.value = savedPayload.orderQty ?? data.order_qty || '';
-                    form.orderValue.value = savedPayload.orderValue ?? data.order_value || '';
+                    form.orderQty.value = (savedPayload.orderQty ?? data.order_qty) || '';
+                    form.orderValue.value = (savedPayload.orderValue ?? data.order_value) || '';
 
                     // Disable/enable quantity/value fields based on which one has a value
                     form.orderQty.disabled = !!form.orderValue.value;
@@ -736,8 +736,8 @@ window.pageScripts["demat-strategies"] = function() {
                     updateAlertMode();
 
                     // Reapply quantity/value after updates to avoid recalculation
-                    form.orderQty.value = savedPayload.orderQty ?? data.order_qty || '';
-                    form.orderValue.value = savedPayload.orderValue ?? data.order_value || '';
+                    form.orderQty.value = (savedPayload.orderQty ?? data.order_qty) || '';
+                    form.orderValue.value = (savedPayload.orderValue ?? data.order_value) || '';
                     form.orderQty.disabled = !!form.orderValue.value;
                     form.orderValue.disabled = !!form.orderQty.value;
 
