@@ -394,7 +394,7 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         assert child.last_copied_trade_id == "2"
 
 
-def test_poll_and_copy_trades_preserves_product_type(client, monkeypatch):
+def test_poll_and_copy_trades_maps_cnc_to_delivery_for_dhan_child(client, monkeypatch):
     app = app_module.app
     db = app_module.db
     User = app_module.User
@@ -417,7 +417,7 @@ def test_poll_and_copy_trades_preserves_product_type(client, monkeypatch):
                     "price": 10,
                     "tradingSymbol": "ABCD",
                     "transactionType": "BUY",
-                    "productType": "DELIVERY",
+                    "productType": "CNC",
                 }
             ]
 
@@ -486,7 +486,7 @@ def test_poll_and_copy_trades_preserves_product_type(client, monkeypatch):
         app_module.poll_and_copy_trades()
 
         assert placed
-        assert placed[0].get("product_type") == "CNC"
+        assert placed[0].get("product_type") == "DELIVERY"
 
 
 def test_poll_and_copy_trades_preserves_product_type_mtf(client, monkeypatch):
