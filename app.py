@@ -833,15 +833,22 @@ def _resolve_data_path(path: str) -> str:
 
 
 def _account_to_dict(acc: Account) -> dict:
+    """Return a serialisable representation of an ``Account``.
+
+    The ``errors`` field is intended for user-facing account issues (e.g. copy
+    trading or broker problems) while ``system_errors`` captures internal
+    system logs to help with debugging.
+    """
     last_error = None
-    error_list: list[str] = []
+    errors: list[str] = []
+    system_errors: list[str] = []
     try:
         logs = (
             SystemLog.query.filter_by(
                 user_id=str(acc.user_id),
                 level="ERROR",
             )
-            .filter(SystemLog.module.in_(["system", "copy_trading"]))
+            .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
             .order_by(SystemLog.timestamp.desc())
             .limit(5)
             .all()
@@ -854,13 +861,17 @@ def _account_to_dict(acc: Account) -> dict:
                 except Exception:
                     details = {}
             if isinstance(details, dict) and str(details.get("client_id")) == acc.client_id:
-                if not last_error:
-                    last_error = log.message
-                error_list.append(log.message)
+                if log.module == "system":
+                    system_errors.append(log.message)
+                else:
+                    errors.append(log.message)
+                    if not last_error:
+                        last_error = log.message
     except Exception as e:  # pragma: no cover - logging failures shouldn't break
         # On any failure just ignore - logging should not break API
         last_error = None
-        error_list = []
+        errors = []
+        system_errors = []
         logger.error(f"Failed to fetch logs for {acc.client_id}: {e}")
         # Ensure the session is usable for subsequent queries
         db.session.rollback()
@@ -885,8 +896,8 @@ def _account_to_dict(acc: Account) -> dict:
         "last_login": acc.last_login_time,
         "device_number": acc.device_number,
         "last_error": last_error,
-        "errors": error_list,
-        "system_errors": error_list,
+        "errors": errors,
+        "system_errors": system_errors,
     }
 
 def get_user_by_token(token: str):
