@@ -2344,8 +2344,9 @@ def poll_and_copy_trades():
                                         or response.get("message")
                                         or "Unknown error"
                                     )
-                                    logger.warning(f"Order failed for child {child_id}: {error_msg}")
-                                    
+                                    logger.warning(
+                                        f"Order failed for child {child_id}: {error_msg} | Response: {response}"
+                                    )
                                     
                                     # Log the failure
                                     save_log(
@@ -2356,7 +2357,12 @@ def poll_and_copy_trades():
                                         "FAILED",
                                         error_msg
                                     )
-                                    log_connection_error(child, f"Order failed: {error_msg}")    
+                                    source = response.get("source", "system")
+                                    log_connection_error(
+                                        child,
+                                        f"Order failed: {error_msg}",
+                                        module=source,
+                                    )    
                                     record_trade(
                                         user_email,
                                         symbol,
@@ -3295,7 +3301,21 @@ def webhook(user_id):
             try:
                 response = broker_api_instance.place_order(**order_params)
                 if isinstance(response, dict) and response.get("status") == "failure":
-                    reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
+                    reason = (
+                        response.get("remarks")
+                        or response.get("error_message")
+                        or response.get("error")
+                        or "Unknown error"
+                    )
+                    logger.warning(
+                        f"Order failed for account {account.client_id}: {reason} | Response: {response}"
+                    )
+                    source = response.get("source", "system")
+                    log_connection_error(
+                        account,
+                        f"Order failed: {reason}",
+                        module=source,
+                    )
                     record_trade(
                         user_obj.id,
                         symbol,
@@ -3306,7 +3326,13 @@ def webhook(user_id):
                         broker=account.broker,
                         client_id=account.client_id,
                     )
-                    return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "FAILED", "reason": reason}
+                    return {
+                        "account_id": account.id,
+                        "symbol": symbol,
+                        "action": action.upper(),
+                        "status": "FAILED",
+                        "reason": reason,
+                    }
                 record_trade(
                     user_obj.id,
                     symbol,
