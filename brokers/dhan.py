@@ -272,6 +272,8 @@ class DhanBroker(BrokerBase):
 
             for p in positions:
                 seg = self._normalize_segment(p.get("exchangeSegment") or p.get("exchange"))
+                if seg:
+                    p["exchangeSegment"] = seg
                 sid = str(p.get("securityId") or p.get("security_id"))
                 quote = quotes.get(seg, {}).get(sid)
                 ltp = None
