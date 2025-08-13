@@ -56,8 +56,30 @@ def active_children_for_master(master):
         db.func.lower(Account.copy_status) == 'on'
     ).all()
 
-def log_connection_error(account: Account, message: str, *, disable_children: bool = False) -> None:
-    """Persist a connection/order error and mark accounts inactive."""
+def log_connection_error(
+    account: Account,
+    message: str,
+    *,
+    disable_children: bool = False,
+    module: str = "broker",
+) -> None:
+    """Persist a connection/order error and mark accounts inactive.
+
+    Parameters
+    ----------
+    account : Account
+        The account experiencing the error.
+    message : str
+        Error message to store.
+    disable_children : bool, optional
+        Whether to also disable all child accounts when the failing account is a
+        master, by default ``False``.
+    module : str, optional
+        The source of the error for logging purposes. Defaults to ``"broker"``
+        so broker failures (e.g., order placement issues) are excluded from
+        system error badges. Pass ``"copy_trading"`` or ``"system"`` for
+        internal failures that should surface in the UI.
+    """
     logger = logging.getLogger(__name__)
     try:
         message_lower = (message or "").lower()
@@ -122,11 +144,11 @@ def log_connection_error(account: Account, message: str, *, disable_children: bo
             level="ERROR",
             message=message,
             user_id=str(account.user_id),
-            module="copy_trading",
+            module=module,
             details=json.dumps({
                 "client_id": account.client_id,
                 "broker": account.broker,
-            })
+            }),
         )
         db.session.add(log_entry)
         db.session.commit()
