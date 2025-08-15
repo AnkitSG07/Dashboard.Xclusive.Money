@@ -908,7 +908,7 @@ def _account_to_dict(acc: Account) -> dict:
     try:
         logs = (
             SystemLog.query.filter_by(
-                user_id=acc.user_id,
+                user_id=str(acc.user_id),
                 level="ERROR",
             )
             .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
@@ -1901,7 +1901,7 @@ def poll_and_copy_trades():
                         try:
                             logs = (
                                 SystemLog.query.filter(
-                                    SystemLog.user_id == master.user_id,
+                                    SystemLog.user_id == str(master.user_id),
                                     SystemLog.level == "ERROR",
                                     or_(
                                         SystemLog.message.ilike("%invalid syntax%"),
@@ -7478,7 +7478,7 @@ def summary():
 
     # Notifications / system logs
     notifications = (
-        SystemLog.query.filter_by(user_id=user.id)
+        SystemLog.query.filter_by(user_id=str(user.id))
         .order_by(SystemLog.timestamp.desc())
         .limit(5)
         .all()
