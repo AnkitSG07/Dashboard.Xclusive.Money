@@ -1,411 +1,187 @@
 {% extends "layout.html" %}
-{% block title %}Dashboard - DhanBot Automation{% endblock %}
+{% block title %}Dashboard Summary - DhanBot{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
-    
-    <!-- Navigation Header -->
-    <nav class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <!-- Logo and Brand -->
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <i class="bi bi-graph-up text-white text-lg"></i>
-                        </div>
-                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                            DhanBot Pro
-                        </h1>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Trading Automation</p>
-                    </div>
-                </div>
-
-                <!-- Navigation Items -->
-                <div class="hidden md:flex items-center space-x-6">
-                    <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                        <i class="bi bi-book mr-2"></i>Documentation
-                    </a>
-                    <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                        <i class="bi bi-headset mr-2"></i>Support
-                    </a>
-                </div>
-
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <!-- Theme Toggle -->
-                    <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <i class="bi bi-moon dark:hidden text-gray-600"></i>
-                        <i class="bi bi-sun hidden dark:block text-yellow-500"></i>
-                    </button>
-                    
-                    <!-- Notifications -->
-                    <div class="relative">
-                        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative">
-                            <i class="bi bi-bell text-gray-600 dark:text-gray-300"></i>
-                            {% if notifications %}
-                            <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                                {{ notifications|length }}
-                            </span>
-                            {% endif %}
-                        </button>
-                    </div>
-                    
-                    <!-- User Avatar -->
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                            {{ display_name[0] if display_name else 'U' }}
-                        </div>
-                        <div class="hidden sm:block">
-                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ display_name }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ plan_name }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Welcome Section -->
-        <div class="mb-8 animate-fade-in">
-            <div class="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl p-1">
-                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                        <div>
-                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                                Welcome back, {{ display_name }}! 👋
-                            </h2>
-                            <p class="text-gray-600 dark:text-gray-300">
-                                Here's what's happening with your trading strategies today.
-                            </p>
-                        </div>
-                        <div class="mt-4 sm:mt-0 flex space-x-3">
-                            <a href="/copy-trading" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                <i class="bi bi-people-fill mr-2"></i>
-                                Copy Trading
-                            </a>
-                            <a href="/Add-Account" class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                <i class="bi bi-gear-fill mr-2"></i>
-                                Settings
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <!-- Active Strategies -->
-            <div class="stats-card group">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                        <i class="bi bi-graph-up text-blue-600 dark:text-blue-400 text-xl"></i>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ strategies|selectattr('is_active')|list|length }}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Active Strategies</p>
-                    </div>
-                </div>
-                <div class="flex items-center text-sm">
-                    <span class="flex items-center text-green-600 dark:text-green-400">
-                        <i class="bi bi-arrow-up mr-1"></i>
-                        12% from yesterday
-                    </span>
-                </div>
-            </div>
-
-            <!-- Connected Accounts -->
-            <div class="stats-card group">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                        <i class="bi bi-shield-check text-green-600 dark:text-green-400 text-xl"></i>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ accounts|selectattr('status', 'equalto', 'Active')|list|length }}/{{ accounts|length }}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Connected Accounts</p>
-                    </div>
-                </div>
-                <div class="flex items-center text-sm">
-                    <span class="flex items-center text-green-600 dark:text-green-400">
-                        <i class="bi bi-check-circle mr-1"></i>
-                        All systems operational
-                    </span>
-                </div>
-            </div>
-
-            <!-- Trades Today -->
-            <div class="stats-card group">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                        <i class="bi bi-arrow-left-right text-purple-600 dark:text-purple-400 text-xl"></i>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ recent_trades|length }}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Trades Today</p>
-                    </div>
-                </div>
-                <div class="flex items-center text-sm">
-                    <span class="flex items-center text-blue-600 dark:text-blue-400">
-                        <i class="bi bi-clock mr-1"></i>
-                        Last trade 2m ago
-                    </span>
-                </div>
-            </div>
-
-            <!-- Subscription -->
-            <div class="stats-card group">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                        <i class="bi bi-star-fill text-orange-600 dark:text-orange-400 text-xl"></i>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-lg font-bold text-gray-900 dark:text-white">{{ plan_name or 'Free' }}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ days_remaining }} days left</p>
-                    </div>
-                </div>
-                <div class="flex items-center text-sm">
-                    <span class="flex items-center text-orange-600 dark:text-orange-400">
-                        <i class="bi bi-calendar-event mr-1"></i>
-                        Expires soon
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Left Column - Main Dashboard -->
-            <div class="lg:col-span-2 space-y-6">
-                
-                <!-- Tabbed Content -->
-                <div class="dashboard-card">
-                    <!-- Tab Navigation -->
-                    <div class="border-b border-gray-200 dark:border-gray-700 px-6">
-                        <nav class="flex space-x-8" id="tab-nav">
-                            <button class="tab-button tab-active" data-tab="notifications">
-                                <i class="bi bi-bell mr-2"></i>
-                                Notifications
-                                {% if notifications %}
-                                <span class="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded-full">{{ notifications|length }}</span>
-                                {% endif %}
-                            </button>
-                            <button class="tab-button" data-tab="strategies">
-                                <i class="bi bi-graph-up mr-2"></i>
-                                Strategies
-                            </button>
-                            <button class="tab-button" data-tab="trades">
-                                <i class="bi bi-arrow-left-right mr-2"></i>
-                                Recent Trades
-                            </button>
-                        </nav>
-                    </div>
-
-                    <!-- Tab Content -->
-                    <div class="p-6">
-                        <!-- Notifications Panel -->
-                        <div id="notifications-panel" class="tab-panel">
-                            {% if notifications %}
-                                <div class="space-y-4">
-                                    {% for n in notifications %}
-                                    <div class="notification-item">
-                                        <div class="flex items-start space-x-4">
-                                            <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                                <i class="bi bi-info-circle text-blue-600 dark:text-blue-400"></i>
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-gray-900 dark:text-white font-medium">{{ n.message }}</p>
-                                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ n.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
-                                            </div>
-                                            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="empty-state">
-                                    <i class="bi bi-bell text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
-                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No new notifications</h3>
-                                    <p class="text-gray-500 dark:text-gray-400">You're all caught up! Check back later for updates.</p>
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Strategies Panel -->
-                        <div id="strategies-panel" class="tab-panel hidden">
-                            {% if strategies %}
-                                <div class="space-y-4">
-                                    {% for s in strategies %}
-                                    <div class="strategy-item">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center space-x-4">
-                                                <div class="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                                                    <i class="bi bi-robot text-gray-600 dark:text-gray-300"></i>
-                                                </div>
-                                                <div>
-                                                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ s.name }}</h3>
-                                                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                                                        7d P&L: 
-                                                        <span class="font-medium {% if s.pnl >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
-                                                            {% if s.pnl >= 0 %}+{% endif %}{{ '%.2f'|format(s.pnl) }}%
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center space-x-3">
-                                                <span class="status-badge {% if s.is_active %}status-active{% else %}status-inactive{% endif %}">
-                                                    {{ 'Active' if s.is_active else 'Inactive' }}
-                                                </span>
-                                                <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                                    <i class="bi bi-three-dots-vertical"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="empty-state">
-                                    <i class="bi bi-graph-up text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
-                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No strategies found</h3>
-                                    <p class="text-gray-500 dark:text-gray-400">Create your first trading strategy to get started.</p>
-                                    <button class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                        Create Strategy
-                                    </button>
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Trades Panel -->
-                        <div id="trades-panel" class="tab-panel hidden">
-                            {% if recent_trades %}
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full">
-                                        <thead>
-                                            <tr class="border-b border-gray-200 dark:border-gray-700">
-                                                <th class="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Symbol</th>
-                                                <th class="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Action</th>
-                                                <th class="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Quantity</th>
-                                                <th class="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Price</th>
-                                                <th class="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Time</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for t in recent_trades %}
-                                            <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                                <td class="py-3 px-4">
-                                                    <span class="font-medium text-gray-900 dark:text-white">{{ t.symbol }}</span>
-                                                </td>
-                                                <td class="py-3 px-4">
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                        {% if t.action == 'BUY' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300{% else %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300{% endif %}">
-                                                        {{ t.action }}
-                                                    </span>
-                                                </td>
-                                                <td class="py-3 px-4 text-right text-gray-900 dark:text-white">{{ t.qty }}</td>
-                                                <td class="py-3 px-4 text-right text-gray-900 dark:text-white">₹{{ '%.2f'|format(t.price) }}</td>
-                                                <td class="py-3 px-4 text-right text-gray-500 dark:text-gray-400 text-sm">{{ t.timestamp.strftime('%H:%M') }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            {% else %}
-                                <div class="empty-state">
-                                    <i class="bi bi-arrow-left-right text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
-                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No recent trades</h3>
-                                    <p class="text-gray-500 dark:text-gray-400">Your recent trading activity will appear here.</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Sidebar -->
-            <div class="space-y-6">
-                
-                <!-- Quick Actions -->
-                <div class="dashboard-card">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-                    <div class="space-y-3">
-                        <a href="/copy-trading" class="action-button primary">
-                            <i class="bi bi-people-fill mr-3"></i>
-                            <div>
-                                <p class="font-medium">Copy Trading</p>
-                                <p class="text-sm opacity-75">Follow expert traders</p>
-                            </div>
-                        </a>
-                        <a href="/Add-Account" class="action-button secondary">
-                            <i class="bi bi-gear-fill mr-3"></i>
-                            <div>
-                                <p class="font-medium">Account Settings</p>
-                                <p class="text-sm opacity-75">Manage your accounts</p>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Connected Accounts -->
-                <div class="dashboard-card">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Connected Accounts</h2>
-                    {% if accounts %}
-                        <div class="space-y-3">
-                            {% for acc in accounts %}
-                            <div class="account-item">
-                                <div class="flex items-center space-x-3">
-                                    <div class="connection-status {% if acc.status == 'Active' %}connected{% else %}disconnected{% endif %}"></div>
-                                    <div class="flex-1">
-                                        <p class="font-medium text-gray-900 dark:text-white">{{ acc.client_id }}</p>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ acc.broker }}</p>
-                                    </div>
-                                    <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="text-center py-8">
-                            <i class="bi bi-link-45deg text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                            <p class="text-gray-500 dark:text-gray-400 mb-4">No accounts connected</p>
-                            <a href="/Add-Account" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                <i class="bi bi-plus mr-2"></i>
-                                Add Account
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Performance Chart -->
-                <div class="dashboard-card">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Overview</h2>
-                    <div class="h-40">
-                        <canvas id="performance-chart"></canvas>
-                    </div>
-                </div>
-                
-            </div>
-        </div>
-    </main>
-</div>
-
-<!-- Loading Skeleton (hidden by default) -->
-<div id="loading-skeleton" class="hidden">
-    <div class="animate-pulse">
-        <div class="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-        <div class="h-4 bg-gray-300 rounded w-1/2"></div>
+<div class="section-box hero-section flex flex-col md:flex-row items-center justify-between p-6 mb-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg">
+  <div class="hero-text mb-6 md:mb-0 md:mr-8 text-center md:text-left">
+    <h4 class="text-3xl font-bold mb-2">Welcome back {{ display_name }} <span class="wave-emoji">👋</span></h4>
+    <p class="text-lg opacity-90 mb-4 max-w-lg">"Be fearful when others are greedy. Be greedy when others are fearful."</p>
+    <div class="flex flex-col sm:flex-row gap-3 mt-4 justify-center md:justify-start">
+      <a class="btn bg-white text-indigo-700 hover:bg-gray-100 font-semibold py-2 px-5 rounded-lg shadow-md transition duration-200" href="/copy-trading">
+        <i class="bi bi-people-fill me-2"></i> Copy Trading
+      </a>
+      <a class="btn bg-transparent border-2 border-white text-white hover:bg-white hover:text-indigo-700 font-semibold py-2 px-5 rounded-lg shadow-md transition duration-200" href="/Add-Account">
+        <i class="bi bi-gear-fill me-2"></i> Account Configuration
+      </a>
     </div>
+  </div>
+  <div class="hero-image flex-shrink-0">
+    <img src="{{ url_for('static', filename='images/dashboard-illustration.png') }}" alt="Dashboard Illustration" class="max-w-xs md:max-w-sm lg:max-w-md h-auto">
+  </div>
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Plan Name</p>
+    <h4 class="text-2xl font-bold text-indigo-600">{{ plan_name or 'N/A' }}</h4>
+    <div class="mt-4 text-center">
+      <span class="badge bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">{{ subscription_status }}</span>
+      {% if days_remaining <= 7 %}
+      <div class="mt-2">
+        <a href="/subscriptions" class="btn bg-indigo-600 text-white py-1 px-3 rounded">Renew/Upgrade</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Days Remaining</p>
+    <h4 class="text-2xl font-bold {% if days_remaining > 0 %}text-indigo-600{% else %}text-red-600{% endif %}">{{ days_remaining }} Days</h4>
+    <div class="mt-4 text-center">
+      <span class="badge {% if days_remaining > 0 %}bg-indigo-100 text-indigo-800{% else %}bg-red-100 text-red-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ 'Active' if days_remaining > 0 else 'Expired' }}</span>
+    </div>
+  </div>
+  <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
+    <p class="text-sm font-medium text-gray-500 mb-2">Validity</p>
+    <h4 class="text-2xl font-bold text-gray-800">{{ expiry_date or 'N/A' }}</h4>
+    <div class="mt-4 text-center">
+      <span class="badge bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">{{ subscription_status }}</span>
+    </div>
+  </div>
+</div>
+
+{% if accounts %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Connected Accounts</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+{% for acc in accounts %}
+  <div class="section-box p-4 rounded-xl bg-white shadow-md">
+    <p class="text-sm text-gray-500">{{ acc.broker }}</p>
+    <h4 class="text-lg font-bold">{{ acc.client_id }}</h4>
+    <span class="badge mt-2 {% if acc.status == 'Active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ acc.status }}</span>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if strategies %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Strategies</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+{% for s in strategies %}
+  <div class="section-box p-4 rounded-xl bg-white shadow-md">
+    <h4 class="text-lg font-bold">{{ s.name }}</h4>
+    <span class="badge mt-1 {% if s.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ 'Active' if s.is_active else 'Inactive' }}</span>
+    <p class="mt-2 text-sm text-gray-700">7d P&L: {{ '%.2f'|format(s.pnl) }}</p>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if recent_trades %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Recent Trades</h3>
+<div class="overflow-x-auto">
+<table class="min-w-full bg-white rounded-xl shadow-md text-sm">
+  <thead>
+    <tr class="text-left bg-gray-100">
+      <th class="p-2">Symbol</th>
+      <th class="p-2">Action</th>
+      <th class="p-2">Qty</th>
+      <th class="p-2">Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in recent_trades %}
+    <tr class="border-t">
+      <td class="p-2">{{ t.symbol }}</td>
+      <td class="p-2">{{ t.action }}</td>
+      <td class="p-2">{{ t.qty }}</td>
+      <td class="p-2">{{ '%.2f'|format(t.price) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if notifications %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Notifications</h3>
+<ul class="bg-white rounded-xl shadow-md p-4 text-sm">
+{% for n in notifications %}
+  <li class="mb-2"><span class="text-gray-500">{{ n.timestamp.strftime('%Y-%m-%d %H:%M') }}</span> - {{ n.message }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+
+<style>
+
+  /* Additional custom styles for Summary page */
+  .hero-section {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+  }
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: none; /* No filter for natural image appearance */
+}
+.hero-image {
+  flex: 0 0 auto;
+  max-width: 50%;
+  margin-top: 1rem;
+  align-self: right;
+}
+  .hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(79, 70, 229, 0.9), rgba(139, 92, 246, 0.8)); /* Deeper gradient */
+    z-index: 1;
+  }
+
+  .hero-section > div {
+    position: relative;
+    z-index: 2;
+  }
+
+  .wave-emoji {
+    animation: wave 2s infinite;
+    display: inline-block;
+    transform-origin: 70% 70%;
+  }
+
+  @keyframes wave {
+    0% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+    60% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* Info Card Specifics */
+  .section-box.flex {
+    border: 1px solid var(--bs-border-color);
+  }
+
+  /* Specific adjustment for the hero image within its container */
+  .hero-image img {
+    max-width: 190px; /* A fixed max-width for the image itself */
+    height: auto;
+    object-fit: contain;
+    align-content: right;
+  }
+
+  /* Ensure text content doesn't get too wide on very large screens */
+  .hero-text {
+    max-width: 900px; /* Limit text width for better readability */
+  }
+</style>
 {% endblock %}
