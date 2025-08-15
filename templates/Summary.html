@@ -4,7 +4,7 @@
 {% block content %}
 <div class="section-box hero-section flex flex-col md:flex-row items-center justify-between p-6 mb-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg">
   <div class="hero-text mb-6 md:mb-0 md:mr-8 text-center md:text-left">
-    <h4 class="text-3xl font-bold mb-2">Welcome back {{ session['user'] }} <span class="wave-emoji">👋</span></h4>
+    <h4 class="text-3xl font-bold mb-2">Welcome back {{ display_name }} <span class="wave-emoji">👋</span></h4>
     <p class="text-lg opacity-90 mb-4 max-w-lg">"Be fearful when others are greedy. Be greedy when others are fearful."</p>
     <div class="flex flex-col sm:flex-row gap-3 mt-4 justify-center md:justify-start">
       <a class="btn bg-white text-indigo-700 hover:bg-gray-100 font-semibold py-2 px-5 rounded-lg shadow-md transition duration-200" href="/copy-trading">
@@ -23,26 +23,92 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
   <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
     <p class="text-sm font-medium text-gray-500 mb-2">Plan Name</p>
-    <h4 class="text-2xl font-bold text-indigo-600">Professional</h4>
+    <h4 class="text-2xl font-bold text-indigo-600">{{ plan_name or 'N/A' }}</h4>
     <div class="mt-4 text-center">
-      <span class="badge bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">Active</span>
+      <span class="badge bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">{{ subscription_status }}</span>
+      {% if days_remaining <= 7 %}
+      <div class="mt-2">
+        <a href="/subscriptions" class="btn bg-indigo-600 text-white py-1 px-3 rounded">Renew/Upgrade</a>
+      </div>
+      {% endif %}
     </div>
   </div>
   <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
     <p class="text-sm font-medium text-gray-500 mb-2">Days Remaining</p>
-    <h4 class="text-2xl font-bold text-red-600">0 Days</h4>
+    <h4 class="text-2xl font-bold {% if days_remaining > 0 %}text-indigo-600{% else %}text-red-600{% endif %}">{{ days_remaining }} Days</h4>
     <div class="mt-4 text-center">
-      <span class="badge bg-red-100 text-red-800 text-sm font-medium px-3 py-1 rounded-full">Expired</span>
+      <span class="badge {% if days_remaining > 0 %}bg-indigo-100 text-indigo-800{% else %}bg-red-100 text-red-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ 'Active' if days_remaining > 0 else 'Expired' }}</span>
     </div>
   </div>
   <div class="section-box flex flex-col items-center p-6 rounded-xl bg-white shadow-md transition duration-200 hover:shadow-lg hover:scale-105">
     <p class="text-sm font-medium text-gray-500 mb-2">Validity</p>
-    <h4 class="text-2xl font-bold text-gray-800">06 Sep 2023</h4>
+    <h4 class="text-2xl font-bold text-gray-800">{{ expiry_date or 'N/A' }}</h4>
     <div class="mt-4 text-center">
-      <span class="badge bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">Past Date</span>
+      <span class="badge bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">{{ subscription_status }}</span>
     </div>
   </div>
 </div>
+
+{% if accounts %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Connected Accounts</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+{% for acc in accounts %}
+  <div class="section-box p-4 rounded-xl bg-white shadow-md">
+    <p class="text-sm text-gray-500">{{ acc.broker }}</p>
+    <h4 class="text-lg font-bold">{{ acc.client_id }}</h4>
+    <span class="badge mt-2 {% if acc.status == 'Active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ acc.status }}</span>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if strategies %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Strategies</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+{% for s in strategies %}
+  <div class="section-box p-4 rounded-xl bg-white shadow-md">
+    <h4 class="text-lg font-bold">{{ s.name }}</h4>
+    <span class="badge mt-1 {% if s.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} text-sm font-medium px-3 py-1 rounded-full">{{ 'Active' if s.is_active else 'Inactive' }}</span>
+    <p class="mt-2 text-sm text-gray-700">7d P&L: {{ '%.2f'|format(s.pnl) }}</p>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if recent_trades %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Recent Trades</h3>
+<div class="overflow-x-auto">
+<table class="min-w-full bg-white rounded-xl shadow-md text-sm">
+  <thead>
+    <tr class="text-left bg-gray-100">
+      <th class="p-2">Symbol</th>
+      <th class="p-2">Action</th>
+      <th class="p-2">Qty</th>
+      <th class="p-2">Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in recent_trades %}
+    <tr class="border-t">
+      <td class="p-2">{{ t.symbol }}</td>
+      <td class="p-2">{{ t.action }}</td>
+      <td class="p-2">{{ t.qty }}</td>
+      <td class="p-2">{{ '%.2f'|format(t.price) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if notifications %}
+<h3 class="text-xl font-semibold mt-10 mb-4">Notifications</h3>
+<ul class="bg-white rounded-xl shadow-md p-4 text-sm">
+{% for n in notifications %}
+  <li class="mb-2"><span class="text-gray-500">{{ n.timestamp.strftime('%Y-%m-%d %H:%M') }}</span> - {{ n.message }}</li>
+{% endfor %}
+</ul>
+{% endif %}
 
 <style>
 
