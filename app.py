@@ -165,6 +165,32 @@ OPENING_BALANCE_CACHE = {}
 # Seconds to keep a cached balance before refreshing
 CACHE_TTL = 300
 
+# Cache for MTF eligibility per broker:symbol with TTL
+MTF_SUPPORT_CACHE = {}
+MTF_CACHE_TTL = 3600  # one hour
+
+
+def is_mtf_supported(symbol: str, broker: str):
+    """Return cached MTF support for a symbol/broker if fresh.
+
+    Returns True/False when cached, or None if no fresh entry exists.
+    """
+    key = f"{broker}:{symbol}".lower()
+    entry = MTF_SUPPORT_CACHE.get(key)
+    if not entry:
+        return None
+    ts, supported = entry
+    if time() - ts < MTF_CACHE_TTL:
+        return supported
+    MTF_SUPPORT_CACHE.pop(key, None)
+    return None
+
+
+def _cache_mtf_support(symbol: str, broker: str, supported: bool) -> None:
+    """Update the MTF support cache for ``symbol``/``broker``."""
+    key = f"{broker}:{symbol}".lower()
+    MTF_SUPPORT_CACHE[key] = (time(), supported)
+
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     raise RuntimeError("DATABASE_URL must be set to a PostgreSQL connection")
@@ -662,7 +688,7 @@ def map_product_type(product_type: str | None, broker: str) -> str:
         base = "CNC"
     elif pt in ("mis", "intraday"):
         base = "MIS"
-    elif pt == "mtf":
+    elif pt in ("mtf", "mtf_or_cnc", "mtf_or_longterm", "mtf or longterm")::
         base = "MTF"
     else:
         base = None
@@ -778,15 +804,32 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
         if allowed and broker_name not in allowed:
             results.append({"subscription_id": sub.id, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"})
             continue
-        if allowed and broker_name not in allowed:
-            results.append({"subscription_id": sub.id, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"})
-            continue
         try:
             acc_dict = _account_to_dict(account)
             api = broker_api(acc_dict)
             mapping = get_symbol_for_broker(symbol, broker_name)
             qty_use = sub.fixed_qty if sub.qty_mode == "fixed" and sub.fixed_qty else quantity
-            order_params = build_order_params(broker_name, mapping, symbol, action, qty_use, sub.order_type or "MARKET", api, product_type)
+            mtf_status = (
+                is_mtf_supported(symbol, broker_name)
+                if product_type == "mtf_or_cnc"
+                else None
+            )
+            attempt_mtf = product_type == "mtf_or_cnc" and mtf_status is not False
+            pt_for_build = (
+                "mtf"
+                if attempt_mtf
+                else ("cnc" if product_type == "mtf_or_cnc" else product_type)
+            )
+            order_params = build_order_params(
+                broker_name,
+                mapping,
+                symbol,
+                action,
+                qty_use,
+                sub.order_type or "MARKET",
+                api,
+                pt_for_build,
+            )
         except Exception as e:
             results.append({"subscription_id": sub.id, "action": action.upper(), "status": "ERROR", "reason": str(e)})
             continue
@@ -797,6 +840,25 @@ def execute_for_subscriptions(strategy: Strategy, symbol: str, action: str, quan
 
         try:
             response = api.place_order(**order_params)
+            if product_type == "mtf_or_cnc":
+                if attempt_mtf:
+                    if isinstance(response, dict) and response.get("status") == "failure":
+                        _cache_mtf_support(symbol, broker_name, False)
+                        order_params = build_order_params(
+                            broker_name,
+                            mapping,
+                            symbol,
+                            action,
+                            qty_use,
+                            sub.order_type or "MARKET",
+                            api,
+                            "cnc",
+                        )
+                        response = api.place_order(**order_params)
+                    else:
+                        _cache_mtf_support(symbol, broker_name, True)
+                else:
+                    _cache_mtf_support(symbol, broker_name, False)
             if isinstance(response, dict) and response.get("status") == "failure":
                 reason = response.get("remarks") or response.get("error_message") or response.get("error") or "Unknown error"
                 record_trade(
@@ -3268,7 +3330,27 @@ def webhook(user_id):
                 return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to initialize broker"}
             try:
                 mapping = get_symbol_for_broker(symbol, broker_name)
-                order_params = build_order_params(broker_name, mapping, symbol, action, int(quantity), "MARKET", broker_api_instance, product_type)
+                mtf_status = (
+                    is_mtf_supported(symbol, broker_name)
+                    if product_type == "mtf_or_cnc"
+                    else None
+                )
+                attempt_mtf = product_type == "mtf_or_cnc" and mtf_status is not False
+                pt_for_build = (
+                    "mtf"
+                    if attempt_mtf
+                    else ("cnc" if product_type == "mtf_or_cnc" else product_type)
+                )
+                order_params = build_order_params(
+                    broker_name,
+                    mapping,
+                    symbol,
+                    action,
+                    int(quantity),
+                    "MARKET",
+                    broker_api_instance,
+                    pt_for_build,
+                )
             except Exception as e:
                 logger.error(f"Error building order parameters: {str(e)}")
                 return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to build order parameters"}
@@ -3312,6 +3394,28 @@ def webhook(user_id):
 
             try:
                 response = broker_api_instance.place_order(**order_params)
+                if product_type == "mtf_or_cnc":
+                    if attempt_mtf:
+                        if (
+                            isinstance(response, dict)
+                            and response.get("status") == "failure"
+                        ):
+                            _cache_mtf_support(symbol, broker_name, False)
+                            order_params = build_order_params(
+                                broker_name,
+                                mapping,
+                                symbol,
+                                action,
+                                int(quantity),
+                                "MARKET",
+                                broker_api_instance,
+                                "cnc",
+                            )
+                            response = broker_api_instance.place_order(**order_params)
+                        else:
+                            _cache_mtf_support(symbol, broker_name, True)
+                    else:
+                        _cache_mtf_support(symbol, broker_name, False)
                 if isinstance(response, dict) and response.get("status") == "failure":
                     reason = (
                         response.get("remarks")
@@ -3359,7 +3463,14 @@ def webhook(user_id):
                     poll_and_copy_trades()
                 except Exception as e:
                     logger.error(f"Failed to trigger copy trading: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "SUCCESS", "order_id": response.get("order_id"), "result": response.get("remarks", "Trade placed successfully")}
+                return {
+                    "account_id": account.id,
+                    "symbol": symbol,
+                    "action": action.upper(),
+                    "status": "SUCCESS",
+                    "order_id": response.get("order_id"),
+                    "result": response.get("remarks", "Trade placed successfully"),
+                }
             except Exception as e:
                 logger.error(f"Error placing order: {str(e)}")
                 return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": str(e)}
