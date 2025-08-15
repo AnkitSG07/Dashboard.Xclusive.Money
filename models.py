@@ -137,7 +137,7 @@ class SystemLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     details = db.Column(db.JSON)
     
-    user_id = db.Column(db.Integer, index=True)
+    user_id = db.Column(db.String(50), index=True)
     module = db.Column(db.String(50))
     
     __table_args__ = (
