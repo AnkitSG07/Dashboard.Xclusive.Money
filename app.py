@@ -7496,7 +7496,7 @@ def summary():
     )
 
     return render_template(
-        "Summary.html",
+        "summary.html",
         accounts=accounts,
         strategies=strategies,
         recent_trades=recent_trades,
