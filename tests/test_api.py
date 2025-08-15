@@ -2219,6 +2219,7 @@ def test_webhook_tradingview_payload(client, monkeypatch):
         # Dhan treats CNC (cash-and-carry) orders as DELIVERY
         ("cnc", "DELIVERY"),
         ("mis", "INTRADAY"),
+        ("mtf_or_cnc", "MTF"),
     ],
 )
 def test_webhook_product_type_mapping(client, monkeypatch, payload_pt, expected):
@@ -2296,6 +2297,258 @@ def test_webhook_product_type_mapping(client, monkeypatch, payload_pt, expected)
     )
     assert resp.status_code == 200
     assert captured.get("product_type") == expected
+
+def test_mtf_or_cnc_fallback(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    token = "tokfallback"
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = token
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CFALL",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="Sfall",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="secret",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+
+    attempts = []
+    import brokers
+
+    app_module.MTF_SUPPORT_CACHE.clear()
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, **kwargs):
+            attempts.append(kwargs.get("product_type"))
+            if kwargs.get("product_type") == "MTF":
+                return {"status": "failure", "error": "mtf not allowed"}
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    payload = {
+        "strategyName": "new",
+        "exchange": "NSE",
+        "transactionType": "le",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": "mtf_or_cnc",
+        "masterAccounts": ["36"],
+        "orderQty": 5,
+        "tradingSymbols": ["IDEA"],
+    }
+    resp = client.post(
+        f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
+    )
+    assert resp.status_code == 200
+    assert attempts == ["MTF", "DELIVERY"]
+    assert app_module.is_mtf_supported("NSE:IDEA", "dhan") is False
+
+
+def test_mtf_cache_hit_skips_mtf(client, monkeypatch):
+    import time
+
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    token = "tokcachehit"
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = token
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CHIT",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="Scache",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="secret",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+
+    attempts = []
+    import brokers
+
+    app_module.MTF_SUPPORT_CACHE.clear()
+    app_module.MTF_SUPPORT_CACHE["dhan:nse:idea"] = (time.time(), False)
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, **kwargs):
+            attempts.append(kwargs.get("product_type"))
+            if kwargs.get("product_type") == "MTF":
+                return {"status": "failure", "error": "mtf not allowed"}
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    payload = {
+        "strategyName": "new",
+        "exchange": "NSE",
+        "transactionType": "le",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": "mtf_or_cnc",
+        "masterAccounts": ["36"],
+        "orderQty": 5,
+        "tradingSymbols": ["IDEA"],
+    }
+    resp = client.post(
+        f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
+    )
+    assert resp.status_code == 200
+    assert attempts == ["DELIVERY"]
+
+
+def test_mtf_cache_stale_retry(client, monkeypatch):
+    import time as pytime
+
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    token = "tokcachestale"
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = token
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CSTALE",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="Sstale",
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="secret",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+
+    attempts = []
+    import brokers
+
+    app_module.MTF_SUPPORT_CACHE.clear()
+    stale_ts = pytime.time() - app_module.MTF_CACHE_TTL - 1
+    app_module.MTF_SUPPORT_CACHE["dhan:nse:idea"] = (stale_ts, False)
+
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, **kwargs):
+            attempts.append(kwargs.get("product_type"))
+            if kwargs.get("product_type") == "MTF":
+                return {"status": "failure", "error": "mtf not allowed"}
+            return {"status": "success", "order_id": "1"}
+
+        def get_order_list(self):
+            return []
+
+        def get_positions(self):
+            return []
+
+        def cancel_order(self, order_id):
+            pass
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+
+    payload = {
+        "strategyName": "new",
+        "exchange": "NSE",
+        "transactionType": "le",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": "mtf_or_cnc",
+        "masterAccounts": ["36"],
+        "orderQty": 5,
+        "tradingSymbols": ["IDEA"],
+    }
+    resp = client.post(
+        f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
+    )
+    assert resp.status_code == 200
+    assert attempts == ["MTF", "DELIVERY"]
+    entry = app_module.MTF_SUPPORT_CACHE.get("dhan:nse:idea")
+    assert entry and entry[0] > stale_ts
 
 def test_webhook_requires_active_strategy(client, monkeypatch):
     login(client)
