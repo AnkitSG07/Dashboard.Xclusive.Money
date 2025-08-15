@@ -34,6 +34,7 @@ import random
 import string
 from urllib.parse import quote
 from time import time
+from collections import defaultdict
 from mail import mail
 from models import (
     db,
@@ -7314,11 +7315,87 @@ def dashboard_data():
 @app.route("/Summary")
 @login_required
 def summary():
-    if 'username' not in session:
-        user = current_user()
-        if user:
-            session['username'] = user.name or (user.email.split('@')[0] if user.email else user.phone)
-    return render_template("Summary.html")  # or "Summary.html" if that's your file name
+    """Render a high-level dashboard preview for the user."""
+    user = current_user()
+    if "username" not in session and user:
+        session["username"] = user.name or (
+            user.email.split("@")[0] if user.email else user.phone
+        )
+
+    display_name = session.get("username", session.get("user"))
+
+    # Connected accounts
+    accounts = Account.query.filter_by(user_id=user.id).all() if user else []
+
+    # Strategies owned or subscribed to
+    owned_strats = (
+        Strategy.query.filter_by(user_id=user.id).all() if user else []
+    )
+    subs = (
+        StrategySubscription.query.filter_by(subscriber_id=user.id).all()
+        if user
+        else []
+    )
+    subscribed_strats = [s.strategy for s in subs if s.strategy]
+
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    all_strats = owned_strats + subscribed_strats
+    strategy_ids = [s.id for s in all_strats]
+    pnl_map = defaultdict(float)
+    if strategy_ids:
+        logs = StrategyLog.query.filter(
+            StrategyLog.strategy_id.in_(strategy_ids),
+            StrategyLog.timestamp >= seven_days_ago,
+        ).all()
+        for log in logs:
+            pnl_map[log.strategy_id] += (log.performance or {}).get("pnl", 0)
+
+    strategies = [
+        {"name": s.name, "is_active": s.is_active, "pnl": pnl_map.get(s.id, 0)}
+        for s in all_strats
+    ]
+
+    # Recent trades
+    recent_trades = (
+        Trade.query.filter_by(user_id=user.id)
+        .order_by(Trade.timestamp.desc())
+        .limit(5)
+        .all()
+        if user
+        else []
+    )
+
+    # Notifications / system logs
+    notifications = (
+        SystemLog.query.filter_by(user_id=user.id)
+        .order_by(SystemLog.timestamp.desc())
+        .limit(5)
+        .all()
+        if user
+        else []
+    )
+
+    # Subscription details
+    expiry = user.subscription_end if user else None
+    days_remaining = (
+        (expiry.date() - datetime.utcnow().date()).days if expiry else 0
+    )
+    subscription_status = (
+        "Active" if expiry and expiry >= datetime.utcnow() else "Expired"
+    )
+
+    return render_template(
+        "Summary.html",
+        accounts=accounts,
+        strategies=strategies,
+        recent_trades=recent_trades,
+        notifications=notifications,
+        plan_name=user.plan if user else None,
+        days_remaining=days_remaining,
+        expiry_date=expiry.date() if expiry else None,
+        subscription_status=subscription_status,
+        display_name=display_name,
+    )
 
 @app.route("/copy-trading")
 @login_required
