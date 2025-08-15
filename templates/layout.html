@@ -9,7 +9,7 @@
   <!-- Using Inter font for a modern SaaS look -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet">
   <style>
       /* Reset Tailwind's collapse utility so Bootstrap accordions work */
     .collapse:not(.tw-collapse) {
