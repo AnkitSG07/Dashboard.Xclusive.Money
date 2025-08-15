@@ -100,7 +100,7 @@ def log_connection_error(
             try:
                 logs = (
                     SystemLog.query.filter(
-                        SystemLog.user_id == account.user_id,
+                        cast(SystemLog.user_id, db.String) == str(account.user_id),
                         SystemLog.level == "ERROR",
                         or_(
                             SystemLog.message.ilike("%invalid syntax%"),
