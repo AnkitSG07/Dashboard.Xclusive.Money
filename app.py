@@ -846,7 +846,7 @@ def _account_to_dict(acc: Account) -> dict:
     try:
         logs = (
             SystemLog.query.filter_by(
-                user_id=str(acc.user_id),
+                user_id=acc.user_id,
                 level="ERROR",
             )
             .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
