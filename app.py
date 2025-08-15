@@ -688,7 +688,7 @@ def map_product_type(product_type: str | None, broker: str) -> str:
         base = "CNC"
     elif pt in ("mis", "intraday"):
         base = "MIS"
-    elif pt in ("mtf", "mtf_or_cnc", "mtf_or_longterm", "mtf or longterm")::
+    elif pt in ("mtf", "mtf_or_cnc", "mtf_or_longterm", "mtf or longterm"):
         base = "MTF"
     else:
         base = None
