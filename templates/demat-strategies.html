@@ -172,9 +172,10 @@
                                 <select class="form-select" id="product-type" name="productType">
                                     <option value="intraday">Intraday / MIS</option>
                                     <option value="cnc">CNC / Longterm</option>
-                                    <option value="mtf">MTF</option>    
+                                    <option value="mtf">MTF</option>
+                                    <option value="mtf_or_cnc">MTF or Longterm</option>
                                 </select>
-                                <div class="form-text">Intraday/MIS are equivalent, as are CNC/longterm.</div>
+                                <div class="form-text">Intraday/MIS are equivalent, as are CNC/longterm. "MTF or Longterm" attempts MTF first and falls back to CNC if unavailable.</div>
                             </div>
                             <div class="col-md-6">
                                 <label for="order-qty" class="form-label fw-semibold">Order Quantity
