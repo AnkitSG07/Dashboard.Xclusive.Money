@@ -272,12 +272,18 @@ window.pageScripts["Add-Account"] = function() {
   function populateBrokerCarousel() {
     const scrollContainer = document.querySelector('.broker-scroll');
     if (!scrollContainer) return;
+
     let carouselHtml = '';
-    // Use Object.keys to ensure the order is consistent with brokerFields
-    Object.keys(brokerFields).forEach(broker => {
-        const brokerName = broker.charAt(0).toUpperCase() + broker.slice(1);
-        const iconUrl = brokerIcons[broker] || '/static/images/logo.png';
-        carouselHtml += `
+    // Move the last broker to the front of the carousel
+    const brokers = Object.keys(brokerFields);
+    const orderedBrokers = brokers.length
+      ? [brokers[brokers.length - 1], ...brokers.slice(0, -1)]
+      : brokers;
+
+    orderedBrokers.forEach(broker => {
+      const brokerName = broker.charAt(0).toUpperCase() + broker.slice(1);
+      const iconUrl = brokerIcons[broker] || '/static/images/logo.png';
+      carouselHtml += `
             <div class="broker-item" data-broker="${broker}" title="${brokerName}">
                 <img src="${iconUrl}" class="broker-icon" alt="${brokerName}" />
                 <div class="broker-name">${brokerName}</div>
@@ -286,11 +292,11 @@ window.pageScripts["Add-Account"] = function() {
     });
     scrollContainer.innerHTML = carouselHtml;
     document.querySelectorAll('.broker-item').forEach(item => {
-        item.addEventListener('click', function() {
-          document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
-          this.classList.add('selected');
-          showBrokerForm(this.dataset.broker);
-        });
+      item.addEventListener('click', function () {
+        document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
+        this.classList.add('selected');
+        showBrokerForm(this.dataset.broker);
+      });
     });
   }
 
