@@ -1,13 +1,9 @@
 {% extends "layout.html" %}
 {% block title %}Account Configuration - DhanBot{% endblock %}
 
-{% block head %}
-  {{ super() }}
-  <!-- Link to your new stylesheet -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='addaccount.css') }}">
-{% endblock %}
-
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='addaccount.css') }}">
+
 <div class="background-shapes">
     <div class="shape shape1"></div>
     <div class="shape shape2"></div>
