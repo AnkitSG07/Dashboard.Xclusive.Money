@@ -400,18 +400,84 @@ window.pageScripts["Add-Account"] = function() {
         cardGrid.insertAdjacentHTML('beforeend', cardHtml);
     });
   }
-  
+
+  async function attemptAutoLoginForAccount(acc) {
+    autoLoginResults[acc.client_id] = { status: 'checking' };
+    try {
+      const resp = await fetchJson('/api/reconnect-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: acc.client_id })
+      });
+      if (resp.message) {
+        autoLoginResults[acc.client_id] = { status: 'success' };
+        const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+        if (updatedAcc) updatedAcc.status = 'connected';
+      } else {
+        autoLoginResults[acc.client_id] = { status: 'error', error: resp.error || 'Error' };
+        const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+        if (updatedAcc) {
+          updatedAcc.status = 'failed';
+          updatedAcc.last_error = resp.error;
+        }
+      }
+    } catch (err) {
+      autoLoginResults[acc.client_id] = { status: 'error', error: err.message };
+      const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+      if (updatedAcc) {
+        updatedAcc.status = 'failed';
+        updatedAcc.last_error = err.message;
+      }
+    }
+  }
+
+  async function refreshBalanceForAccount(acc) {
+    try {
+      const resp = await fetchJson('/api/account-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: acc.client_id })
+      });
+      if (typeof resp.balance === 'number') {
+        const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
+        if (updatedAcc) updatedAcc.opening_balance = resp.balance;
+      }
+    } catch (err) {
+      console.error(`Balance refresh failed for ${acc.client_id}:`, err);
+    }
+  }
+
   function renderStatusBadge(acc) {
+    const auto = autoLoginResults[acc.client_id];
+    const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
     const st = (acc.status || '').toLowerCase();
-    if (st === 'connected') return `<span class="badge badge-success">Connected</span>`;
-    if (st === 'failed') return `<span class="badge badge-danger" title="${acc.last_error || 'Error'}">Failed</span>`;
-    return `<span class="badge badge-default">${acc.status || 'Unknown'}</span>`;
+    if (auto) {
+      if (auto.status === 'error') {
+        const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
+        return `<span class="badge badge-danger" title="${msg}">Error</span>`;
+      }
+      if (auto.status === 'checking') {
+        return '<span class="badge badge-info">Connecting...</span>';
+      }
+    }
+
+    if (st && st !== 'connected') {
+      if (st === 'pending') return '<span class="badge badge-info">Pending</span>';
+      if (st === 'failed' || lastErr) {
+        const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
+        return `<span class="badge badge-danger" title="${msg}">Error</span>`;
+      }
+      const label = acc.status ? acc.status : 'Unknown';
+      return `<span class="badge badge-warning">${label}</span>`;
+    }
+
+    return '<span class="badge badge-success">Connected</span>';
   }
 
   function applyFilters() {
     let accountsToRender = allAccounts.slice();
-    if (statusFilter === 'success') accountsToRender = accountsToRender.filter(a => a.status.toLowerCase() === 'connected');
-    else if (statusFilter === 'failed') accountsToRender = accountsToRender.filter(a => a.status.toLowerCase() !== 'connected');
+    if (statusFilter === 'success') accountsToRender = accountsToRender.filter(a => (a.status || '').toLowerCase() === 'connected');
+    else if (statusFilter === 'failed') accountsToRender = accountsToRender.filter(a => (a.status || '').toLowerCase() !== 'connected');
     if (brokerFilter) accountsToRender = accountsToRender.filter(a => a.broker === brokerFilter);
     if (searchFilter) {
       const term = searchFilter.toLowerCase();
@@ -425,7 +491,7 @@ window.pageScripts["Add-Account"] = function() {
 
   function updateCounts() {
     const total = allAccounts.length;
-    const connected = allAccounts.filter(a => a.status.toLowerCase() === 'connected').length;
+    const connected = allAccounts.filter(a => (a.status || '').toLowerCase() === 'connected').length;
     const failed = total - connected;
     
     document.getElementById('tab-count-all').textContent = total;
@@ -561,8 +627,11 @@ window.pageScripts["Add-Account"] = function() {
 
   // Initial Load
   fetchJson('/api/accounts?cache_only=1')
-    .then(data => {
+    .then(async data => {
       allAccounts = data.accounts || [];
+      const autoLoginPromises = allAccounts.map(acc => attemptAutoLoginForAccount(acc));
+      const balanceRefreshPromises = allAccounts.map(acc => refreshBalanceForAccount(acc));
+      await Promise.all([...autoLoginPromises, ...balanceRefreshPromises]);    
       populateBrokerCarousel();
       populateBrokerFilter();
       updateCounts();
