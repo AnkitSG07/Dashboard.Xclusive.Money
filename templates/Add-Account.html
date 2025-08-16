@@ -340,6 +340,13 @@ window.pageScripts["Add-Account"] = function() {
   function hideBrokerForm() {
     const addAccountSection = document.getElementById('add-account-section');
     const addAccountBtn = document.getElementById('add-account-btn');
+    const form = document.getElementById('broker-credentials-form');
+    const submitBtn = document.getElementById('submit-account-btn');
+    if (form) form.reset();
+    if (submitBtn) submitBtn.textContent = 'Add Account';
+    editingAccountId = null;
+    currentBrokerSelected = null;
+    document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
     if (addAccountSection) addAccountSection.style.display = 'none';
     if (addAccountBtn) addAccountBtn.style.display = 'inline-flex';
   }
@@ -446,6 +453,49 @@ window.pageScripts["Add-Account"] = function() {
 
   document.getElementById('cancel-add-account-btn').addEventListener('click', hideBrokerForm);
 
+  // Broker credentials form submission
+  document.getElementById('broker-credentials-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = {};
+    for (const [key, value] of formData.entries()) data[key] = value;
+
+    if (!currentBrokerSelected) { showToast('Please select a broker.', 'warning'); return; }
+    data['broker'] = currentBrokerSelected;
+
+    if (data['broker'] === 'zerodha') {
+      fetchJson('/api/init-zerodha-login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      })
+      .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); })
+      .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
+      return;
+    }
+
+    if (data['broker'] === 'fyers') {
+      fetchJson('/api/init-fyers-login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+      })
+      .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); })
+      .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
+      return;
+    }
+
+    const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
+    if (editingAccountId) data['client_id'] = editingAccountId;
+
+    fetchJson(endpoint, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    })
+    .then(resp => {
+      showToast(resp.message || resp.error || 'Operation completed.');
+      if (resp.message) location.reload();
+    })
+    .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
+  });
+
   document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
@@ -459,9 +509,55 @@ window.pageScripts["Add-Account"] = function() {
   document.getElementById('broker-filter').addEventListener('change', e => { brokerFilter = e.target.value; applyFilters(); });
   document.getElementById('account-search').addEventListener('input', e => { searchFilter = e.target.value; applyFilters(); });
   
-  window.deleteAccount = (cid) => { console.log('Delete', cid); };
-  window.editAccount = (cid) => { console.log('Edit', cid); };
-  window.reconnectAccount = (cid) => { console.log('Reconnect', cid); };
+  window.deleteAccount = function(cid) {
+    if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
+    fetchJson('/api/delete-account', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
+    })
+    .then(resp => { showToast(resp.message || resp.error || 'Unknown error during deletion.'); if (resp.message) location.reload(); })
+    .catch(error => showToast(`Failed to delete account: ${error.message}`, 'error'));
+  };
+
+  window.editAccount = function(cid) {
+    const acc = allAccounts.find(a => a.client_id === cid);
+    if (!acc) { showToast('Account not found for editing.', 'error'); return; }
+    editingAccountId = cid;
+    document.getElementById('add-account-section').style.display = 'block';
+    document.getElementById('add-account-btn').style.display = 'none';
+    document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
+    const item = document.querySelector(`.broker-item[data-broker="${acc.broker}"]`);
+    if (item) { item.classList.add('selected'); showBrokerForm(acc.broker); }
+
+    setTimeout(() => {
+      const form = document.getElementById('broker-credentials-form');
+      if (!form) return;
+      const usernameInput = form.querySelector('input[name="username"]');
+      if (usernameInput) usernameInput.value = acc.username || '';
+      Object.entries(acc.credentials || {}).forEach(([k, v]) => {
+        const inp = form.querySelector(`input[name="${k}"]`);
+        if (inp) {
+          inp.value = v;
+          if (k === 'client_id' || k === 'api_key' || k === 'access_token') {
+            inp.readOnly = true;
+            inp.classList.add('bg-light');
+          }
+        }
+      });
+      const submitBtn = document.getElementById('submit-account-btn');
+      if (submitBtn) submitBtn.textContent = 'Update Account';
+      document.getElementById('cred-check-result').innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
+    }, 100);
+  };
+
+  window.reconnectAccount = function(cid) {
+    if (!confirm('Attempt to reconnect account ' + cid + '?')) return;
+    fetchJson('/api/reconnect-account', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: cid })
+    })
+    .then(resp => { showToast(resp.message || resp.error || 'Unknown error during reconnection.'); if (resp.message) location.reload(); })
+    .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
+  };
+
 
   // Initial Load
   fetchJson('/api/accounts?cache_only=1')
