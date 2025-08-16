@@ -57,12 +57,12 @@
             </div>
         </div>
 
-        <form id="broker-credentials-form" class="row g-3">
-            <div id="broker-fields" class="col-12 form-grid">
+        <form id="broker-credentials-form">
+            <div id="broker-fields" class="form-grid">
                 <p class="form-placeholder">Please select a broker above to view configuration fields.</p>
             </div>
-            <div id="cred-check-result" class="col-12 mt-2 form-feedback"></div>
-            <div class="col-12 d-flex justify-content-end gap-2 mt-4 form-actions">
+            <div id="cred-check-result" class="form-feedback"></div>
+            <div class="form-actions">
                 <button type="button" class="btn btn-outline" id="cancel-add-account-btn">Close</button>
                 <button type="submit" class="btn btn-primary" style="display:none;" id="submit-account-btn">Add Account</button>
             </div>
@@ -317,7 +317,7 @@ window.pageScripts["Add-Account"] = function() {
       formHtml += `
         <div class="form-group">
             <label for="username">Username (for your reference)</label>
-            <input name="username" type="text" id="username" required>
+            <input class="form-control" name="username" type="text" id="username" required>
         </div>`;
     }
     
@@ -328,7 +328,7 @@ window.pageScripts["Add-Account"] = function() {
       formHtml += `
         <div class="form-group">
             <label for="${f.name}">${f.label}</label>
-            <input name="${f.name}" type="${f.type}" id="${f.name}" placeholder="${ph}" ${isRequired}>
+            <input class="form-control" name="${f.name}" type="${f.type}" id="${f.name}" placeholder="${ph}" ${isRequired}>
         </div>`;
     });
 
