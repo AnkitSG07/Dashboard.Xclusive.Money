@@ -454,24 +454,24 @@ window.pageScripts["Add-Account"] = function() {
     if (auto) {
       if (auto.status === 'error') {
         const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
-        return `<span class="badge badge-danger" title="${msg}">Error</span>`;
+        return `<span class="badge bg-danger" title="${msg}"><i class="bi bi-x-circle-fill me-1"></i>Error</span>`;
       }
       if (auto.status === 'checking') {
-        return '<span class="badge badge-info">Connecting...</span>';
+        return '<span class="badge bg-info">Connecting...</span>';
       }
     }
 
     if (st && st !== 'connected') {
-      if (st === 'pending') return '<span class="badge badge-info">Pending</span>';
+      if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
       if (st === 'failed' || lastErr) {
         const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
-        return `<span class="badge badge-danger" title="${msg}">Error</span>`;
+        return `<span class="badge bg-danger" title="${msg}"><i class="bi bi-x-circle-fill me-1"></i>Error</span>`;
       }
       const label = acc.status ? acc.status : 'Unknown';
-      return `<span class="badge badge-warning">${label}</span>`;
+      return `<span class="badge bg-warning">${label}</span>`;
     }
 
-    return '<span class="badge badge-success">Connected</span>';
+    return '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Connected</span>';
   }
 
   function applyFilters() {
@@ -627,11 +627,19 @@ window.pageScripts["Add-Account"] = function() {
 
   // Initial Load
   fetchJson('/api/accounts?cache_only=1')
-    .then(async data => {
+    .then(data => {
       allAccounts = data.accounts || [];
-      const autoLoginPromises = allAccounts.map(acc => attemptAutoLoginForAccount(acc));
-      const balanceRefreshPromises = allAccounts.map(acc => refreshBalanceForAccount(acc));
-      await Promise.all([...autoLoginPromises, ...balanceRefreshPromises]);    
+      // Kick off status and balance refresh in the background so the
+      // page can render immediately with cached data. The UI will be
+      // updated as each account finishes processing.
+      allAccounts.forEach(acc => {
+        attemptAutoLoginForAccount(acc)
+          .then(() => { updateCounts(); applyFilters(); })
+          .catch(() => { updateCounts(); applyFilters(); });
+        refreshBalanceForAccount(acc)
+          .then(() => applyFilters())
+          .catch(() => {});
+      });   
       populateBrokerCarousel();
       populateBrokerFilter();
       updateCounts();
