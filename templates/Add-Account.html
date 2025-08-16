@@ -9,64 +9,98 @@
     <div class="shape shape2"></div>
 </div>
 
-<div class="container">
-    <header class="header-top animated-entry">
-        <h1 class="header-title"><i class="bi bi-gear-fill"></i> Account Configuration</h1>
-        <div class="header-actions">
-            <button id="add-account-btn" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Add New Account
-            </button>
+<div class="container py-5">
+    <div class="hero-section glass-panel mb-5 animated-entry">
+        <div class="me-auto me-md-0 mb-3 mb-md-0">
+            <h2 class="mb-2"><i class="bi bi-gear-fill me-2"></i> Account Configuration</h2>
+            <p class="lead">Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
         </div>
-    </header>
+        <button id="add-account-btn" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i> Add New Account
+        </button>
+    </div>
 
-    <!-- Stats Bar -->
-    <section class="stats-bar-module glass-panel animated-entry">
-        <div class="stats-bar">
-            <div class="stat-item">
+    <div class="row g-4 mb-5 animated-entry" style="animation-delay: 0.1s;">
+        <div class="col-sm-6 col-md-3">
+            <div class="summary-card glass-panel h-100">
                 <p class="stat-label">Total Capacity</p>
-                <h2 class="stat-value primary" id="total-capacity">0</h2>
+                <h4 class="stat-value" id="total-capacity">0</h4>
             </div>
-            <div class="stat-item">
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="summary-card glass-panel h-100">
                 <p class="stat-label">Master Accounts</p>
-                <h2 class="stat-value" id="master-accounts-count">0</h2>
+                <h4 class="stat-value" id="master-accounts-count">0</h4>
             </div>
-            <div class="stat-item">
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="summary-card glass-panel h-100">
                 <p class="stat-label">Child Accounts</p>
-                <h2 class="stat-value" id="child-accounts-count">0</h2>
+                <h4 class="stat-value" id="child-accounts-count">0</h4>
             </div>
-            <div class="stat-item">
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="summary-card glass-panel h-100">
                 <p class="stat-label">Current Plan</p>
-                <h2 class="stat-value success" id="current-plan">N/A</h2>
+                <h4 class="stat-value" id="current-plan">N/A</h4>
             </div>
         </div>
-    </section>
+    </div>
 
-    <section class="accounts-workspace animated-entry">
-        <!-- Add/Edit Account Form Section (Inline Expansion) -->
-        <div id="add-account-section">
-            <h3 class="section-title">Add New Account</h3>
-            <p class="section-subtitle">Select your broker to get started.</p>
-            <div class="broker-carousel">
-                <div class="broker-scroll">
-                    <!-- Broker icons will be dynamically populated by your script -->
+    <div id="add-account-section" class="glass-panel mb-5" style="display:none;">
+        <h3 class="section-title">Add/Edit Account Details</h3>
+        <p class="section-subtitle">Select your broker to configure account credentials.</p>
+        
+        <div class="broker-carousel mb-4">
+            <div class="broker-scroll">
+                <!-- This part is populated by your original JS -->
+            </div>
+        </div>
+
+        <form id="broker-credentials-form" class="row g-3">
+            <div id="broker-fields" class="col-12 form-grid">
+                <p class="form-placeholder">Please select a broker above to view configuration fields.</p>
+            </div>
+            <div id="cred-check-result" class="col-12 mt-2 form-feedback"></div>
+            <div class="col-12 d-flex justify-content-end gap-2 mt-4 form-actions">
+                <button type="button" class="btn btn-outline" id="cancel-add-account-btn">Close</button>
+                <button type="submit" class="btn btn-primary" style="display:none;" id="submit-account-btn">Add Account</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="accounts-module glass-panel animated-entry" style="animation-delay: 0.2s;">
+        <div class="panel-header">
+            <h3 class="section-title">Your Connected Accounts</h3>
+            <div class="filters">
+                <select class="form-select" id="broker-filter"></select>
+                <div class="input-group">
+                    <i class="bi bi-search"></i>
+                    <input type="search" class="form-control" id="account-search" placeholder="Search...">
                 </div>
             </div>
-            <form id="broker-credentials-form">
-                <div id="broker-fields" class="form-grid">
-                    <!-- Dynamic form fields appear here -->
-                </div>
-                <div id="cred-check-result" class="form-feedback"></div>
-                <div class="form-actions" style="display: none;">
-                    <button type="button" class="btn btn-outline" id="cancel-add-account-btn">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="submit-account-btn">Add Account</button>
-                </div>
-            </form>
         </div>
 
-        <div id="polaroid-container" class="polaroid-container">
-            <!-- Account polaroids will be populated by your script -->
+        <ul class="nav-tabs" id="status-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-status="all">All <span class="badge" id="tab-count-all">0</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-status="success">Connected <span class="badge" id="tab-count-success">0</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-status="failed">Failed <span class="badge" id="tab-count-failed">0</span></a>
+            </li>
+        </ul>
+
+        <div id="accounts-card-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <!-- This part is populated by your original JS -->
         </div>
-    </section>
+        <div id="accounts-empty-state" class="empty-state" style="display: none;">
+            <i class="bi bi-info-circle-fill"></i>
+            <p>No accounts found matching your criteria.</p>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -228,6 +262,7 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
+  // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
   function showToast(message, type = 'success') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     alert(message); // Using alert for immediate demo purposes
@@ -238,15 +273,17 @@ window.pageScripts["Add-Account"] = function() {
     const scrollContainer = document.querySelector('.broker-scroll');
     if (!scrollContainer) return;
     let carouselHtml = '';
-    for (const broker in brokerIcons) {
+    // Use Object.keys to ensure the order is consistent with brokerFields
+    Object.keys(brokerFields).forEach(broker => {
         const brokerName = broker.charAt(0).toUpperCase() + broker.slice(1);
+        const iconUrl = brokerIcons[broker] || '/static/images/logo.png';
         carouselHtml += `
             <div class="broker-item" data-broker="${broker}" title="${brokerName}">
-                <img src="${brokerIcons[broker]}" class="broker-icon" alt="${brokerName}" />
+                <img src="${iconUrl}" class="broker-icon" alt="${brokerName}" />
                 <div class="broker-name">${brokerName}</div>
             </div>
         `;
-    }
+    });
     scrollContainer.innerHTML = carouselHtml;
     document.querySelectorAll('.broker-item').forEach(item => {
         item.addEventListener('click', function() {
@@ -266,7 +303,7 @@ window.pageScripts["Add-Account"] = function() {
     const formActions = document.querySelector('.form-actions');
 
     container.innerHTML = "";
-    resultDiv.textContent = "";
+    if (resultDiv) resultDiv.textContent = "";
     if (submitBtn) submitBtn.style.display = "none";
     if (formActions) formActions.style.display = 'none';
 
@@ -276,7 +313,6 @@ window.pageScripts["Add-Account"] = function() {
     }
 
     let formHtml = '';
-
     if (broker !== 'broker1') {
       formHtml += `
         <div class="form-group">
@@ -304,99 +340,124 @@ window.pageScripts["Add-Account"] = function() {
   function hideBrokerForm() {
     const addAccountSection = document.getElementById('add-account-section');
     const addAccountBtn = document.getElementById('add-account-btn');
-    const brokerFieldsContainer = document.getElementById('broker-fields');
-    const formActions = document.querySelector('.form-actions');
-
-    addAccountSection.classList.remove('open');
+    if (addAccountSection) addAccountSection.style.display = 'none';
     if (addAccountBtn) addAccountBtn.style.display = 'inline-flex';
-    if (brokerFieldsContainer) brokerFieldsContainer.innerHTML = '';
-    if (formActions) formActions.style.display = 'none';
-    document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
   }
 
   function renderAccounts(accountsToRender) {
-    const workspace = document.getElementById('polaroid-container');
-    if (!workspace) return;
-    workspace.innerHTML = '';
+    const cardGrid = document.getElementById('accounts-card-grid');
+    const emptyState = document.getElementById('accounts-empty-state');
+    if (!cardGrid || !emptyState) return;
+    cardGrid.innerHTML = '';
 
     if (accountsToRender.length === 0) {
-        // Handle empty state if needed, maybe show a message in the workspace
+        emptyState.style.display = 'flex';
         return;
+    } else {
+        emptyState.style.display = 'none';
     }
 
     accountsToRender.forEach(acc => {
-        const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : 'N/A';
-        const iconUrl = brokerIcons[acc.broker] || 'https://placehold.co/60';
-        const statusHtml = acc.status.toLowerCase() === 'connected' ? `<span class="badge badge-success">Connected</span>` : `<span class="badge badge-danger" title="${acc.last_error || 'Error'}">Failed</span>`;
+        const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
+        const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
+        const statusHtml = renderStatusBadge(acc);
 
-        const polaroid = document.createElement('div');
-        polaroid.className = 'account-polaroid';
-        polaroid.innerHTML = `
-            <div class="polaroid-header">
-                <img src="${iconUrl}" alt="${brokerName}" class="polaroid-icon">
-                <div>
-                    <div class="polaroid-id">${acc.client_id}</div>
-                    <div class="polaroid-username">${acc.username || '-'}</div>
+        const cardHtml = `
+            <div class="col">
+                <div class="account-card">
+                    <div class="account-card-header">
+                        <img src="${iconUrl}" alt="${brokerName} logo">
+                        <div class="account-info">
+                            <span class="account-id">${acc.client_id}</span>
+                            <span class="account-username">${acc.username || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="account-card-body">
+                        <div class="account-detail">
+                            <span>Balance:</span>
+                            <span>₹${acc.opening_balance ? acc.opening_balance.toLocaleString('en-IN') : '-'}</span>
+                        </div>
+                        <div class="account-detail">
+                            <span>Status:</span>
+                            <span id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</span>
+                        </div>
+                    </div>
+                    <div class="account-card-footer">
+                        <button class="action-btn" onclick="window.editAccount('${acc.client_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
+                        <button class="action-btn" onclick="window.reconnectAccount('${acc.client_id}')" title="Reconnect"><i class="bi bi-arrow-repeat"></i></button>
+                        <button class="action-btn danger" onclick="window.deleteAccount('${acc.client_id}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
                 </div>
-            </div>
-            <div class="polaroid-details">
-                <div class="polaroid-detail">
-                    <span class="label">Balance</span>
-                    <span class="value">₹${acc.opening_balance ? acc.opening_balance.toLocaleString('en-IN') : '-'}</span>
-                </div>
-                <div class="polaroid-detail">
-                    <span class="label">Status</span>
-                    <span class="value">${statusHtml}</span>
-                </div>
-            </div>
-            <div class="polaroid-actions">
-                <button class="action-btn" onclick="window.editAccount('${acc.client_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
-                <button class="action-btn" onclick="window.reconnectAccount('${acc.client_id}')" title="Reconnect"><i class="bi bi-arrow-repeat"></i></button>
-                <button class="action-btn danger" onclick="window.deleteAccount('${acc.client_id}')" title="Delete"><i class="bi bi-trash"></i></button>
             </div>
         `;
-        workspace.appendChild(polaroid);
+        cardGrid.insertAdjacentHTML('beforeend', cardHtml);
     });
   }
   
+  function renderStatusBadge(acc) {
+    const st = (acc.status || '').toLowerCase();
+    if (st === 'connected') return `<span class="badge badge-success">Connected</span>`;
+    if (st === 'failed') return `<span class="badge badge-danger" title="${acc.last_error || 'Error'}">Failed</span>`;
+    return `<span class="badge badge-default">${acc.status || 'Unknown'}</span>`;
+  }
+
   function applyFilters() {
     let accountsToRender = allAccounts.slice();
-    // Filtering logic would go here if filter UI elements were present
+    if (statusFilter === 'success') accountsToRender = accountsToRender.filter(a => a.status.toLowerCase() === 'connected');
+    else if (statusFilter === 'failed') accountsToRender = accountsToRender.filter(a => a.status.toLowerCase() !== 'connected');
+    if (brokerFilter) accountsToRender = accountsToRender.filter(a => a.broker === brokerFilter);
+    if (searchFilter) {
+      const term = searchFilter.toLowerCase();
+      accountsToRender = accountsToRender.filter(a =>
+        String(a.client_id).toLowerCase().includes(term) ||
+        (a.username || '').toLowerCase().includes(term)
+      );
+    }
     renderAccounts(accountsToRender);
   }
 
   function updateCounts() {
+    const total = allAccounts.length;
+    const connected = allAccounts.filter(a => a.status.toLowerCase() === 'connected').length;
+    const failed = total - connected;
+    
+    document.getElementById('tab-count-all').textContent = total;
+    document.getElementById('tab-count-success').textContent = connected;
+    document.getElementById('tab-count-failed').textContent = failed;
+
     document.getElementById('master-accounts-count').textContent = allAccounts.filter(acc => acc.role === 'master').length;
     document.getElementById('child-accounts-count').textContent = allAccounts.filter(acc => acc.role === 'child').length;
     document.getElementById('total-capacity').textContent = '10';
     document.getElementById('current-plan').textContent = 'Professional';
   }
 
-  function toggleAddAccountForm(show) {
-      const addAccountSection = document.getElementById('add-account-section');
-      const addAccountBtn = document.getElementById('add-account-btn');
-      if (show) {
-          addAccountSection.classList.add('open');
-          if (addAccountBtn) addAccountBtn.style.display = 'none';
-      } else {
-          addAccountSection.classList.remove('open');
-          if (addAccountBtn) addAccountBtn.style.display = 'inline-flex';
-          const brokerFieldsContainer = document.getElementById('broker-fields');
-          const formActions = document.querySelector('.form-actions');
-          if (brokerFieldsContainer) brokerFieldsContainer.innerHTML = '';
-          if (formActions) formActions.style.display = 'none';
-          document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
-      }
+  function populateBrokerFilter() {
+    const select = document.getElementById('broker-filter');
+    if (!select) return;
+    const brokers = [...new Set(allAccounts.map(a => a.broker))].sort();
+    select.innerHTML = '<option value="">All Brokers</option>' +
+      brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
   }
 
-  const addAccountBtn = document.getElementById('add-account-btn');
-  const cancelBtn = document.getElementById('cancel-add-account-btn');
-  if (addAccountBtn) {
-    addAccountBtn.addEventListener('click', () => toggleAddAccountForm(true));
-  }
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => toggleAddAccountForm(false));
-  }
+  document.getElementById('add-account-btn').addEventListener('click', () => {
+      document.getElementById('add-account-section').style.display = 'block';
+      document.getElementById('add-account-btn').style.display = 'none';
+  });
+
+  document.getElementById('cancel-add-account-btn').addEventListener('click', hideBrokerForm);
+
+  document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('#status-tabs .nav-link').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+      statusFilter = link.dataset.status || 'all';
+      applyFilters();
+    });
+  });
+
+  document.getElementById('broker-filter').addEventListener('change', e => { brokerFilter = e.target.value; applyFilters(); });
+  document.getElementById('account-search').addEventListener('input', e => { searchFilter = e.target.value; applyFilters(); });
   
   window.deleteAccount = (cid) => { console.log('Delete', cid); };
   window.editAccount = (cid) => { console.log('Edit', cid); };
@@ -407,6 +468,7 @@ window.pageScripts["Add-Account"] = function() {
     .then(data => {
       allAccounts = data.accounts || [];
       populateBrokerCarousel();
+      populateBrokerFilter();
       updateCounts();
       applyFilters();
     })
