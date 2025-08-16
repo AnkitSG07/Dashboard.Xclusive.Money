@@ -5318,7 +5318,7 @@ def delete_account():
     return jsonify({"message": f"Account {client_id} deleted."})
 
 # Reconnect an existing account by validating stored credentials
-@@app.route('/api/reconnect-account', methods=['POST', 'GET'])
+@app.route('/api/reconnect-account', methods=['POST', 'GET'])
 @login_required
 def reconnect_account():
     """Reconnect an account using stored or provided credentials."""
