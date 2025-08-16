@@ -5318,11 +5318,25 @@ def delete_account():
     return jsonify({"message": f"Account {client_id} deleted."})
 
 # Reconnect an existing account by validating stored credentials
-@app.route('/api/reconnect-account', methods=['POST'])
+@@app.route('/api/reconnect-account', methods=['POST', 'GET'])
 @login_required
 def reconnect_account():
     """Reconnect an account using stored or provided credentials."""
-    data = request.json or {}
+    # ``request.json`` can raise a BadRequest if the client sends invalid or
+    # no JSON with a ``Content-Type`` of ``application/json``. This happened in
+    # some browsers where the endpoint was called without a body, causing Flask
+    # to return a 400 before we could handle the error ourselves.  Using
+    # ``get_json(silent=True)`` ensures ``None`` is returned instead of raising
+    # an exception so we can respond with a helpful message.
+    data = request.get_json(silent=True) or {}
+
+    # Support clients that might send data via query parameters or form data
+    # (e.g., when invoking the endpoint with a simple GET request during page
+    # load).  These fallbacks make the endpoint more tolerant of different
+    # invocation styles and avoid unexpected 400 errors.
+    if not data:
+        data = request.args.to_dict() or request.form.to_dict() or {}
+
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 400
