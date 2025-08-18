@@ -698,9 +698,9 @@ def map_product_type(product_type: str | None, broker: str) -> str:
         return "INTRADAY" if broker in ("dhan", "fyers") else "MIS"
     if base == "MTF":
         return "MTF"
-    if base == "CNC" and broker == "dhan":
-        return "DELIVERY"
-    return "CNC"
+    if base == "CNC":
+        return "CNC"
+    return base
 
 def build_order_params(broker_name: str, mapping: dict, symbol: str, action: str, qty: int, order_type: str, api, product_type: str | None = None) -> dict:
     """Return broker specific order parameters."""
