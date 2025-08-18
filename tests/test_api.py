@@ -394,7 +394,7 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         assert child.last_copied_trade_id == "2"
 
 
-def test_poll_and_copy_trades_maps_cnc_to_delivery_for_dhan_child(client, monkeypatch):
+def test_poll_and_copy_trades_maps_cnc_to_cnc_for_dhan_child(client, monkeypatch):
     app = app_module.app
     db = app_module.db
     User = app_module.User
@@ -486,7 +486,7 @@ def test_poll_and_copy_trades_maps_cnc_to_delivery_for_dhan_child(client, monkey
         app_module.poll_and_copy_trades()
 
         assert placed
-        assert placed[0].get("product_type") == "DELIVERY"
+        assert placed[0].get("product_type") == "CNC"
 
 
 def test_poll_and_copy_trades_preserves_product_type_mtf(client, monkeypatch):
@@ -673,7 +673,7 @@ def test_poll_and_copy_trades_copies_cnc_sell_orders(client, monkeypatch):
 
         assert placed
         assert placed[0]["transaction_type"] == "SELL"
-        assert placed[0]["product_type"] == "DELIVERY"
+        assert placed[0]["product_type"] == "CNC"
 
 def test_poll_and_copy_trades_copies_cnc_buy_orders(client, monkeypatch):
     app = app_module.app
@@ -764,7 +764,7 @@ def test_poll_and_copy_trades_copies_cnc_buy_orders(client, monkeypatch):
 
         assert placed
         assert placed[0]["transaction_type"] == "BUY"
-        assert placed[0]["product_type"] == "DELIVERY"
+        assert placed[0]["product_type"] == "CNC"
 
 
 def test_poll_and_copy_trades_dhan_invalid_syntax_skipped(client, monkeypatch):
@@ -1203,7 +1203,7 @@ def test_exit_all_positions_uses_position_product(client, monkeypatch):
 
         results = app_module.exit_all_positions_for_account(acc)
 
-    assert placed.get("product_type") == "DELIVERY"
+    assert placed.get("product_type") == "CNC"
     assert results[0]["status"] == "SUCCESS"
 
 
@@ -1417,7 +1417,7 @@ def test_exit_master_positions_endpoint(client, monkeypatch, broker):
     assert data["exited"]
     assert data["message"] == "Exited 1 of 1 positions for M1"
     if broker == "dhan":
-        assert placed.get("product_type") == "DELIVERY"
+        assert placed.get("product_type") == "CNC"
     else:
         assert placed.get("product") == "CNC"
 
@@ -1492,7 +1492,7 @@ def test_exit_child_positions_endpoint(client, monkeypatch, broker):
     assert data["exited"]
     assert data["message"] == "Exited 1 of 1 positions for C1"
     if broker == "dhan":
-        assert placed.get("product_type") == "DELIVERY"
+        assert placed.get("product_type") == "CNC"
     else:
         assert placed.get("product") == "CNC"
 
@@ -1558,7 +1558,7 @@ def test_exit_all_children_endpoint(client, monkeypatch, broker):
     assert "C1" in data["exited_children"]
     assert len(placed_orders) == 1
     if broker == "dhan":
-        assert placed_orders[0].get("product_type") == "DELIVERY"
+        assert placed_orders[0].get("product_type") == "CNC"
     else:
         assert placed_orders[0].get("product") == "CNC"
 
@@ -2216,8 +2216,8 @@ def test_webhook_tradingview_payload(client, monkeypatch):
 @pytest.mark.parametrize(
     "payload_pt,expected",
     [
-        # Dhan treats CNC (cash-and-carry) orders as DELIVERY
-        ("cnc", "DELIVERY"),
+        # Dhan uses CNC for cash-and-carry orders
+        ("cnc", "CNC"),
         ("mis", "INTRADAY"),
         ("mtf_or_cnc", "MTF"),
     ],
@@ -2376,7 +2376,7 @@ def test_mtf_or_cnc_fallback(client, monkeypatch):
         f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
     )
     assert resp.status_code == 200
-    assert attempts == ["MTF", "DELIVERY"]
+    assert attempts == ["MTF", "CNC"]
     assert app_module.is_mtf_supported("NSE:IDEA", "dhan") is False
 
 
@@ -2461,7 +2461,7 @@ def test_mtf_cache_hit_skips_mtf(client, monkeypatch):
         f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
     )
     assert resp.status_code == 200
-    assert attempts == ["DELIVERY"]
+    assert attempts == ["CNC"]
 
 
 def test_mtf_cache_stale_retry(client, monkeypatch):
@@ -2546,7 +2546,7 @@ def test_mtf_cache_stale_retry(client, monkeypatch):
         f"/webhook/{token}", json=payload, headers={"X-Webhook-Secret": "secret"}
     )
     assert resp.status_code == 200
-    assert attempts == ["MTF", "DELIVERY"]
+    assert attempts == ["MTF", "CNC"]
     entry = app_module.MTF_SUPPORT_CACHE.get("dhan:nse:idea")
     assert entry and entry[0] > stale_ts
 
