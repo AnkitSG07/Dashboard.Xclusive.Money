@@ -2614,6 +2614,69 @@ def test_webhook_requires_active_strategy(client, monkeypatch):
         headers={"X-Webhook-Secret": "sec_in"},
     )
     assert resp.status_code == 200
+def test_webhook_rejects_duplicate_alerts(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+    Strategy = app_module.Strategy
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        user.webhook_token = "tokdup"
+        acc = Account(
+            user_id=user.id,
+            broker="dhan",
+            client_id="CD",
+            credentials={"access_token": "x"},
+        )
+        db.session.add(acc)
+        strategy = Strategy(
+            user_id=user.id,
+            account_id=acc.id,
+            name="Dup", 
+            asset_class="Stocks",
+            style="Systematic",
+            webhook_secret="secdup",
+            is_active=True,
+        )
+        db.session.add(strategy)
+        db.session.commit()
+    import brokers
+    class DummyBroker(brokers.base.BrokerBase):
+        BUY = "BUY"
+        SELL = "SELL"
+        MARKET = "MARKET"
+        INTRA = "INTRADAY"
+        NSE = "NSE"
+
+        def place_order(self, *a, **k):
+            return {"status": "success", "order_id": "1"}
+        def get_order_list(self):
+            return []
+        def get_positions(self):
+            return []
+        def cancel_order(self, order_id):
+            pass
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(
+        app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
+    )
+    monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
+    app_module.RECENT_WEBHOOK_IDS.clear()
+    payload = {"symbol": "A", "action": "BUY", "quantity": 1, "alert_id": "1"}
+    resp = client.post(
+        "/webhook/tokdup",
+        json=payload,
+        headers={"X-Webhook-Secret": "secdup"},
+    )
+    assert resp.status_code == 200
+    resp = client.post(
+        "/webhook/tokdup",
+        json=payload,
+        headers={"X-Webhook-Secret": "secdup"},
+    )
+    assert resp.status_code == 409
 
 def test_risk_limit_max_positions(client, monkeypatch):
     login(client)
