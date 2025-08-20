@@ -53,7 +53,8 @@ def active_children_for_master(master):
         Account.user_id == master.user_id,
         Account.role == 'child',
         Account.linked_master_id == master.client_id,
-        db.func.lower(Account.copy_status) == 'on'
+        db.func.lower(Account.copy_status) == 'on',
+        db.func.lower(Account.client_id) != str(master.client_id).lower(),
     ).all()
 
 def log_connection_error(
