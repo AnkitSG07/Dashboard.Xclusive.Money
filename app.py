@@ -169,6 +169,11 @@ CACHE_TTL = 300
 MTF_SUPPORT_CACHE = {}
 MTF_CACHE_TTL = 3600  # one hour
 
+# Cache for recently seen webhook identifiers per (user, strategy)
+# Maps (user_id, strategy_id) -> {identifier: timestamp}
+RECENT_WEBHOOK_IDS = defaultdict(dict)
+# Seconds to retain identifiers before expiring them
+WEBHOOK_ID_TTL = 60
 
 def is_mtf_supported(symbol: str, broker: str):
     """Return cached MTF support for a symbol/broker if fresh.
@@ -3131,6 +3136,30 @@ def webhook(user_id):
             ):
                 logger.error("Webhook secret required but missing")
                 return jsonify({"error": "Webhook secret required"}), 403
+
+        # Extract a unique identifier from the payload if available and
+        # ensure we haven't processed it recently for this user/strategy.
+        alert_id = None
+        if isinstance(data, dict):
+            for key in ("alert_id", "alertId", "id", "timestamp", "time", "ts"):
+                if key in data and data[key] is not None:
+                    alert_id = str(data[key])
+                    break
+        if alert_id:
+            cache_key = (user_obj.id, strategy.id if strategy else None)
+            cache = RECENT_WEBHOOK_IDS[cache_key]
+            now = time()
+            # purge expired identifiers
+            for ident, ts in list(cache.items()):
+                if now - ts > WEBHOOK_ID_TTL:
+                    del cache[ident]
+            if alert_id in cache:
+                logger.info(
+                    f"Duplicate alert {alert_id} for user {user_obj.id} strategy "
+                    f"{getattr(strategy, 'id', None)}"
+                )
+                return jsonify({"error": "Duplicate alert"}), 409
+            cache[alert_id] = now
 
         # Validate required fields
         symbols: list[str] = []
