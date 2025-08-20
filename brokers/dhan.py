@@ -188,16 +188,32 @@ class DhanBroker(BrokerBase):
 
         # Paginated fetch for large accounts
         all_orders = []
+        seen_ids = set()
         offset = 0
-        for i in range(max_batches): # Use i if you want to log batch number
+        for i in range(max_batches):  # Use i if you want to log batch number
             try:
                 url = "{}/orders?offset={}&limit={}".format(self.api_base, offset, batch_size)
-                r = self._request("get", url, headers=self.headers, timeout=self.timeout) # Pass timeout
+                r = self._request("get", url, headers=self.headers, timeout=self.timeout)  # Pass timeout
                 batch = r.json()
                 batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
                 if not batch_orders or len(batch_orders) == 0:
                     break
-                all_orders.extend(batch_orders)
+
+                # Detect if offset is being ignored by the API by checking for
+                # orderIds we have already seen. If the first orderId of a
+                # subsequent batch repeats, stop pagination.
+                first_oid = (batch_orders[0].get("orderId") or batch_orders[0].get("order_id")) if batch_orders else None
+                if offset > 0 and first_oid in seen_ids:
+                    break
+
+                for o in batch_orders:
+                    oid = o.get("orderId") or o.get("order_id")
+                    if oid in seen_ids:
+                        # Skip duplicates within or across batches
+                        continue
+                    seen_ids.add(oid)
+                    all_orders.append(o)
+
                 if len(batch_orders) < batch_size:
                     break
                 offset += batch_size
