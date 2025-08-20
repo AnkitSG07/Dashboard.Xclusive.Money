@@ -1983,6 +1983,11 @@ def poll_and_copy_trades():
                 # Process each child account
                 for child in children:
                     child_id = child.client_id
+                    if child_id == master_id:
+                        logger.warning(
+                            f"[{master_id}] Skipping child with matching client_id"
+                        )
+                        continue    
                     last_copied_trade_id = child.last_copied_trade_id
                     new_last_trade_id = None
 
