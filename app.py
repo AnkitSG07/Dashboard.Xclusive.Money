@@ -2807,10 +2807,11 @@ def get_order_book(client_id):
                 # Extract quantities with validation
                 try:
                     placed_qty = int(
-                        order.get("orderQuantity")
+                        order.get("orderQty")
+                        or order.get("tradedQuantity")
+                        or order.get("orderQuantity")
                         or order.get("qty")
                         or order.get("Qty")
-                        or order.get("quantity")
                         or 0
                     )
                 except (TypeError, ValueError):
@@ -2818,7 +2819,8 @@ def get_order_book(client_id):
 
                 try:
                     filled_qty = int(
-                        order.get("filledQuantity")
+                        order.get("tradedQuantity")
+                        or order.get("filledQuantity")
                         or order.get("filled_qty")
                         or order.get("filledQty")
                         or order.get("Filledqty")     # AliceBlue
