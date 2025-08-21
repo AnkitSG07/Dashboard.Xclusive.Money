@@ -5,6 +5,7 @@ import tempfile
 import io
 import json
 from datetime import datetime
+import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -15,7 +16,7 @@ os.environ.setdefault("ADMIN_PASSWORD", "pass")
 os.environ.setdefault("RUN_SCHEDULER", "0")
 
 import app as app_module
-
+from cache import cache_clear, cache_set, cache_get
 
 @pytest.fixture
 def client():
@@ -916,7 +917,7 @@ def test_opening_balance_cache(monkeypatch):
 
     calls = []
     monkeypatch.setattr(app_module, "broker_api", lambda acc: DummyBroker())
-    app_module.OPENING_BALANCE_CACHE.clear()
+    cache_clear(prefix="opening_balance:")
 
     acc = {"client_id": "A1", "broker": "dummy", "credentials": {}}
 
@@ -1734,7 +1735,7 @@ def test_get_opening_balance_with_client_id_in_credentials(monkeypatch):
             return 99.0
 
     monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
-    app_module.OPENING_BALANCE_CACHE.clear()
+    cache_clear(prefix="opening_balance:")
 
     acc = {
         "broker": "fyers",
@@ -2394,7 +2395,7 @@ def test_mtf_or_cnc_fallback(client, monkeypatch):
     attempts = []
     import brokers
 
-    app_module.MTF_SUPPORT_CACHE.clear()
+    cache_clear(prefix="mtf_support:")
 
     class DummyBroker(brokers.base.BrokerBase):
         BUY = "BUY"
@@ -2478,8 +2479,10 @@ def test_mtf_cache_hit_skips_mtf(client, monkeypatch):
     attempts = []
     import brokers
 
-    app_module.MTF_SUPPORT_CACHE.clear()
-    app_module.MTF_SUPPORT_CACHE["dhan:nse:idea"] = (time.time(), False)
+    cache_clear(prefix="mtf_support:")
+    cache_set(
+        "mtf_support:dhan:nse:idea", False, ttl=app_module.MTF_CACHE_TTL
+    )
 
     class DummyBroker(brokers.base.BrokerBase):
         BUY = "BUY"
@@ -2528,7 +2531,6 @@ def test_mtf_cache_hit_skips_mtf(client, monkeypatch):
 
 
 def test_mtf_cache_stale_retry(client, monkeypatch):
-    import time as pytime
 
     login(client)
     app = app_module.app
@@ -2562,9 +2564,9 @@ def test_mtf_cache_stale_retry(client, monkeypatch):
     attempts = []
     import brokers
 
-    app_module.MTF_SUPPORT_CACHE.clear()
-    stale_ts = pytime.time() - app_module.MTF_CACHE_TTL - 1
-    app_module.MTF_SUPPORT_CACHE["dhan:nse:idea"] = (stale_ts, False)
+    cache_clear(prefix="mtf_support:")
+    cache_set("mtf_support:dhan:nse:idea", False, ttl=1)
+    time.sleep(1.1)
 
     class DummyBroker(brokers.base.BrokerBase):
         BUY = "BUY"
@@ -2610,8 +2612,9 @@ def test_mtf_cache_stale_retry(client, monkeypatch):
     )
     assert resp.status_code == 200
     assert attempts == ["MTF", "CNC"]
-    entry = app_module.MTF_SUPPORT_CACHE.get("dhan:nse:idea")
-    assert entry and entry[0] > stale_ts
+    entry = cache_get("mtf_support:dhan:nse:idea")
+    assert entry is False
+
 
 def test_webhook_requires_active_strategy(client, monkeypatch):
     login(client)
@@ -2726,7 +2729,7 @@ def test_webhook_rejects_duplicate_alerts(client, monkeypatch):
         app_module, "get_symbol_for_broker", lambda s, b: {"security_id": "1"}
     )
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
-    app_module.RECENT_WEBHOOK_IDS.clear()
+    cache_clear(prefix="webhook:")
     payload = {"symbol": "A", "action": "BUY", "quantity": 1, "alert_id": "1"}
     resp = client.post(
         "/webhook/tokdup",
