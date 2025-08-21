@@ -71,6 +71,7 @@ from helpers import (
     normalize_position,
 )
 from symbols import get_symbols
+from services.logging import logging_bp, publish_log_event
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -200,6 +201,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
+app.register_blueprint(logging_bp, url_prefix="/admin/logs")
 csrf.exempt(api_bp)
 start_time = datetime.utcnow()
 device_number = None
@@ -3865,29 +3867,30 @@ def master_squareoff():
 
         # ✅ STEP 12: Log the bulk square-off action
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
-                level="INFO",
-                message=f"Master square-off completed: {master_order_id} - {successful_squareoffs} success, {failed_squareoffs} failed",
-                user_id=session.get("user", "system"), # Use session.get('user') which is an email string
-                details=json.dumps({
-                    "action": "master_squareoff",
-                    "master_order_id": master_order_id,
-                    "total_mappings": len(active_mappings),
-                    "successful_squareoffs": successful_squareoffs,
-                    "failed_squareoffs": failed_squareoffs,
-                    "children_processed": len(child_mappings),
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "results_summary": {
-                        "success": len([r for r in results if r["status"] == "SUCCESS"]),
-                        "failed": len([r for r in results if r["status"] == "FAILED"]),
-                        "skipped": len([r for r in results if r["status"] == "SKIPPED"]),
-                        "error": len([r for r in results if r["status"] == "ERROR"])
-                    }
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Master square-off completed: {master_order_id} - {successful_squareoffs} success, {failed_squareoffs} failed",
+                    "user_id": session.get("user", "system"),
+                    "module": "system",
+                    "details": {
+                        "action": "master_squareoff",
+                        "master_order_id": master_order_id,
+                        "total_mappings": len(active_mappings),
+                        "successful_squareoffs": successful_squareoffs,
+                        "failed_squareoffs": failed_squareoffs,
+                        "children_processed": len(child_mappings),
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                        "results_summary": {
+                            "success": len([r for r in results if r["status"] == "SUCCESS"]),
+                            "failed": len([r for r in results if r["status"] == "FAILED"]),
+                            "skipped": len([r for r in results if r["status"] == "SKIPPED"]),
+                            "error": len([r for r in results if r["status"] == "ERROR"]),
+                        },
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log master square-off action: {str(e)}")
 
@@ -4618,25 +4621,26 @@ def change_master():
 
         # ✅ STEP 12: Log the action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
-                level="INFO",
-                message=f"Master changed: {child_id} from {old_master_id} to {new_master_id}",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "change_master",
-                    "child_id": child_id,
-                    "old_master_id": old_master_id,
-                    "new_master_id": new_master_id,
-                    "user": user_email,
-                    "was_copying": was_copying,
-                    "new_marker": new_latest_order_id,
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "previous_state": previous_state
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Master changed: {child_id} from {old_master_id} to {new_master_id}",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "change_master",
+                        "child_id": child_id,
+                        "old_master_id": old_master_id,
+                        "new_master_id": new_master_id,
+                        "user": user_email,
+                        "was_copying": was_copying,
+                        "new_marker": new_latest_order_id,
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                        "previous_state": previous_state,
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log master change: {str(e)}")
 
@@ -4750,25 +4754,26 @@ def remove_child():
 
         db.session.commit()
 
-        log_entry = SystemLog(
-            timestamp=current_time_iso,
-            level="INFO",
-            message=f"Child removed: {client_id} from master {master_id}",
-            user_id=str(user.id),
-            details=json.dumps({
-                "action": "remove_child",
-                "client_id": client_id,
-                "master_id": master_id,
-                "user": user_email,
-                "was_copying": was_copying,
-                "active_mappings": mapping_count,
-                "mappings_updated": mappings_updated,
-                "timestamp": current_time_iso, # Corrected Timestamp
-                "previous_state": previous_state
-            })
+        publish_log_event(
+            {
+                "timestamp": current_time_iso,
+                "level": "INFO",
+                "message": f"Child removed: {client_id} from master {master_id}",
+                "user_id": str(user.id),
+                "module": "system",
+                "details": {
+                    "action": "remove_child",
+                    "client_id": client_id,
+                    "master_id": master_id,
+                    "user": user_email,
+                    "was_copying": was_copying,
+                    "active_mappings": mapping_count,
+                    "mappings_updated": mappings_updated,
+                    "timestamp": current_time_iso,  # Corrected Timestamp
+                    "previous_state": previous_state,
+                },
+            }
         )
-        db.session.add(log_entry)
-        db.session.commit()
 
         response_data = {
             "message": f"Child {client_id} removed from master successfully",
@@ -4975,27 +4980,28 @@ def remove_master():
 
         # ✅ STEP 11: Log the action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
-                level="INFO",
-                message=f"Master removed: {client_id} with {children_count} children orphaned",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "remove_master",
-                    "master_id": client_id,
-                    "user": user_email,
-                    "children_count": children_count,
-                    "active_children": active_count,
-                    "children_processed": len(children_processed),
-                    "children_failed": len(children_failed),
-                    "active_mappings": mapping_count,
-                    "mappings_updated": mappings_updated,
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "previous_state": previous_state
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Master removed: {client_id} with {children_count} children orphaned",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "remove_master",
+                        "master_id": client_id,
+                        "user": user_email,
+                        "children_count": children_count,
+                        "active_children": active_count,
+                        "children_processed": len(children_processed),
+                        "children_failed": len(children_failed),
+                        "active_mappings": mapping_count,
+                        "mappings_updated": mappings_updated,
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                        "previous_state": previous_state,
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log master removal: {str(e)}")
 
@@ -5190,27 +5196,28 @@ def update_multiplier():
 
         # ✅ STEP 12: Log the action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
-                level="INFO",
-                message=f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "update_multiplier",
-                    "client_id": client_id,
-                    "user": user_email,
-                    "old_multiplier": previous_state['multiplier'],
-                    "new_multiplier": new_multiplier,
-                    "account_role": account.role,
-                    "copy_status": account.copy_status,
-                    "master_id": account.linked_master_id,
-                    "active_mappings": active_mapping_count,
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "warnings_generated": warnings
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "update_multiplier",
+                        "client_id": client_id,
+                        "user": user_email,
+                        "old_multiplier": previous_state['multiplier'],
+                        "new_multiplier": new_multiplier,
+                        "account_role": account.role,
+                        "copy_status": account.copy_status,
+                        "master_id": account.linked_master_id,
+                        "active_mappings": active_mapping_count,
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                        "warnings_generated": warnings,
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log multiplier update: {str(e)}")
 
@@ -5840,24 +5847,25 @@ def add_account():
 
         # ✅ STEP 9: Log the action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow(),
-                level="INFO",
-                message=f"Account added: {client_id} ({broker}) by {user_email}",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "add_account",
-                    "client_id": client_id,
-                    "broker": broker,
-                    "username": username,
-                    "user": user_email,
-                    "credentials_provided": list(credentials.keys()),
-                    "validation_performed": hasattr(broker_obj, 'check_token_valid'),
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Account added: {client_id} ({broker}) by {user_email}",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "add_account",
+                        "client_id": client_id,
+                        "broker": broker,
+                        "username": username,
+                        "user": user_email,
+                        "credentials_provided": list(credentials.keys()),
+                        "validation_performed": hasattr(broker_obj, 'check_token_valid'),
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log account addition: {str(e)}")
 
@@ -6630,21 +6638,22 @@ def stop_copy():
 
         # ✅ STEP 9: Log the action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.now().isoformat(),
-                level="INFO",
-                message=f"Copy trading stopped: {client_id} -> {current_master_id}",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "stop_copy",
-                    "child_id": client_id,
-                    "master_id": current_master_id,
-                    "user": user_email,
-                    "previous_state": previous_state
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "level": "INFO",
+                    "message": f"Copy trading stopped: {client_id} -> {current_master_id}",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "stop_copy",
+                        "child_id": client_id,
+                        "master_id": current_master_id,
+                        "user": user_email,
+                        "previous_state": previous_state,
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log action: {str(e)}")
             # Don't fail the request if logging fails
@@ -6873,24 +6882,25 @@ def start_copy_all():
 
         # ✅ STEP 10: Log the bulk action for audit trail
         try:
-            log_entry = SystemLog(
-                timestamp=datetime.utcnow().isoformat(),
-                level="INFO",
-                message=f"Bulk start copy: {started_count} children started for master {master_id}",
-                user_id=str(user.id),
-                details=json.dumps({
-                    "action": "start_copy_all",
-                    "master_id": master_id,
-                    "user": user_email,
-                    "started_count": started_count,
-                    "failed_count": failed_count,
-                    "master_marker": master_latest_order_id,
-                    "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    "children_affected": [r["client_id"] for r in results if r["status"] == "SUCCESS"]
-                })
+            publish_log_event(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "level": "INFO",
+                    "message": f"Bulk start copy: {started_count} children started for master {master_id}",
+                    "user_id": str(user.id),
+                    "module": "system",
+                    "details": {
+                        "action": "start_copy_all",
+                        "master_id": master_id,
+                        "user": user_email,
+                        "started_count": started_count,
+                        "failed_count": failed_count,
+                        "master_marker": master_latest_order_id,
+                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                        "children_affected": [r["client_id"] for r in results if r["status"] == "SUCCESS"],
+                    },
+                }
             )
-            db.session.add(log_entry)
-            db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to log bulk start action: {str(e)}")
             # Don't fail the request if logging fails
@@ -6993,23 +7003,24 @@ def stop_copy_all():
 
         db.session.commit()
 
-        log_entry = SystemLog(
-            timestamp=current_time_iso,
-            level="INFO",
-            message=f"Bulk stop copy: {stopped_count} children stopped for master {master_id}",
-            user_id=str(user.id),
-            details=json.dumps({
-                "action": "stop_copy_all",
-                "master_id": master_id,
-                "user": user_email,
-                "stopped_count": stopped_count,
-                "failed_count": failed_count,
-                "timestamp": current_time_iso, # Corrected Timestamp
-                "children_affected": [r["client_id"] for r in results if r["status"] == "SUCCESS"]
-            })
+        publish_log_event(
+            {
+                "timestamp": current_time_iso,
+                "level": "INFO",
+                "message": f"Bulk stop copy: {stopped_count} children stopped for master {master_id}",
+                "user_id": str(user.id),
+                "module": "system",
+                "details": {
+                    "action": "stop_copy_all",
+                    "master_id": master_id,
+                    "user": user_email,
+                    "stopped_count": stopped_count,
+                    "failed_count": failed_count,
+                    "timestamp": current_time_iso,
+                    "children_affected": [r["client_id"] for r in results if r["status"] == "SUCCESS"],
+                },
+            }
         )
-        db.session.add(log_entry)
-        db.session.commit()
 
         response_data = {
             "message": f"Bulk stop completed for master {master_id}",
