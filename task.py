@@ -1,6 +1,7 @@
 import os
 from celery import Celery
-from app import app, poll_and_copy_trades
+from app import app
+from services.trade_copier import poll_and_copy_trades
 from prometheus_client import Gauge, Histogram
 
 celery = Celery(
