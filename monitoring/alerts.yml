@@ -1,0 +1,24 @@
+groups:
+  - name: trading_services
+    rules:
+      - alert: HighQueueDepth
+        expr: celery_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: Celery queue depth has exceeded 100 tasks.
+      - alert: WorkerLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(poll_trades_task_duration_seconds_bucket[5m])) by (le)) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: 95th percentile of poll_trades_task execution time above 30s.
+      - alert: BrokerAPITimeout
+        expr: histogram_quantile(0.95, sum(rate(broker_api_request_duration_seconds_bucket[5m])) by (le, broker)) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          description: Broker API request latency is exceeding 10s at 95th percentile.
