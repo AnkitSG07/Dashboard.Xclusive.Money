@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         
         <!-- SEO Meta Tags -->
         <meta name="description" content="Your description">
@@ -541,6 +542,21 @@
         <script src="{{ url_for('static', filename='js/purecounter.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/replaceme.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+          document.querySelectorAll('form').forEach(function (form) {
+            if (!form.querySelector('input[name="csrf_token"]')) {
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = 'csrf_token';
+              input.value = token;
+              form.appendChild(input);
+            }
+          });
+        });
+        </script>
 
     </body>
 </html>
+
