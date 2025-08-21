@@ -1,4 +1,10 @@
-from brokers.factory import get_broker_class
+from brokers.factory import get_broker_client
+
+# Backwards compatibility: historic code and tests import ``get_broker_class``.
+# The new architecture uses remote broker services so ``get_broker_client`` is
+# the canonical entry point.  Expose the old name as an alias so existing
+# references continue to function.
+get_broker_class = get_broker_client
 import uuid
 from brokers.zerodha import ZerodhaBroker, KiteConnect
 from brokers.fyers import FyersBroker
