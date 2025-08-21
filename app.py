@@ -20,6 +20,7 @@ from flask_cors import CORS
 from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf import CSRFProtect
 from apscheduler.schedulers.background import BackgroundScheduler
 import io
 from datetime import datetime, timedelta, date
@@ -80,6 +81,12 @@ if not secret_key:
     raise RuntimeError("SECRET_KEY environment variable is required")
 app.secret_key = secret_key
 CORS(app)
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Strict",
+)
+csrf = CSRFProtect(app)
 # Email configuration
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "localhost")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 25))
@@ -117,8 +124,8 @@ csp = {
     ],
 }
 Talisman(app, content_security_policy=csp, force_https=os.environ.get("FORCE_HTTPS") == "1")
-# Configure rate limiting with a pluggable storage backend. Default to
-# in-memory storage but allow overriding via an environment variable.
+# Configure rate limiting with a pluggable storage backend.
+# Set ``LIMITER_STORAGE_URL`` to a Redis URI in production to share limits across instances.
 limiter_storage = os.environ.get("LIMITER_STORAGE_URL", "memory://")
 limiter = Limiter(
     get_remote_address,
@@ -207,6 +214,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
+csrf.exempt(api_bp)
 start_time = datetime.utcnow()
 device_number = None
 
