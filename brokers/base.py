@@ -4,12 +4,20 @@ import os
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
+from prometheus_client import Histogram
 
 # Default request timeout for broker HTTP calls. Gunicorn workers will be
 # killed after 30s by default, so we keep a small safety margin to ensure the
 # request fails before the worker does.  This value can still be overridden via
 # the ``BROKER_TIMEOUT`` environment variable.
 DEFAULT_TIMEOUT = int(os.environ.get("BROKER_TIMEOUT", "25"))
+
+# Prometheus metric capturing broker API HTTP request latency
+BROKER_API_LATENCY = Histogram(
+    "broker_api_request_duration_seconds",
+    "Time spent performing broker API HTTP requests",
+    ["broker", "method"],
+)
 
 class BrokerBase(ABC):
     """
@@ -53,7 +61,10 @@ class BrokerBase(ABC):
         """
         timeout = timeout or self.timeout
         try:
-            return self.session.request(method, url, timeout=timeout, **kwargs)
+            with BROKER_API_LATENCY.labels(
+                broker=self.__class__.__name__, method=method
+            ).time():
+                return self.session.request(method, url, timeout=timeout, **kwargs)
         except requests.exceptions.RequestException:
             # Propagate network errors (including Timeouts) to the caller so
             # they can decide how to handle failures without hanging.
