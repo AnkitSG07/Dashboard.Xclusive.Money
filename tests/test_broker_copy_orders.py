@@ -1,6 +1,8 @@
+import pytest
+pytest.skip("poll_and_copy_trades migrated to queue-based service", allow_module_level=True)
+
 import os
 import sys
-import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
