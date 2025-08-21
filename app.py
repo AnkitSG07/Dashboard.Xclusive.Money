@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover - fallback if import fails
         return {}
     def get_symbol_by_token(token: str, broker: str) -> str:
         return None
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory, Response
 from flask_migrate import Migrate
 from dhanhq import dhanhq
 import os
@@ -58,6 +58,9 @@ from models import (
     StrategySubscription,
     StrategyLog,
 )
+
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from services.trade_copier import poll_and_copy_trades, enqueue_master_order
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
 import re
@@ -1775,7 +1778,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def poll_and_copy_trades():
+def _legacy_poll_and_copy_trades():
     """Run trade copying logic with full database storage - no JSON files."""
     try:
         with app.app_context():
@@ -7784,6 +7787,11 @@ def admin_change_subscription(user_id):
         logger.error(f"Failed to change subscription for user {user_id}: {str(e)}")
     return redirect(url_for('admin_subscriptions'))
 
+app.route('/metrics')
+def metrics():
+    """Expose Prometheus metrics."""
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+    
 start_scheduler()
 
 if __name__ == '__main__':
