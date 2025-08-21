@@ -35,8 +35,8 @@ import random
 import string
 from urllib.parse import quote
 from time import time
-from collections import defaultdict
 from mail import mail
+from collections import defaultdict
 from models import (
     db,
     User,
@@ -167,41 +167,27 @@ def safe_commit():
         logger.error(f"Database commit failed: {e}")
         raise
 
-# Cache for broker opening balances
-OPENING_BALANCE_CACHE = {}
+from cache import cache_get, cache_set
+
 # Seconds to keep a cached balance before refreshing
 CACHE_TTL = 300
 
 # Cache for MTF eligibility per broker:symbol with TTL
-MTF_SUPPORT_CACHE = {}
 MTF_CACHE_TTL = 3600  # one hour
 
-# Cache for recently seen webhook identifiers per (user, strategy)
-# Maps (user_id, strategy_id) -> {identifier: timestamp}
-RECENT_WEBHOOK_IDS = defaultdict(dict)
-# Seconds to retain identifiers before expiring them
+# Seconds to retain webhook identifiers before expiring them
 WEBHOOK_ID_TTL = 60
 
 def is_mtf_supported(symbol: str, broker: str):
-    """Return cached MTF support for a symbol/broker if fresh.
-
-    Returns True/False when cached, or None if no fresh entry exists.
-    """
-    key = f"{broker}:{symbol}".lower()
-    entry = MTF_SUPPORT_CACHE.get(key)
-    if not entry:
-        return None
-    ts, supported = entry
-    if time() - ts < MTF_CACHE_TTL:
-        return supported
-    MTF_SUPPORT_CACHE.pop(key, None)
-    return None
+    """Return cached MTF support for a symbol/broker if present."""
+    key = f"mtf_support:{broker}:{symbol}".lower()
+    return cache_get(key)
 
 
 def _cache_mtf_support(symbol: str, broker: str, supported: bool) -> None:
     """Update the MTF support cache for ``symbol``/``broker``."""
-    key = f"{broker}:{symbol}".lower()
-    MTF_SUPPORT_CACHE[key] = (time(), supported)
+    key = f"mtf_support:{broker}:{symbol}".lower()
+    cache_set(key, bool(supported), ttl=MTF_CACHE_TTL)
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
@@ -1256,26 +1242,13 @@ def broker_api(obj):
     
 
 def get_opening_balance_for_account(acc, cache_only=False):
-    """Instantiate broker and try to fetch opening balance with caching.
-
-    Parameters
-    ----------
-    acc : dict
-        Account details containing client_id, broker, etc.
-    cache_only : bool, optional
-        When True, return the cached value without refreshing it. Defaults
-        to ``False``.
-    """
+    """Instantiate broker and try to fetch opening balance with caching."""
     client_id = acc.get("client_id")
-    now = time()
+    key = f"opening_balance:{client_id}"
 
-    cached = OPENING_BALANCE_CACHE.get(client_id)
-    if cached:
-        ts, bal = cached
-        if cache_only or now - ts < CACHE_TTL:
-            return bal
-    if cache_only:
-        return cached[1] if cached else None
+    bal = cache_get(key)
+    if bal is not None or cache_only:
+        return bal
 
     bal = None
     try:
@@ -1289,7 +1262,7 @@ def get_opening_balance_for_account(acc, cache_only=False):
     except Exception as e:
         print(f"Failed to fetch balance for {client_id}: {e}")
 
-    OPENING_BALANCE_CACHE[client_id] = (now, bal)
+    cache_set(key, bal, ttl=CACHE_TTL)
     return bal
 
 # Utility loaders for admin dashboard
@@ -3161,20 +3134,16 @@ def webhook(user_id):
                     alert_id = str(data[key])
                     break
         if alert_id:
-            cache_key = (user_obj.id, strategy.id if strategy else None)
-            cache = RECENT_WEBHOOK_IDS[cache_key]
-            now = time()
-            # purge expired identifiers
-            for ident, ts in list(cache.items()):
-                if now - ts > WEBHOOK_ID_TTL:
-                    del cache[ident]
-            if alert_id in cache:
+            cache_key = (
+                f"webhook:{user_obj.id}:{getattr(strategy, 'id', 'none')}:{alert_id}"
+            )
+            if cache_get(cache_key):
                 logger.info(
                     f"Duplicate alert {alert_id} for user {user_obj.id} strategy "
                     f"{getattr(strategy, 'id', None)}"
                 )
                 return jsonify({"error": "Duplicate alert"}), 409
-            cache[alert_id] = now
+            cache_set(cache_key, 1, ttl=WEBHOOK_ID_TTL)
 
         # Validate required fields
         symbols: list[str] = []
