@@ -1,9 +1,10 @@
 from flask import session
-from sqlalchemy import or_, cast
-from models import User, OrderMapping, Account, SystemLog, db
+from sqlalchemy import or_
+from models import User, OrderMapping, Account, db
 from datetime import datetime
 import json
 import logging
+from services.logging import publish_log_event
 
 
 def current_user():
@@ -97,34 +98,15 @@ def log_connection_error(
             if account.copy_status == "Off":
                 account.copy_status = "On"
             db.session.commit()
-            # Remove related error logs
-            try:
-                logs = (
-                    SystemLog.query.filter(
-                        cast(SystemLog.user_id, db.String) == str(account.user_id),
-                        SystemLog.level == "ERROR",
-                        or_(
-                            SystemLog.message.ilike("%invalid syntax%"),
-                            SystemLog.message.ilike("%failed to load broker%"),
-                            SystemLog.message.ilike("%Failed to initialize master API%"),
-                        ),
-                    ).all()
-                )
-                for log in logs:
-                    details = log.details
-                    if isinstance(details, str):
-                        try:
-                            details = json.loads(details)
-                        except Exception:
-                            details = {}
-                    if (
-                        isinstance(details, dict)
-                        and str(details.get("client_id")) == account.client_id
-                    ):
-                        db.session.delete(log)
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            publish_log_event(
+                {
+                    "level": "INFO",
+                    "message": "Cleared previous invalid syntax logs",
+                    "user_id": str(account.user_id),
+                    "module": "system",
+                    "details": {"client_id": account.client_id},
+                }
+            )
             return
 
         account.status = "Error"
@@ -140,18 +122,19 @@ def log_connection_error(
                 child.copy_status = "Off"
                 child.status = "Error"
 
-        log_entry = SystemLog(
-            timestamp=datetime.utcnow().isoformat(),
-            level="ERROR",
-            message=message,
-            user_id=str(account.user_id),
-            module=module,
-            details=json.dumps({
-                "client_id": account.client_id,
-                "broker": account.broker,
-            }),
+        publish_log_event(
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "level": "ERROR",
+                "message": message,
+                "user_id": str(account.user_id),
+                "module": module,
+                "details": {
+                    "client_id": account.client_id,
+                    "broker": account.broker,
+                },
+            }
         )
-        db.session.add(log_entry)
         db.session.commit()
     except Exception as e:  # pragma: no cover - logging failures shouldn't crash
         db.session.rollback()
@@ -159,62 +142,32 @@ def log_connection_error(
 
 
 def clear_init_error_logs(account: Account, *, is_master: bool) -> None:
-    """Remove previous initialization error logs for an account."""
-    logger = logging.getLogger(__name__)
-    prefix = (
-        "Failed to initialize master API"
-        if is_master
-        else "Failed to initialize child API"
+   """Previous implementation removed initialization error logs.
+
+    With the external log service, logs are append-only so this now
+    simply records an informational event without modifying the store.
+    """
+    publish_log_event(
+        {
+            "level": "INFO",
+            "message": f"clear_init_error_logs called for {account.client_id}",
+            "user_id": str(account.user_id),
+            "module": "system",
+            "details": {"is_master": is_master},
+        }
     )
-    try:
-        logs = (
-            SystemLog.query.filter(
-                cast(SystemLog.user_id, db.String) == str(account.user_id),
-                SystemLog.level == "ERROR",
-                SystemLog.message.ilike(f"{prefix}%"),
-            ).all()
-        )
-        for log in logs:
-            details = log.details
-            if isinstance(details, str):
-                try:
-                    details = json.loads(details)
-                except Exception:
-                    details = {}
-            if isinstance(details, dict) and str(details.get("client_id")) == account.client_id:
-                db.session.delete(log)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logger.error(
-            f"Failed to clear init error logs for {account.client_id}: {e}"
-        )
 
 
 def clear_connection_error_logs(account: Account) -> None:
-    """Remove previous connection/order error logs for an account."""
-    logger = logging.getLogger(__name__)
-    try:
-        pattern_plain = f'%"client_id": "{account.client_id}"%'
-        pattern_escaped = f'%\\"client_id\\": \\"{account.client_id}\\"%'
-        client_match = SystemLog.details["client_id"].as_string() == str(account.client_id)
-        (
-            SystemLog.query.filter(
-                cast(SystemLog.user_id, db.String) == str(account.user_id),
-                SystemLog.level == "ERROR",
-                db.or_(
-                    client_match,
-                    cast(SystemLog.details, db.Text).ilike(pattern_plain),
-                    cast(SystemLog.details, db.Text).ilike(pattern_escaped),
-                ),
-            ).delete(synchronize_session=False)
-        )
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logger.error(
-            f"Failed to clear connection error logs for {account.client_id}: {e}"
-        )
+    """Record a log indicating error logs would be cleared."""
+    publish_log_event(
+        {
+            "level": "INFO",
+            "message": f"clear_connection_error_logs called for {account.client_id}",
+            "user_id": str(account.user_id),
+            "module": "system",
+        }
+    )
 
 
 def extract_product_type(position: dict) -> str | None:
