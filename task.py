@@ -2,6 +2,7 @@ import os
 from celery import Celery
 from app import app
 from services.trade_copier import poll_and_copy_trades
+from models import db
 from prometheus_client import Gauge, Histogram
 
 celery = Celery(
@@ -37,4 +38,4 @@ def poll_trades() -> None:
     update_queue_depth()
     with WORKER_LATENCY.time():
         with app.app_context():
-            poll_and_copy_trades()
+            poll_and_copy_trades(db.session)
