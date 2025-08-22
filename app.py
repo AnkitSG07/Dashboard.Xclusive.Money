@@ -80,7 +80,7 @@ from helpers import (
     normalize_position,
 )
 from symbols import get_symbols
-from services.logging import logging_bp, publish_log_event
+from services.logging import publish_log_event
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -209,7 +209,6 @@ db.init_app(app)
 migrate = Migrate(app, db)
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
-app.register_blueprint(logging_bp, url_prefix="/admin/logs")
 csrf.exempt(api_bp)
 start_time = datetime.utcnow()
 device_number = None
