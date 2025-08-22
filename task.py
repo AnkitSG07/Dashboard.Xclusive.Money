@@ -1,6 +1,6 @@
 import os
 from celery import Celery
-from services.trade_copier import poll_and_copy_trades
+from services.trade_copier import poll_and_copy_trades, copy_order
 from services.db import get_session
 from models import db
 from prometheus_client import Gauge, Histogram
@@ -44,6 +44,6 @@ def poll_trades() -> None:
     with WORKER_LATENCY.time():
         session = get_session()
         try:
-            poll_and_copy_trades(session)
+            poll_and_copy_trades(session, processor=copy_order)
         finally:
             session.close()
