@@ -4,17 +4,23 @@ from services import trade_copier
 
 
 class StubRedis:
-    """Simple in-memory Redis Stream stub."""
+    """Simple in-memory Redis Stream stub using consumer groups."""
 
     def __init__(self, events):
         self.events = events
 
-    def xread(self, *_, **__):
+    def xgroup_create(self, *_, **__):
+        pass
+
+    def xreadgroup(self, *_, **__):
         if not self.events:
             return []
         data = self.events.pop(0)
-        # mimic redis-py return structure
         return [("trade_events", [("1-0", data)])]
+
+    def xack(self, *_, **__):
+        pass
+
 
 
 class DummySession:
