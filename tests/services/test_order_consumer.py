@@ -6,11 +6,17 @@ class StubRedis:
         self.events = events
         self.added = []
 
-    def xread(self, *_, **__):
+    def xgroup_create(self, *_, **__):
+        pass
+
+    def xreadgroup(self, *_, **__):
         if not self.events:
             return []
         data = self.events.pop(0)
         return [("webhook_events", [("1", data)])]
+
+    def xack(self, *_, **__):
+        pass
 
     def xadd(self, stream, data):
         self.added.append((stream, data))
