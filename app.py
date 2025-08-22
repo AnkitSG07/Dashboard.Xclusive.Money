@@ -61,6 +61,7 @@ from models import (
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from services.trade_copier import poll_and_copy_trades, enqueue_master_order
+from services.webhook_receiver import enqueue_webhook, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
 import re
@@ -3069,465 +3070,62 @@ def zerodha_redirect_handler(client_id):
 
 @app.route("/webhook/<user_id>", methods=["POST"])
 def webhook(user_id):
-    """Handle incoming webhook requests for order placement.
-    
-    Args:
-        user_id (str): User ID to identify the account
-        
-    Expected POST data examples:
-        # using "symbol"
-        {"symbol": "NSE:SBIN", "action": "BUY", "quantity": 10, "secret": "..."}
-        # using "ticker"
-        {"ticker": "NSE:SBIN", "action": "BUY", "quantity": 10, "secret": "..."}
-        
-    Returns:
-        JSON response with order status or error message
+    """Handle incoming webhook requests.
+
+    Validates and serializes the payload then publishes an event to a
+    Redis Stream for asynchronous processing.
     """
     logger.info(f"Received webhook request for user {user_id}")
-    
+
     try:
-        # Parse and validate request data
-        try:
-            data = request.get_json(force=True)
-        except Exception as e:
-            logger.error(f"Failed to parse JSON data: {str(e)}")
-            return jsonify({
-                "error": "Invalid JSON data",
-                "details": str(e)
-            }), 400
+        data = request.get_json(force=True)
+    except Exception as e:  # pragma: no cover
+        logger.error(f"Failed to parse JSON data: {e}")
+        return jsonify({"error": "Invalid JSON data", "details": str(e)}), 400
 
-        # Handle alert messages
-        if isinstance(data, str) or "message" in data:
-            message = data if isinstance(data, str) else data.get("message")
-            logger.info(f"Alert received for {user_id}: {message}")
-            return jsonify({
-                "status": "Alert logged",
-                "message": message
-            }), 200
+    user_obj = get_user_by_token(user_id)
+    if not user_obj:
+        logger.error(f"Invalid webhook token: {user_id}")
+        return jsonify({"error": "Invalid webhook ID"}), 403
 
-        secret = (
-            request.headers.get("X-Webhook-Secret")
-            or (data.get("secret") if isinstance(data, dict) else None)
-            or request.args.get("secret")
-        )
-        user_obj = get_user_by_token(user_id)
-        if not user_obj:
-            logger.error(f"Invalid webhook token: {user_id}")
-            return jsonify({"error": "Invalid webhook ID"}), 403
-        strategy = None
-        if secret:
-            strategy = Strategy.query.filter_by(
-                user_id=user_obj.id, webhook_secret=secret
-            ).first()
-            if not strategy:
-                logger.error("Webhook secret mismatch")
-                return jsonify({"error": "Invalid webhook secret"}), 403
-            if not strategy.is_active:
-                logger.error("Strategy inactive")
-                return jsonify({"error": "Strategy inactive"}), 403
-        else:
-            if (
-                Strategy.query.filter(
-                    Strategy.user_id == user_obj.id,
-                    Strategy.webhook_secret.isnot(None),
-                ).count()
-                > 0
-            ):
-                logger.error("Webhook secret required but missing")
-                return jsonify({"error": "Webhook secret required"}), 403
+    secret = (
+        request.headers.get("X-Webhook-Secret")
+        or (data.get("secret") if isinstance(data, dict) else None)
+        or request.args.get("secret")
+    )
 
-        # Extract a unique identifier from the payload if available and
-        # ensure we haven't processed it recently for this user/strategy.
-        alert_id = None
-        if isinstance(data, dict):
-            for key in ("alert_id", "alertId", "id", "timestamp", "time", "ts"):
-                if key in data and data[key] is not None:
-                    alert_id = str(data[key])
-                    break
-        if alert_id:
-            cache_key = (
-                f"webhook:{user_obj.id}:{getattr(strategy, 'id', 'none')}:{alert_id}"
-            )
-            if cache_get(cache_key):
-                logger.info(
-                    f"Duplicate alert {alert_id} for user {user_obj.id} strategy "
-                    f"{getattr(strategy, 'id', None)}"
-                )
-                return jsonify({"error": "Duplicate alert"}), 409
-            cache_set(cache_key, 1, ttl=WEBHOOK_ID_TTL)
+    strategy = None
+    if secret:
+        strategy = Strategy.query.filter_by(
+            user_id=user_obj.id, webhook_secret=secret
+        ).first()
+        if not strategy:
+            logger.error("Webhook secret mismatch")
+            return jsonify({"error": "Invalid webhook secret"}), 403
+        if not strategy.is_active:
+            logger.error("Strategy inactive")
+            return jsonify({"error": "Strategy inactive"}), 403
+    else:
+        if (
+            Strategy.query.filter(
+                Strategy.user_id == user_obj.id,
+                Strategy.webhook_secret.isnot(None),
+            ).count()
+            > 0
+        ):
+            logger.error("Webhook secret required but missing")
+            return jsonify({"error": "Webhook secret required"}), 403
 
-        # Validate required fields
-        symbols: list[str] = []
-        base_symbol = data.get("symbol") or data.get("ticker")
-        trading_symbols = data.get("tradingSymbols") or data.get("tradingSymbol")
-        if base_symbol:
-            symbols = [base_symbol]
-        elif trading_symbols:
-            if isinstance(trading_symbols, list):
-               symbols = trading_symbols
-            else:
-                symbols = [trading_symbols]
-        exchange = data.get("exchange")
-        exchanges: list[str] = []
-        if exchange:
-            if isinstance(exchange, list):
-                exchanges = exchange
-            else:
-                exch_str = str(exchange).upper()
-                if exch_str == "BOTH":
-                    exchanges = ["NSE", "BSE"]
-                else:
-                    exchanges = [exch_str]
-        if exchanges:
-            new_symbols = []
-            for s in symbols:
-                if ":" in str(s):
-                    new_symbols.append(s)
-                else:
-                    for ex in exchanges:
-                        new_symbols.append(f"{ex}:{s}")
-            symbols = new_symbols
-        symbol = symbols[0] if symbols else None
+    try:
+        event = enqueue_webhook(user_obj.id, getattr(strategy, "id", None), data)
+    except ValidationError as ve:
+        logger.error(f"Validation error in webhook payload: {ve.messages}")
+        return jsonify({"error": "Invalid payload", "details": ve.messages}), 400
+    except Exception as e:  # pragma: no cover
+        logger.error(f"Failed to enqueue webhook event: {e}")
+        return jsonify({"error": "Failed to queue event"}), 500
 
-        actions: list[str] = []
-        action_val = data.get("action")
-        if action_val:
-            if isinstance(action_val, list):
-                actions = [str(a).upper() for a in action_val]
-            else:
-                action_str = str(action_val).upper()
-                if action_str == "BOTH":
-                    actions = ["BUY", "SELL"]
-                else:
-                    actions = [action_str]
-        else:
-            ttype = data.get("transactionType")
-            if ttype:
-                ttypes = ttype if isinstance(ttype, list) else [ttype]
-                mapping = {
-                    "le": "BUY",
-                    "sxle": "BUY",
-                    "lx": "SELL",
-                    "se": "SELL",
-                    "lxse": "SELL",
-                    "sx": "BUY",
-                    "buy": "BUY",
-                    "sell": "SELL",
-                    "both": "BOTH",  
-                }
-                for t in ttypes:
-                    t_low = str(t).lower()
-                    mapped = mapping.get(t_low)
-                    if mapped == "BOTH":
-                        actions = ["BUY", "SELL"]
-                        break
-                    if mapped:
-                        actions.append(mapped)
-
-
-        quantity = data.get("quantity")
-        if quantity is None:
-            quantity = data.get("orderQty")
-        try:
-            if quantity is not None:
-                quantity = int(float(quantity))
-        except (TypeError, ValueError):
-            quantity = None
-
-        value_amount = data.get("value") or data.get("amount")
-        price = (
-            data.get("price")
-            or data.get("ltp")
-            or data.get("tradePrice")
-            or data.get("tradedPrice")
-        )
-        try:
-            if value_amount is not None:
-                value_amount = float(value_amount)
-        except (TypeError, ValueError):
-            value_amount = None
-        try:
-            if price is not None:
-                price = float(price)
-        except (TypeError, ValueError):
-            price = None
-
-        product_type = (
-            data.get("productType")
-            or data.get("product_type")
-            or data.get("product")
-        )
-
-        if not symbols or not actions or (quantity is None and value_amount is None):
-            logger.error(f"Missing required fields: {data}")
-            return jsonify({
-                "error": "Missing required fields",
-                "required": ["symbol/ticker", "action", "quantity or value"],
-                "received": {
-                    "symbol_or_ticker": bool(symbols),
-                    "action": bool(actions),
-                    "quantity": bool(quantity),
-                    "value": bool(value_amount)
-                }
-            }), 400
-            
-
-        # Determine account credentials
-        sub_count = 0
-        if strategy:
-            sub_count = StrategySubscription.query.filter_by(strategy_id=strategy.id, approved=True).count()
-
-        accounts = []
-        if sub_count == 0:
-            if strategy and strategy.master_accounts:
-                allowed_ids = [int(a) for a in strategy.master_accounts.split(',') if a.strip()]
-                if allowed_ids:
-                    accounts = Account.query.filter(Account.user_id==user_obj.id, Account.id.in_(allowed_ids)).all()
-            if not accounts:
-                default_acc = None
-                if strategy and strategy.account_id:
-                    default_acc = Account.query.filter_by(id=strategy.account_id, user_id=user_obj.id).first()
-                if not default_acc:
-                    default_acc = user_obj.accounts[0] if user_obj.accounts else None
-                if default_acc:
-                    accounts = [default_acc]
-            if not accounts or any(not a or not a.credentials for a in accounts):
-                logger.error("Account not configured")
-                return jsonify({"error": "Account not configured"}), 403
-
-        def _price_from_account(acc):
-            try:
-                acc_dict = _account_to_dict(acc)
-                api = broker_api(acc_dict)
-                broker_name = (acc.broker or 'dhan').lower()
-                mapping = get_symbol_for_broker(symbol, broker_name)
-                if broker_name == 'dhan':
-                    sid = mapping.get('security_id')
-                    seg = mapping.get('exchange_segment', api.NSE)
-                    if sid:
-                        resp = api._request(
-                            'post',
-                            f"{api.api_base}/marketfeed/ltp",
-                            json={seg: [int(sid)]},
-                            headers=api.headers,
-                            timeout=api.timeout,
-                        )
-                        data = resp.json()
-                        return (
-                            data.get('data', {})
-                            .get(seg, {})
-                            .get(str(sid), {})
-                            .get('ltp')
-                        )
-                elif hasattr(api, 'get_quote'):
-                    q = api.get_quote(symbol)
-                    if isinstance(q, dict):
-                        return q.get('last_price') or q.get('ltp') or q.get('price')
-            except Exception as e:
-                logger.error(f"Failed to fetch price for {symbol}: {e}")
-            return None
-
-        if value_amount is not None and quantity is None:
-            if price is None and accounts:
-                price = _price_from_account(accounts[0])
-            if price is None:
-                return jsonify({"error": "Price required to compute quantity"}), 400
-            try:
-                quantity = int(float(value_amount) // float(price))
-            except Exception:
-                quantity = 0
-            if quantity <= 0:
-                return jsonify({"error": "Insufficient funds for at least one share"}), 400
-
-        def process_account(account, symbol, trade_price, action):
-            broker_name = (account.broker or "dhan").lower()
-            if strategy and strategy.brokers:
-                allowed = [b.strip().lower() for b in strategy.brokers.split(',') if b.strip()]
-                if allowed and broker_name not in allowed:
-                    return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "SKIPPED", "reason": "Broker not allowed"}
-
-            try:
-                acc_dict = _account_to_dict(account)
-                broker_api_instance = broker_api(acc_dict)
-            except Exception as e:
-                logger.error(f"Failed to initialize broker {broker_name}: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to initialize broker"}
-            try:
-                mapping = get_symbol_for_broker(symbol, broker_name)
-                mtf_status = (
-                    is_mtf_supported(symbol, broker_name)
-                    if product_type == "mtf_or_cnc"
-                    else None
-                )
-                attempt_mtf = product_type == "mtf_or_cnc" and mtf_status is not False
-                pt_for_build = (
-                    "mtf"
-                    if attempt_mtf
-                    else ("cnc" if product_type == "mtf_or_cnc" else product_type)
-                )
-                order_params = build_order_params(
-                    broker_name,
-                    mapping,
-                    symbol,
-                    action,
-                    int(quantity),
-                    "MARKET",
-                    broker_api_instance,
-                    pt_for_build,
-                )
-            except Exception as e:
-                logger.error(f"Error building order parameters: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Failed to build order parameters"}
-
-            if strategy:
-                if strategy.schedule:
-                    try:
-                        start, end = strategy.schedule.split("-")
-                        now = datetime.utcnow().time()
-                        start_t = datetime.strptime(start.strip(), "%H:%M").time()
-                        end_t = datetime.strptime(end.strip(), "%H:%M").time()
-                        if not (start_t <= now <= end_t):
-                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Outside allowed schedule"}
-                    except Exception as e:
-                        logger.error(f"Schedule parse error: {e}")
-
-                if strategy.risk_max_positions is not None or strategy.risk_max_allocation is not None:
-                    try:
-                        pos_resp = broker_api_instance.get_positions()
-                        positions = _find_position_list(pos_resp)
-                        if isinstance(positions, dict):
-                            positions = [positions]
-                        elif not isinstance(positions, list):
-                            positions = []
-                        count = 0
-                        allocation = 0.0
-                        for p in positions:
-                            norm = normalize_position(p, account.broker)
-                            if not norm:
-                                continue
-                            count += 1
-                            qtyp = abs(norm.get("netQty", 0))
-                            pricep = norm.get("ltp") or norm.get("buyAvg") or 0
-                            allocation += qtyp * pricep
-                        if strategy.risk_max_positions is not None and count >= strategy.risk_max_positions:
-                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Max positions exceeded"}
-                        if strategy.risk_max_allocation is not None and allocation >= strategy.risk_max_allocation:
-                            return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": "Max allocation exceeded"}
-                    except Exception as e:
-                        logger.error(f"Risk check failed: {e}")
-
-            try:
-                response = broker_api_instance.place_order(**order_params)
-                if product_type == "mtf_or_cnc":
-                    if attempt_mtf:
-                        if (
-                            isinstance(response, dict)
-                            and response.get("status") == "failure"
-                        ):
-                            _cache_mtf_support(symbol, broker_name, False)
-                            order_params = build_order_params(
-                                broker_name,
-                                mapping,
-                                symbol,
-                                action,
-                                int(quantity),
-                                "MARKET",
-                                broker_api_instance,
-                                "cnc",
-                            )
-                            response = broker_api_instance.place_order(**order_params)
-                        else:
-                            _cache_mtf_support(symbol, broker_name, True)
-                    else:
-                        _cache_mtf_support(symbol, broker_name, False)
-                if isinstance(response, dict) and response.get("status") == "failure":
-                    reason = (
-                        response.get("remarks")
-                        or response.get("error_message")
-                        or response.get("error")
-                        or "Unknown error"
-                    )
-                    logger.warning(
-                        f"Order failed for account {account.client_id}: {reason} | Response: {response}"
-                    )
-                    source = response.get("source", "system")
-                    log_connection_error(
-                        account,
-                        f"Order failed: {reason}",
-                        module=source,
-                    )
-                    record_trade(
-                        user_obj.id,
-                        symbol,
-                        action.upper(),
-                        quantity,
-                        trade_price,
-                        "FAILED",
-                        broker=account.broker,
-                        client_id=account.client_id,
-                    )
-                    return {
-                        "account_id": account.id,
-                        "symbol": symbol,
-                        "action": action.upper(),
-                        "status": "FAILED",
-                        "reason": reason,
-                    }
-                record_trade(
-                    user_obj.id,
-                    symbol,
-                    action.upper(),
-                    quantity,
-                    trade_price,
-                    "SUCCESS",
-                    broker=account.broker,
-                    client_id=account.client_id,
-                )
-                try:
-                    poll_and_copy_trades()
-                except Exception as e:
-                    logger.error(f"Failed to trigger copy trading: {str(e)}")
-                return {
-                    "account_id": account.id,
-                    "symbol": symbol,
-                    "action": action.upper(),
-                    "status": "SUCCESS",
-                    "order_id": response.get("order_id"),
-                    "result": response.get("remarks", "Trade placed successfully"),
-                }
-            except Exception as e:
-                logger.error(f"Error placing order: {str(e)}")
-                return {"account_id": account.id, "symbol": symbol, "action": action.upper(), "status": "ERROR", "reason": str(e)}
-
-        all_results = []
-        for sym in symbols:
-            for act in actions:
-                if sub_count:
-                    all_results.extend(execute_for_subscriptions(strategy, sym, act, int(quantity), product_type))
-                    continue
-                results = [process_account(acc, sym, price, act) for acc in accounts]
-                all_results.extend(results)
-
-        if len(all_results) == 1:
-            r = all_results[0]
-            if r.get("status") in ("ERROR", "FAILED", "SKIPPED"):
-                reason = r.get("reason", "")
-                if reason in (
-                    "Outside allowed schedule",
-                    "Max positions exceeded",
-                    "Max allocation exceeded",
-                ):
-                    return jsonify({"error": reason}), 403
-                return jsonify(r), 400
-            return jsonify(r), 200
-        return jsonify({"results": all_results}), 200
-
-    except Exception as e:
-        logger.error(f"Unexpected error in webhook: {str(e)}")
-        return jsonify({
-            "error": "Internal server error",
-            "details": str(e)
-        }), 500
+    return jsonify({"status": "queued", "event": event}), 202
 
 @app.route('/api/master-squareoff', methods=['POST'])
 @login_required
