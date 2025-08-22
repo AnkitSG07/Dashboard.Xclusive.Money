@@ -105,11 +105,13 @@ def poll_and_copy_trades(
     processor: Optional[Callable[[Account, Account, Dict[str, Any]], Any]] = None,
     *,
     stream: str = "trade_events",
+    group: str = "trade_copier",
+    consumer: str = "worker-1",
     redis_client=redis_client,
     max_messages: int | None = None,
     block: int = 0,
 ) -> int:
-    """Consume trade events from *stream* and replicate them to children.
+    """Consume trade events from *stream* using a consumer group.
 
     Parameters
     ----------
@@ -120,6 +122,10 @@ def poll_and_copy_trades(
         child.  If omitted a no-op processor is used.
     stream:
         Redis Stream to consume events from. Defaults to ``"trade_events"``.
+    group:
+        Consumer group name used for coordinated processing.
+    consumer:
+        Consumer name within the group.
     redis_client:
         Redis client instance; a stub may be supplied for testing.
     max_messages:
@@ -135,29 +141,41 @@ def poll_and_copy_trades(
     """
 
     processor = processor or (lambda m, c, o: None)
-    last_id = "0"
-    processed = 0
-    while max_messages is None or processed < max_messages:
-        messages: Iterable = redis_client.xread({stream: last_id}, count=1, block=block)
-        if not messages:
-            break
-        for _stream, events in messages:
-            for msg_id, data in events:
-                last_id = msg_id
-                event = _decode_event(data)
-                start = time.time()
-                master = (
-                    db_session.query(Account)
-                    .filter_by(client_id=event["master_id"], role="master")
-                    .first()
-                )
-                if master:
-                    asyncio.run(_replicate_to_children(db_session, master, event, processor))
-                LATENCY.observe(time.time() - start)
-                processed += 1
-                if max_messages is not None and processed >= max_messages:
-                    break
-    return processed
+    
+    # Ensure the consumer group exists. Ignore errors if already created.
+    try:
+        redis_client.xgroup_create(stream, group, id="0", mkstream=True)
+    except Exception as exc:  # pragma: no cover - stub may not raise
+        if "BUSYGROUP" not in str(exc):
+            raise
+
+    async def _consume() -> int:
+        processed = 0
+        while max_messages is None or processed < max_messages:
+            messages: Iterable = redis_client.xreadgroup(
+                group, consumer, {stream: ">"}, count=1, block=block
+            )
+            if not messages:
+                break
+            for _stream, events in messages:
+                for msg_id, data in events:
+                    event = _decode_event(data)
+                    start = time.time()
+                    master = (
+                        db_session.query(Account)
+                        .filter_by(client_id=event["master_id"], role="master")
+                        .first()
+                    )
+                    if master:
+                        await _replicate_to_children(db_session, master, event, processor)
+                    LATENCY.observe(time.time() - start)
+                    redis_client.xack(stream, group, msg_id)
+                    processed += 1
+                    if max_messages is not None and processed >= max_messages:
+                        break
+        return processed
+
+    return asyncio.run(_consume())
 
 
 __all__ = ["poll_and_copy_trades", "copy_order", "LATENCY"]
