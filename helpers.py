@@ -142,7 +142,7 @@ def log_connection_error(
 
 
 def clear_init_error_logs(account: Account, *, is_master: bool) -> None:
-   """Previous implementation removed initialization error logs.
+    """Previous implementation removed initialization error logs.
 
     With the external log service, logs are append-only so this now
     simply records an informational event without modifying the store.
