@@ -1,7 +1,7 @@
 import os
 from celery import Celery
-from app import app
 from services.trade_copier import poll_and_copy_trades
+from services.db import get_session
 from models import db
 from prometheus_client import Gauge, Histogram
 
@@ -34,8 +34,16 @@ def update_queue_depth():
 
 @celery.task(name="services.tasks.poll_trades")
 def poll_trades() -> None:
-    """Poll and copy trades in the background."""
+    """Poll and copy trades in the background.
+
+    This task no longer depends on the Flask application context and instead
+    obtains a standalone SQLAlchemy session via :func:`get_session`.
+    """
+
     update_queue_depth()
     with WORKER_LATENCY.time():
-        with app.app_context():
-            poll_and_copy_trades(db.session)
+        session = get_session()
+        try:
+            poll_and_copy_trades(session)
+        finally:
+            session.close()
