@@ -43,14 +43,18 @@ def _decode_event(raw: Dict[Any, Any]) -> Dict[str, Any]:
 def consume_webhook_events(
     *,
     stream: str = "webhook_events",
+    group: str = "order_consumer",
+    consumer: str = "worker-1",
     redis_client=redis_client,
     max_messages: int | None = None,
     block: int = 0,
 ) -> int:
-    """Consume events from *stream* and place orders.
+    """Consume events from *stream* using a consumer group and place orders.
 
     Args:
         stream: Redis Stream name to consume from.
+        group: Consumer group name used for coordinated consumption.
+        consumer: Consumer name within the group.
         redis_client: Redis client instance.  Tests may supply a stub.
         max_messages: Optional limit for the number of messages processed.  If
             ``None`` the consumer runs until the stream is exhausted.
@@ -60,15 +64,22 @@ def consume_webhook_events(
     Returns the number of messages processed.
     """
 
-    last_id = "0"
+    # Ensure the consumer group exists. Ignore error if it already exists.
+    try:
+        redis_client.xgroup_create(stream, group, id="0", mkstream=True)
+    except Exception as exc:  # pragma: no cover - stub may not raise
+        if "BUSYGROUP" not in str(exc):
+            raise
+
     processed = 0
     while max_messages is None or processed < max_messages:
-        messages: Iterable = redis_client.xread({stream: last_id}, count=1, block=block)
+        messages: Iterable = redis_client.xreadgroup(
+            group, consumer, {stream: ">"}, count=1, block=block
+        )
         if not messages:
             break
         for _stream, events in messages:
             for msg_id, data in events:
-                last_id = msg_id
                 event = _decode_event(data)
                 try:
                     check_duplicate_and_risk(event)
@@ -89,7 +100,6 @@ def consume_webhook_events(
                             order_type=event.get("order_type"),
                         )
 
-
                         # Publish master order to trade copier stream so child
                         # accounts can replicate the trade asynchronously.
                         redis_client.xadd(
@@ -107,7 +117,10 @@ def consume_webhook_events(
                     log.info("processed webhook event", extra={"event": event})
                 except Exception:
                     orders_failed.inc()
-                    log.exception("failed to process webhook event", extra={"event": event})
+                    log.exception(
+                        "failed to process webhook event", extra={"event": event}
+                    )
+                redis_client.xack(stream, group, msg_id)
                 processed += 1
                 if max_messages is not None and processed >= max_messages:
                     break
