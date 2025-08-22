@@ -32,6 +32,7 @@ def client(monkeypatch):
         def xadd(self, stream, data):
             events.append((stream, data))
     monkeypatch.setattr(webhook_receiver, "redis_client", DummyRedis())
+    monkeypatch.setattr(webhook_receiver, "check_duplicate_and_risk", lambda e: True)
 
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
