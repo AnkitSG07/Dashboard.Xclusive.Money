@@ -1,0 +1,2 @@
+web: gunicorn wsgi:application
+scheduler: celery -A services.scheduler beat --loglevel=info
