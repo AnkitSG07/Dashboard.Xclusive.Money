@@ -16,11 +16,52 @@ from prometheus_client import Histogram
 from sqlalchemy.orm import Session
 
 from models import Account
+from brokers.factory import get_broker_client
 from .webhook_receiver import redis_client
 
 LATENCY = Histogram(
     "trade_copier_latency_seconds", "Seconds spent processing a master order event"
 )
+
+
+def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
+    """Instantiate the appropriate broker client for *child* and copy *order*.
+
+    Parameters
+    ----------
+    master: Account
+        Master account that generated the trade. Currently unused but part of
+        the public callback API.
+    child: Account
+        Child account that should receive the replicated order.
+    order: Dict[str, Any]
+        Normalised order payload decoded from the ``trade_events`` stream.
+    """
+
+    # Look up the concrete broker implementation or service client.
+    client_cls = get_broker_client(child.broker)
+
+    # Credentials are stored on the ``Account`` model as a JSON blob.  We only
+    # require an access token for the tests so missing keys default to ``""``.
+    credentials = child.credentials or {}
+    access_token = credentials.get("access_token", "")
+    extras = credentials.get("extras", {})
+
+    broker = client_cls(child.client_id, access_token, **extras)
+
+    # Apply quantity multiplier for the child account.  Default multiplier is
+    # 1.0 if not specified.
+    multiplier = getattr(child, "multiplier", 1) or 1
+    qty = int(order.get("qty", 0))
+    qty = int(qty * multiplier)
+
+    return broker.place_order(
+        symbol=order.get("symbol"),
+        action=order.get("action"),
+        qty=qty,
+        exchange=order.get("exchange"),
+        order_type=order.get("order_type"),
+    )
 
 
 def _decode_event(raw: Dict[Any, Any]) -> Dict[str, Any]:
@@ -119,4 +160,4 @@ def poll_and_copy_trades(
     return processed
 
 
-__all__ = ["poll_and_copy_trades", "LATENCY"]
+__all__ = ["poll_and_copy_trades", "copy_order", "LATENCY"]
