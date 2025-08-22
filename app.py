@@ -27,7 +27,6 @@ from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf import CSRFProtect
-from apscheduler.schedulers.background import BackgroundScheduler
 import io
 from datetime import datetime, timedelta, date
 from dateutil import parser
@@ -166,7 +165,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(), file_handler],
 )
 logger = logging.getLogger(__name__)
-_scheduler = None
 
 # Centralized commit helper
 def safe_commit():
@@ -2526,42 +2524,9 @@ def _legacy_poll_and_copy_trades():
             logger.info("Poll and copy trades cycle completed")
             
     except Exception as e:
-        logger.error(f"Failed to start scheduler: {str(e)}")
-        # This catch-all should ideally not happen if internal exceptions are caught more specifically.
-        # However, for a high-level scheduler, it ensures the job doesn't completely die silently.
-
-def start_scheduler():
-    """Start a background scheduler for ``poll_and_copy_trades``."""
-    if app.config.get("TESTING") or os.environ.get("RUN_SCHEDULER", "1") == "0":
-        logger.info("Scheduler disabled")
-        return
-
-    global _scheduler
-    if _scheduler is not None and _scheduler.running:
-        return
-    try:
-        _scheduler = BackgroundScheduler(timezone="UTC", daemon=True)
-
-        def _job():
-            with app.app_context():
-                poll_and_copy_trades(db.session, processor=copy_order)
-
-        _scheduler.add_job(
-            _job,
-            "interval",
-            seconds=10,
-            id="poll_trades",
-            replace_existing=True,
-            max_instances=2,  # permit a second run if the previous one is still executing
-        )
-        _scheduler.start()
-        logger.info("Scheduler started")
-    except Exception as e:
-        logger.error(f"Failed to start scheduler: {e}")
-        _scheduler = None
-
-
-
+        logger.error(f"Error while copying trades: {str(e)}")
+        # This catch-all should ideally not happen if internal exceptions are caught more specifically,
+        # but ensures the job doesn't fail silently.
 
 @app.route("/connect-zerodha", methods=["POST"])
 @login_required
