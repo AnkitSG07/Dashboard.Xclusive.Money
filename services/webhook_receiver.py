@@ -16,6 +16,8 @@ from typing import Optional, Dict, Any
 import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
 
+from .alert_guard import check_duplicate_and_risk
+
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -32,6 +34,9 @@ class WebhookEventSchema(Schema):
     symbol = fields.Str(required=True)
     action = fields.Str(required=True)
     qty = fields.Int(required=True)
+    exchange = fields.Str(load_default=None)
+    order_type = fields.Str(load_default=None)
+    alert_id = fields.Str(load_default=None)
 
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
@@ -40,11 +45,17 @@ class WebhookEventSchema(Schema):
         # Accept either ``ticker`` or ``symbol`` as the symbol field.
         if "symbol" not in data and "ticker" in data:
             data["symbol"] = data["ticker"]
+        data.pop("ticker", None)
 
         # Accept ``quantity`` or ``qty`` for the quantity field.
         if "qty" not in data and "quantity" in data:
             data["qty"] = data["quantity"]
         data.pop("quantity", None)
+
+        # Accept ``side`` as an alias for ``action``.
+        if "action" not in data and "side" in data:
+            data["action"] = data["side"]
+        data.pop("side", None)
 
         # Upper-case the action for consistency.
         if "action" in data and isinstance(data["action"], str):
@@ -84,6 +95,9 @@ def enqueue_webhook(
 
     schema = WebhookEventSchema()
     validated = schema.load(event)
+
+    # Run duplicate and risk checks before publishing.
+    check_duplicate_and_risk(validated)
 
     # Serialize event to the Redis Stream. Redis expects a mapping of
     # field/value pairs. ``xadd`` returns the generated ID which we don't
