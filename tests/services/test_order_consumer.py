@@ -1,17 +1,20 @@
-from marshmallow import ValidationError
-
 from services import order_consumer
-
+from marshmallow import ValidationError
 
 class StubRedis:
     def __init__(self, events):
         self.events = events
+        self.added = []
 
     def xread(self, *_, **__):
         if not self.events:
             return []
         data = self.events.pop(0)
         return [("webhook_events", [("1", data)])]
+
+    def xadd(self, stream, data):
+        self.added.append((stream, data))
+
 
 
 class MockBroker:
@@ -45,7 +48,19 @@ def test_consumer_places_order(monkeypatch):
     assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}]
     assert order_consumer.orders_success._value.get() == 1
     assert order_consumer.orders_failed._value.get() == 0
-
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "exchange": None,
+                "order_type": None,
+            },
+        )
+    ]
 
 def test_consumer_handles_risk_failure(monkeypatch):
     event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 10, "alert_id": "1"}
@@ -65,3 +80,4 @@ def test_consumer_handles_risk_failure(monkeypatch):
     assert MockBroker.orders == []
     assert order_consumer.orders_success._value.get() == 0
     assert order_consumer.orders_failed._value.get() == 1
+    assert stub.added == []
