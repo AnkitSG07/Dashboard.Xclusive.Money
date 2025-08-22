@@ -88,6 +88,21 @@ def consume_webhook_events(
                             exchange=event.get("exchange"),
                             order_type=event.get("order_type"),
                         )
+
+
+                        # Publish master order to trade copier stream so child
+                        # accounts can replicate the trade asynchronously.
+                        redis_client.xadd(
+                            "trade_events",
+                            {
+                                "master_id": broker_cfg.get("client_id"),
+                                "symbol": event["symbol"],
+                                "action": event["action"],
+                                "qty": event["qty"],
+                                "exchange": event.get("exchange"),
+                                "order_type": event.get("order_type"),
+                            },
+                        )
                     orders_success.inc()
                     log.info("processed webhook event", extra={"event": event})
                 except Exception:
