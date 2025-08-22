@@ -56,3 +56,64 @@ def test_poll_and_copy_trades_processes_event(monkeypatch):
     assert count == 1
     # two children processed
     assert processed == ["AAPL", "AAPL"]
+
+
+def test_child_orders_submitted(monkeypatch):
+    """Verify that ``copy_order`` submits orders for each child account."""
+
+    orders = []
+
+    # Stub broker that records ``place_order`` invocations
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            orders.append((self.client_id, params))
+            return {"status": "ok"}
+
+    def fake_get_broker_client(name):
+        assert name == "stub"
+        return StubBroker
+
+    class Child:
+        def __init__(self, cid):
+            self.client_id = cid
+            self.broker = "stub"
+            self.credentials = {"access_token": "t"}
+            self.multiplier = 1
+
+    class Master:
+        client_id = "m1"
+
+    class Session:
+        def query(self, model):
+            return self
+
+        def filter_by(self, **kwargs):
+            self.kwargs = kwargs
+            return self
+
+        def first(self):
+            if self.kwargs.get("role") == "master":
+                return Master()
+            return None
+
+        def all(self):
+            # Two child accounts to replicate the trade to
+            return [Child("c1"), Child("c2")]
+
+    event = {b"master_id": b"m1", b"symbol": b"AAPL", b"action": b"BUY", b"qty": b"1"}
+    stub_redis = StubRedis([event])
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+
+    count = trade_copier.poll_and_copy_trades(
+        Session(), processor=trade_copier.copy_order, redis_client=stub_redis, max_messages=1
+    )
+
+    assert count == 1
+    assert orders == [
+        ("c1", {"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}),
+        ("c2", {"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}),
+    ]
