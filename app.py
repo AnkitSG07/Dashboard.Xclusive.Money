@@ -60,7 +60,7 @@ from models import (
 )
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from services.trade_copier import poll_and_copy_trades
+from services.trade_copier import poll_and_copy_trades, copy_order
 from services.webhook_receiver import enqueue_webhook, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
@@ -2544,7 +2544,7 @@ def start_scheduler():
 
         def _job():
             with app.app_context():
-                poll_and_copy_trades(db.session)
+                poll_and_copy_trades(db.session, processor=copy_order)
 
         _scheduler.add_job(
             _job,
