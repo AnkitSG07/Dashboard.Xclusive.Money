@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Any, Dict, Iterable, List
 
 from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
+import redis
 
 from .alert_guard import check_risk_limits, get_user_settings
 from .webhook_receiver import redis_client
@@ -199,7 +201,11 @@ def main() -> None:
     while True:
         # Block for up to 5 seconds waiting for new events so the loop
         # doesn't spin when the stream is idle.
-        consume_webhook_events(block=5000)
+        try:
+            consume_webhook_events(block=5000)
+        except redis.exceptions.RedisError:
+            log.exception("redis unavailable, retrying", exc_info=True)
+            time.sleep(5)
 
 
 if __name__ == "__main__":
