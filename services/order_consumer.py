@@ -12,7 +12,7 @@ from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
 
-from .alert_guard import check_duplicate_and_risk, get_user_settings
+from .alert_guard import check_risk_limits, get_user_settings
 from .webhook_receiver import redis_client
 from .utils import _decode_event
 
@@ -80,7 +80,7 @@ def consume_webhook_events(
     def process_message(msg_id: str, data: Dict[Any, Any]) -> None:
         event = _decode_event(data)
         try:
-            check_duplicate_and_risk(event)
+            check_risk_limits(event)
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
 
