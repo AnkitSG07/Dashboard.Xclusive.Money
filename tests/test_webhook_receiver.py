@@ -57,7 +57,9 @@ def test_webhook_enqueues_event(client):
     assert data["qty"] == 1
     assert data["orderType"] == "market"
     assert data["productType"] == "intraday"
-
+    # Lists are serialized to JSON strings for Redis compatibility
+    assert json.loads(data["masterAccounts"]) == ["50"]
+    assert json.loads(data["tradingSymbols"]) == ["NSE:SBIN"]
 
 def test_enqueue_webhook_redis_failure(monkeypatch):
     class FailingRedis:
