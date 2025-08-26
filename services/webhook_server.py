@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, Blueprint, jsonify, request
 
 from models import db, User, Strategy
 from .webhook_receiver import enqueue_webhook, ValidationError
 
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///webhook.db")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db.init_app(app)
+webhook_bp = Blueprint("webhook", __name__)
 
-
-@app.post("/webhook/<token>")
+@webhook_bp.post("/webhook/<token>")
 def webhook(token: str):
     """Enqueue *payload* for the user identified by *token*.
 
@@ -49,13 +45,27 @@ def webhook(token: str):
         return jsonify({"error": str(exc)}), 400
     return jsonify(event), 202
 
+def create_app() -> Flask:
+    """Create a standalone Flask application hosting the webhook endpoint."""
+    app = Flask(__name__)
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+        "DATABASE_URL", "sqlite:///webhook.db"
+    )
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    db.init_app(app)
+    app.register_blueprint(webhook_bp)
+    return app
+
 
 def main() -> None:  # pragma: no cover - CLI helper
+    app = create_app()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+app = create_app()
 
 
 if __name__ == "__main__":  # pragma: no cover
     main()
 
 
-__all__ = ["app", "main"]
+__all__ = ["webhook_bp", "create_app", "app", "main"]
