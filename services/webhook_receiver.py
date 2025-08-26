@@ -12,13 +12,15 @@ from __future__ import annotations
 
 import os
 from collections import deque
-from typing import Optional, Dict, Any, Deque
+import logging
+from typing import Optional, Dict, Any
 
 import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
 
 from .alert_guard import check_duplicate_and_risk
 
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL")
 if not REDIS_URL:
@@ -27,8 +29,6 @@ if not REDIS_URL:
 # Redis client used for publishing events. In tests this object can be
 # monkeypatched with a stub that implements ``xadd``.
 redis_client = redis.Redis.from_url(REDIS_URL)
-# Fallback in-memory streams used when Redis is unavailable.
-_LOCAL_STREAMS: Dict[str, Deque[Dict[str, Any]]] = {}
 
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
@@ -135,7 +135,8 @@ def enqueue_webhook(
     try:
         redis_client.xadd(stream, validated)
     except redis.exceptions.RedisError:
-        _LOCAL_STREAMS.setdefault(stream, deque()).append(validated)
+        logger.exception("Failed to publish webhook event to Redis")
+        raise
 
     return validated
 
@@ -145,5 +146,4 @@ __all__ = [
     "WebhookEventSchema",
     "redis_client",
     "ValidationError",
-    "_LOCAL_STREAMS",
 ]
