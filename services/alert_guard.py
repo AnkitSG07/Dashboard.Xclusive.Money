@@ -87,6 +87,22 @@ def _dedup_key(event: Dict[str, Any]) -> str:
     return "alert:" + hashlib.sha1(payload.encode()).hexdigest()
 
 
+def check_risk_limits(event: Dict[str, Any]) -> bool:
+    """Validate *event* against user-configured risk limits."""
+
+    settings = get_user_settings(event["user_id"])
+
+    max_qty = settings.get("max_qty")
+    if max_qty is not None and event["qty"] > max_qty:
+        raise ValidationError("quantity exceeds max allowed")
+
+    allowed = settings.get("allowed_symbols")
+    if allowed and event["symbol"] not in allowed:
+        raise ValidationError("symbol not allowed")
+
+    return True
+
+
 def check_duplicate_and_risk(event: Dict[str, Any]) -> bool:
     """Validate *event* against duplicate delivery and risk settings.
 
@@ -110,21 +126,13 @@ def check_duplicate_and_risk(event: Dict[str, Any]) -> bool:
             raise ValidationError("duplicate alert")
         _LOCAL_DEDUP[key] = now + DEDUP_TTL
 
-    settings = get_user_settings(event["user_id"])
-
-    max_qty = settings.get("max_qty")
-    if max_qty is not None and event["qty"] > max_qty:
-        raise ValidationError("quantity exceeds max allowed")
-
-    allowed = settings.get("allowed_symbols")
-    if allowed and event["symbol"] not in allowed:
-        raise ValidationError("symbol not allowed")
-
+    check_risk_limits(event)
     return True
 
 
 __all__ = [
     "check_duplicate_and_risk",
+    "check_risk_limits",
     "get_user_settings",
     "update_user_settings",
     "redis_client",
