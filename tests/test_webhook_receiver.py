@@ -70,3 +70,22 @@ def test_enqueue_webhook_redis_failure(monkeypatch):
     payload = {"symbol": "NSE:SBIN", "action": "BUY", "qty": 1}
     with pytest.raises(redis.exceptions.RedisError):
         webhook_receiver.enqueue_webhook(1, None, payload)
+
+
+def test_enqueue_webhook_sanitizes_none(monkeypatch):
+    events = []
+
+    class DummyRedis:
+        def xadd(self, stream, data):
+            events.append((stream, data))
+
+    monkeypatch.setattr(webhook_receiver, "redis_client", DummyRedis())
+    monkeypatch.setattr(webhook_receiver, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {"symbol": "NSE:SBIN", "action": "BUY", "qty": 1}
+    webhook_receiver.enqueue_webhook(1, None, payload)
+
+    assert events, "Event was not published"
+    _, data = events[0]
+    assert data["strategy_id"] == ""
+    assert data["exchange"] == ""
