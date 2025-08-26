@@ -2,16 +2,19 @@ from __future__ import annotations
 
 """Asynchronous worker that consumes webhook events and places orders."""
 
+import asyncio
 import logging
-from typing import Any, Dict, Iterable
+import os
+from concurrent.futures import ThreadPoolExecutor, wait
+from typing import Any, Dict, Iterable, List
 
 from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
 
-from .alert_guard import check_duplicate_and_risk, USER_SETTINGS
+from .alert_guard import check_duplicate_and_risk, get_user_settings
 from .webhook_receiver import redis_client
-
+from .utils import _decode_event
 
 log = logging.getLogger(__name__)
 
@@ -25,19 +28,7 @@ orders_failed = Counter(
 )
 
 
-def _decode_event(raw: Dict[Any, Any]) -> Dict[str, Any]:
-    """Decode Redis bytes into a plain ``dict``."""
-
-    event: Dict[str, Any] = {}
-    for k, v in raw.items():
-        key = k.decode() if isinstance(k, bytes) else k
-        if isinstance(v, bytes):
-            try:
-                v = int(v)
-            except ValueError:
-                v = v.decode()
-        event[key] = v
-    return event
+DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
 
 
 def consume_webhook_events(
@@ -48,6 +39,9 @@ def consume_webhook_events(
     redis_client=redis_client,
     max_messages: int | None = None,
     block: int = 0,
+    batch_size: int = 10,
+    max_workers: int | None = None,
+    order_timeout: float | None = None,
 ) -> int:
     """Consume events from *stream* using a consumer group and place orders.
 
@@ -60,9 +54,19 @@ def consume_webhook_events(
             ``None`` the consumer runs until the stream is exhausted.
         block: Milliseconds to block waiting for new events.  ``0`` means do not
             block.
+        batch_size: Number of messages to fetch per ``xreadgroup`` call.
+        max_workers: Maximum number of broker submissions dispatched
+            concurrently for a single webhook event.  Defaults to the value of
+            the ``ORDER_CONSUMER_MAX_WORKERS`` environment variable.
+        order_timeout: Maximum time in seconds to wait for a broker API
+            response. ``None`` disables the timeout.
 
     Returns the number of messages processed.
     """
+    
+    max_workers = max_workers or DEFAULT_MAX_WORKERS
+    if order_timeout is None:
+        order_timeout = float(os.getenv("ORDER_CONSUMER_TIMEOUT", "5.0"))
 
     # Ensure the consumer group exists. Ignore error if it already exists.
     try:
@@ -71,60 +75,101 @@ def consume_webhook_events(
         if "BUSYGROUP" not in str(exc):
             raise
 
-    processed = 0
-    while max_messages is None or processed < max_messages:
-        messages: Iterable = redis_client.xreadgroup(
-            group, consumer, {stream: ">"}, count=1, block=block
-        )
-        if not messages:
-            break
-        for _stream, events in messages:
-            for msg_id, data in events:
-                event = _decode_event(data)
-                try:
-                    check_duplicate_and_risk(event)
-                    settings = USER_SETTINGS.get(event["user_id"], {})
-                    brokers = settings.get("brokers", [])
-                    for broker_cfg in brokers:
-                        client_cls = get_broker_client(broker_cfg["name"])
-                        client = client_cls(
-                            broker_cfg.get("client_id"),
-                            broker_cfg.get("access_token", ""),
-                            **broker_cfg.get("extras", {})
-                        )
-                        client.place_order(
-                            symbol=event["symbol"],
-                            action=event["action"],
-                            qty=event["qty"],
-                            exchange=event.get("exchange"),
-                            order_type=event.get("order_type"),
-                        )
+    executor = ThreadPoolExecutor(max_workers=max_workers)
 
-                        # Publish master order to trade copier stream so child
-                        # accounts can replicate the trade asynchronously.
-                        redis_client.xadd(
-                            "trade_events",
-                            {
-                                "master_id": broker_cfg.get("client_id"),
-                                "symbol": event["symbol"],
-                                "action": event["action"],
-                                "qty": event["qty"],
-                                "exchange": event.get("exchange"),
-                                "order_type": event.get("order_type"),
-                            },
+    def process_message(msg_id: str, data: Dict[Any, Any]) -> None:
+        event = _decode_event(data)
+        try:
+            check_duplicate_and_risk(event)
+            settings = get_user_settings(event["user_id"])
+            brokers = settings.get("brokers", [])
+
+            def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
+                client_cls = get_broker_client(broker_cfg["name"])
+                client = client_cls(
+                    broker_cfg.get("client_id"),
+                    broker_cfg.get("access_token", ""),
+                    **broker_cfg.get("extras", {})
+                )
+                client.place_order(
+                    symbol=event["symbol"],
+                    action=event["action"],
+                    qty=event["qty"],
+                    exchange=event.get("exchange"),
+                    order_type=event.get("order_type"),
+                )
+                return {
+                    "master_id": broker_cfg.get("client_id"),
+                    "symbol": event["symbol"],
+                    "action": event["action"],
+                    "qty": event["qty"],
+                    "exchange": event.get("exchange"),
+                    "order_type": event.get("order_type"),
+                }
+
+            trade_events: List[Dict[str, Any]] = []
+            if brokers:
+                futures = {executor.submit(submit, cfg): cfg for cfg in brokers}
+                done, pending = wait(futures, timeout=order_timeout)
+                for future in done:
+                    cfg = futures[future]
+                    try:
+                        trade_events.append(future.result())
+                    except Exception:
+                        orders_failed.inc()
+                        log.exception(
+                            "failed to place master order", extra={"event": event, "broker": cfg}
                         )
-                    orders_success.inc()
-                    log.info("processed webhook event", extra={"event": event})
-                except Exception:
+                for future in pending:
+                    cfg = futures[future]
                     orders_failed.inc()
-                    log.exception(
-                        "failed to process webhook event", extra={"event": event}
+                    log.warning(
+                        "broker order timed out", extra={"event": event, "broker": cfg}
                     )
-                redis_client.xack(stream, group, msg_id)
-                processed += 1
-                if max_messages is not None and processed >= max_messages:
-                    break
-    return processed
+                    future.cancel()
+
+            for trade_event in trade_events:
+                # Publish master order to trade copier stream so child
+                # accounts can replicate the trade asynchronously.
+                redis_client.xadd("trade_events", trade_event)
+
+            if trade_events:
+                orders_success.inc()
+                log.info("processed webhook event", extra={"event": event})
+            else:
+                orders_failed.inc()
+        except Exception:
+            orders_failed.inc()
+            log.exception("failed to process webhook event", extra={"event": event})
+        finally:
+            redis_client.xack(stream, group, msg_id)
+
+    async def _consume() -> int:
+        processed = 0
+        while max_messages is None or processed < max_messages:
+            count = batch_size
+            if max_messages is not None:
+                count = min(count, max_messages - processed)
+            messages: Iterable = redis_client.xreadgroup(
+                group, consumer, {stream: ">"}, count=count, block=block
+            )
+            if not messages:
+                break
+
+            tasks = []
+            for _stream, events in messages:
+                for msg_id, data in events:
+                    tasks.append(asyncio.to_thread(process_message, msg_id, data))
+            if tasks:
+                await asyncio.gather(*tasks)
+                processed += len(tasks)
+
+        return processed
+
+    try:
+        return asyncio.run(_consume())
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 __all__ = [
