@@ -39,6 +39,14 @@ class WebhookEventSchema(Schema):
     exchange = fields.Str(load_default=None)
     order_type = fields.Str(load_default=None)
     alert_id = fields.Str(load_default=None)
+    # Broker specific fields expected by some strategies
+    orderType = fields.Str(load_default=None)
+    orderValidity = fields.Str(load_default=None)
+    productType = fields.Str(load_default=None)
+    masterAccounts = fields.List(fields.Str(), load_default=None)
+    transactionType = fields.Str(load_default=None)
+    orderQty = fields.Int(load_default=None)
+    tradingSymbols = fields.List(fields.Str(), load_default=None)
 
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
