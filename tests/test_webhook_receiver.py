@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import pytest
+import redis
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
@@ -56,3 +57,16 @@ def test_webhook_enqueues_event(client):
     assert data["qty"] == 1
     assert data["orderType"] == "market"
     assert data["productType"] == "intraday"
+
+
+def test_enqueue_webhook_redis_failure(monkeypatch):
+    class FailingRedis:
+        def xadd(self, stream, data):
+            raise redis.exceptions.ConnectionError()
+
+    monkeypatch.setattr(webhook_receiver, "redis_client", FailingRedis())
+    monkeypatch.setattr(webhook_receiver, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {"symbol": "NSE:SBIN", "action": "BUY", "qty": 1}
+    with pytest.raises(redis.exceptions.RedisError):
+        webhook_receiver.enqueue_webhook(1, None, payload)
