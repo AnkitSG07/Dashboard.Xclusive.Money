@@ -2,6 +2,10 @@ from services import order_consumer
 from marshmallow import ValidationError
 from concurrent.futures import ThreadPoolExecutor
 
+def guard(event):
+    """Test helper that always allows an event."""
+    return True
+
 class StubRedis:
     def __init__(self, events):
         self.events = events
@@ -134,7 +138,7 @@ def test_consumer_handles_risk_failure(monkeypatch):
     def guard(event):
         raise ValidationError("risk")
 
-    monkeypatch.setattr(order_consumer, "check_duplicate_and_risk", guard)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
 
     monkeypatch.setattr(order_consumer, "get_user_settings", lambda _: {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]})
     reset_metrics()
