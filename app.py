@@ -80,6 +80,7 @@ from helpers import (
 )
 from symbols import get_symbols
 from services.logging import publish_log_event
+from services.webhook_receiver import enqueue_webhook, ValidationError
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -6758,6 +6759,42 @@ def get_alerts():
         for log in logs
     ]
     return jsonify(alerts)
+
+@app.post("/webhook/<token>")
+def webhook(token):
+    """Enqueue *payload* for the user identified by *token*.
+
+    ``token`` may be either a numeric user identifier or a webhook token. If a
+    ``secret`` is supplied it will be matched against the user's strategies and
+    the associated ``strategy_id`` will be sent along with the event.
+    """
+
+    strategy_id = request.args.get("strategy_id", type=int)
+    secret = request.args.get("secret") or request.headers.get("X-Webhook-Secret")
+    payload = request.get_json(silent=True) or {}
+
+    user = User.query.filter_by(webhook_token=token).first()
+    if user is not None:
+        user_id = user.id
+        if secret:
+            strategy = Strategy.query.filter_by(
+                user_id=user_id, webhook_secret=secret
+            ).first()
+            if not strategy:
+                return jsonify({"error": "Invalid webhook secret"}), 403
+            if strategy_id is None:
+                strategy_id = strategy.id
+    else:
+        try:
+            user_id = int(token)
+        except ValueError:
+            return jsonify({"error": "Unknown webhook token"}), 404
+
+    try:
+        event = enqueue_webhook(user_id, strategy_id, payload)
+    except ValidationError as exc:  # pragma: no cover - simple pass-through
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(event), 202
 
 # === API to save new user from login form ===
 @app.route("/register", methods=["POST"])
