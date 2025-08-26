@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from collections import deque
 import logging
+import json
 from typing import Optional, Dict, Any
 
 import redis
@@ -137,7 +138,14 @@ def enqueue_webhook(
     # placeholder before publishing. ``xadd`` returns the generated ID
     # which we don't use but keeping the call ensures the event is
     # queued.
-    sanitized = {k: (none_placeholder if v is None else v) for k, v in validated.items()}
+    sanitized: Dict[str, Any] = {}
+    for k, v in validated.items():
+        if v is None:
+            sanitized[k] = none_placeholder
+        elif isinstance(v, (str, int, float, bytes)):
+            sanitized[k] = v
+        else:
+            sanitized[k] = json.dumps(v, separators=(",", ":"))
     try:
         redis_client.xadd(stream, sanitized)
     except redis.exceptions.RedisError:
