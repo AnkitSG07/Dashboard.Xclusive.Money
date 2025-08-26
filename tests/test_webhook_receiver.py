@@ -36,7 +36,16 @@ def client(monkeypatch):
 
 def test_webhook_enqueues_event(client):
     client_app, events = client
-    payload = {"symbol": "NSE:SBIN", "action": "BUY", "quantity": 1}
+    payload = {
+        "exchange": "NSE",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": "intraday",
+        "masterAccounts": ["50"],
+        "transactionType": "BUY",
+        "orderQty": 1,
+        "tradingSymbols": ["NSE:SBIN"],
+    }
     resp = client_app.post("/webhook/tok1", json=payload)
     assert resp.status_code == 202
     assert events
@@ -45,3 +54,5 @@ def test_webhook_enqueues_event(client):
     assert data["symbol"] == "NSE:SBIN"
     assert data["action"] == "BUY"
     assert data["qty"] == 1
+    assert data["orderType"] == "market"
+    assert data["productType"] == "intraday"
