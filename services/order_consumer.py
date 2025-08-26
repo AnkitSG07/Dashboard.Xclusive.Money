@@ -91,22 +91,28 @@ def consume_webhook_events(
                     broker_cfg.get("access_token", ""),
                     **broker_cfg.get("extras", {})
                 )
-                client.place_order(
-                    symbol=event["symbol"],
-                    action=event["action"],
-                    qty=event["qty"],
-                    exchange=event.get("exchange"),
-                    order_type=event.get("order_type"),
-                )
-                return {
-                    "master_id": broker_cfg.get("client_id"),
+                order_params = {
                     "symbol": event["symbol"],
                     "action": event["action"],
                     "qty": event["qty"],
                     "exchange": event.get("exchange"),
                     "order_type": event.get("order_type"),
                 }
-
+                optional_map = {
+                    "productType": "product_type",
+                    "orderValidity": "validity",
+                    "masterAccounts": "master_accounts",
+                }
+                for src, dest in optional_map.items():
+                    if event.get(src) is not None:
+                        order_params[dest] = event[src]
+                client.place_order(**order_params)
+                trade_event = {
+                    "master_id": broker_cfg.get("client_id"),
+                    **{k: v for k, v in order_params.items() if k != "master_accounts"},
+                }
+                return trade_event
+                
             trade_events: List[Dict[str, Any]] = []
             if brokers:
                 futures = {executor.submit(submit, cfg): cfg for cfg in brokers}
