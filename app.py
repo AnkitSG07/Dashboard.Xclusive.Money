@@ -65,6 +65,7 @@ from sqlalchemy import or_, text, inspect
 import re
 from blueprints.auth import auth_bp
 from blueprints.api import api_bp, login_required_api
+from services.webhook_server import webhook_bp
 from helpers import (
     current_user,
     user_account_ids,
@@ -210,6 +211,8 @@ migrate = Migrate(app, db)
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
 csrf.exempt(api_bp)
+app.register_blueprint(webhook_bp)
+csrf.exempt(webhook_bp)
 start_time = datetime.utcnow()
 device_number = None
 
