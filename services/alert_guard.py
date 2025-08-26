@@ -31,7 +31,8 @@ _SETTINGS_KEY = "user_settings:{user_id}"
 SETTINGS_CACHE_TTL = 60
 # Local cache mapping user_id -> (settings, expiry_timestamp)
 _USER_SETTINGS_CACHE: Dict[int, Tuple[Dict[str, Any], float]] = {}
-
+# In-memory fallback for deduplication when Redis is unavailable.
+_LOCAL_DEDUP: Dict[str, float] = {}
 
 def get_user_settings(user_id: int) -> Dict[str, Any]:
     """Return settings for *user_id*.
@@ -45,7 +46,10 @@ def get_user_settings(user_id: int) -> Dict[str, Any]:
     if cached and cached[1] > now:
         return cached[0]
 
-    raw = redis_client.get(_SETTINGS_KEY.format(user_id=user_id))
+    try:
+        raw = redis_client.get(_SETTINGS_KEY.format(user_id=user_id))
+    except redis.exceptions.RedisError:
+        raw = None
     if raw is None:
         settings: Dict[str, Any] = {}
     else:
@@ -62,9 +66,12 @@ def get_user_settings(user_id: int) -> Dict[str, Any]:
 def update_user_settings(user_id: int, settings: Dict[str, Any], *, ttl: int | None = None) -> None:
     """Persist *settings* for *user_id* and refresh the local cache."""
 
-    redis_client.set(
-        _SETTINGS_KEY.format(user_id=user_id), json.dumps(settings), ex=ttl
-    )
+    try:
+        redis_client.set(
+            _SETTINGS_KEY.format(user_id=user_id), json.dumps(settings), ex=ttl
+        )
+    except redis.exceptions.RedisError:
+        pass
     _USER_SETTINGS_CACHE[user_id] = (settings, time.time() + SETTINGS_CACHE_TTL)
 
 
@@ -90,8 +97,18 @@ def check_duplicate_and_risk(event: Dict[str, Any]) -> bool:
     key = _dedup_key(event)
     # SET with NX ensures duplicates are rejected while setting a TTL for
     # automatic expiry of the deduplication key.
-    if not redis_client.set(key, "1", nx=True, ex=DEDUP_TTL):
-        raise ValidationError("duplicate alert")
+    try:
+        if not redis_client.set(key, "1", nx=True, ex=DEDUP_TTL):
+            raise ValidationError("duplicate alert")
+    except redis.exceptions.RedisError:
+        # Fallback to an in-memory set with simple TTL pruning
+        now = time.time()
+        expired = [k for k, exp in _LOCAL_DEDUP.items() if exp < now]
+        for k in expired:
+            _LOCAL_DEDUP.pop(k, None)
+        if key in _LOCAL_DEDUP:
+            raise ValidationError("duplicate alert")
+        _LOCAL_DEDUP[key] = now + DEDUP_TTL
 
     settings = get_user_settings(event["user_id"])
 
