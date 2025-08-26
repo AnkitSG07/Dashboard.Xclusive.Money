@@ -60,7 +60,6 @@ from models import (
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from services.trade_copier import poll_and_copy_trades, copy_order
-from services.webhook_receiver import enqueue_webhook, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
 import re
@@ -408,11 +407,6 @@ def ensure_account_schema():
 
         logger.info(f"Schema check for {table_name} completed.")
         
-# The original duplicate function has been removed.
-# This ensures that schema checks are done consistently.
-ensure_system_log_schema()
-ensure_trade_schema()
-ensure_account_schema()
 
 def ensure_setting_schema():
     """Ensure the setting table exists and has a TEXT value column."""
@@ -448,7 +442,12 @@ def ensure_setting_schema():
             except Exception as exc:
                 logger.warning(f'Failed to add column "value" to "{table_name}": {exc}.')
 
-ensure_setting_schema()
+def initialize_database() -> None:
+    """Run schema checks for core application tables."""
+    ensure_system_log_schema()
+    ensure_trade_schema()
+    ensure_account_schema()
+    ensure_setting_schema()
 
 
 def ensure_user_profile_schema():
@@ -3029,67 +3028,6 @@ def zerodha_redirect_handler(client_id):
             error="Server Error",
             message="An unexpected error occurred."
         ), 500
-
-
-
-@app.route("/webhook/<user_id>", methods=["POST"])
-def webhook(user_id):
-    """Handle incoming webhook requests.
-
-    Validates and serializes the payload then publishes an event to a
-    Redis Stream for asynchronous processing.
-    """
-    logger.info(f"Received webhook request for user {user_id}")
-
-    try:
-        data = request.get_json(force=True)
-    except Exception as e:  # pragma: no cover
-        logger.error(f"Failed to parse JSON data: {e}")
-        return jsonify({"error": "Invalid JSON data", "details": str(e)}), 400
-
-    user_obj = get_user_by_token(user_id)
-    if not user_obj:
-        logger.error(f"Invalid webhook token: {user_id}")
-        return jsonify({"error": "Invalid webhook ID"}), 403
-
-    secret = (
-        request.headers.get("X-Webhook-Secret")
-        or (data.get("secret") if isinstance(data, dict) else None)
-        or request.args.get("secret")
-    )
-
-    strategy = None
-    if secret:
-        strategy = Strategy.query.filter_by(
-            user_id=user_obj.id, webhook_secret=secret
-        ).first()
-        if not strategy:
-            logger.error("Webhook secret mismatch")
-            return jsonify({"error": "Invalid webhook secret"}), 403
-        if not strategy.is_active:
-            logger.error("Strategy inactive")
-            return jsonify({"error": "Strategy inactive"}), 403
-    else:
-        if (
-            Strategy.query.filter(
-                Strategy.user_id == user_obj.id,
-                Strategy.webhook_secret.isnot(None),
-            ).count()
-            > 0
-        ):
-            logger.error("Webhook secret required but missing")
-            return jsonify({"error": "Webhook secret required"}), 403
-
-    try:
-        event = enqueue_webhook(user_obj.id, getattr(strategy, "id", None), data)
-    except ValidationError as ve:
-        logger.error(f"Validation error in webhook payload: {ve.messages}")
-        return jsonify({"error": "Invalid payload", "details": ve.messages}), 400
-    except Exception as e:  # pragma: no cover
-        logger.error(f"Failed to enqueue webhook event: {e}")
-        return jsonify({"error": "Failed to queue event"}), 500
-
-    return jsonify({"status": "queued", "event": event}), 202
 
 @app.route('/api/master-squareoff', methods=['POST'])
 @login_required
@@ -7349,17 +7287,49 @@ def admin_change_subscription(user_id):
         logger.error(f"Failed to change subscription for user {user_id}: {str(e)}")
     return redirect(url_for('admin_subscriptions'))
 
-app.route('/metrics')
+@app.route('/metrics')
 def metrics():
     """Expose Prometheus metrics."""
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
-    
-start_scheduler()
+
+
+# ``start_scheduler`` is intentionally a no-op during imports. A module-level
+# flag tracks whether it has been invoked so tests can assert that merely
+# importing ``app`` does not start the scheduler.
+scheduler_started = False
+
+
+def start_scheduler() -> None:
+    """Start a background scheduler.
+
+    The default implementation only toggles :data:`scheduler_started` and does
+    **not** launch any jobs.  Deployments can provide a real scheduler by
+    setting the ``SCHEDULER_FACTORY`` environment variable to a
+    ``"module:callable"`` path.  The callable should return an object with a
+    ``start()`` method.  Failures are logged but do not raise.
+    """
+
+    global scheduler_started
+    factory_path = os.environ.get("SCHEDULER_FACTORY")
+    if factory_path:
+        try:
+            module_name, func_name = factory_path.split(":", 1)
+            factory_mod = __import__(module_name, fromlist=[func_name])
+            factory = getattr(factory_mod, func_name)
+            scheduler = factory()
+            scheduler.start()
+        except Exception:  # pragma: no cover - import errors logged
+            logging.getLogger(__name__).exception(
+                "Failed to start scheduler from %s", factory_path
+            )
+    scheduler_started = True
+    # No scheduler is started by default when ``SCHEDULER_FACTORY`` is absent.
+    return None
+
 
 if __name__ == '__main__':
-    # It's generally better to run `ensure_system_log_schema()`
-    # within an app context, perhaps before app.run() or as part of a setup script.
-    # It's already called at the module level in the original code,
-    # which is fine as long as `app` and `db` are initialized by then.
+    # Initialize database schemas and start the optional scheduler.
+    initialize_database()
+    start_scheduler()
     debug = os.environ.get("FLASK_DEBUG") == "1"
     app.run(debug=debug)
