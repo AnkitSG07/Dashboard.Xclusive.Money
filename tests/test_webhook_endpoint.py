@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import pytest
+import redis
 
 # Ensure required environment variables before importing app
 os.environ.setdefault("SECRET_KEY", "test")
@@ -57,3 +58,21 @@ def test_webhook_endpoint_handles_tokens(client):
     resp = client_app.post("/webhook/unknown", json=payload)
     assert resp.status_code == 404
     assert resp.get_json()["error"] == "Unknown webhook token"
+
+
+def test_webhook_endpoint_survives_redis_down(client, monkeypatch):
+    client_app, _ = client
+    # Ensure local queue is empty before test
+    monkeypatch.setattr(webhook_receiver, "_LOCAL_STREAMS", {})
+
+    class FailingRedis:
+        def xadd(self, stream, data):
+            raise redis.exceptions.ConnectionError()
+
+    monkeypatch.setattr(webhook_receiver, "redis_client", FailingRedis())
+
+    payload = {"symbol": "NSE:SBIN", "action": "BUY", "qty": 1}
+    resp = client_app.post("/webhook/tok1", json=payload)
+    assert resp.status_code == 202
+    queue = webhook_receiver._LOCAL_STREAMS["webhook_events"]
+    assert queue and queue[0]["symbol"] == "NSE:SBIN"
