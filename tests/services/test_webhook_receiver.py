@@ -17,9 +17,14 @@ def test_optional_fields_and_aliases(monkeypatch):
     payload = {
         "ticker": "AAPL",
         "side": "buy",
-        "quantity": 5,
+        "orderQty": 5,
         "exchange": "NSE",
-        "order_type": "market",
+        "orderType": "market",
+        "orderValidity": "day",
+        "productType": "intraday",
+        "masterAccounts": ["50"],
+        "transactionType": "buy",
+        "tradingSymbols": ["AAPL"],
         "alert_id": "abc",
     }
     event = wr.enqueue_webhook(1, None, payload)
@@ -27,6 +32,7 @@ def test_optional_fields_and_aliases(monkeypatch):
     assert event["qty"] == 5
     assert event["exchange"] == "NSE"
     assert event["order_type"] == "market"
+    assert event["orderType"] == "market"
     assert event["alert_id"] == "abc"
     assert stub.messages
 
@@ -41,3 +47,5 @@ def test_missing_optional_fields(monkeypatch):
     assert event["exchange"] is None
     assert event["order_type"] is None
     assert event["alert_id"] is None
+    assert event["orderType"] is None
+    assert event["productType"] is None
