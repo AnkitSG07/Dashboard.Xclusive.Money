@@ -20,7 +20,9 @@ from marshmallow import Schema, fields, ValidationError, pre_load
 from .alert_guard import check_duplicate_and_risk
 
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL")
+if not REDIS_URL:
+    raise RuntimeError("REDIS_URL must be set")
 
 # Redis client used for publishing events. In tests this object can be
 # monkeypatched with a stub that implements ``xadd``.
