@@ -99,6 +99,7 @@ def enqueue_webhook(
     strategy_id: Optional[int],
     payload: Dict[str, Any],
     stream: str = "webhook_events",
+    none_placeholder: str = "",
 ) -> Dict[str, Any]:
     """Validate *payload* and publish it to *stream*.
 
@@ -109,6 +110,8 @@ def enqueue_webhook(
         payload: Raw webhook payload received from the HTTP request.
         stream: Redis Stream name to publish to. Defaults to
             ``"webhook_events"``.
+        none_placeholder: Substitute value for ``None`` fields before
+            publishing. Defaults to an empty string.
 
     Returns:
         The validated event dictionary.
@@ -130,10 +133,13 @@ def enqueue_webhook(
     check_duplicate_and_risk(validated)
 
     # Serialize event to the Redis Stream. Redis expects a mapping of
-    # field/value pairs. ``xadd`` returns the generated ID which we don't
-    # use but keeping the call ensures the event is queued.
+    # field/value pairs. Transform ``None`` values to the configured
+    # placeholder before publishing. ``xadd`` returns the generated ID
+    # which we don't use but keeping the call ensures the event is
+    # queued.
+    sanitized = {k: (none_placeholder if v is None else v) for k, v in validated.items()}
     try:
-        redis_client.xadd(stream, validated)
+        redis_client.xadd(stream, sanitized)
     except redis.exceptions.RedisError:
         logger.exception("Failed to publish webhook event to Redis")
         raise
