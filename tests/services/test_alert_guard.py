@@ -22,6 +22,7 @@ def test_duplicate_detection(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(alert_guard, "redis_client", stub)
     monkeypatch.setattr(alert_guard, "_USER_SETTINGS_CACHE", {})
+    monkeypatch.setattr(alert_guard, "_LOCAL_DEDUP", {})
     event = {
         "user_id": 1,
         "symbol": "AAPL",
@@ -38,6 +39,7 @@ def test_risk_rules(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(alert_guard, "redis_client", stub)
     monkeypatch.setattr(alert_guard, "_USER_SETTINGS_CACHE", {})
+    monkeypatch.setattr(alert_guard, "_LOCAL_DEDUP", {})
     alert_guard.update_user_settings(
         1, {"max_qty": 5, "allowed_symbols": ["AAPL"]}
     )
