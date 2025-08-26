@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+"""Monitor master broker accounts for manually placed trades.
+
+This service periodically queries each master account's broker API for newly
+executed orders and publishes matching events to the ``trade_events`` Redis
+stream so that the trade copier can replicate them to child accounts.
+"""
+
+import asyncio
+import logging
+import os
+from collections import defaultdict
+from typing import Any, Dict, Iterable, Set
+
+from brokers.factory import get_broker_client
+from models import Account
+from sqlalchemy.orm import Session
+
+from .webhook_receiver import redis_client
+
+log = logging.getLogger(__name__)
+
+
+def monitor_master_trades(
+    db_session: Session,
+    *,
+    redis_client=redis_client,
+    poll_interval: float | None = None,
+    max_iterations: int | None = None,
+) -> None:
+    """Poll master accounts for new orders and publish to ``trade_events``.
+
+    Parameters
+    ----------
+    db_session:
+        SQLAlchemy session used to look up master accounts.
+    redis_client:
+        Redis client instance used for publishing trade events.
+    poll_interval:
+        Seconds to wait between polling iterations. If ``None`` the value of
+        the ``ORDER_MONITOR_INTERVAL`` environment variable is used (default
+        ``5`` seconds).
+    max_iterations:
+        Optional number of polling cycles to run.  ``None`` means run
+        indefinitely.  Primarily intended for tests.
+    """
+
+    if poll_interval is None:
+        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "5"))
+
+    async def _monitor() -> None:
+        iterations = 0
+        # Track order IDs we've already published for each master to avoid
+        # emitting duplicate trade events when polling repeatedly.
+        seen_order_ids: Dict[str, Set[str]] = defaultdict(set)
+        while max_iterations is None or iterations < max_iterations:
+            masters: Iterable[Account] = (
+                db_session.query(Account).filter_by(role="master").all()
+            )
+            for master in masters:
+                credentials: Dict[str, Any] = master.credentials or {}
+                extras = credentials.get("extras", {})
+                client_cls = get_broker_client(master.broker)
+                client = client_cls(
+                    master.client_id, credentials.get("access_token", ""), **extras
+                )
+                try:
+                    orders = client.list_orders()
+                except Exception:  # pragma: no cover - defensive
+                    log.exception(
+                        "failed to fetch manual orders", extra={"master": master.client_id}
+                    )
+                    continue
+
+                seen = seen_order_ids[master.client_id]
+                for order in orders:
+                    order_id = order.get("id") or order.get("order_id") or order.get(
+                        "timestamp"
+                    )
+                    # Skip orders that were already published in a previous poll
+                    if order_id is not None and str(order_id) in seen:
+                        continue
+
+                    event = {
+                        "master_id": master.client_id,
+                        "symbol": order.get("symbol"),
+                        "action": order.get("action"),
+                        "qty": order.get("qty"),
+                        "exchange": order.get("exchange"),
+                        "order_type": order.get("order_type"),
+                    }
+                    redis_client.xadd("trade_events", event)
+
+                    if order_id is not None:
+                        seen.add(str(order_id))
+
+            iterations += 1
+            if max_iterations is not None and iterations >= max_iterations:
+                break
+            await asyncio.sleep(poll_interval)
+
+    asyncio.run(_monitor())
+
+
+__all__ = ["monitor_master_trades"]
