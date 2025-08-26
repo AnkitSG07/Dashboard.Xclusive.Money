@@ -69,10 +69,8 @@ def test_webhook_endpoint_handles_tokens(client):
     assert resp.get_json()["error"] == "Unknown webhook token"
 
 
-def test_webhook_endpoint_survives_redis_down(client, monkeypatch):
+def test_webhook_endpoint_reports_redis_down(client, monkeypatch):
     client_app, _ = client
-    # Ensure local queue is empty before test
-    monkeypatch.setattr(webhook_receiver, "_LOCAL_STREAMS", {})
 
     class FailingRedis:
         def xadd(self, stream, data):
@@ -91,6 +89,5 @@ def test_webhook_endpoint_survives_redis_down(client, monkeypatch):
         "tradingSymbols": ["NSE:SBIN"],
     }
     resp = client_app.post("/webhook/tok1", json=payload)
-    assert resp.status_code == 202
-    queue = webhook_receiver._LOCAL_STREAMS["webhook_events"]
-    assert queue and queue[0]["symbol"] == "NSE:SBIN"
+    assert resp.status_code == 503
+    assert resp.get_json()["error"] == "Failed to enqueue webhook event"
