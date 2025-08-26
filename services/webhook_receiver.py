@@ -57,6 +57,24 @@ class WebhookEventSchema(Schema):
             data["symbol"] = data["ticker"]
         data.pop("ticker", None)
 
+        # Accept TradingView array ``tradingSymbols`` as the symbol field.
+        if "symbol" not in data and "tradingSymbols" in data:
+            ts = data.get("tradingSymbols")
+            if isinstance(ts, list) and ts:
+                data["symbol"] = ts[0]
+
+        # Accept ``transactionType`` as an alias for ``action``.
+        if "action" not in data and "transactionType" in data:
+            data["action"] = data["transactionType"]
+
+        # Accept ``orderQty`` as an alias for ``qty``.
+        if "qty" not in data and "orderQty" in data:
+            data["qty"] = data["orderQty"]
+
+        # Accept camelCase ``orderType`` for ``order_type``.
+        if "order_type" not in data and "orderType" in data:
+            data["order_type"] = data["orderType"]
+
         # Accept ``quantity`` or ``qty`` for the quantity field.
         if "qty" not in data and "quantity" in data:
             data["qty"] = data["quantity"]
