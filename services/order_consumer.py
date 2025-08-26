@@ -127,7 +127,11 @@ def consume_webhook_events(
                         "broker order timed out", extra={"event": event, "broker": cfg}
                     )
                     future.cancel()
-
+            else:
+                # Provide explicit feedback when no brokers are configured for a user.
+                orders_failed.inc()
+                log.warning("no brokers configured for user", extra={"event": event})
+                
             for trade_event in trade_events:
                 # Publish master order to trade copier stream so child
                 # accounts can replicate the trade asynchronously.
