@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from flask import Flask, Blueprint, jsonify, request
+import redis
 
 from models import db, User, Strategy
 from .webhook_receiver import enqueue_webhook, ValidationError
@@ -43,6 +44,8 @@ def webhook(token: str):
         event = enqueue_webhook(user_id, strategy_id, payload)
     except ValidationError as exc:  # pragma: no cover - simple pass-through
         return jsonify({"error": str(exc)}), 400
+    except redis.exceptions.RedisError:
+        return jsonify({"error": "Failed to enqueue webhook event"}), 503
     return jsonify(event), 202
 
 def create_app() -> Flask:
