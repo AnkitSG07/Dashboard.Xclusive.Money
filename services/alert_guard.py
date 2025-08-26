@@ -19,7 +19,9 @@ import redis
 from marshmallow import ValidationError
 
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL")
+if not REDIS_URL:
+    raise RuntimeError("REDIS_URL must be set")
 redis_client = redis.Redis.from_url(REDIS_URL)
 
 # Time-to-live for deduplication keys in seconds
