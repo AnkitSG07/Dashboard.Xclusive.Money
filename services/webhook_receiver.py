@@ -11,7 +11,8 @@ The expected event schema is documented in ``docs/webhook_events.md``.
 from __future__ import annotations
 
 import os
-from typing import Optional, Dict, Any
+from collections import deque
+from typing import Optional, Dict, Any, Deque
 
 import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
@@ -24,7 +25,8 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # Redis client used for publishing events. In tests this object can be
 # monkeypatched with a stub that implements ``xadd``.
 redis_client = redis.Redis.from_url(REDIS_URL)
-
+# Fallback in-memory streams used when Redis is unavailable.
+_LOCAL_STREAMS: Dict[str, Deque[Dict[str, Any]]] = {}
 
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
@@ -102,9 +104,18 @@ def enqueue_webhook(
     # Serialize event to the Redis Stream. Redis expects a mapping of
     # field/value pairs. ``xadd`` returns the generated ID which we don't
     # use but keeping the call ensures the event is queued.
-    redis_client.xadd(stream, validated)
+    try:
+        redis_client.xadd(stream, validated)
+    except redis.exceptions.RedisError:
+        _LOCAL_STREAMS.setdefault(stream, deque()).append(validated)
 
     return validated
 
 
-__all__ = ["enqueue_webhook", "WebhookEventSchema", "redis_client", "ValidationError"]
+__all__ = [
+    "enqueue_webhook",
+    "WebhookEventSchema",
+    "redis_client",
+    "ValidationError",
+    "_LOCAL_STREAMS",
+]
