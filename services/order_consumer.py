@@ -187,3 +187,24 @@ __all__ = [
     "orders_success",
     "orders_failed",
 ]
+
+def main() -> None:
+    """Run the consumer indefinitely.
+
+    ``consume_webhook_events`` exits once the Redis stream is exhausted.
+    Wrapping it in an endless loop ensures the worker process stays alive
+    and continues to block for new webhook events.
+    """
+
+    while True:
+        # Block for up to 5 seconds waiting for new events so the loop
+        # doesn't spin when the stream is idle.
+        consume_webhook_events(block=5000)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    try:
+        main()
+    except KeyboardInterrupt:  # pragma: no cover - interactive use
+        pass
