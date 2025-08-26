@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
+import logging
+import os
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from prometheus_client import Histogram
@@ -18,11 +21,16 @@ from sqlalchemy.orm import Session
 from models import Account
 from brokers.factory import get_broker_client
 from .webhook_receiver import redis_client
+from .utils import _decode_event
 
 LATENCY = Histogram(
     "trade_copier_latency_seconds", "Seconds spent processing a master order event"
 )
 
+log = logging.getLogger(__name__)
+
+DEFAULT_MAX_WORKERS = 10
+DEFAULT_CHILD_TIMEOUT = 5.0
 
 def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     """Instantiate the appropriate broker client for *child* and copy *order*.
@@ -63,29 +71,30 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         order_type=order.get("order_type"),
     )
 
-
-def _decode_event(raw: Dict[Any, Any]) -> Dict[str, Any]:
-    """Decode Redis bytes into a plain ``dict``."""
-
-    event: Dict[str, Any] = {}
-    for k, v in raw.items():
-        key = k.decode() if isinstance(k, bytes) else k
-        if isinstance(v, bytes):
-            try:
-                v = int(v)
-            except ValueError:
-                v = v.decode()
-        event[key] = v
-    return event
-
-
 async def _replicate_to_children(
     db_session: Session,
     master: Account,
     order: Dict[str, Any],
     processor: Callable[[Account, Account, Dict[str, Any]], Any],
+    *,
+    executor: ThreadPoolExecutor | None = None,
+    max_workers: int | None = None,
+    timeout: float | None = None,
 ) -> None:
-    """Execute ``processor`` concurrently for all active children."""
+    """Execute ``processor`` concurrently for all active children.
+
+    Parameters
+    ----------
+    executor:
+        Optional pre-created :class:`ThreadPoolExecutor` to use for broker
+        submissions.  If not supplied a new executor is created for the call.
+    max_workers:
+        Thread pool size when a new executor is created. Defaults to the
+        number of child accounts.
+    timeout:
+        Maximum time in seconds to wait for each child broker call. ``None``
+        disables the timeout.
+    """
 
     children = (
         db_session.query(Account)
@@ -93,11 +102,36 @@ async def _replicate_to_children(
         .all()
     )
 
-    async def _copy(child: Account) -> Any:
-        return await asyncio.to_thread(processor, master, child, order)
+    if not children:
+        return
 
-    if children:
-        await asyncio.gather(*[_copy(child) for child in children])
+    loop = asyncio.get_running_loop()
+    own_executor = False
+    if executor is None:
+        max_workers = max_workers or len(children) or 1
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        own_executor = True
+
+    try:
+        async_tasks = []
+        for child in children:
+            fut = loop.run_in_executor(executor, processor, master, child, order)
+            if timeout is not None:
+                fut = asyncio.wait_for(fut, timeout)
+            async_tasks.append((child, fut))
+
+        results = await asyncio.gather(
+            *(f for _c, f in async_tasks), return_exceptions=True
+        )
+
+        for (child, _), result in zip(async_tasks, results):
+            if isinstance(result, Exception):
+                log.error(
+                    "child copy failed", extra={"child": getattr(child, "client_id", None), "error": repr(result)}
+                )
+    finally:
+        if own_executor:
+            executor.shutdown(wait=False)
 
 
 def poll_and_copy_trades(
@@ -110,6 +144,9 @@ def poll_and_copy_trades(
     redis_client=redis_client,
     max_messages: int | None = None,
     block: int = 0,
+    batch_size: int = 10,
+    max_workers: int | None = None,
+    child_timeout: float | None = None,
 ) -> int:
     """Consume trade events from *stream* using a consumer group.
 
@@ -133,6 +170,15 @@ def poll_and_copy_trades(
         process until the stream is exhausted.
     block:
         Milliseconds to block waiting for new events. ``0`` means do not block.
+    batch_size:
+        Maximum number of trade events fetched per call to ``xreadgroup``.
+    max_workers:
+        Optional thread pool size used when dispatching copy operations.
+        Defaults to the number of child accounts.
+    child_timeout:
+        Maximum time in seconds to wait for each child broker submission.
+        Defaults to the value of the ``TRADE_COPIER_TIMEOUT`` environment
+        variable.
 
     Returns
     -------
@@ -141,41 +187,89 @@ def poll_and_copy_trades(
     """
 
     processor = processor or (lambda m, c, o: None)
-    
-    # Ensure the consumer group exists. Ignore errors if already created.
+    max_workers = max_workers or int(
+        os.getenv("TRADE_COPIER_MAX_WORKERS", str(DEFAULT_MAX_WORKERS))
+    )
+    child_timeout = (
+        child_timeout
+        if child_timeout is not None
+        else float(os.getenv("TRADE_COPIER_TIMEOUT", str(DEFAULT_CHILD_TIMEOUT)))
+    )
+
+    executor = ThreadPoolExecutor(max_workers=max_workers)
     try:
-        redis_client.xgroup_create(stream, group, id="0", mkstream=True)
-    except Exception as exc:  # pragma: no cover - stub may not raise
-        if "BUSYGROUP" not in str(exc):
-            raise
+        # Ensure the consumer group exists. Ignore errors if already created.
+        try:
+            redis_client.xgroup_create(stream, group, id="0", mkstream=True)
+        except Exception as exc:  # pragma: no cover - stub may not raise
+            if "BUSYGROUP" not in str(exc):
+                raise
 
-    async def _consume() -> int:
-        processed = 0
-        while max_messages is None or processed < max_messages:
-            messages: Iterable = redis_client.xreadgroup(
-                group, consumer, {stream: ">"}, count=1, block=block
-            )
-            if not messages:
-                break
-            for _stream, events in messages:
-                for msg_id, data in events:
-                    event = _decode_event(data)
-                    start = time.time()
-                    master = (
-                        db_session.query(Account)
-                        .filter_by(client_id=event["master_id"], role="master")
-                        .first()
+        async def _consume() -> int:
+            processed = 0
+            while max_messages is None or processed < max_messages:
+                count = batch_size
+                if max_messages is not None:
+                    count = min(count, max_messages - processed)
+                messages: Iterable = redis_client.xreadgroup(
+                    group, consumer, {stream: ">"}, count=count, block=block
+                )
+                if not messages:
+                    break
+
+                tasks = []
+                count = 0
+                for _stream, events in messages:
+                    for msg_id, data in events:
+                        event = _decode_event(data)
+
+                        async def handle(msg_id=msg_id, event=event):
+                            start = time.time()
+                            try:
+                                master = (
+                                    db_session.query(Account)
+                                    .filter_by(client_id=event["master_id"], role="master")
+                                    .first()
+                                )
+                                if master:
+                                    await _replicate_to_children(
+                                        db_session,
+                                        master,
+                                        event,
+                                        processor,
+                                        executor=executor,
+                                        timeout=child_timeout,
+                                    )
+                            except Exception as exc:  # pragma: no cover - exercised in tests
+                                log.exception(
+                                    "error processing trade event %s", msg_id, exc_info=exc
+                                )
+                                raise
+                            finally:
+                                LATENCY.observe(time.time() - start)
+                                redis_client.xack(stream, group, msg_id)
+
+                        tasks.append((msg_id, asyncio.create_task(handle())))
+                        count += 1
+
+                if tasks:
+                    results = await asyncio.gather(
+                        *(t for _, t in tasks), return_exceptions=True
                     )
-                    if master:
-                        await _replicate_to_children(db_session, master, event, processor)
-                    LATENCY.observe(time.time() - start)
-                    redis_client.xack(stream, group, msg_id)
-                    processed += 1
-                    if max_messages is not None and processed >= max_messages:
-                        break
-        return processed
+                    for (msg_id, _), result in zip(tasks, results):
+                        if isinstance(result, Exception):
+                            log.exception(
+                                "error processing trade event %s", msg_id, exc_info=result
+                            )
+                processed += count
+                if max_messages is not None and processed >= max_messages:
+                    break
 
-    return asyncio.run(_consume())
+            return processed
+
+        return asyncio.run(_consume())
+    finally:
+        executor.shutdown(wait=False)
 
 
 __all__ = ["poll_and_copy_trades", "copy_order", "LATENCY"]
