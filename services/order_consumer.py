@@ -117,8 +117,9 @@ def consume_webhook_events(
                 ]
                 if invalid_ids:
                     log.error(
-                        "non-numeric master account id",
-                        extra={"event": event, "ids": invalid_ids},
+                        "non-numeric master account id(s): %s",
+                        invalid_ids,
+                        extra={"event": event},
                     )
                     orders_failed.inc()
                     return
@@ -152,7 +153,7 @@ def consume_webhook_events(
                 )
                 orders_failed.inc()
                 return
-
+                
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
                 client = client_cls(
