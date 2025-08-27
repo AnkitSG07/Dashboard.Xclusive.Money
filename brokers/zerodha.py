@@ -176,7 +176,7 @@ class ZerodhaBroker(BrokerBase):
 
         # Normalise string parameters
         if isinstance(transaction_type, str):
-            transaction_type = transaction_type.upper)
+            transaction_type = transaction_type.upper()
         if isinstance(order_type, str):
             order_type = order_type.upper()
         if isinstance(product, str):
