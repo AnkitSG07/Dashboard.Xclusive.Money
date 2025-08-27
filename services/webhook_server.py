@@ -51,9 +51,10 @@ def webhook(token: str):
 def create_app() -> Flask:
     """Create a standalone Flask application hosting the webhook endpoint."""
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", "sqlite:///webhook.db"
-    )
+    db_url = os.getenv("DATABASE_URL", "sqlite:///webhook.db")
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
     app.register_blueprint(webhook_bp)
