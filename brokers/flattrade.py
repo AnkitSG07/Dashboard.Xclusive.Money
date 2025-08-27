@@ -70,23 +70,42 @@ class FlattradeBroker:
         data = resp.json()
         return {"data": data.get("result", [])}
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type, product, price=None, **kwargs):
-        """
-        Place a regular order (NRML/INTRADAY).
-        """
+    def place_order(
+        self,
+        tradingsymbol=None,
+        exchange=None,
+        transaction_type=None,
+        quantity=None,
+        order_type=None,
+        product=None,
+        price=None,
+        **kwargs,
+    ):
+        """Place a regular order (NRML/INTRADAY)."""
         self._check_session()
+        tradingsymbol = tradingsymbol or kwargs.pop("symbol", None)
+        transaction_type = transaction_type or kwargs.pop("action", None)
+        quantity = quantity or kwargs.pop("qty", None)
+        product = product or kwargs.pop("product_type", None)
+        exchange = exchange or kwargs.pop("exchange", None)
+        if isinstance(transaction_type, str):
+            transaction_type = transaction_type.upper()
+        if isinstance(order_type, str):
+            order_type = order_type.upper()
+        if isinstance(product, str):
+            product = product.upper()
         url = f"{self.BASE_URL}/orders"
         payload = {
-            "exchange": exchange,           # "NSE", "BSE", "MCX"
-            "tradingsymbol": tradingsymbol, # "RELIANCE-EQ"
-            "transactiontype": transaction_type.upper(), # "BUY" or "SELL"
+            "exchange": exchange,
+            "tradingsymbol": tradingsymbol,
+            "transactiontype": transaction_type,
             "quantity": int(quantity),
-            "ordertype": order_type.upper(),       # "LIMIT", "MARKET"
-            "producttype": product.upper(),        # "INTRADAY", "DELIVERY", "CNC", etc.
+            "ordertype": order_type,
+            "producttype": product,
             "price": float(price) if price else 0,
             "duration": "DAY",
             "triggerprice": 0,
-            "ret": "DAY"
+            "ret": "DAY",
         }
         # Remove unnecessary keys if not required
         for k in ["disclosedquantity", "triggerprice"]:
