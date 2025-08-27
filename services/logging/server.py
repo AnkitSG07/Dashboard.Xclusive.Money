@@ -5,6 +5,8 @@ from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, text
 
 LOG_DB_URL = os.environ.get("LOG_DB_URL", "sqlite:///logs.db")
+if LOG_DB_URL.startswith("postgresql://"):
+    LOG_DB_URL = LOG_DB_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 AUTH_TOKEN = os.environ.get("LOGGING_SERVICE_TOKEN")
 
 engine = create_engine(LOG_DB_URL, future=True)
