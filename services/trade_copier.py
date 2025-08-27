@@ -63,13 +63,16 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     qty = int(order.get("qty", 0))
     qty = int(qty * multiplier)
 
-    return broker.place_order(
-        symbol=order.get("symbol"),
-        action=order.get("action"),
-        qty=qty,
-        exchange=order.get("exchange"),
-        order_type=order.get("order_type"),
-    )
+    params = {
+        "symbol": order.get("symbol"),
+        "action": order.get("action"),
+        "qty": qty,
+    }
+    if order.get("exchange") is not None:
+        params["exchange"] = order["exchange"]
+    if order.get("order_type") is not None:
+        params["order_type"] = order["order_type"]
+    return broker.place_order(**params)
 
 async def _replicate_to_children(
     db_session: Session,
