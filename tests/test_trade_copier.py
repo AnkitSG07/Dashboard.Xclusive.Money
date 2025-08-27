@@ -120,6 +120,6 @@ def test_child_orders_submitted(monkeypatch):
 
     assert count == 1
     assert orders == [
-        ("c1", {"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}),
-        ("c2", {"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}),
+        ("c1", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
+        ("c2", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
     ]
