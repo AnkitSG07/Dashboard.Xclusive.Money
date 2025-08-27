@@ -1,6 +1,7 @@
 from services import order_consumer
 from marshmallow import ValidationError
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 import logging
 
 def guard(event):
@@ -46,6 +47,32 @@ def reset_metrics():
     MockBroker.orders = []
 
 
+class DummySession:
+    def __init__(self, accounts=None, strategy=None):
+        self._accounts = accounts or []
+        self._strategy = strategy
+
+    class _Query:
+        def __init__(self, session, model):
+            self.session = session
+            self.model = model
+
+        def get(self, _id):
+            return self.session._strategy
+
+        def filter(self, *_args):
+            return self
+
+        def all(self):
+            return self.session._accounts
+
+    def query(self, model):
+        return DummySession._Query(self, model)
+
+    def close(self):
+        pass
+
+
 def test_consumer_places_order(monkeypatch):
     event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
     stub = StubRedis([event])
@@ -61,7 +88,9 @@ def test_consumer_places_order(monkeypatch):
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1}]
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1}
+    ]
     assert order_consumer.orders_success._value.get() == 1
     assert order_consumer.orders_failed._value.get() == 0
     assert stub.added == [
@@ -85,7 +114,7 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
         "alert_id": "1",
         "productType": "INTRADAY",
         "orderValidity": "DAY",
-        "masterAccounts": ["c"],
+        "masterAccounts": [1],
     }
     stub = StubRedis([event])
     monkeypatch.setattr(order_consumer, "redis_client", stub)
@@ -93,9 +122,17 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
     monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
 
     def settings(_: int):
-        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+        return {
+            "brokers": [
+                {"name": "mock", "client_id": "c", "access_token": "t"}
+            ]
+        }
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    account = SimpleNamespace(id=1, broker="mock", client_id="c")
+    monkeypatch.setattr(
+        order_consumer, "get_session", lambda: DummySession(accounts=[account])
+    )
     reset_metrics()
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
@@ -107,7 +144,7 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
             "qty": 1,
             "product_type": "INTRADAY",
             "validity": "DAY",
-            "master_accounts": ["c"],
+            "master_accounts": [1],
         }
     ]
     assert stub.added == [
@@ -121,6 +158,91 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
                 "product_type": "INTRADAY",
                 "validity": "DAY",
             },
+        )
+    ]
+
+
+def test_consumer_restricts_to_selected_master_accounts(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "masterAccounts": [1],
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+
+    def settings(_: int):
+        return {
+            "brokers": [
+                {"name": "mock", "client_id": "c", "access_token": "t"},
+                {"name": "mock", "client_id": "d", "access_token": "t2"},
+            ]
+        }
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    account = SimpleNamespace(id=1, broker="mock", client_id="c")
+    monkeypatch.setattr(
+        order_consumer, "get_session", lambda: DummySession(accounts=[account])
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "master_accounts": [1]}
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+        )
+    ]
+
+
+def test_consumer_uses_strategy_master_accounts(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "strategy_id": 99,
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+
+    def settings(_: int):
+        return {
+            "brokers": [
+                {"name": "mock", "client_id": "c", "access_token": "t"},
+                {"name": "mock", "client_id": "d", "access_token": "t2"},
+            ]
+        }
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    strategy = SimpleNamespace(master_accounts="1")
+    account = SimpleNamespace(id=1, broker="mock", client_id="c")
+    monkeypatch.setattr(
+        order_consumer,
+        "get_session",
+        lambda: DummySession(accounts=[account], strategy=strategy),
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1}]
+    assert stub.added == [
+        (
+            "trade_events",
+            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
