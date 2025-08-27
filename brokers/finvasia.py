@@ -96,7 +96,18 @@ class FinvasiaBroker(BrokerBase):
             self._last_auth_error = str(e)
             return False
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MKT", product="C", price=0, token=None, **kwargs):
+    def place_order(
+        self,
+        tradingsymbol=None,
+        exchange=None,
+        transaction_type=None,
+        quantity=None,
+        order_type="MKT",
+        product="C",
+        price=0,
+        token=None,
+        **kwargs,
+    ):
         """
         Places an order with Finvasia.
         Args:
@@ -112,6 +123,14 @@ class FinvasiaBroker(BrokerBase):
                          to construct a specific tradingsymbol format like 'NSE|25'), but NOT
                          passed directly to ShoonyaApiPy's place_order method.
         """
+        
+        # Allow generic project-wide order fields if explicit Finvasia names were
+        # omitted.  This mirrors the alias pattern used by other broker adapters
+        # such as ``DhanBroker``.
+        tradingsymbol = tradingsymbol or kwargs.pop("symbol", None)
+        transaction_type = transaction_type or kwargs.pop("action", None)
+        quantity = quantity or kwargs.pop("qty", None)
+
         if not self._is_logged_in():
             self.login()
             if not self._is_logged_in():
