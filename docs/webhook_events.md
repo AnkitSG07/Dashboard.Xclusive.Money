@@ -34,12 +34,14 @@ main application.
 ## Order consumer configuration
 
 The order consumer waits for broker API responses before publishing a trade
-event. The default timeout for these calls is **5 seconds**, but deployments can
-adjust this by setting the `ORDER_CONSUMER_TIMEOUT` environment variable:
+event. By default it waits as long as the broker client's HTTP timeout
+(``BROKER_TIMEOUT``—25 s if unset), but deployments can override this by
+setting the `ORDER_CONSUMER_TIMEOUT` environment variable:
 
 ```bash
 export ORDER_CONSUMER_TIMEOUT=2.5
 ```
 
 This value applies to every webhook event processed, ensuring that a slow
-broker does not block the worker indefinitely.
+broker does not block the worker indefinitely while still matching the
+broker's own timeout.
