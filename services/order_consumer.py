@@ -17,6 +17,8 @@ import redis
 from .alert_guard import check_risk_limits, get_user_settings
 from .webhook_receiver import redis_client
 from .utils import _decode_event
+from .db import get_session
+from models import Strategy, Account
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +95,49 @@ def consume_webhook_events(
             check_risk_limits(event)
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
+
+            allowed_accounts = event.get("masterAccounts") or []
+            if not allowed_accounts:
+                strategy_id = event.get("strategy_id")
+                if strategy_id is not None:
+                    session = get_session()
+                    try:
+                        strategy = session.query(Strategy).get(strategy_id)
+                        if strategy and strategy.master_accounts:
+                            allowed_accounts = [
+                                a.strip()
+                                for a in str(strategy.master_accounts).split(",")
+                                if a.strip()
+                            ]
+                    finally:
+                        session.close()
+            if allowed_accounts:
+                ids: List[int] = []
+                for acc_id in allowed_accounts:
+                    try:
+                        ids.append(int(acc_id))
+                    except (TypeError, ValueError):
+                        log.warning(
+                            "invalid master account id", extra={"event": event, "id": acc_id}
+                        )
+                if ids:
+                    session = get_session()
+                    try:
+                        rows = (
+                            session.query(Account)
+                            .filter(Account.id.in_(ids))
+                            .all()
+                        )
+                    finally:
+                        session.close()
+                    allowed_pairs = {(r.broker, r.client_id) for r in rows}
+                    brokers = [
+                        b
+                        for b in brokers
+                        if (b.get("name"), b.get("client_id")) in allowed_pairs
+                    ]
+                else:
+                    brokers = []
 
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
