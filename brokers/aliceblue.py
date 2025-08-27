@@ -126,6 +126,9 @@ class AliceBlueBroker(BrokerBase):
         Accepts ``product_type`` to match the interface used throughout the
         application.  ``product`` is still accepted for backward compatibility.
         """
+        # Ensure we have a valid session before attempting to place an order
+        # because session IDs may expire over time.
+        self.ensure_session()
         # Allow callers to use generic order fields used elsewhere in the
         # project (e.g. ``symbol`` instead of ``tradingsymbol``).  Generic
         # fields override the explicit parameters when provided.
