@@ -65,9 +65,21 @@ class DhanBroker(BrokerBase):
         price=0,
         **extra
     ):
-        """
-        Place a new order on Dhan.
-        """
+        """Place a new order on Dhan."""
+
+        # Allow generic order fields used throughout the project.  These are
+        # converted to the parameter names expected by the Dhan API if the
+        # explicit arguments were not supplied.
+        tradingsymbol = tradingsymbol or extra.pop("symbol", None)
+        transaction_type = transaction_type or extra.pop("action", None)
+        quantity = quantity or extra.pop("qty", None)
+        exchange_segment = exchange_segment or extra.pop("exchange", None)
+        if exchange_segment:
+            exchange_segment = self._normalize_segment(exchange_segment)
+
+        # Look up security_id either from an injected symbol map or the global
+        # symbol mapper.  ``get_symbol_for_broker`` may return additional
+        # metadata such as the exchange segment so we only call it once.
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not security_id:
             if tradingsymbol and self.symbol_map:
@@ -75,7 +87,11 @@ class DhanBroker(BrokerBase):
             if not security_id:
                 security_id = mapping.get("security_id")
             if not security_id:
-                raise ValueError("DhanBroker: 'security_id' required (tradingsymbol={})".format(tradingsymbol)) # Use ValueError for missing mandatory data
+                raise ValueError(
+                    "DhanBroker: 'security_id' required (tradingsymbol={})".format(
+                        tradingsymbol
+                    )
+                )
 
         if not exchange_segment:
             exchange_segment = mapping.get("exchange_segment", self.NSE)
