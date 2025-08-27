@@ -68,7 +68,15 @@ def consume_webhook_events(
     
     max_workers = max_workers or DEFAULT_MAX_WORKERS
     if order_timeout is None:
-        order_timeout = float(os.getenv("ORDER_CONSUMER_TIMEOUT", "5.0"))
+        # Wait slightly longer than broker HTTP calls so the worker doesn't
+        # cancel orders prematurely.  Defaults to the broker timeout (25s) but
+        # can be overridden via ``ORDER_CONSUMER_TIMEOUT``.
+        order_timeout = float(
+            os.getenv(
+                "ORDER_CONSUMER_TIMEOUT",
+                os.getenv("BROKER_TIMEOUT", "20"),
+            )
+        )
 
     # Ensure the consumer group exists. Ignore error if it already exists.
     try:
