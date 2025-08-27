@@ -32,7 +32,7 @@ def test_optional_fields_and_aliases(monkeypatch):
     assert event["action"] == "BUY"
     assert event["qty"] == 5
     assert event["exchange"] == "NSE"
-    assert event["order_type"] == "market"
+    assert event["order_type"] == "MARKET"
     assert event["orderType"] == "market"
     assert event["orderValidity"] == "DAY"
     assert event["productType"] == "INTRADAY"
