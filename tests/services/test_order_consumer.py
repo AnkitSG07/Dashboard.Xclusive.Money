@@ -1,6 +1,7 @@
 from services import order_consumer
 from marshmallow import ValidationError
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
 def guard(event):
     """Test helper that always allows an event."""
@@ -37,7 +38,7 @@ class MockBroker:
 
     def place_order(self, **order):
         MockBroker.orders.append(order)
-
+        return {"status": "success", "order_id": "1"}
 
 def reset_metrics():
     order_consumer.orders_success._value.set(0)
@@ -149,6 +150,28 @@ def test_consumer_handles_risk_failure(monkeypatch):
     assert order_consumer.orders_success._value.get() == 0
     assert order_consumer.orders_failed._value.get() == 1
     assert stub.added == []
+
+def test_consumer_handles_broker_failure(monkeypatch, caplog):
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    class FailingBroker(MockBroker):
+        def place_order(self, **order):
+            MockBroker.orders.append(order)
+            return {"status": "failure"}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: FailingBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+    monkeypatch.setattr(order_consumer, "get_user_settings", lambda _: {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]})
+    reset_metrics()
+
+    with caplog.at_level(logging.ERROR):
+        processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+
+    assert processed == 1
+    assert stub.added == []
+    assert any("failed to place master order" in rec.message for rec in caplog.records)
 
 def test_consumer_skips_duplicate_check(monkeypatch):
     event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
