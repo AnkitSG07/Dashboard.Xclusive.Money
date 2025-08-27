@@ -39,7 +39,7 @@ class WebhookEventSchema(Schema):
     symbol = fields.Str(required=True)
     action = fields.Str(required=True)
     qty = fields.Int(required=True)
-    exchange = fields.Str(load_default=None)
+    exchange = fields.Str(load_default="NSE")
     order_type = fields.Str(load_default=None)
     alert_id = fields.Str(load_default=None)
     # Broker specific fields expected by some strategies
@@ -91,6 +91,25 @@ class WebhookEventSchema(Schema):
         # Upper-case the action for consistency.
         if "action" in data and isinstance(data["action"], str):
             data["action"] = data["action"].upper()
+
+        # Upper-case broker-specific fields expected in a canonical form.
+        for key in ["productType", "orderValidity"]:
+            if key in data and isinstance(data[key], str):
+                data[key] = data[key].upper()
+
+        # Default and normalise the exchange field.
+        if "exchange" not in data or data["exchange"] is None:
+            data["exchange"] = "NSE"
+        elif isinstance(data["exchange"], str):
+            data["exchange"] = data["exchange"].upper()
+
+        # Upper-case the symbol and append '-EQ' for equities when missing.
+        if "symbol" in data and isinstance(data["symbol"], str):
+            sym = data["symbol"].upper()
+            if ":" not in sym and "-" not in sym:
+                sym = f"{sym}-EQ"
+            data["symbol"] = sym
+
 
         return data
 
