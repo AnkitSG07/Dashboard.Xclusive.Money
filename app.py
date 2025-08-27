@@ -82,6 +82,7 @@ from helpers import (
 from symbols import get_symbols
 from services.logging import publish_log_event
 from services.webhook_receiver import enqueue_webhook, ValidationError
+from services.alert_guard import get_user_settings, update_user_settings
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -198,6 +199,44 @@ def _cache_mtf_support(symbol: str, broker: str, supported: bool) -> None:
     """Update the MTF support cache for ``symbol``/``broker``."""
     key = f"mtf_support:{broker}:{symbol}".lower()
     cache_set(key, bool(supported), ttl=MTF_CACHE_TTL)
+
+
+def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed_symbols=None) -> None:
+    """Persist broker info for *user_id* to the alert guard service.
+
+    Existing settings are fetched, the broker list is updated with the
+    credentials for ``account`` and any provided risk limits are merged before
+    writing back to Redis.  Errors are logged but do not block the request.
+    """
+
+    try:  # pragma: no cover - network failures are non-critical
+        settings = get_user_settings(user_id)
+        brokers = settings.get("brokers", [])
+        brokers = [
+            b
+            for b in brokers
+            if not (
+                b.get("name") == account.broker
+                and b.get("client_id") == account.client_id
+            )
+        ]
+        brokers.append(
+            {
+                "name": account.broker,
+                "client_id": account.client_id,
+                "access_token": (account.credentials or {}).get("access_token"),
+            }
+        )
+        settings["brokers"] = brokers
+        if max_qty is not None:
+            settings["max_qty"] = max_qty
+        if allowed_symbols is not None:
+            settings["allowed_symbols"] = allowed_symbols
+        update_user_settings(user_id=user_id, settings=settings)
+    except Exception as exc:  # pragma: no cover - log and continue
+        logger.warning(
+            "Failed to update alert guard settings for user %s: %s", user_id, exc
+        )
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
@@ -4915,6 +4954,12 @@ def reconnect_account():
         acc_db.last_login_time = datetime.utcnow()
         db.session.commit()
         clear_connection_error_logs(acc_db)
+        _update_alert_guard(
+            db_user.id,
+            acc_db,
+            max_qty=data.get("max_qty"),
+            allowed_symbols=data.get("allowed_symbols"),
+        )
     except Exception as e:
         db.session.rollback()
         logger.error(f"Failed to reconnect account {client_id}: {str(e)}")
@@ -5038,6 +5083,12 @@ def update_account():
         acc_db.last_login_time = datetime.utcnow()
         db.session.commit()
         clear_connection_error_logs(acc_db)
+        _update_alert_guard(
+            db_user.id,
+            acc_db,
+            max_qty=data.get("max_qty"),
+            allowed_symbols=data.get("allowed_symbols"),
+        )
     except Exception as e:
         db.session.rollback()
         logger.error(f"Failed to update account {client_id}: {str(e)}")
@@ -5357,6 +5408,13 @@ def add_account():
                 "error": "Failed to save account",
                 "details": str(e)
             }), 500
+
+        _update_alert_guard(
+            user.id,
+            new_account,
+            max_qty=data.get("max_qty"),
+            allowed_symbols=data.get("allowed_symbols"),
+        )
 
         # ✅ STEP 9: Log the action for audit trail
         try:
@@ -6830,6 +6888,8 @@ def register_user():
         db.session.rollback()
         logger.error(f"Failed to register user/account: {str(e)}")
         return jsonify({"error": f"Failed to register: {str(e)}"}), 500
+
+    _update_alert_guard(user.id, account)
 
     return jsonify({"status": "User registered successfully", "webhook": f"/webhook/{token}"})
 
