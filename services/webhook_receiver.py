@@ -93,7 +93,7 @@ class WebhookEventSchema(Schema):
             data["action"] = data["action"].upper()
 
         # Upper-case broker-specific fields expected in a canonical form.
-        for key in ["productType", "orderValidity"]:
+        for key in ["productType", "orderValidity", "order_type"]:
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
