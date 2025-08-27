@@ -105,9 +105,11 @@ def consume_webhook_events(
                     "symbol": event["symbol"],
                     "action": event["action"],
                     "qty": event["qty"],
-                    "exchange": event.get("exchange"),
-                    "order_type": event.get("order_type"),
                 }
+                if event.get("exchange") is not None:
+                    order_params["exchange"] = event["exchange"]
+                if event.get("order_type") is not None:
+                    order_params["order_type"] = event["order_type"]
                 optional_map = {
                     "productType": "product_type",
                     "orderValidity": "validity",
