@@ -126,6 +126,14 @@ class AliceBlueBroker(BrokerBase):
         Accepts ``product_type`` to match the interface used throughout the
         application.  ``product`` is still accepted for backward compatibility.
         """
+        # Allow callers to use generic order fields used elsewhere in the
+        # project (e.g. ``symbol`` instead of ``tradingsymbol``).  Generic
+        # fields override the explicit parameters when provided.
+        tradingsymbol = kwargs.pop("symbol", tradingsymbol)
+        transaction_type = kwargs.pop("action", transaction_type)
+        quantity = kwargs.pop("qty", quantity)
+        exchange = kwargs.pop("exchange", exchange)
+
         product = product_type or kwargs.get("product") or "MIS"
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not symbol_id:
