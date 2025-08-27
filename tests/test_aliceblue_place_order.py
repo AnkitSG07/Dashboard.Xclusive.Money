@@ -1,0 +1,42 @@
+from brokers.aliceblue import AliceBlueBroker
+import json
+
+
+class Resp:
+    def __init__(self, data, payload=None):
+        self._data = data
+        self.payload = payload
+
+    def json(self):
+        return self._data
+
+
+def test_place_order_accepts_generic_params(monkeypatch):
+    captured = {}
+
+    def fake_auth(self):
+        self.session_id = "SID"
+        self.headers = {}
+
+    monkeypatch.setattr(AliceBlueBroker, "authenticate", fake_auth, raising=False)
+
+    def fake_request(self, method, url, **kwargs):
+        captured["payload"] = json.loads(kwargs.get("data"))
+        return Resp([{"stat": "Ok", "nestOrderNumber": "1"}])
+
+    monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
+
+    def fake_mapper(symbol, broker):
+        return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
+
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+
+    br = AliceBlueBroker("C1", "token")
+    result = br.place_order(symbol="AAPL", action="BUY", qty=5)
+
+    assert result["status"] == "success"
+    payload = captured["payload"][0]
+    assert payload["symbol_id"] == "123"
+    assert payload["trading_symbol"] == "AAPL"
+    assert payload["qty"] == 5
+    assert payload["transtype"] == "BUY"
