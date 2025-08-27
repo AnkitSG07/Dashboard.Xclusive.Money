@@ -163,18 +163,36 @@ class ZerodhaBroker(BrokerBase):
         **extra,
     ):
         self.ensure_token()
+        # Map generic field aliases when explicit params are not supplied
+        tradingsymbol = tradingsymbol or extra.pop("symbol", None)
+        transaction_type = transaction_type or extra.pop("action", None)
+        quantity = quantity or extra.pop("qty", None)
+        product = extra.pop("product_type", product)
+        exchange = exchange or extra.pop("exchange", None)
+
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         tradingsymbol = mapping.get("trading_symbol", tradingsymbol)
         exchange = exchange or mapping.get("exchange", "NSE")
+
+        # Normalise string parameters
+        if isinstance(transaction_type, str):
+            transaction_type = transaction_type.upper)
+        if isinstance(order_type, str):
+            order_type = order_type.upper()
+        if isinstance(product, str):
+            product = product.upper()
+        if isinstance(exchange, str):
+            exchange = exchange.upper()
+
         params = {
             "tradingsymbol": tradingsymbol,
             "exchange": exchange,
-            "transaction_type": transaction_type.upper(),
+            "transaction_type": transaction_type,
             "quantity": int(quantity),
-            "order_type": order_type.upper(),
-            "product": product.upper(),
+            "order_type": order_type,
+            "product": product,
         }
-        if order_type.upper() == "LIMIT" and price is not None:
+        if order_type == "LIMIT" and price is not None:
             params["price"] = float(price)
         try:
             order_id = self.kite.place_order(
