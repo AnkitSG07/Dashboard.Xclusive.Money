@@ -56,10 +56,21 @@ def test_webhook_enqueues_event(client):
     assert data["action"] == "BUY"
     assert data["qty"] == 1
     assert data["orderType"] == "market"
-    assert data["productType"] == "intraday"
+    assert data["orderValidity"] == "DAY"
+    assert data["productType"] == "INTRADAY"
     # Lists are serialized to JSON strings for Redis compatibility
     assert json.loads(data["masterAccounts"]) == ["50"]
     assert json.loads(data["tradingSymbols"]) == ["NSE:SBIN"]
+
+def test_webhook_defaults_exchange_and_formats_symbol(client):
+    client_app, events = client
+    payload = {"symbol": "idea", "action": "BUY", "qty": 1}
+    resp = client_app.post("/webhook/tok1", json=payload)
+    assert resp.status_code == 202
+    assert events
+    _, data = events[0]
+    assert data["exchange"] == "NSE"
+    assert data["symbol"] == "IDEA-EQ"
 
 def test_enqueue_webhook_redis_failure(monkeypatch):
     class FailingRedis:
@@ -90,4 +101,5 @@ def test_enqueue_webhook_sanitizes_none(monkeypatch):
     assert events, "Event was not published"
     _, data = events[0]
     assert data["strategy_id"] == ""
-    assert data["exchange"] == ""
+    assert data["order_type"] == ""
+    assert data["exchange"] == "NSE"
