@@ -20,10 +20,38 @@ class FyersBroker(BrokerBase):
             self.session.headers.update({"Authorization": f"{client_id}:{access_token}"})
 
 
-    def place_order(self, tradingsymbol, exchange, transaction_type, quantity, order_type="MARKET", product="INTRADAY", price=None):
+    def place_order(
+        self,
+        tradingsymbol=None,
+        exchange=None,
+        transaction_type=None,
+        quantity=None,
+        order_type="MARKET",
+        product="INTRADAY",
+        price=None,
+        **kwargs,
+    ):
         if self.api is None:
             raise RuntimeError("fyers-apiv3 not installed")
         try:
+            # Map generic order fields to Fyers-specific names when explicit
+            # parameters are not provided.
+            tradingsymbol = tradingsymbol or kwargs.pop("symbol", None)
+            transaction_type = transaction_type or kwargs.pop("action", None)
+            quantity = quantity or kwargs.pop("qty", None)
+            product = product or kwargs.pop("product_type", None)
+            exchange = exchange or kwargs.pop("exchange", None)
+
+            # Normalise common string fields
+            if isinstance(transaction_type, str):
+                transaction_type = transaction_type.upper()
+            if isinstance(order_type, str):
+                order_type = order_type.upper()
+            if isinstance(product, str):
+                product = product.upper()
+            if isinstance(exchange, str):
+                exchange = exchange.upper()
+
             product_map = {
                 "MIS": "INTRADAY",
                 "INTRA": "INTRADAY",
@@ -31,7 +59,7 @@ class FyersBroker(BrokerBase):
                 "DELIVERY": "CNC",
             }
             prod = product_map.get(str(product).upper(), str(product).upper())
-            fy_type = 2 if order_type.upper() == "MARKET" else 1
+            fy_type = 2 if order_type == "MARKET" else 1
 
             if fy_type == 1:
                 if price is None:
@@ -54,7 +82,7 @@ class FyersBroker(BrokerBase):
                 "symbol": symbol,
                 "qty": int(quantity),
                 "type": fy_type,
-                "side": 1 if transaction_type.upper() == "BUY" else -1,
+                "side": 1 if transaction_type == "BUY" else -1,
                 "productType": prod,
                 "limitPrice": limit_price,
                 "disclosedQty": 0,
