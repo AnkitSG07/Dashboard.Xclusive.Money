@@ -232,7 +232,10 @@ def test_consumer_rejects_non_numeric_master_accounts(monkeypatch, caplog):
     assert order_consumer.orders_success._value.get() == 0
     assert order_consumer.orders_failed._value.get() == 1
     assert stub.added == []
-    assert any("non-numeric master account id" in r.message for r in caplog.records)
+    assert any(
+        "non-numeric master account id" in r.message and "bad" in r.message
+        for r in caplog.records
+    )
 
 
 def test_consumer_errors_when_no_brokers_configured(monkeypatch, caplog):
@@ -253,7 +256,6 @@ def test_consumer_errors_when_no_brokers_configured(monkeypatch, caplog):
     assert order_consumer.orders_failed._value.get() == 1
     assert stub.added == []
     assert any("no brokers configured for user" in r.message for r in caplog.records)
-
 
 def test_consumer_uses_strategy_master_accounts(monkeypatch):
     event = {
