@@ -112,32 +112,46 @@ def consume_webhook_events(
                     finally:
                         session.close()
             if allowed_accounts:
-                ids: List[int] = []
-                for acc_id in allowed_accounts:
-                    try:
-                        ids.append(int(acc_id))
-                    except (TypeError, ValueError):
-                        log.warning(
-                            "invalid master account id", extra={"event": event, "id": acc_id}
-                        )
-                if ids:
-                    session = get_session()
-                    try:
-                        rows = (
-                            session.query(Account)
-                            .filter(Account.id.in_(ids))
-                            .all()
-                        )
-                    finally:
-                        session.close()
-                    allowed_pairs = {(r.broker, r.client_id) for r in rows}
-                    brokers = [
-                        b
-                        for b in brokers
-                        if (b.get("name"), b.get("client_id")) in allowed_pairs
-                    ]
-                else:
-                    brokers = []
+                invalid_ids = [
+                    acc_id for acc_id in allowed_accounts if not str(acc_id).isdigit()
+                ]
+                if invalid_ids:
+                    log.error(
+                        "non-numeric master account id",
+                        extra={"event": event, "ids": invalid_ids},
+                    )
+                    orders_failed.inc()
+                    return
+
+                ids: List[int] = [int(acc_id) for acc_id in allowed_accounts]
+                session = get_session()
+                try:
+                    rows = (
+                        session.query(Account)
+                        .filter(Account.id.in_(ids))
+                        .all()
+                    )
+                finally:
+                    session.close()
+                allowed_pairs = {(r.broker, r.client_id) for r in rows}
+                brokers = [
+                    b
+                    for b in brokers
+                    if (b.get("name"), b.get("client_id")) in allowed_pairs
+                ]
+
+                if not brokers:
+                    log.error(
+                        "no brokers permitted for user", extra={"event": event}
+                    )
+                    orders_failed.inc()
+                    return
+            elif not brokers:
+                log.error(
+                    "no brokers configured for user", extra={"event": event}
+                )
+                orders_failed.inc()
+                return
 
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
