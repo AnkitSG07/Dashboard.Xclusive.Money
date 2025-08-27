@@ -116,7 +116,16 @@ def consume_webhook_events(
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
-                client.place_order(**order_params)
+                result = client.place_order(**order_params)
+                order_id = None
+                if isinstance(result, dict):
+                    order_id = (
+                        result.get("order_id")
+                        or result.get("id")
+                        or result.get("data", {}).get("order_id")
+                    )
+                if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
+                    raise RuntimeError(f"broker order failed: {result}")
                 trade_event = {
                     "master_id": broker_cfg.get("client_id"),
                     **{k: v for k, v in order_params.items() if k != "master_accounts"},
