@@ -61,7 +61,7 @@ def test_consumer_places_order(monkeypatch):
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}]
+    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1}]
     assert order_consumer.orders_success._value.get() == 1
     assert order_consumer.orders_failed._value.get() == 0
     assert stub.added == [
@@ -72,8 +72,6 @@ def test_consumer_places_order(monkeypatch):
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
-                "exchange": None,
-                "order_type": None,
             },
         )
     ]
@@ -107,8 +105,6 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
             "symbol": "AAPL",
             "action": "BUY",
             "qty": 1,
-            "exchange": None,
-            "order_type": None,
             "product_type": "INTRADAY",
             "validity": "DAY",
             "master_accounts": ["c"],
@@ -122,11 +118,40 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
-                "exchange": None,
-                "order_type": None,
                 "product_type": "INTRADAY",
                 "validity": "DAY",
             },
+        )
+    ]
+
+def test_consumer_missing_order_type_uses_broker_default(monkeypatch):
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    class DefaultingBroker(MockBroker):
+        def place_order(self, **order):
+            order.setdefault("order_type", "MARKET")
+            return super().place_order(**order)
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: DefaultingBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "order_type": "MARKET"}
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -189,7 +214,7 @@ def test_consumer_skips_duplicate_check(monkeypatch):
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1, "exchange": None, "order_type": None}]
+    assert MockBroker.orders == [{"symbol": "AAPL", "action": "BUY", "qty": 1}]
     assert order_consumer.orders_success._value.get() == 1
     assert order_consumer.orders_failed._value.get() == 0
 
@@ -225,8 +250,6 @@ def test_consumer_places_orders_for_multiple_brokers(monkeypatch):
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
-                "exchange": None,
-                "order_type": None,
             },
         ),
         (
@@ -236,8 +259,6 @@ def test_consumer_places_orders_for_multiple_brokers(monkeypatch):
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
-                "exchange": None,
-                "order_type": None,
             },
         ),
     ]
