@@ -14,6 +14,7 @@ import os
 from collections import deque
 import logging
 import json
+import uuid
 from typing import Optional, Dict, Any
 
 import redis
@@ -148,7 +149,15 @@ def enqueue_webhook(
 
     schema = WebhookEventSchema()
     validated = schema.load(event)
+    if not validated.get("alert_id"):
+        validated["alert_id"] = uuid.uuid4().hex
 
+    logger.info(
+        "Received alert %s payload=%s",
+        validated.get("alert_id"),
+        json.dumps(validated, separators=(",", ":")),
+    )
+    
     # Run duplicate and risk checks before publishing.
     check_duplicate_and_risk(validated)
 
