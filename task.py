@@ -4,17 +4,14 @@ from services.trade_copier import poll_and_copy_trades, copy_order
 from services.db import get_session
 from models import db
 from prometheus_client import Gauge, Histogram
+from services.utils import get_redis_url
+
+_redis_url = get_redis_url()
 
 celery = Celery(
     "worker",
-    broker=os.environ.get(
-        "CELERY_BROKER_URL",
-        os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-    ),
-    backend=os.environ.get(
-        "CELERY_RESULT_BACKEND",
-        os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
-    ),
+    broker=_redis_url,
+    backend=os.environ.get("CELERY_RESULT_BACKEND", _redis_url),
 )
 celery.conf.timezone = os.environ.get("CELERY_TIMEZONE", "UTC")
 
