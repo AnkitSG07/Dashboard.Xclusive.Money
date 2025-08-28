@@ -8,9 +8,9 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: scheduler
@@ -21,9 +21,9 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: worker
@@ -34,9 +34,9 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: order-consumer
@@ -47,9 +47,9 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: trade-copier
@@ -60,9 +60,9 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
 
   - type: worker
     name: master-trade-monitor
@@ -73,6 +73,6 @@ services:
       - key: REDIS_URL
         sync: false
       - key: CELERY_BROKER_URL
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
       - key: CELERY_RESULT_BACKEND
-        fromEnvVar: REDIS_URL
+        value: ${REDIS_URL}
