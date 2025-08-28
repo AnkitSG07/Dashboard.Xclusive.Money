@@ -11,6 +11,7 @@ services:
         fromEnvVar: REDIS_URL
       - key: CELERY_RESULT_BACKEND
         fromEnvVar: REDIS_URL
+
   - type: worker
     name: scheduler
     env: python
@@ -23,11 +24,38 @@ services:
         fromEnvVar: REDIS_URL
       - key: CELERY_RESULT_BACKEND
         fromEnvVar: REDIS_URL
+
   - type: worker
     name: worker
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: celery -A task.celery worker --loglevel=info
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        fromEnvVar: REDIS_URL
+      - key: CELERY_RESULT_BACKEND
+        fromEnvVar: REDIS_URL
+
+  - type: worker
+    name: order-consumer
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m services.order_consumer
+    envVars:
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        fromEnvVar: REDIS_URL
+      - key: CELERY_RESULT_BACKEND
+        fromEnvVar: REDIS_URL
+
+  - type: worker
+    name: trade-copier
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m services.trade_copier
     envVars:
       - key: REDIS_URL
         sync: false
