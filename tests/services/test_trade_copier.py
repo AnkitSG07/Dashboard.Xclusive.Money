@@ -45,21 +45,6 @@ class DummySession:
     def first(self):
         return self.master
 
-
-class ChildSession:
-    def __init__(self, children):
-        self._children = children
-
-    def query(self, model):
-        return self
-
-    def filter_by(self, **kwargs):
-        return self
-
-    def all(self):
-        return self._children
-
-
 async def slow_replicate(
     db_session,
     master,
@@ -145,18 +130,21 @@ def test_poll_and_copy_trades_respects_batch_size(monkeypatch):
     assert redis.counts == [1, 1]
 
 
-def test_replicate_to_children_respects_max_workers():
+def test_replicate_to_children_respects_max_workers(monkeypatch):
     master = SimpleNamespace(client_id="m")
     children = [
         SimpleNamespace(broker="mock", client_id="c1", credentials={}, multiplier=1),
         SimpleNamespace(broker="mock", client_id="c2", credentials={}, multiplier=1),
     ]
-    session = ChildSession(children)
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m: children
+    )
 
     async def measure(limit):
         start = time.perf_counter()
-        await _replicate_to_children(session, master, order, slow_processor, max_workers=limit)
+        await _replicate_to_children(None, master, order, slow_processor, max_workers=limit)
         return time.perf_counter() - start
 
     t_serial = asyncio.run(measure(1))
@@ -165,14 +153,17 @@ def test_replicate_to_children_respects_max_workers():
     assert t_serial > t_parallel
 
 
-def test_replicate_to_children_isolates_child_errors(caplog):
+def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
     master = SimpleNamespace(client_id="m")
     children = [
         SimpleNamespace(broker="mock", client_id="c1", credentials={}, multiplier=1),
         SimpleNamespace(broker="mock", client_id="c2", credentials={}, multiplier=1),
     ]
-    session = ChildSession(children)
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+    
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m: children
+    )
 
     executed = []
 
@@ -182,22 +173,26 @@ def test_replicate_to_children_isolates_child_errors(caplog):
         executed.append(child.client_id)
 
     asyncio.run(
-        _replicate_to_children(session, master, order, processor, max_workers=2)
+        _replicate_to_children(None, master, order, processor, max_workers=2)
     )
 
     assert executed == ["c2"]
     assert any("child copy failed" in r.message for r in caplog.records)
 
 
-def test_replicate_to_children_enforces_timeout():
+def test_replicate_to_children_enforces_timeout(monkeypatch):
     master = SimpleNamespace(client_id="m")
     children = [
         SimpleNamespace(broker="mock", client_id="fast", credentials={}, multiplier=1),
         SimpleNamespace(broker="mock", client_id="slow", credentials={}, multiplier=1),
     ]
-    session = ChildSession(children)
+
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
 
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m: children
+    )
+    
     def processor(master, child, order):
         if child.client_id == "slow":
             time.sleep(0.2)
@@ -207,12 +202,37 @@ def test_replicate_to_children_enforces_timeout():
     start = time.perf_counter()
     asyncio.run(
         _replicate_to_children(
-            session, master, order, processor, max_workers=2, timeout=0.05
+            None, master, order, processor, max_workers=2, timeout=0.05
         )
     )
     duration = time.perf_counter() - start
 
     assert duration < 0.15
+
+
+def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
+    master = SimpleNamespace(client_id="m")
+    children = [
+        SimpleNamespace(broker="mock", client_id="c1", credentials={}, multiplier=1, copy_status="ON"),
+        SimpleNamespace(broker="mock", client_id="c2", credentials={}, multiplier=1, copy_status="oN"),
+        SimpleNamespace(broker="mock", client_id="c3", credentials={}, multiplier=1, copy_status="Off"),
+    ]
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m: [c for c in children if c.copy_status.lower() == "on"],
+    )
+
+    processed = []
+
+    def processor(master, child, order):
+        processed.append(child.client_id)
+
+    asyncio.run(_replicate_to_children(None, master, order, processor))
+
+    assert processed == ["c1", "c2"]
 
 
 def test_poll_and_copy_trades_reads_max_workers_env(monkeypatch):
@@ -249,7 +269,7 @@ def test_poll_and_copy_trades_reads_max_workers_env(monkeypatch):
     assert calls == [7]
 
 
-def test_poll_and_copy_trades_ack_on_child_error(caplog):
+def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
     master = SimpleNamespace(client_id="m")
     children = [
         SimpleNamespace(broker="mock", client_id="good", credentials={}, multiplier=1),
@@ -293,6 +313,10 @@ def test_poll_and_copy_trades_ack_on_child_error(caplog):
         if child.client_id == "bad":
             raise RuntimeError("boom")
         processed.append(child.client_id)
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m: children
+    )
 
     trade_copier.poll_and_copy_trades(
         Session(master, children),
