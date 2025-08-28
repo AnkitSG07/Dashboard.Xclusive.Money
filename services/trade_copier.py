@@ -22,6 +22,7 @@ from models import Account
 from brokers.factory import get_broker_client
 from .webhook_receiver import redis_client
 from .utils import _decode_event
+from helpers import active_children_for_master
 
 LATENCY = Histogram(
     "trade_copier_latency_seconds", "Seconds spent processing a master order event"
@@ -99,11 +100,7 @@ async def _replicate_to_children(
         disables the timeout.
     """
 
-    children = (
-        db_session.query(Account)
-        .filter_by(linked_master_id=master.client_id, role="child", copy_status="On")
-        .all()
-    )
+    children = active_children_for_master(master)
 
     if not children:
         return
