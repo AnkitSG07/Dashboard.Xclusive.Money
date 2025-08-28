@@ -48,15 +48,27 @@ def order_mappings_for_user(user):
     )
 
 
-def active_children_for_master(master):
-    """Return active child accounts linked to ``master`` by client id."""
-    return Account.query.filter(
-        Account.role == "child",
-        db.func.lower(Account.linked_master_id)
-        == db.func.lower(str(master.client_id)),
-        db.func.lower(Account.copy_status) == "on",
-        db.func.lower(Account.client_id) != str(master.client_id).lower(),
-    ).all()
+def active_children_for_master(master, session):
+    """Return active child accounts belonging to the same user as ``master``.
+
+    Parameters
+    ----------
+    master: Account
+        Master account for which active children should be fetched.
+    session: sqlalchemy.orm.Session
+        Database session to use for querying accounts.
+    """
+    return (
+        session.query(Account)
+        .filter(
+            Account.user_id == master.user_id,
+            Account.role == "child",
+            Account.linked_master_id == master.client_id,
+            db.func.lower(Account.copy_status) == "on",
+            db.func.lower(Account.client_id) != str(master.client_id).lower(),
+        )
+        .all()
+    )
 
 def log_connection_error(
     account: Account,
