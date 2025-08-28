@@ -13,7 +13,7 @@ def _make_response(text: str):
 
 
 def test_symbol_map_includes_bse_x_series():
-    mapping = get_symbol_for_broker("BSE:CASPIAN", "dhan")
+    mapping = get_symbol_for_broker("CASPIAN", "dhan", "BSE")
     assert mapping.get("security_id")
     assert mapping.get("exchange_segment") == "BSE_EQ"
 
