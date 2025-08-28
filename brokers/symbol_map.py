@@ -71,18 +71,18 @@ def _load_dhan() -> Dict[Key, str]:
     return data
 
 
-def build_symbol_map() -> Dict[str, Dict[str, Dict[str, str]]]:
+def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Construct the complete symbol map.
 
-    For each equity symbol we create entries for a variety of brokers.  The
-    Zerodha instrument token is used for brokers that rely on the exchange
-    token.  Dhan's security id is joined whenever available.
+    The returned mapping is structured as ``{symbol -> {exchange -> broker
+    -> fields}}`` so that symbols listed on multiple exchanges retain the data
+    for each exchange separately.
     """
 
     zerodha = _load_zerodha()
     dhan = _load_dhan()
 
-    mapping: Dict[str, Dict[str, Dict[str, str]]] = {}
+    mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
     for (symbol, exchange), token in zerodha.items():
         entry = {
@@ -149,7 +149,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, str]]]:
                 "exchange_segment": f"{exchange}_EQ",
             }
 
-        mapping[symbol] = entry
+        mapping.setdefault(symbol, {})[exchange] = entry
 
     return mapping
 
@@ -189,26 +189,42 @@ def get_symbol_for_broker(symbol: str, broker: str) -> Dict[str, str]:
     symbol = symbol.upper()
     broker = broker.lower()
     
-    base = symbol.split(":")[-1]
+    exchange_hint = None
+    if ":" in symbol:
+        exchange_hint, symbol = symbol.split(":", 1)
+
+    base = symbol
     if base.endswith("-EQ"):
         base = base[:-3]
 
-    mapping = SYMBOL_MAP.get(symbol) or SYMBOL_MAP.get(base)
-    if not mapping:
-        base2 = base.split("-")[0]
-        mapping = SYMBOL_MAP.get(base2, {})
+    base2 = base.split("-")[0]
+
+    mapping = (
+        SYMBOL_MAP.get(symbol)
+        or SYMBOL_MAP.get(base)
+        or SYMBOL_MAP.get(base2)
+    )
 
     # If the symbol was not found we may be dealing with a newly listed
     # scrip.  Refresh the symbol map once so that recently added tokens are
     # picked up without requiring an application restart.
     if not mapping:
         refresh_symbol_map()
-        mapping = SYMBOL_MAP.get(symbol) or SYMBOL_MAP.get(base)
-        if not mapping:
-            base2 = base.split("-")[0]
-            mapping = SYMBOL_MAP.get(base2, {})
+        mapping = (
+            SYMBOL_MAP.get(symbol)
+            or SYMBOL_MAP.get(base)
+            or SYMBOL_MAP.get(base2)
+        )
 
-    return mapping.get(broker, {}) if mapping else {}
+    if not mapping:
+        return {}
+
+    if exchange_hint and exchange_hint in mapping:
+        exchange_map = mapping[exchange_hint]
+    else:
+        exchange_map = mapping.get("NSE") or next(iter(mapping.values()))
+
+    return exchange_map.get(broker, {}) if exchange_map else {}
 
 
 def get_symbol_by_token(token: str, broker: str) -> str | None:
@@ -217,10 +233,11 @@ def get_symbol_by_token(token: str, broker: str) -> str | None:
     broker = broker.lower()
     token = str(token)
 
-    for sym, mapping in SYMBOL_MAP.items():
-        broker_map = mapping.get(broker)
-        if broker_map and str(broker_map.get("token")) == token:
-            return sym
+    for sym, exchanges in SYMBOL_MAP.items():
+        for exchange_map in exchanges.values():
+            broker_map = exchange_map.get(broker)
+            if broker_map and str(broker_map.get("token")) == token:
+                return sym
     return None
 
 
