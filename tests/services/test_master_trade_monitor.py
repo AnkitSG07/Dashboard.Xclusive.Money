@@ -104,7 +104,8 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
 
     monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-
+    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+    
     # Publish manual orders
     master_trade_monitor.monitor_master_trades(
         session, redis_client=redis, max_iterations=1, poll_interval=0
