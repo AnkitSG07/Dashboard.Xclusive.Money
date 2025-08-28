@@ -147,7 +147,7 @@ def test_active_children_scoped_to_user(client):
 
         from helpers import active_children_for_master
 
-        children = active_children_for_master(master)
+        children = active_children_for_master(master, db.session)
         ids = {c.client_id for c in children}
         assert ids == {"C1"}
 
@@ -172,7 +172,7 @@ def test_active_children_case_insensitive_status(client, status):
 
         from helpers import active_children_for_master
 
-        children = active_children_for_master(master)
+        children = active_children_for_master(master, db.session)
         ids = {c.client_id for c in children}
         assert ids == {"C3"}
 
@@ -375,7 +375,10 @@ def test_poll_and_copy_trades_skips_master_account(client, monkeypatch):
         db.session.add(master)
         db.session.commit()
 
-        monkeypatch.setattr(app_module, "active_children_for_master", lambda m: [master])
+        monkeypatch.setattr(
+            app_module, "active_children_for_master", lambda m, s: [master]
+        )
+
 
         app_module.poll_and_copy_trades()
 
