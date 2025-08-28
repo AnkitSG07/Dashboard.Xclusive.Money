@@ -14,6 +14,7 @@ celery = Celery(
     ),
 )
 celery.conf.timezone = os.environ.get("SCHEDULER_TIMEZONE", "UTC")
+celery.conf.broker_connection_retry_on_startup = True
 
 celery.conf.beat_schedule = {
     "poll-trades": {
