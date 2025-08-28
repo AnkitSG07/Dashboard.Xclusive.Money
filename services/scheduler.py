@@ -6,11 +6,17 @@ celery = Celery(
     "scheduler",
     broker=os.environ.get(
         "SCHEDULER_BROKER_URL",
-        os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        os.environ.get(
+            "CELERY_BROKER_URL",
+            os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        ),
     ),
     backend=os.environ.get(
         "SCHEDULER_RESULT_BACKEND",
-        os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1"),
+        os.environ.get(
+            "CELERY_RESULT_BACKEND",
+            os.environ.get("REDIS_URL", "redis://localhost:6379/1"),
+        ),
     ),
 )
 celery.conf.timezone = os.environ.get("SCHEDULER_TIMEZONE", "UTC")
