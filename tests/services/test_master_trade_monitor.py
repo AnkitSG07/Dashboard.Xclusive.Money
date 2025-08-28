@@ -38,15 +38,15 @@ class SessionStub:
         self.kwargs = kwargs
         return self
 
+    def filter(self, *args):
+        self._filtered = True
+        return self
+
     def all(self):
+        if getattr(self, "_filtered", False):
+            return self.children
         if self.kwargs.get("role") == "master":
             return [self.master]
-        if (
-            self.kwargs.get("linked_master_id") == self.master.client_id
-            and self.kwargs.get("role") == "child"
-            and self.kwargs.get("copy_status") == "On"
-        ):
-            return self.children
         return []
 
     def first(self):
@@ -91,6 +91,7 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
         broker="mock",
         credentials={"access_token": "", "extras": {"orders": [order]}},
         role="master",
+        user_id=1,
     )
     child = SimpleNamespace(
         broker="mock",
