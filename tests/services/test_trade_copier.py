@@ -139,7 +139,7 @@ def test_replicate_to_children_respects_max_workers(monkeypatch):
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
 
     monkeypatch.setattr(
-        trade_copier, "active_children_for_master", lambda m: children
+        trade_copier, "active_children_for_master", lambda m, s: children
     )
 
     async def measure(limit):
@@ -162,7 +162,7 @@ def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
     
     monkeypatch.setattr(
-        trade_copier, "active_children_for_master", lambda m: children
+        trade_copier, "active_children_for_master", lambda m, s: children
     )
 
     executed = []
@@ -190,7 +190,7 @@ def test_replicate_to_children_enforces_timeout(monkeypatch):
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
 
     monkeypatch.setattr(
-        trade_copier, "active_children_for_master", lambda m: children
+        trade_copier, "active_children_for_master", lambda m, s: children
     )
     
     def processor(master, child, order):
@@ -222,7 +222,7 @@ def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
     monkeypatch.setattr(
         trade_copier,
         "active_children_for_master",
-        lambda m: [c for c in children if c.copy_status.lower() == "on"],
+        lambda m, s: [c for c in children if c.copy_status.lower() == "on"],
     )
 
     processed = []
@@ -233,6 +233,25 @@ def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
     asyncio.run(_replicate_to_children(None, master, order, processor))
 
     assert processed == ["c1", "c2"]
+
+
+def test_replicate_to_children_passes_session(monkeypatch):
+    master = SimpleNamespace(client_id="m")
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+    session = object()
+    seen = {}
+
+    def fake_active_children(master_arg, session_arg):
+        seen["session"] = session_arg
+        return []
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", fake_active_children
+    )
+
+    asyncio.run(_replicate_to_children(session, master, order, slow_processor))
+
+    assert seen["session"] is session
 
 
 def test_poll_and_copy_trades_reads_max_workers_env(monkeypatch):
@@ -315,7 +334,7 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
         processed.append(child.client_id)
 
     monkeypatch.setattr(
-        trade_copier, "active_children_for_master", lambda m: children
+        trade_copier, "active_children_for_master", lambda m, s: children
     )
 
     trade_copier.poll_and_copy_trades(
