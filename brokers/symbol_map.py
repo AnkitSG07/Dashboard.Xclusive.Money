@@ -180,17 +180,23 @@ def refresh_symbol_map() -> None:
 __all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map"]
 
 
-def get_symbol_for_broker(symbol: str, broker: str) -> Dict[str, str]:
+def get_symbol_for_broker(
+    symbol: str, broker: str, exchange: str | None = None
+) -> Dict[str, str]:
     """Return the mapping for *symbol* for the given *broker*.
 
-    The lookup normalises broker and symbol names so callers can pass
-    tokens in a variety of formats (e.g. ``NSE:IDEA-EQ``).
+    ``exchange`` may be supplied to explicitly select the exchange on
+    which the symbol is listed.  When omitted the lookup attempts to
+    infer the exchange from the symbol string or defaults to the NSE
+    entry.
     """
     symbol = symbol.upper()
     broker = broker.lower()
     
     exchange_hint = None
-    if ":" in symbol:
+    if exchange:
+        exchange_hint = exchange.upper()
+    elif ":" in symbol:
         exchange_hint, symbol = symbol.split(":", 1)
 
     base = symbol
