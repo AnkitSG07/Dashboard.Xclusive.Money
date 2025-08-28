@@ -35,6 +35,21 @@ def test_duplicate_detection(monkeypatch):
         alert_guard.check_duplicate_and_risk(event)
 
 
+def test_requires_identifier(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(alert_guard, "redis_client", stub)
+    monkeypatch.setattr(alert_guard, "_USER_SETTINGS_CACHE", {})
+    monkeypatch.setattr(alert_guard, "_LOCAL_DEDUP", {})
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+    }
+    with pytest.raises(ValidationError):
+        alert_guard.check_duplicate_and_risk(event)
+
+
 def test_risk_rules(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(alert_guard, "redis_client", stub)
