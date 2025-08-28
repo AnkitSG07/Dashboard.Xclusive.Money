@@ -73,25 +73,31 @@ class DhanBroker(BrokerBase):
         tradingsymbol = tradingsymbol or extra.pop("symbol", None)
         transaction_type = transaction_type or extra.pop("action", None)
         quantity = quantity or extra.pop("qty", None)
-        exchange_segment = exchange_segment or extra.pop("exchange", None)
-        if exchange_segment:
-            exchange_segment = self._normalize_segment(exchange_segment)
+        exchange = exchange_segment or extra.pop("exchange", None)
+        if exchange:
+            exchange = str(exchange).upper()
+            exchange_segment = self._normalize_segment(exchange)
+            exchange_base = exchange.split("_")[0]
+        else:
+            exchange_segment = None
+            exchange_base = None
 
-        # Look up security_id either from an injected symbol map or the global
-        # symbol mapper.  ``get_symbol_for_broker`` may return additional
-        # metadata such as the exchange segment so we only call it once.
-        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
+        # Look up the instrument details for this symbol/exchange pair.  The
+        # mapping provides the authoritative ``security_id`` for Dhan while an
+        # optional ``symbol_map`` passed in via the constructor acts merely as a
+        # fallback.  This prevents outdated or NSE-only maps from overriding the
+        # correct per-exchange security id which would otherwise lead to "Invalid
+        # SecurityId" errors when placing BSE orders.
         if not security_id:
-            if tradingsymbol and self.symbol_map:
-                security_id = self.symbol_map.get(tradingsymbol.upper())
-            if not security_id:
-                security_id = mapping.get("security_id")
-            if not security_id:
-                raise ValueError(
-                    "DhanBroker: 'security_id' required (tradingsymbol={})".format(
-                        tradingsymbol
-                    )
+            security_id = mapping.get("security_id")
+        if not security_id and tradingsymbol and self.symbol_map:
+            security_id = self.symbol_map.get(tradingsymbol.upper())
+        if not security_id:
+            raise ValueError(
+                "DhanBroker: 'security_id' required (tradingsymbol={})".format(
+                    tradingsymbol
                 )
+            )    
 
         if not exchange_segment:
             exchange_segment = mapping.get("exchange_segment", self.NSE)
