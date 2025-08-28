@@ -54,7 +54,11 @@ def test_poll_and_copy_trades_processes_event(monkeypatch):
     event = {b"master_id": b"m1", b"symbol": b"AAPL", b"action": b"BUY", b"qty": b"1"}
     stub_redis = StubRedis([event])
     session = DummySession()
-
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m: [object(), object()],
+    )
     count = trade_copier.poll_and_copy_trades(
         session, processor=processor, redis_client=stub_redis, max_messages=1
     )
@@ -113,7 +117,12 @@ def test_child_orders_submitted(monkeypatch):
     stub_redis = StubRedis([event])
 
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m: [Child("c1"), Child("c2")],
+    )
+    
     count = trade_copier.poll_and_copy_trades(
         Session(), processor=trade_copier.copy_order, redis_client=stub_redis, max_messages=1
     )
