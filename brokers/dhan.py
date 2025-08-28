@@ -88,6 +88,7 @@ class DhanBroker(BrokerBase):
         # fallback.  This prevents outdated or NSE-only maps from overriding the
         # correct per-exchange security id which would otherwise lead to "Invalid
         # SecurityId" errors when placing BSE orders.
+        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
         if not security_id:
             security_id = mapping.get("security_id")
         if not security_id and tradingsymbol and self.symbol_map:
