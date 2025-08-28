@@ -206,6 +206,8 @@ def consume_webhook_events(
                         result.get("order_id")
                         or result.get("id")
                         or result.get("data", {}).get("order_id")
+                        or result.get("orderId")
+                        or result.get("data", {}).get("orderId")
                     )
                 if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
                     raise RuntimeError(f"broker order failed: {result}")
