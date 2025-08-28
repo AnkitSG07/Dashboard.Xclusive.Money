@@ -8,16 +8,18 @@ time-to-live in order to avoid excessive Redis lookups when multiple events
 for the same user are processed in quick succession.
 """
 
-import hashlib
 import json
 import os
 import time
+import logging
 from typing import Any, Dict, Tuple
 
 
 import redis
 from marshmallow import ValidationError
 
+
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL")
 if not REDIS_URL:
@@ -80,13 +82,10 @@ def update_user_settings(user_id: int, settings: Dict[str, Any], *, ttl: int | N
 def _dedup_key(event: Dict[str, Any]) -> str:
     """Return a cache key used for duplicate detection."""
 
-    if event.get("alert_id"):
-        return f"alert:{event['alert_id']}"
-    payload = (
-        f"{event['user_id']}|{event.get('strategy_id')}|"
-        f"{event['symbol']}|{event['action']}|{event['qty']}"
-    )
-    return "alert:" + hashlib.sha1(payload.encode()).hexdigest()
+    alert_id = event.get("alert_id")
+    if not alert_id:
+        raise ValidationError("missing alert identifier")
+    return f"alert:{alert_id}"
 
 
 def check_risk_limits(event: Dict[str, Any]) -> bool:
@@ -113,10 +112,12 @@ def check_duplicate_and_risk(event: Dict[str, Any]) -> bool:
     """
 
     key = _dedup_key(event)
+    payload = json.dumps(event, separators=(",", ":"))
     # SET with NX ensures duplicates are rejected while setting a TTL for
     # automatic expiry of the deduplication key.
     try:
         if not redis_client.set(key, "1", nx=True, ex=DEDUP_TTL):
+            logger.warning("Duplicate alert %s: %s", event.get("alert_id"), payload)    
             raise ValidationError("duplicate alert")
     except redis.exceptions.RedisError:
         # Fallback to an in-memory set with simple TTL pruning
@@ -125,10 +126,22 @@ def check_duplicate_and_risk(event: Dict[str, Any]) -> bool:
         for k in expired:
             _LOCAL_DEDUP.pop(k, None)
         if key in _LOCAL_DEDUP:
+            logger.warning("Duplicate alert %s: %s", event.get("alert_id"), payload)
             raise ValidationError("duplicate alert")
         _LOCAL_DEDUP[key] = now + DEDUP_TTL
 
-    check_risk_limits(event)
+    try:
+        check_risk_limits(event)
+    except ValidationError as exc:
+        logger.warning(
+            "Rejected alert %s due to risk: %s payload=%s",
+            event.get("alert_id"),
+            exc,
+            payload,
+        )
+        raise
+
+    logger.info("Accepted alert %s payload=%s", event.get("alert_id"), payload)
     return True
 
 
