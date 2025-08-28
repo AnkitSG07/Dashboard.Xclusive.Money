@@ -2001,7 +2001,7 @@ def _legacy_poll_and_copy_trades():
                 # Get active child accounts for this master from database
                 # Added try-except around database access to catch connection issues
                 try:
-                    children = active_children_for_master(master)
+                    children = active_children_for_master(master, db.session)
                 except Exception as e:
                     logger.error(f"Failed to fetch active children for master {master_id} from DB: {str(e)}")
                     # Continue to next master or exit if this is a critical error
