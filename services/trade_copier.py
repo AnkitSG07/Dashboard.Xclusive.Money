@@ -100,7 +100,7 @@ async def _replicate_to_children(
         disables the timeout.
     """
 
-    children = active_children_for_master(master)
+    children = active_children_for_master(master, db_session)
 
     if not children:
         return
