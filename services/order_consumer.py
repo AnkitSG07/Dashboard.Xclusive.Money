@@ -3,6 +3,7 @@ from __future__ import annotations
 """Asynchronous worker that consumes webhook events and places orders."""
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -97,6 +98,26 @@ def consume_webhook_events(
             brokers = settings.get("brokers", [])
 
             allowed_accounts = event.get("masterAccounts") or []
+            if isinstance(allowed_accounts, str):
+                try:
+                    allowed_accounts = json.loads(allowed_accounts)
+                except json.JSONDecodeError:
+                    log.error(
+                        "invalid masterAccounts JSON: %s",
+                        allowed_accounts,
+                        extra={"event": event},
+                    )
+                    orders_failed.inc()
+                    return
+                if not isinstance(allowed_accounts, list):
+                    log.error(
+                        "masterAccounts JSON was not a list: %s",
+                        allowed_accounts,
+                        extra={"event": event},
+                    )
+                    orders_failed.inc()
+                    return
+                event["masterAccounts"] = allowed_accounts
             if not allowed_accounts:
                 strategy_id = event.get("strategy_id")
                 if strategy_id is not None:
