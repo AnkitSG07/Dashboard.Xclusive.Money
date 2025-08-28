@@ -29,13 +29,15 @@ class DummySession:
             self.data = data
 
         def filter_by(self, **kwargs):
-            self.kwargs = kwargs    
+            self.kwargs = kwargs
             return self
+        def filter(self, *args):
+             return self
             
         def first(self):
             # Return master account when querying for master
             if self.kwargs.get("role") == "master":
-                return type("Master", (), {"client_id": "m1"})()
+                return type("Master", (), {"client_id": "m1", "user_id": 1})()
             return None
 
         def all(self):
@@ -95,13 +97,17 @@ def test_child_orders_submitted(monkeypatch):
 
     class Master:
         client_id = "m1"
-
+        user_id = 1
+        
     class Session:
         def query(self, model):
             return self
 
         def filter_by(self, **kwargs):
             self.kwargs = kwargs
+            return self
+
+        def filter(self, *args):
             return self
 
         def first(self):
