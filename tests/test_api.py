@@ -151,7 +151,8 @@ def test_active_children_scoped_to_user(client):
         ids = {c.client_id for c in children}
         assert ids == {"C1"}
 
-def test_active_children_case_insensitive_status(client):
+@pytest.mark.parametrize("status", ["ON", "on", "oN"])
+def test_active_children_case_insensitive_status(client, status):
     app = app_module.app
     db = app_module.db
     User = app_module.User
@@ -164,7 +165,7 @@ def test_active_children_case_insensitive_status(client):
             role="child",
             client_id="C3",
             linked_master_id="M2",
-            copy_status="ON",
+            copy_status="status",
         )
         db.session.add_all([master, c1])
         db.session.commit()
