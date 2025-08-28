@@ -50,7 +50,7 @@ def test_missing_optional_fields(monkeypatch):
     assert event["symbol"] == "AAPL-EQ"
     assert event["exchange"] == "NSE"
     assert event["order_type"] is None
-    assert event["alert_id"] is None
+    assert isinstance(event["alert_id"], str)
     assert event["orderType"] is None
     assert event["productType"] is None
 
