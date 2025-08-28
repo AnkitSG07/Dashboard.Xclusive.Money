@@ -49,12 +49,12 @@ def order_mappings_for_user(user):
 
 
 def active_children_for_master(master):
-    """Return active child accounts belonging to the same user as ``master``."""
+    """Return active child accounts linked to ``master`` by client id."""
     return Account.query.filter(
-        Account.user_id == master.user_id,
-        Account.role == 'child',
-        Account.linked_master_id == master.client_id,
-        db.func.lower(Account.copy_status) == 'on',
+        Account.role == "child",
+        db.func.lower(Account.linked_master_id)
+        == db.func.lower(str(master.client_id)),
+        db.func.lower(Account.copy_status) == "on",
         db.func.lower(Account.client_id) != str(master.client_id).lower(),
     ).all()
 
