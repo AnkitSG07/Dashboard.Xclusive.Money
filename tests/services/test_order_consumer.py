@@ -238,6 +238,43 @@ def test_consumer_rejects_non_numeric_master_accounts(monkeypatch, caplog):
     )
 
 
+def test_consumer_handles_json_encoded_master_accounts(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "masterAccounts": "[1]",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    account = SimpleNamespace(id=1, broker="mock", client_id="c")
+    monkeypatch.setattr(
+        order_consumer, "get_session", lambda: DummySession(accounts=[account])
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "master_accounts": [1]}
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+        )
+    ]
+
+
 def test_consumer_errors_when_no_brokers_configured(monkeypatch, caplog):
     event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
     stub = StubRedis([event])
