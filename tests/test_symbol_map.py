@@ -17,6 +17,32 @@ def test_symbol_map_includes_bse_x_series():
     assert mapping.get("security_id")
     assert mapping.get("exchange_segment") == "BSE_EQ"
 
+def test_build_symbol_map_preserves_multiple_exchanges(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NSE,AAA,NSE,EQ\n"
+        "2,BSE,AAA,BSE,EQ\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,AAA,E,EQ,10\n"
+        "BSE,AAA,E,EQ,20\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+    assert "NSE" in mapping["AAA"]
+    assert "BSE" in mapping["AAA"]
+    assert mapping["AAA"]["NSE"]["zerodha"]["token"] == "1"
+    assert mapping["AAA"]["BSE"]["zerodha"]["token"] == "2"
+
 def test_refresh_symbol_map(monkeypatch):
     # Save original map so we can restore it after the test to avoid
     # side effects for other tests.
