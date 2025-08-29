@@ -16,7 +16,7 @@ from brokers.factory import get_broker_client
 import redis
 
 from .alert_guard import check_risk_limits, get_user_settings
-from .webhook_receiver import redis_client
+from .webhook_receiver import redis_client, get_redis_client
 from .utils import _decode_event
 from .db import get_session
 from models import Strategy, Account
@@ -80,6 +80,10 @@ def consume_webhook_events(
                 os.getenv("BROKER_TIMEOUT", "20"),
             )
         )
+
+    # Lazily create a Redis client if one was not supplied.
+    if redis_client is None:
+        redis_client = get_redis_client()
 
     # Ensure the consumer group exists. Ignore error if it already exists.
     try:
