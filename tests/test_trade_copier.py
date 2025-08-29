@@ -138,3 +138,89 @@ def test_child_orders_submitted(monkeypatch):
         ("c1", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
         ("c2", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
     ]
+
+def test_child_orders_mirror_master_params(monkeypatch):
+    """Optional order fields should be forwarded to child accounts."""
+
+    orders = []
+
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            orders.append((self.client_id, params))
+            return {"status": "ok"}
+
+    def fake_get_broker_client(name):
+        assert name == "stub"
+        return StubBroker
+
+    class Child:
+        def __init__(self, cid):
+            self.client_id = cid
+            self.broker = "stub"
+            self.credentials = {"access_token": "t"}
+            self.multiplier = 1
+
+    class Session:
+        def query(self, model):
+            return self
+
+        def filter_by(self, **kwargs):
+            self.kwargs = kwargs
+            return self
+
+        def filter(self, *args):
+            return self
+
+        def first(self):
+            if self.kwargs.get("role") == "master":
+                return type("Master", (), {"client_id": "m1", "user_id": 1})()
+            return None
+
+        def all(self):
+            return [Child("c1"), Child("c2")]
+
+    event = {
+        b"master_id": b"m1",
+        b"symbol": b"AAPL",
+        b"action": b"BUY",
+        b"qty": b"1",
+        b"exchange": b"NSE",
+        b"order_type": b"LIMIT",
+        b"product_type": b"CNC",
+        b"validity": b"DAY",
+        b"price": b"100",
+    }
+    stub_redis = StubRedis([event])
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m: [Child("c1"), Child("c2")],
+    )
+
+    count = trade_copier.poll_and_copy_trades(
+        Session(),
+        processor=trade_copier.copy_order,
+        redis_client=stub_redis,
+        max_messages=1,
+    )
+
+    assert count == 1
+    expected_params = {
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "exchange": "NSE",
+        "order_type": "LIMIT",
+        "product_type": "CNC",
+        "validity": "DAY",
+        "price": 100,
+    }
+    assert orders == [
+        ("c1", expected_params),
+        ("c2", expected_params),
+    ]
