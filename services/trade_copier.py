@@ -21,9 +21,11 @@ from sqlalchemy.orm import Session
 
 from models import Account
 from brokers.factory import get_broker_client
-from .webhook_receiver import redis_client
+from .webhook_receiver import redis_client, get_redis_client
+from .db import get_session
 from .utils import _decode_event
 from helpers import active_children_for_master
+import redis
 
 LATENCY = Histogram(
     "trade_copier_latency_seconds", "Seconds spent processing a master order event"
@@ -316,5 +318,33 @@ def poll_and_copy_trades(
     finally:
         executor.shutdown(wait=False)
 
+def main() -> None:
+    """Entry point for the trade copier service."""
+    
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
 
-__all__ = ["poll_and_copy_trades", "copy_order", "LATENCY"]
+    while True:
+        session = get_session()
+        client = get_redis_client()
+        try:
+            poll_and_copy_trades(
+                session,
+                processor=copy_order,
+                redis_client=client,
+                block=block,
+            )
+        except redis.exceptions.RedisError:
+            log.exception("redis error while copying trades")
+        finally:
+            session.close()
+
+
+__all__ = ["poll_and_copy_trades", "copy_order", "LATENCY", "main"]
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
