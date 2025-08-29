@@ -48,7 +48,7 @@ def order_mappings_for_user(user):
     )
 
 
-def active_children_for_master(master, session):
+def active_children_for_master(master, session=db.session):
     """Return active child accounts belonging to the same user as ``master``.
 
     Parameters
@@ -56,14 +56,14 @@ def active_children_for_master(master, session):
     master: Account
         Master account for which active children should be fetched.
     session: sqlalchemy.orm.Session
-        Database session to use for querying accounts.
+        Database session to use for querying accounts. Defaults to ``db.session``.
     """
     return (
         session.query(Account)
         .filter(
             Account.user_id == master.user_id,
             Account.role == "child",
-            Account.linked_master_id == master.client_id,
+            db.func.lower(Account.linked_master_id) == str(master.client_id).lower(),
             db.func.lower(Account.copy_status) == "on",
             db.func.lower(Account.client_id) != str(master.client_id).lower(),
         )
