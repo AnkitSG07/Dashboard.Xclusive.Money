@@ -11,6 +11,9 @@ class DummyKite:
     def set_access_token(self, token):
         pass
 
+    def set_session(self, session):
+        self.session = session
+
     def place_order(self, variety, **params):
         self.captured = params
         return "1"
