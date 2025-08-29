@@ -172,16 +172,23 @@ def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
             raise RuntimeError("fail")
         executed.append(child.client_id)
 
-    asyncio.run(
-        _replicate_to_children(None, master, order, processor, max_workers=2)
-    )
+    with caplog.at_level("WARNING"):
+        asyncio.run(
+            _replicate_to_children(None, master, order, processor, max_workers=2)
+        )
 
     assert executed == ["c2"]
-    assert any("child c1 copy failed" in r.message for r in caplog.records)
-    assert any(getattr(r, "child", None) == "c1" for r in caplog.records)
+    assert any(
+        r.levelname == "ERROR" and "child c1 copy failed" in r.message
+        for r in caplog.records
+    )
+    assert any(
+        r.levelname == "ERROR" and getattr(r, "child", None) == "c1"
+        for r in caplog.records
+    )
 
 
-def test_replicate_to_children_enforces_timeout(monkeypatch):
+def test_replicate_to_children_enforces_timeout(monkeypatch, caplog):
     master = SimpleNamespace(client_id="m")
     children = [
         SimpleNamespace(broker="mock", client_id="fast", credentials={}, multiplier=1),
@@ -193,22 +200,63 @@ def test_replicate_to_children_enforces_timeout(monkeypatch):
     monkeypatch.setattr(
         trade_copier, "active_children_for_master", lambda m, s: children
     )
-    
+
     def processor(master, child, order):
         if child.client_id == "slow":
             time.sleep(0.2)
         else:
             time.sleep(0.01)
 
-    start = time.perf_counter()
-    asyncio.run(
-        _replicate_to_children(
-            None, master, order, processor, max_workers=2, timeout=0.05
+    with caplog.at_level("WARNING"):
+        start = time.perf_counter()
+        asyncio.run(
+            _replicate_to_children(
+                None, master, order, processor, max_workers=2, timeout=0.05
+            )
         )
-    )
-    duration = time.perf_counter() - start
 
     assert duration < 0.15
+    assert any(
+        r.levelname == "WARNING" and "child slow copy timed out" in r.message
+        for r in caplog.records
+    )
+    assert not any(
+        r.levelname == "ERROR" and getattr(r, "child", None) == "slow"
+        for r in caplog.records
+    )
+
+
+def test_replicate_to_children_logs_warning_for_timeout(monkeypatch, caplog):
+    master = SimpleNamespace(client_id="m")
+    children = [
+        SimpleNamespace(broker="mock", client_id="to", credentials={}, multiplier=1),
+        SimpleNamespace(broker="mock", client_id="err", credentials={}, multiplier=1),
+    ]
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m, s: children
+    )
+
+    def processor(master, child, order):
+        if child.client_id == "to":
+            raise TimeoutError("boom")
+        raise RuntimeError("fail")
+
+    with caplog.at_level("WARNING"):
+        asyncio.run(
+            _replicate_to_children(None, master, order, processor, max_workers=2)
+        )
+
+    assert any(
+        r.levelname == "WARNING" and "child to copy timed out" in r.message
+        for r in caplog.records
+    )
+    assert any(
+        r.levelname == "ERROR" and "child err copy failed" in r.message
+        for r in caplog.records
+    )
+
 
 
 def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
