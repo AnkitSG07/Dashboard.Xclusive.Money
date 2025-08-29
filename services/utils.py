@@ -25,13 +25,18 @@ def _decode_event(raw: Dict[Any, Any]) -> Dict[str, Any]:
     normalises the payload by decoding UTF-8 strings and converting numeric
     fields to ``int`` where possible.
     """
+    NO_INT_FIELDS = {"client_id", "master_id"}
     event: Dict[str, Any] = {}
     for k, v in raw.items():
         key = k.decode() if isinstance(k, bytes) else k
         if isinstance(v, bytes):
-            try:
-                v = int(v)
-            except ValueError:
-                v = v.decode()
+            decoded = v.decode()
+            if key not in NO_INT_FIELDS:
+                try:
+                    v = int(decoded)
+                except ValueError:
+                    v = decoded
+            else:
+                v = decoded
         event[key] = v
     return event
