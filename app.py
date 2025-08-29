@@ -161,11 +161,26 @@ from logging.handlers import RotatingFileHandler
 log_path = os.path.join(DATA_DIR, 'app.log')
 log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
 file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=10)
+
+class ChildErrorFormatter(logging.Formatter):
+    """Formatter that renders optional ``child`` and ``error`` fields."""
+
+    def format(self, record):
+        record.child = getattr(record, "child", "")
+        record.error = getattr(record, "error", "")
+        return super().format(record)
+
+formatter = ChildErrorFormatter(
+    '%(asctime)s [%(levelname)s] %(message)s child=%(child)s error=%(error)s'
+)
+
 logging.basicConfig(
     level=getattr(logging, log_level, logging.INFO),
-    format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(), file_handler],
 )
+for handler in logging.getLogger().handlers:
+    handler.setFormatter(formatter)
+
 logger = logging.getLogger(__name__)
 
 # Centralized commit helper
