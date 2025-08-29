@@ -1,7 +1,10 @@
 import requests
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker
-import json # Import the json module
+import json  # Import the json module
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DhanBroker(BrokerBase):
     BROKER = "dhan"
@@ -219,7 +222,23 @@ class DhanBroker(BrokerBase):
                 r = self._request("get", url, headers=self.headers, timeout=self.timeout)  # Pass timeout
                 batch = r.json()
                 batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
-                if not batch_orders or len(batch_orders) == 0:
+
+                if not isinstance(batch_orders, list) or any(
+                    not isinstance(o, dict) for o in batch_orders
+                ):
+                    logger.error(
+                        "Invalid order batch structure from Dhan API at offset %s: %r",
+                        offset,
+                        batch,
+                    )
+                    return {
+                        "status": "partial_failure" if all_orders else "failure",
+                        "error": "Invalid order batch structure from Dhan API.",
+                        "data": all_orders,
+                        "source": "broker",
+                    }
+
+                if not batch_orders:
                     break
 
                 # Detect if offset is being ignored by the API by checking for
