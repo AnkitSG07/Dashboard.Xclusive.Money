@@ -8,6 +8,7 @@ stream so that the trade copier can replicate them to child accounts.
 """
 
 import asyncio
+import redis
 import logging
 import os
 from collections import defaultdict
@@ -95,7 +96,11 @@ def monitor_master_trades(
                         "exchange": order.get("exchange"),
                         "order_type": order.get("order_type"),
                     }
-                    redis_client.xadd("trade_events", event)
+                    try:
+                        redis_client.xadd("trade_events", event)
+                    except redis.exceptions.RedisError:
+                        log.exception("failed to publish trade event")
+                        continue
 
                     if order_id is not None:
                         seen.add(str(order_id))
