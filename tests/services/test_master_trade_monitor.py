@@ -148,6 +148,34 @@ def test_duplicate_orders_not_republished(monkeypatch):
     assert len(redis.stream) == 1
 
 
+def test_none_values_filtered(monkeypatch):
+    order = {
+        "id": "1",
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "exchange": None,
+    }
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"access_token": "", "extras": {"orders": [order]}},
+        role="master",
+    )
+    session = SessionStub(master, [])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    # Ensure ``None`` values are not included in the published event
+    msg = redis.stream[0][1]
+    assert "exchange" not in msg
+
+
 def test_poll_interval_from_env(monkeypatch):
     """If no interval is passed, the environment variable is used."""
     order = {"id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1}
