@@ -70,10 +70,11 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         "action": order.get("action"),
         "qty": qty,
     }
-    if order.get("exchange") is not None:
-        params["exchange"] = order["exchange"]
-    if order.get("order_type") is not None:
-        params["order_type"] = order["order_type"]
+    ignore_fields = {"symbol", "action", "qty", "master_id", "id"}
+    for key, value in order.items():
+        if key in ignore_fields or value is None:
+            continue
+        params[key] = value
     return broker.place_order(**params)
 
 async def _replicate_to_children(
