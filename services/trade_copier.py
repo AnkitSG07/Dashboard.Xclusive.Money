@@ -153,15 +153,16 @@ async def _replicate_to_children(
 
         for (child, _wrapped, orig_fut), result in zip(async_tasks, results):
             client_id = getattr(child, "client_id", None)
-            if isinstance(result, asyncio.TimeoutError):
-                cancelled = orig_fut.cancel()
+            if isinstance(result, (asyncio.TimeoutError, TimeoutError)):
+                if isinstance(result, asyncio.TimeoutError):
+                    cancelled = orig_fut.cancel()
+                    if not cancelled:
+                        timed_out.append((child, orig_fut))
                 log.warning(
                     "child %s copy timed out; order may still have executed",
                     client_id,
                     extra={"child": client_id, "error": "TimeoutError"},
                 )
-                if not cancelled:
-                    timed_out.append((child, orig_fut))
             elif isinstance(result, Exception):
                 
                 log.error(
