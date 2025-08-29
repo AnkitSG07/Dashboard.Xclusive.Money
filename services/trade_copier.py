@@ -129,8 +129,12 @@ async def _replicate_to_children(
 
         for (child, _), result in zip(async_tasks, results):
             if isinstance(result, Exception):
+                client_id = getattr(child, "client_id", None)
                 log.error(
-                    "child copy failed", extra={"child": getattr(child, "client_id", None), "error": repr(result)}
+                    "child %s copy failed",
+                    client_id,
+                    exc_info=result,
+                    extra={"child": client_id, "error": repr(result)},
                 )
     finally:
         if own_executor:
