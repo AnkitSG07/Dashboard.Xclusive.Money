@@ -18,6 +18,7 @@ from models import Account
 from sqlalchemy.orm import Session
 
 from .webhook_receiver import get_redis_client
+from .db import get_session
 
 log = logging.getLogger(__name__)
 
@@ -107,4 +108,21 @@ def monitor_master_trades(
     asyncio.run(_monitor())
 
 
-__all__ = ["monitor_master_trades"]
+def main() -> None:
+    """Run the master trade monitor service."""
+    session = get_session()
+    try:
+        monitor_master_trades(session)
+    finally:
+        session.close()
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    try:
+        main()
+    except KeyboardInterrupt:  # pragma: no cover - interactive use
+        pass
+
+
+__all__ = ["monitor_master_trades", "main"]
