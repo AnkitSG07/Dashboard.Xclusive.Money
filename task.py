@@ -15,6 +15,7 @@ celery = Celery(
 )
 celery.conf.timezone = os.environ.get("CELERY_TIMEZONE", "UTC")
 celery.conf.broker_connection_retry_on_startup = True
+celery.conf.result_expires = 3600  # V-- Add this line here (3600 seconds = 1 hour)
 
 # Prometheus metrics for Celery queue depth and task latency
 QUEUE_DEPTH = Gauge("celery_queue_depth", "Number of tasks waiting in the Celery queue")
