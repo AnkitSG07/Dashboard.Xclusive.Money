@@ -92,6 +92,24 @@ class BrokerBase(ABC):
     def get_order_list(self):
         pass
 
+    def list_orders(self, **kwargs):
+        """Return a plain list of orders for convenience.
+
+        Many callers only care about the underlying order data rather than
+        the full response object returned by :meth:`get_order_list`.  This
+        helper invokes ``get_order_list`` and extracts the ``data`` field if
+        present.  If the response indicates failure, a ``RuntimeError`` is
+        raised so callers can handle the issue upstream.
+        """
+
+        resp = self.get_order_list(**kwargs)
+        if isinstance(resp, dict):
+            status = resp.get("status", "success")
+            if status != "success":
+                raise RuntimeError(resp.get("error") or "failed to fetch order list")
+            return resp.get("data", [])
+        return resp
+
     @abstractmethod
     def get_positions(self):
         pass
