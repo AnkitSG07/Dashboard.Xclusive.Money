@@ -32,7 +32,10 @@ LATENCY = Histogram(
 log = logging.getLogger(__name__)
 
 DEFAULT_MAX_WORKERS = 10
-DEFAULT_CHILD_TIMEOUT = 5.0
+# Default per-child broker submission timeout in seconds. The value can be
+# overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
+# for brokers with slower APIs.
+DEFAULT_CHILD_TIMEOUT = 20.0
 
 def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     """Instantiate the appropriate broker client for *child* and copy *order*.
@@ -218,8 +221,8 @@ def poll_and_copy_trades(
         Defaults to the number of child accounts.
     child_timeout:
         Maximum time in seconds to wait for each child broker submission.
-        Defaults to the value of the ``TRADE_COPIER_TIMEOUT`` environment
-        variable.
+        Defaults to the ``TRADE_COPIER_TIMEOUT`` environment variable or
+        ``20`` seconds if unset.
 
     Returns
     -------
