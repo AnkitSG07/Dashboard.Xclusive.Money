@@ -24,13 +24,29 @@ from .alert_guard import check_duplicate_and_risk
 
 logger = logging.getLogger(__name__)
 
-REDIS_URL = os.getenv("REDIS_URL")
-if not REDIS_URL:
-    raise RuntimeError("REDIS_URL must be set")
-
 # Redis client used for publishing events. In tests this object can be
-# monkeypatched with a stub that implements ``xadd``.
-redis_client = redis.Redis.from_url(REDIS_URL)
+
+# monkeypatched with a stub that implements ``xadd``. It is initialised lazily
+# so the module can be imported without a ``REDIS_URL`` being configured.
+redis_client: Optional[redis.Redis] = None
+
+
+def get_redis_client() -> redis.Redis:
+    """Return a Redis client configured from ``REDIS_URL``.
+
+    Raises:
+        RuntimeError: If ``REDIS_URL`` is not set.
+    """
+
+    global redis_client
+    if redis_client is None:
+        redis_url = os.getenv("REDIS_URL")
+        if not redis_url:
+            msg = "REDIS_URL environment variable must be set to connect to Redis"
+            logger.error(msg)
+            raise RuntimeError(msg)
+        redis_client = redis.Redis.from_url(redis_url)
+    return redis_client
 
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
@@ -175,7 +191,8 @@ def enqueue_webhook(
         else:
             sanitized[k] = json.dumps(v, separators=(",", ":"))
     try:
-        redis_client.xadd(stream, sanitized)
+        client = get_redis_client()
+        client.xadd(stream, sanitized)
     except redis.exceptions.RedisError:
         logger.exception("Failed to publish webhook event to Redis")
         raise
@@ -186,6 +203,7 @@ def enqueue_webhook(
 __all__ = [
     "enqueue_webhook",
     "WebhookEventSchema",
+    "get_redis_client",
     "redis_client",
     "ValidationError",
 ]
