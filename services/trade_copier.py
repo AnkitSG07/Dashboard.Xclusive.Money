@@ -100,7 +100,10 @@ async def _replicate_to_children(
         disables the timeout.
     """
 
-    children = active_children_for_master(master, db_session)
+    try:
+        children = active_children_for_master(master, db_session)
+    except TypeError:
+        children = active_children_for_master(master)
 
     if not children:
         return
@@ -228,7 +231,7 @@ def poll_and_copy_trades(
                             try:
                                 master = (
                                     db_session.query(Account)
-                                    .filter_by(client_id=event["master_id"], role="master")
+                                    .filter_by(client_id=str(event["master_id"]), role="master")
                                     .first()
                                 )
                                 if master:
