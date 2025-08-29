@@ -1,6 +1,7 @@
 # brokers/zerodha.py
 """Zerodha broker adapter using KiteConnect."""
 
+import inspect
 import re
 import requests
 import pyotp
@@ -36,6 +37,23 @@ class ZerodhaBroker(BrokerBase):
         self.password = password
         self.totp_secret = totp_secret
         self.kite = KiteConnect(api_key=api_key)
+        # Configure KiteConnect to use the broker's HTTP session so that all
+        # network calls honour the same retry and timeout configuration as
+        # ``BrokerBase``.  ``KiteConnect`` doesn't expose a timeout parameter on
+        # its public methods, so we monkeypatch the session's ``request`` method
+        # to supply a default timeout for every call.
+        session = self.session
+        orig_request = session.request
+
+        def request_with_timeout(method, url, **kwargs):
+            kwargs.setdefault("timeout", self.timeout)
+            return orig_request(method, url, **kwargs)
+
+        session.request = request_with_timeout
+        # ``KiteConnect`` exposes ``set_session`` which allows us to override
+        # the underlying ``requests`` session it uses for API calls.
+        self.kite.set_session(session)
+
         self.token_time = token_time
         if access_token:
             self.kite.set_access_token(access_token)
@@ -59,11 +77,13 @@ class ZerodhaBroker(BrokerBase):
         """Return the official login URL for generating request token."""
         return self.kite.login_url()
 
-    def create_session(self, request_token):
+    def create_session(self, request_token, *, timeout=None):
         """Generate access token using request token from official login."""
-        session_data = self.kite.generate_session(
+        session_data = self._kite_call(
+            self.kite.generate_session,
             request_token,
             api_secret=self.api_secret,
+            timeout=timeout,
         )
         return session_data["access_token"]
 
@@ -121,13 +141,20 @@ class ZerodhaBroker(BrokerBase):
             raise Exception(message or "TOTP login failed")
         return match.group(1)
 
+    def _kite_call(self, func, *args, timeout=None, **kwargs):
+        """Call a KiteConnect API method ensuring a timeout is supplied."""
+        timeout = timeout or self.timeout
+        if "timeout" in inspect.signature(func).parameters:
+            kwargs.setdefault("timeout", timeout)
+        return func(*args, **kwargs)
+
     def ensure_token(self):
         """Refresh token if expired or invalid."""
         if self.access_token:
             # If token_time is unknown or older than 7 hours, verify by calling profile
             if not self.token_time or time.time() - self.token_time > 7 * 3600:
                 try:
-                    self.kite.profile()
+                    self._kite_call(self.kite.profile)
                     if not self.token_time:
                         self.token_time = time.time()
                     return
@@ -160,9 +187,11 @@ class ZerodhaBroker(BrokerBase):
         order_type="MARKET",
         product="MIS",
         price=None,
+        timeout=None,
         **extra,
     ):
         self.ensure_token()
+        timeout = timeout or self.timeout
         # Map generic field aliases when explicit params are not supplied
         tradingsymbol = tradingsymbol or extra.pop("symbol", None)
         transaction_type = transaction_type or extra.pop("action", None)
@@ -195,68 +224,79 @@ class ZerodhaBroker(BrokerBase):
         if order_type == "LIMIT" and price is not None:
             params["price"] = float(price)
         try:
-            order_id = self.kite.place_order(
+            order_id = self._kite_call(
+                self.kite.place_order,
                 variety=self.kite.VARIETY_REGULAR,
-                **params
+                timeout=timeout,
+                **params,
             )
             return {"status": "success", "order_id": order_id}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e)}
 
-    def get_order_list(self):
+    def get_order_list(self, *, timeout=None):
         self.ensure_token()
+        timeout = timeout or self.timeout
         try:
-            orders = self.kite.orders()
+            orders = self._kite_call(self.kite.orders, timeout=timeout)
             # In some cases an expired session may return a profile dict
             if isinstance(orders, dict) and "profile" in orders:
                 # Force token refresh and retry once
                 self.access_token = None
                 self.ensure_token()
-                orders = self.kite.orders()
+                orders = self._kite_call(self.kite.orders, timeout=timeout)
             return {"status": "success", "data": orders}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": []}
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id, *, timeout=None):
         self.ensure_token()
+        timeout = timeout or self.timeout
         try:
-            self.kite.cancel_order(
+            self._kite_call(
+                self.kite.cancel_order,
                 variety=self.kite.VARIETY_REGULAR,
-                order_id=order_id
+                order_id=order_id,
+                timeout=timeout,
             )
             return {"status": "success", "order_id": order_id}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e)}
 
-    def get_positions(self):
+    def get_positions(self, *, timeout=None):
         self.ensure_token()
+        timeout = timeout or self.timeout
         try:
-            positions = self.kite.positions()
+            positions = self._kite_call(self.kite.positions, timeout=timeout)
             return {"status": "success", "data": positions.get("net", [])}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": []}
 
-    def get_profile(self):
+    def get_profile(self, *, timeout=None):
         self.ensure_token()
+        timeout = timeout or self.timeout
         try:
-            profile = self.kite.profile()
+            profile = self._kite_call(self.kite.profile, timeout=timeout)
             return {"status": "success", "data": profile}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": None}
 
-    def check_token_valid(self):
+    def check_token_valid(self, *, timeout=None):
         try:
             self.ensure_token()
-            self.kite.profile()
+            self._kite_call(self.kite.profile, timeout=timeout)
             return True
         except Exception:  # pragma: no cover - network call
             return False
 
-    def get_opening_balance(self):
+    def get_opening_balance(self, *, timeout=None):
         """Return available cash balance using Kite margins API."""
         self.ensure_token()
+        timeout = timeout or self.timeout
         try:
-            margins = self.kite.margins(segment="equity")
+            margins = self._kite_call(
+                self.kite.margins, timeout=timeout, segment="equity"
+            )
             data = margins.get("data", margins)
             if isinstance(data, dict):
                 eq = data.get("equity", data)
