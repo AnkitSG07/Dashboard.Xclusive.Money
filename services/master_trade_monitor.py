@@ -88,7 +88,7 @@ def monitor_master_trades(
                     if order_id is not None and str(order_id) in seen:
                         continue
 
-                    event = {
+                    raw_event = {
                         "master_id": master.client_id,
                         "symbol": order.get("symbol"),
                         "action": order.get("action"),
@@ -96,6 +96,9 @@ def monitor_master_trades(
                         "exchange": order.get("exchange"),
                         "order_type": order.get("order_type"),
                     }
+                    # Filter out ``None`` values and convert the rest to strings so
+                    # the Redis client never receives ``None``.
+                    event = {k: str(v) for k, v in raw_event.items() if v is not None}
                     try:
                         redis_client.xadd("trade_events", event)
                     except redis.exceptions.RedisError:
