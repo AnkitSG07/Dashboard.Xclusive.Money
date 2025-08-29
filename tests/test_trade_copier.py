@@ -53,7 +53,12 @@ def test_poll_and_copy_trades_processes_event(monkeypatch):
     def processor(master, child, order):
         processed.append(order["symbol"])
 
-    event = {b"master_id": b"m1", b"symbol": b"AAPL", b"action": b"BUY", b"qty": b"1"}
+    event = {
+        b"master_id": b"m1",
+        b"symbol": b"AAPL",
+        b"action": b"BUY",
+        b"qty": b"1",
+    }
     stub_redis = StubRedis([event])
     session = DummySession()
     monkeypatch.setattr(
@@ -119,7 +124,13 @@ def test_child_orders_submitted(monkeypatch):
             # Two child accounts to replicate the trade to
             return [Child("c1"), Child("c2")]
 
-    event = {b"master_id": b"m1", b"symbol": b"AAPL", b"action": b"BUY", b"qty": b"1"}
+    event = {
+        b"master_id": b"m1",
+        b"symbol": b"AAPL",
+        b"action": b"BUY",
+        b"qty": b"1",
+        b"product_type": b"CNC",
+    }
     stub_redis = StubRedis([event])
 
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
@@ -135,8 +146,14 @@ def test_child_orders_submitted(monkeypatch):
 
     assert count == 1
     assert orders == [
-        ("c1", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
-        ("c2", {"symbol": "AAPL", "action": "BUY", "qty": 1}),
+        (
+            "c1",
+            {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "CNC"},
+        ),
+        (
+            "c2",
+            {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "CNC"},
+        ),
     ]
 
 def test_child_orders_mirror_master_params(monkeypatch):
