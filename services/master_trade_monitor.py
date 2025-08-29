@@ -17,7 +17,7 @@ from brokers.factory import get_broker_client
 from models import Account
 from sqlalchemy.orm import Session
 
-from .webhook_receiver import redis_client
+from .webhook_receiver import get_redis_client
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 def monitor_master_trades(
     db_session: Session,
     *,
-    redis_client=redis_client,
+    redis_client=None,
     poll_interval: float | None = None,
     max_iterations: int | None = None,
 ) -> None:
@@ -36,7 +36,8 @@ def monitor_master_trades(
     db_session:
         SQLAlchemy session used to look up master accounts.
     redis_client:
-        Redis client instance used for publishing trade events.
+        Redis client instance used for publishing trade events. If ``None`` the
+        client is created from :func:`services.webhook_receiver.get_redis_client`.
     poll_interval:
         Seconds to wait between polling iterations. If ``None`` the value of
         the ``ORDER_MONITOR_INTERVAL`` environment variable is used (default
@@ -48,6 +49,9 @@ def monitor_master_trades(
 
     if poll_interval is None:
         poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "5"))
+
+    if redis_client is None:
+        redis_client = get_redis_client()
 
     async def _monitor() -> None:
         iterations = 0
