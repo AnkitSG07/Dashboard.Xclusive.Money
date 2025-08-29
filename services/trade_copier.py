@@ -13,6 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
+from functools import partial
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from prometheus_client import Histogram
@@ -115,27 +116,59 @@ async def _replicate_to_children(
         executor = ThreadPoolExecutor(max_workers=max_workers)
         own_executor = True
 
+    def _late_completion(child, fut):
+        client_id = getattr(child, "client_id", None)
+        try:
+            fut.result()
+            log.warning(
+                "child %s copy completed after timeout",
+                client_id,
+                extra={"child": client_id},
+            )
+        except Exception as exc:
+            log.warning(
+                "child %s copy failed after timeout",
+                client_id,
+                exc_info=exc,
+                extra={"child": client_id, "error": repr(exc)},
+            )
+    
     try:
         async_tasks = []
+        timed_out: list[tuple[Account, asyncio.Future]] = []
         for child in children:
-            fut = loop.run_in_executor(executor, processor, master, child, order)
-            if timeout is not None:
-                fut = asyncio.wait_for(fut, timeout)
-            async_tasks.append((child, fut))
+            orig_fut = loop.run_in_executor(
+                executor, processor, master, child, order
+            )
+            wrapped = asyncio.wait_for(orig_fut, timeout) if timeout is not None else orig_fut
+            async_tasks.append((child, wrapped, orig_fut))
 
         results = await asyncio.gather(
-            *(f for _c, f in async_tasks), return_exceptions=True
+            *(f for _c, f, _of in async_tasks), return_exceptions=True
         )
 
-        for (child, _), result in zip(async_tasks, results):
-            if isinstance(result, Exception):
-                client_id = getattr(child, "client_id", None)
+        for (child, _wrapped, orig_fut), result in zip(async_tasks, results):
+            client_id = getattr(child, "client_id", None)
+            if isinstance(result, asyncio.TimeoutError):
+                cancelled = orig_fut.cancel()
+                log.warning(
+                    "child %s copy timed out; order may still have executed",
+                    client_id,
+                    extra={"child": client_id, "error": "TimeoutError"},
+                )
+                if not cancelled:
+                    timed_out.append((child, orig_fut))
+            elif isinstance(result, Exception):
+                
                 log.error(
                     "child %s copy failed",
                     client_id,
                     exc_info=result,
                     extra={"child": client_id, "error": repr(result)},
                 )
+
+        for child, fut in timed_out:
+            fut.add_done_callback(partial(_late_completion, child))
     finally:
         if own_executor:
             executor.shutdown(wait=False)
