@@ -177,7 +177,8 @@ def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
     )
 
     assert executed == ["c2"]
-    assert any("child copy failed" in r.message for r in caplog.records)
+    assert any("child c1 copy failed" in r.message for r in caplog.records)
+    assert any(getattr(r, "child", None) == "c1" for r in caplog.records)
 
 
 def test_replicate_to_children_enforces_timeout(monkeypatch):
@@ -346,7 +347,8 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
 
     assert processed == ["good"]
     assert redis.acks == [b"1"]
-    assert any("child copy failed" in r.message for r in caplog.records)
+    assert any("child bad copy failed" in r.message for r in caplog.records)
+    assert any(getattr(r, "child", None) == "bad" for r in caplog.records)
 
 
 def test_poll_and_copy_trades_logs_task_errors(monkeypatch, caplog):
