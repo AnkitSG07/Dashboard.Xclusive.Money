@@ -101,7 +101,17 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         if key in ignore_fields or value is None:
             continue
         params[key] = value
-    return broker.place_order(**params)
+    try:
+        return broker.place_order(**params)
+    except Exception as exc:
+        # Re-raise with the original broker message so that callers can log
+        # a concise error.  Many broker SDKs attach additional metadata to
+        # exceptions which makes the default ``repr`` noisy; here we capture
+        # just the human readable message.
+        message = getattr(exc, "message", None) or (
+            exc.args[0] if getattr(exc, "args", None) else str(exc)
+        )
+        raise RuntimeError(message) from exc
 
 async def _replicate_to_children(
     db_session: Session,
@@ -145,19 +155,24 @@ async def _replicate_to_children(
 
     def _late_completion(child, fut):
         client_id = getattr(child, "client_id", None)
+        broker_name = getattr(child, "broker", None)
         try:
             fut.result()
             log.warning(
-                "child %s copy completed after timeout",
+                "child %s (%s) copy completed after timeout",
                 client_id,
-                extra={"child": client_id},
+                broker_name,
+                extra={"child": client_id, "broker": broker_name},
             )
         except Exception as exc:
+            msg = str(exc)
             log.warning(
-                "child %s copy failed after timeout",
+                "child %s (%s) copy failed after timeout: %s",
                 client_id,
+                broker_name,
+                msg,
                 exc_info=exc,
-                extra={"child": client_id, "error": repr(exc)},
+                extra={"child": client_id, "broker": broker_name, "error": msg},
             )
     
     try:
@@ -187,12 +202,19 @@ async def _replicate_to_children(
                     extra={"child": client_id, "error": "TimeoutError"},
                 )
             elif isinstance(result, Exception):
-                
+                broker_name = getattr(child, "broker", None)
+                msg = str(result)
                 log.error(
-                    "child %s copy failed",
+                    "child %s (%s) copy failed: %s",
                     client_id,
+                    broker_name,
+                    msg,
                     exc_info=result,
-                    extra={"child": client_id, "error": repr(result)},
+                    extra={
+                        "child": client_id,
+                        "broker": broker_name,
+                        "error": msg,
+                    },
                 )
 
         for child, fut in timed_out:
