@@ -1,9 +1,47 @@
 import asyncio
 import time
 from types import SimpleNamespace
-
+import pytest
+import requests
 from services import trade_copier
 from services.trade_copier import _replicate_to_children
+
+
+def test_main_preloads_symbol_map(monkeypatch):
+    loaded = {}
+
+    def fake_build():
+        loaded["called"] = True
+        return {"AAPL": {"NSE": {"zerodha": {"token": "1"}}}}
+
+    def fake_poll(*args, **kwargs):
+        raise SystemExit
+
+    monkeypatch.setattr(trade_copier.symbol_map, "SYMBOL_MAP", {})
+    monkeypatch.setattr(trade_copier.symbol_map, "build_symbol_map", fake_build)
+    monkeypatch.setattr(trade_copier, "poll_and_copy_trades", fake_poll)
+
+    with pytest.raises(SystemExit):
+        trade_copier.main()
+
+    assert loaded.get("called") is True
+    assert "AAPL" in trade_copier.symbol_map.SYMBOL_MAP
+
+
+def test_main_exits_when_symbol_map_missing(monkeypatch, caplog):
+    def fake_build():
+        raise requests.RequestException("boom")
+
+    def fake_poll(*args, **kwargs):
+        pytest.fail("poll_and_copy_trades should not be called")
+
+    monkeypatch.setattr(trade_copier.symbol_map, "build_symbol_map", fake_build)
+    monkeypatch.setattr(trade_copier, "poll_and_copy_trades", fake_poll)
+
+    with caplog.at_level("ERROR"), pytest.raises(SystemExit):
+        trade_copier.main()
+
+    assert "failed to load instrument data" in caplog.text.lower()
 
 
 class StubRedis:
