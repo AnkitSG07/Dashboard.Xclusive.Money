@@ -83,6 +83,39 @@ class DummySession:
     def first(self):
         return self.master
 
+def test_copy_order_with_extra_credentials(monkeypatch):
+    """Ensure client and API keys in credentials don't cause TypeErrors."""
+
+    captured = {}
+
+    class StubBroker:
+        def __init__(self, client_id, api_key, access_token):
+            captured["client_id"] = client_id
+            captured["api_key"] = api_key
+            captured["access_token"] = access_token
+
+        def place_order(self, **params):
+            return {"status": "ok"}
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    child = SimpleNamespace(
+        broker="stub",
+        client_id="c1",
+        credentials={"client_id": "dup", "access_token": "t", "api_key": "k"},
+        multiplier=1,
+    )
+    master = SimpleNamespace(client_id="m")
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    trade_copier.copy_order(master, child, order)
+
+    assert captured == {
+        "client_id": "c1",
+        "api_key": "k",
+        "access_token": "t",
+    }
+
 async def slow_replicate(
     db_session,
     master,
