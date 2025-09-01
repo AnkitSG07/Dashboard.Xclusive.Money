@@ -181,10 +181,14 @@ def consume_webhook_events(
                 
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
+                creds = dict(broker_cfg)
+                access_token = creds.pop("access_token", "")
+                creds.pop("name", None)
+                creds.pop("client_id", None)
                 client = client_cls(
                     broker_cfg.get("client_id"),
-                    broker_cfg.get("access_token", ""),
-                    **broker_cfg.get("extras", {})
+                    access_token,
+                    **creds,
                 )
                 order_params = {
                     "symbol": event["symbol"],
