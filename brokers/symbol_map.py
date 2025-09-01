@@ -15,17 +15,61 @@ exchange token information.
 from __future__ import annotations
 
 import csv
+import os
+import time
 from functools import lru_cache
 from io import StringIO
+from pathlib import Path
 from typing import Dict, Tuple
-
+import logging
+import threading
+import time
 import requests
+
+log = logging.getLogger(__name__)
+
 
 
 # URLs that expose complete instrument dumps for the respective brokers.
 ZERODHA_URL = "https://api.kite.trade/instruments"
 DHAN_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
 
+# Store downloaded instrument dumps locally so subsequent runs do not hammer
+# the upstream APIs which are rate limited and occasionally return HTTP 429.
+# The cache location and expiry can be tweaked via environment variables.
+CACHE_DIR = Path(
+    os.getenv("SYMBOL_MAP_CACHE_DIR", Path(__file__).parent / "_cache")
+)
+CACHE_DIR.mkdir(exist_ok=True)
+CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
+
+
+def _fetch_csv(url: str, cache_name: str) -> str:
+    """Return CSV content from *url* using a small on-disk cache.
+
+    If the cache file exists and is younger than ``CACHE_MAX_AGE`` it is used
+    directly.  Otherwise the data is downloaded from ``url`` and cached for
+    future calls.  Should the download fail but a previous cache entry exist,
+    the cached data is returned instead of raising an exception.
+    """
+
+    cache_file = CACHE_DIR / cache_name
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        text = resp.text
+        try:
+            cache_file.write_text(text)
+        except Exception:
+            # Caching is an optimisation only – ignore filesystem errors.
+            pass
+        return text
+    except requests.RequestException:
+        if cache_file.exists():
+            age = time.time() - cache_file.stat().st_mtime
+            if age < CACHE_MAX_AGE:
+                return cache_file.read_text()
+        raise
 
 Key = Tuple[str, str]
 
@@ -39,10 +83,9 @@ def _load_zerodha() -> Dict[Key, str]:
     BSE are considered here.
     """
 
-    resp = requests.get(ZERODHA_URL, timeout=30)
-    resp.raise_for_status()
+    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv")
 
-    reader = csv.DictReader(StringIO(resp.text))
+    reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, str] = {}
     for row in reader:
         if row["segment"] in {"NSE", "BSE"} and row["instrument_type"] == "EQ":
@@ -55,10 +98,9 @@ def _load_zerodha() -> Dict[Key, str]:
 def _load_dhan() -> Dict[Key, str]:
     """Return mapping of (symbol, exchange) to Dhan security id."""
 
-    resp = requests.get(DHAN_URL, timeout=30)
-    resp.raise_for_status()
+    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv")
 
-    reader = csv.DictReader(StringIO(resp.text))
+    reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, str] = {}
     for row in reader:
         if row["SEM_EXM_EXCH_ID"] in {"NSE", "BSE"} and row["SEM_SEGMENT"] == "E":
@@ -159,22 +201,35 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
 # after the process has started.
 SYMBOL_MAP = build_symbol_map()
 
+_REFRESH_LOCK = threading.Lock()
+_LAST_REFRESH = 0.0
+_MIN_REFRESH_INTERVAL = 60.0  # seconds
 
-def refresh_symbol_map() -> None:
+
+def refresh_symbol_map(force: bool = False) -> None:
     """Reload the global :data:`SYMBOL_MAP` from upstream sources.
 
-    The symbol map is constructed from instrument dumps published by
-    brokers.  These dumps are updated periodically and new symbols may
-    become available after the application has already started.  Calling
-    this function clears the internal caches and rebuilds the mapping so
-    that lookups for recently listed symbols succeed without requiring a
-    full application restart.
+    The refresh is throttled to avoid hitting upstream rate limits.  If a
+    refresh fails the previous symbol map is retained.
     """
 
-    _load_zerodha.cache_clear()
-    _load_dhan.cache_clear()
-    global SYMBOL_MAP
-    SYMBOL_MAP = build_symbol_map()
+    global SYMBOL_MAP, _LAST_REFRESH
+    with _REFRESH_LOCK:
+        if not force and time.time() - _LAST_REFRESH < _MIN_REFRESH_INTERVAL:
+            return
+
+        # Build the new map before replacing the old one so that existing
+        # data remains available if the remote request fails.
+        try:
+            _load_zerodha.cache_clear()
+            _load_dhan.cache_clear()
+            new_map = build_symbol_map()
+        except requests.RequestException as exc:  # pragma: no cover - network errors
+            log.warning("Failed to refresh symbol map: %s", exc)
+            return
+
+        SYMBOL_MAP = new_map
+        _LAST_REFRESH = time.time()
 
 
 __all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map"]
