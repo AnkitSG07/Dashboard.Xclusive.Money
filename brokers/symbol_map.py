@@ -54,22 +54,37 @@ def _fetch_csv(url: str, cache_name: str) -> str:
     """
 
     cache_file = CACHE_DIR / cache_name
-    try:
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        text = resp.text
+    # The upstream endpoints occasionally respond with HTTP 429 when too many
+    # concurrent requests are made.  To make the service more robust we retry
+    # the download a couple of times before falling back to any cached data.
+    for attempt in range(3):
         try:
-            cache_file.write_text(text)
-        except Exception:
-            # Caching is an optimisation only – ignore filesystem errors.
-            pass
-        return text
-    except requests.RequestException:
-        if cache_file.exists():
-            age = time.time() - cache_file.stat().st_mtime
-            if age < CACHE_MAX_AGE:
-                return cache_file.read_text()
-        raise
+            resp = requests.get(url, timeout=30)
+            status = getattr(resp, "status_code", 200)
+            if status == 429:
+                # Respect the server's suggested retry delay if provided.
+                retry_after = int(resp.headers.get("Retry-After", "1"))
+                time.sleep(retry_after)
+                continue
+            resp.raise_for_status()
+            text = resp.text
+            try:
+                cache_file.write_text(text)
+            except Exception:
+                # Caching is an optimisation only – ignore filesystem errors.
+                pass
+            return text
+        except requests.RequestException:
+            if cache_file.exists():
+                age = time.time() - cache_file.stat().st_mtime
+                if age < CACHE_MAX_AGE:
+                    return cache_file.read_text()
+            # Wait a bit before the next retry in case of transient errors.
+            time.sleep(2 ** attempt)
+            continue
+    # If we reach this point no cached data was available and all retries
+    # failed.
+    raise requests.RequestException(f"failed to fetch {url}")
 
 Key = Tuple[str, str]
 
