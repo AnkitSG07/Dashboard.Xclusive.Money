@@ -211,14 +211,31 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     return mapping
 
 
-# Public symbol map used throughout the application.  It can be
-# refreshed at runtime if newly listed symbols appear on the exchanges
-# after the process has started.
-SYMBOL_MAP = build_symbol_map()
+# Public symbol map used throughout the application.  It is loaded on
+# first access rather than at import time so that processes that do not
+# require the data avoid the heavy upfront memory cost.  When the map is
+# built before forking worker processes the pages are shared via
+# copy‑on‑write which keeps the overall memory footprint low.
+SYMBOL_MAP: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
 _REFRESH_LOCK = threading.Lock()
 _LAST_REFRESH = 0.0
 _MIN_REFRESH_INTERVAL = 60.0  # seconds
+
+def _ensure_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Return the global symbol map, loading it if necessary."""
+
+    global SYMBOL_MAP, _LAST_REFRESH
+    if not SYMBOL_MAP:
+        SYMBOL_MAP = build_symbol_map()
+        _LAST_REFRESH = time.time()
+    return SYMBOL_MAP
+
+
+def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Public wrapper to obtain the global symbol map."""
+
+    return _ensure_symbol_map()
 
 
 def refresh_symbol_map(force: bool = False) -> None:
@@ -230,7 +247,7 @@ def refresh_symbol_map(force: bool = False) -> None:
 
     global SYMBOL_MAP, _LAST_REFRESH
     with _REFRESH_LOCK:
-        if not force and time.time() - _LAST_REFRESH < _MIN_REFRESH_INTERVAL:
+        if not force and SYMBOL_MAP and time.time() - _LAST_REFRESH < _MIN_REFRESH_INTERVAL:
             return
 
         # Build the new map before replacing the old one so that existing
@@ -247,7 +264,7 @@ def refresh_symbol_map(force: bool = False) -> None:
         _LAST_REFRESH = time.time()
 
 
-__all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map"]
+__all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map", "get_symbol_map"]
 
 
 def get_symbol_for_broker(
@@ -275,10 +292,11 @@ def get_symbol_for_broker(
 
     base2 = base.split("-")[0]
 
+    symbol_map = _ensure_symbol_map()
     mapping = (
-        SYMBOL_MAP.get(symbol)
-        or SYMBOL_MAP.get(base)
-        or SYMBOL_MAP.get(base2)
+        symbol_map.get(symbol)
+        or symbol_map.get(base)
+        or symbol_map.get(base2)
     )
 
     # If the symbol was not found we may be dealing with a newly listed
@@ -286,10 +304,11 @@ def get_symbol_for_broker(
     # picked up without requiring an application restart.
     if not mapping:
         refresh_symbol_map()
+        symbol_map = _ensure_symbol_map()
         mapping = (
-            SYMBOL_MAP.get(symbol)
-            or SYMBOL_MAP.get(base)
-            or SYMBOL_MAP.get(base2)
+            symbol_map.get(symbol)
+            or symbol_map.get(base)
+            or symbol_map.get(base2)
         )
 
     if not mapping:
@@ -309,7 +328,8 @@ def get_symbol_by_token(token: str, broker: str) -> str | None:
     broker = broker.lower()
     token = str(token)
 
-    for sym, exchanges in SYMBOL_MAP.items():
+    symbol_map = _ensure_symbol_map()
+    for sym, exchanges in symbol_map.items():
         for exchange_map in exchanges.values():
             broker_map = exchange_map.get(broker)
             if broker_map and str(broker_map.get("token")) == token:
