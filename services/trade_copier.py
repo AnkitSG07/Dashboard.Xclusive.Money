@@ -77,11 +77,10 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
 
     # Credentials are stored on the ``Account`` model as a JSON blob.  We only
     # require an access token for the tests so missing keys default to ``""``.
-    credentials = child.credentials or {}
-    access_token = credentials.get("access_token", "")
-    extras = credentials.get("extras", {})
+    credentials = dict(child.credentials or {})
+    access_token = credentials.pop("access_token", "")
 
-    broker = client_cls(child.client_id, access_token, **extras)
+    broker = client_cls(child.client_id, access_token, **credentials)
 
     # Apply quantity multiplier for the child account.  Default multiplier is
     # 1.0 if not specified.
