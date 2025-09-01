@@ -61,7 +61,6 @@ def active_children_for_master(master, session=db.session):
     return (
         session.query(Account)
         .filter(
-            Account.user_id == master.user_id,
             Account.role == "child",
             db.func.lower(Account.linked_master_id) == str(master.client_id).lower(),
             db.func.lower(Account.copy_status) == "on",
