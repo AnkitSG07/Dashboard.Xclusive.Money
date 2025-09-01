@@ -12,8 +12,8 @@ class AliceBlueBroker(BrokerBase):
     BROKER = "aliceblue"
     BASE_URL = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
 
-    def __init__(self, client_id, api_key, device_number=None, **kwargs):
-        super().__init__(client_id, api_key, **kwargs)
+    def __init__(self, client_id, api_key, access_token=None, device_number=None, **kwargs):
+        super().__init__(client_id, access_token, **kwargs)
         self.client_id = str(client_id).strip()
         self.api_key = str(api_key).strip()
         self.device_number = device_number
