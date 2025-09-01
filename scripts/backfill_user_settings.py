@@ -41,11 +41,10 @@ def _broker_config(account: Account) -> Dict[str, Any]:
         "access_token": access_token,
     }
 
-    extras = creds.get("extras")
-    if extras is None:
-        extras = {k: v for k, v in creds.items() if k not in {"access_token", "client_id"}}
-    if extras:
-        cfg["extras"] = extras
+    for key, value in creds.items():
+        if key in {"access_token", "client_id"}:
+            continue
+        cfg[key] = value
     return cfg
 
 
