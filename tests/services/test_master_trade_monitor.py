@@ -31,6 +31,12 @@ class SessionStub:
         self.children = children
         self.kwargs = None
 
+    def rollback(self):
+        pass
+
+    def expire_all(self):
+        pass
+
     def query(self, model):
         return self
 
