@@ -214,7 +214,8 @@ def test_replicate_to_children_enforces_timeout(monkeypatch, caplog):
                 None, master, order, processor, max_workers=2, timeout=0.05
             )
         )
-
+        duration = time.perf_counter() - start
+    
     assert duration < 0.15
     assert any(
         r.levelname == "WARNING" and "child slow copy timed out" in r.message
