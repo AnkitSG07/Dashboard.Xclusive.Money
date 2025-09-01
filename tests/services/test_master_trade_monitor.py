@@ -89,7 +89,7 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     master = SimpleNamespace(
         client_id="m",
         broker="mock",
-        credentials={"access_token": "", "extras": {"orders": [order]}},
+        credentials={"access_token": "", "orders": [order]},
         role="master",
         user_id=1,
     )
@@ -132,7 +132,7 @@ def test_duplicate_orders_not_republished(monkeypatch):
     master = SimpleNamespace(
         client_id="m",
         broker="mock",
-        credentials={"access_token": "", "extras": {"orders": [order]}},
+        credentials={"access_token": "", "orders": [order]},
         role="master",
     )
     session = SessionStub(master, [])
@@ -159,7 +159,7 @@ def test_none_values_filtered(monkeypatch):
     master = SimpleNamespace(
         client_id="m",
         broker="mock",
-        credentials={"access_token": "", "extras": {"orders": [order]}},
+        credentials={"access_token": "", "orders": [order]},
         role="master",
     )
     session = SessionStub(master, [])
@@ -182,7 +182,7 @@ def test_poll_interval_from_env(monkeypatch):
     master = SimpleNamespace(
         client_id="m",
         broker="mock",
-        credentials={"access_token": "", "extras": {"orders": [order]}},
+        credentials={"access_token": "", "orders": [order]},
         role="master",
     )
     session = SessionStub(master, [])
