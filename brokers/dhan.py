@@ -184,9 +184,24 @@ class DhanBroker(BrokerBase):
                     "get",
                     "{}/orders".format(self.api_base),
                     headers=self.headers,
-                    timeout=self.timeout, # Pass timeout to the request
+                    timeout=self.timeout,  # Pass timeout to the request
                 )
-                return {"status": "success", "data": r.json()}
+                data = r.json()
+                if isinstance(data, dict) and any(
+                    k in data for k in ("errorCode", "errorMessage", "errorType")
+                ):
+                    logger.error(
+                        "Error response from Dhan API while fetching order list: %r",
+                        data,
+                    )
+                    return {
+                        "status": "failure",
+                        "error": data.get("errorMessage")
+                        or data.get("message")
+                        or "Failed to fetch order list from Dhan API.",
+                        "source": "broker",
+                    }
+                return {"status": "success", "data": data}
             except requests.exceptions.Timeout:
                 return {
                     "status": "failure",
@@ -221,6 +236,20 @@ class DhanBroker(BrokerBase):
                 url = "{}/orders?offset={}&limit={}".format(self.api_base, offset, batch_size)
                 r = self._request("get", url, headers=self.headers, timeout=self.timeout)  # Pass timeout
                 batch = r.json()
+                if isinstance(batch, dict) and any(
+                    k in batch for k in ("errorCode", "errorMessage", "errorType")
+                ):
+                    logger.error(
+                        "Error response from Dhan API at offset %s: %r", offset, batch
+                    )
+                    return {
+                        "status": "partial_failure" if all_orders else "failure",
+                        "error": batch.get("errorMessage")
+                        or batch.get("message")
+                        or "Failed to fetch order list from Dhan API.",
+                        "data": all_orders,
+                        "source": "broker",
+                    }
                 batch_orders = batch.get("data", batch) if isinstance(batch, dict) else batch
 
                 if not isinstance(batch_orders, list) or any(
