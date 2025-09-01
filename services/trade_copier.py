@@ -79,8 +79,11 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     # require an access token for the tests so missing keys default to ``""``.
     credentials = dict(child.credentials or {})
     access_token = credentials.pop("access_token", "")
+    credentials.pop("client_id", None)
 
-    broker = client_cls(child.client_id, access_token, **credentials)
+    broker = client_cls(
+        client_id=child.client_id, access_token=access_token, **credentials
+    )
 
     # Apply quantity multiplier for the child account.  Default multiplier is
     # 1.0 if not specified.
