@@ -274,9 +274,10 @@ def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, ma
         db.session.commit()
 
         if broker == "groww":
-            mapping = brokers.symbol_map.SYMBOL_MAP.get("IDEA", {}).copy()
+            symbol_map = brokers.symbol_map.get_symbol_map()
+            mapping = symbol_map.get("IDEA", {}).copy()
             mapping["groww"] = {"trading_symbol": "IDEA", "exchange": "NSE"}
-            monkeypatch.setitem(brokers.symbol_map.SYMBOL_MAP, "IDEA", mapping)
+            monkeypatch.setitem(symbol_map, "IDEA", mapping)
 
         app_module.poll_and_copy_trades()
 
