@@ -60,6 +60,11 @@ def monitor_master_trades(
         # Track order IDs we've already published for each master to avoid
         # emitting duplicate trade events when polling repeatedly.
         seen_order_ids: Dict[str, Set[str]] = defaultdict(set)
+        # Remember masters that have invalid/expired credentials so we don't
+        # spam the logs on every iteration.  The value is the last access token
+        # seen for that master.  If the token changes we will attempt to fetch
+        # orders again.
+        invalid_creds: Dict[str, str] = {}
         while max_iterations is None or iterations < max_iterations:
             masters: Iterable[Account] = (
                 db_session.query(Account).filter_by(role="master").all()
@@ -67,16 +72,40 @@ def monitor_master_trades(
             for master in masters:
                 credentials: Dict[str, Any] = dict(master.credentials or {})
                 access_token = credentials.pop("access_token", "")
+
+                # Skip masters whose credentials are known to be invalid unless
+                # the access token has changed since the last failure.
+                cached_token = invalid_creds.get(master.client_id)
+                if cached_token and cached_token == access_token:
+                    continue
+
                 client_cls = get_broker_client(master.broker)
                 client = client_cls(
                     master.client_id, access_token, **credentials
                 )
                 try:
                     orders = client.list_orders()
-                except Exception:  # pragma: no cover - defensive
-                    log.exception(
-                        "failed to fetch manual orders", extra={"master": master.client_id}
-                    )
+                    # If we successfully fetched orders, clear any cached
+                    # invalid credential flag for this master.
+                    invalid_creds.pop(master.client_id, None)
+                except Exception as exc:  # pragma: no cover - defensive
+                    msg = str(exc)
+                    if "invalid" in msg.lower() and "token" in msg.lower():
+                        # Log once per token and remember the failing token so
+                        # future iterations skip this master until the token
+                        # changes.
+                        if cached_token != access_token:
+                            log.error(
+                                "failed to fetch manual orders for %s: %s",
+                                master.client_id,
+                                msg,
+                            )
+                        invalid_creds[master.client_id] = access_token
+                    else:
+                        log.exception(
+                            "failed to fetch manual orders",
+                            extra={"master": master.client_id},
+                        )
                     continue
 
                 seen = seen_order_ids[master.client_id]
