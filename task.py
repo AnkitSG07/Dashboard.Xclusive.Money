@@ -5,6 +5,7 @@ from services.db import get_session
 from models import db
 from prometheus_client import Gauge, Histogram
 from services.utils import get_redis_url
+from services.webhook_receiver import get_redis_client
 
 _redis_url = get_redis_url()
 
@@ -48,7 +49,8 @@ def poll_trades() -> None:
     update_queue_depth()
     with WORKER_LATENCY.time():
         session = get_session()
+        client = get_redis_client()
         try:
-            poll_and_copy_trades(session, processor=copy_order)
+            poll_and_copy_trades(session, processor=copy_order, redis_client=client)
         finally:
             session.close()
