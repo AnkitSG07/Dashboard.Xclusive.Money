@@ -42,6 +42,26 @@ class DhanBroker(BrokerBase):
             return "BSE_EQ"
         return seg
 
+    def _normalize_product_type(self, product_type):
+        if not product_type:
+            return product_type
+        pt = str(product_type).upper()
+        if pt == "MIS":
+            return "INTRADAY"
+        return pt
+
+    def _normalize_order_type(self, order_type):
+        if not order_type:
+            return order_type
+        ot = str(order_type).upper()
+        mapping = {
+            "MKT": self.MARKET,
+            "MARKET": self.MARKET,
+            "L": self.LIMIT,
+            "LIMIT": self.LIMIT,
+        }
+        return mapping.get(ot, ot)
+
     # Assuming _request method exists in BrokerBase.
     # If not, you'd need to define it here or in BrokerBase.
     # Example minimal _request for demonstration if it's missing:
@@ -108,7 +128,9 @@ class DhanBroker(BrokerBase):
 
         if not product_type:
             product_type = self.INTRA
-
+        product_type = self._normalize_product_type(product_type)
+        order_type = self._normalize_order_type(order_type)
+        
         payload = {
             "dhanClientId": self.client_id,
             "securityId": security_id,
