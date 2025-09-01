@@ -103,6 +103,28 @@ class AliceBlueBroker(BrokerBase):
         if not self.session_id or not self.headers:
             self.authenticate()
 
+    def _normalize_product_type(self, product_type):
+        if not product_type:
+            return product_type
+        pt = product_type.upper()
+        if pt == "INTRADAY":
+            return "MIS"
+        return pt
+
+    def _normalize_order_type(self, order_type):
+        if not order_type:
+            return order_type
+        ot = order_type.upper()
+        mapping = {
+            "MARKET": "MKT",
+            "MKT": "MKT",
+            "LIMIT": "L",
+            "L": "L",
+            "SL": "SL",
+            "SL-M": "SL-M",
+        }
+        return mapping.get(ot, ot)
+
     def place_order(
         self,
         tradingsymbol=None,
@@ -138,6 +160,7 @@ class AliceBlueBroker(BrokerBase):
         exchange = kwargs.pop("exchange", exchange)
 
         product = product_type or kwargs.get("product") or "MIS"
+        product = self._normalize_product_type(product)
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
         if not symbol_id:
             symbol_id = mapping.get("symbol_id")
@@ -145,16 +168,7 @@ class AliceBlueBroker(BrokerBase):
         exchange = exchange or mapping.get("exch", exchange)
         if not symbol_id:
             raise ValueError("symbol_id is required")
-        # Map order_type to prctyp as per Alice Blue docs
-        ORDER_TYPE_MAP = {
-            "MARKET": "MKT",
-            "MKT": "MKT",
-            "LIMIT": "L",
-            "L": "L",
-            "SL": "SL",
-            "SL-M": "SL-M"
-        }
-        prctyp = ORDER_TYPE_MAP.get(order_type.upper(), "MKT")
+        prctyp = self._normalize_order_type(order_type or "MKT")
 
         if not deviceNumber and hasattr(self, "device_number"):
             deviceNumber = self.device_number
