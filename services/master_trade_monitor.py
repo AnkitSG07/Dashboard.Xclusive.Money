@@ -72,6 +72,7 @@ def monitor_master_trades(
             # expired access token even after it has been refreshed in the
             # database.
             db_session.rollback()
+            db_session.expire_all()
             masters: Iterable[Account] = (
                 db_session.query(Account).filter_by(role="master").all()
             )
