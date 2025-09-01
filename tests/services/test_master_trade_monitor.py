@@ -61,7 +61,7 @@ class SessionStub:
 class BrokerStub:
     placed = []
 
-    def __init__(self, client_id, token, **kwargs):
+    def __init__(self, client_id, token=None, access_token=None, **kwargs):
         self.orders = kwargs.get("orders", [])
         self.client_id = client_id
 
