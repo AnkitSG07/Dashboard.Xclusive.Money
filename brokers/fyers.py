@@ -9,6 +9,30 @@ except ImportError:
     fyersModel = None
 
 class FyersBroker(BrokerBase):
+    def _normalize_product_type(self, product_type):
+        if not product_type:
+            return product_type
+        pt = str(product_type).upper()
+        mapping = {
+            "MIS": "INTRADAY",
+            "INTRA": "INTRADAY",
+            "NRML": "MARGIN",
+            "DELIVERY": "CNC",
+        }
+        return mapping.get(pt, pt)
+
+    def _normalize_order_type(self, order_type):
+        if not order_type:
+            return order_type
+        ot = str(order_type).upper()
+        mapping = {
+            "MKT": "MARKET",
+            "MARKET": "MARKET",
+            "L": "LIMIT",
+            "LIMIT": "LIMIT",
+        }
+        return mapping.get(ot, ot)
+
     def __init__(self, client_id, access_token, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
         if fyersModel is not None:
@@ -52,13 +76,8 @@ class FyersBroker(BrokerBase):
             if isinstance(exchange, str):
                 exchange = exchange.upper()
 
-            product_map = {
-                "MIS": "INTRADAY",
-                "INTRA": "INTRADAY",
-                "NRML": "MARGIN",
-                "DELIVERY": "CNC",
-            }
-            prod = product_map.get(str(product).upper(), str(product).upper())
+            product = self._normalize_product_type(product)
+            order_type = self._normalize_order_type(order_type)
             fy_type = 2 if order_type == "MARKET" else 1
 
             if fy_type == 1:
@@ -83,7 +102,7 @@ class FyersBroker(BrokerBase):
                 "qty": int(quantity),
                 "type": fy_type,
                 "side": 1 if transaction_type == "BUY" else -1,
-                "productType": prod,
+                "productType": product,
                 "limitPrice": limit_price,
                 "disclosedQty": 0,
                 "validity": "DAY",
