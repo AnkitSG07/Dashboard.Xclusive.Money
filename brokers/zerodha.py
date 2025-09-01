@@ -53,9 +53,12 @@ class ZerodhaBroker(BrokerBase):
             return orig_request(method, url, **kwargs)
 
         session.request = request_with_timeout
-        # ``KiteConnect`` exposes ``set_session`` which allows us to override
-        # the underlying ``requests`` session it uses for API calls.
-        self.kite.set_session(session)
+        # ``KiteConnect`` (v4+) exposes a ``reqsession`` attribute to allow
+        # overriding the underlying ``requests`` session used for API calls.
+        # Older versions provided a ``set_session`` method which no longer
+        # exists, hence we assign the session directly to maintain
+        # compatibility with the updated API.
+        self.kite.reqsession = session
 
         self.token_time = token_time
         if access_token:
