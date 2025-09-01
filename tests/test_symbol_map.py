@@ -48,7 +48,7 @@ def test_refresh_symbol_map(monkeypatch):
     # side effects for other tests.
     import brokers.symbol_map as sm
 
-    original_map = sm.SYMBOL_MAP.copy()
+    original_map = sm.get_symbol_map().copy()
 
     # First load a mapping containing only AAA.
     zerodha_csv1 = (
@@ -65,7 +65,7 @@ def test_refresh_symbol_map(monkeypatch):
 
     monkeypatch.setattr(sm.requests, "get", fake_get1)
     refresh_symbol_map(force=True)
-    assert "AAA" in sm.SYMBOL_MAP
+    assert "AAA" in sm.get_symbol_map()
 
     # Now switch the datasets to contain only BBB and refresh again.
     zerodha_csv2 = (
@@ -82,8 +82,8 @@ def test_refresh_symbol_map(monkeypatch):
 
     monkeypatch.setattr(sm.requests, "get", fake_get2)
     refresh_symbol_map(force=True)
-    assert "BBB" in sm.SYMBOL_MAP
-    assert "AAA" not in sm.SYMBOL_MAP
+    assert "BBB" in sm.get_symbol_map()
+    assert "AAA" not in sm.get_symbol_map()
 
     # Restore original map for subsequent tests.
     sm.SYMBOL_MAP.clear()
