@@ -84,6 +84,10 @@ class FinvasiaBroker(BrokerBase):
             return "H"  # Normal/Holding (for F&O carryforward)
         return product_type  # Return as is if not in common aliases
 
+    def _normalize_product(self, product):
+        """Backward-compatible alias for product normalization."""
+        return self._normalize_product_type(product)
+
     def _normalize_order_type(self, order_type):
         if not order_type:
             return order_type
