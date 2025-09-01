@@ -180,6 +180,24 @@ class ZerodhaBroker(BrokerBase):
             self.token_time = time.time()
             return
 
+    def _normalize_product_type(self, product_type):
+        if not product_type:
+            return product_type
+        pt = product_type.upper()
+        if pt == "INTRADAY":
+            return "MIS"
+        return pt
+
+    def _normalize_order_type(self, order_type):
+        if not order_type:
+            return order_type
+        ot = order_type.upper()
+        mapping = {
+            "MKT": "MARKET",
+            "L": "LIMIT",
+        }
+        return mapping.get(ot, ot)
+
     # ================= Standard BrokerBase methods ==================
     def place_order(
         self,
@@ -200,6 +218,8 @@ class ZerodhaBroker(BrokerBase):
         transaction_type = transaction_type or extra.pop("action", None)
         quantity = quantity or extra.pop("qty", None)
         product = extra.pop("product_type", product)
+        product = self._normalize_product_type(product)
+        order_type = self._normalize_order_type(order_type)
         exchange = exchange or extra.pop("exchange", None)
 
         mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
