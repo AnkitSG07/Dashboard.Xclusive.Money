@@ -21,6 +21,8 @@ from sqlalchemy.orm import Session
 
 from models import Account
 from brokers.factory import get_broker_client
+from brokers import symbol_map
+import requests
 from .webhook_receiver import redis_client, get_redis_client
 from .db import get_session
 from .utils import _decode_event
@@ -38,6 +40,23 @@ DEFAULT_MAX_WORKERS = 10
 # overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
 # for brokers with slower APIs.
 DEFAULT_CHILD_TIMEOUT = 20.0
+
+def _load_symbol_map_or_exit() -> None:
+    """Pre-load the broker symbol map, aborting on failure.
+
+    The trade copier relies on instrument dumps from Zerodha and Dhan to map
+    symbols for various child brokers such as AliceBlue.  If these dumps cannot
+    be retrieved (e.g. because neither network access nor cached copies are
+    available) the service would otherwise continue and silently fail later when
+    placing orders.  To prevent this we attempt to build the symbol map up front
+    and terminate the process if it cannot be loaded.
+    """
+
+    try:
+        symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
+    except requests.RequestException as exc:  # pragma: no cover - network errors
+        log.error("failed to load instrument data: %s", exc)
+        raise SystemExit(1)
 
 def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     """Instantiate the appropriate broker client for *child* and copy *order*.
@@ -323,6 +342,12 @@ def main() -> None:
     
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
     block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
+
+    # Ensure symbol mappings are available before processing any trades.  The
+    # build uses instrument dumps from upstream brokers and falls back to
+    # cached data.  If neither is accessible the trade copier aborts so that
+    # orders are not submitted with missing tokens.
+    _load_symbol_map_or_exit()
 
     while True:
         session = get_session()
