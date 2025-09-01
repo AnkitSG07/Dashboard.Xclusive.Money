@@ -2,6 +2,7 @@
 """Zerodha broker adapter using KiteConnect."""
 
 import inspect
+import os
 import re
 import requests
 import pyotp
@@ -28,6 +29,8 @@ class ZerodhaBroker(BrokerBase):
         super().__init__(client_id, access_token or "", **kwargs)
         if KiteConnect is None:
             raise ImportError("kiteconnect not installed")
+        if not api_key:
+            api_key = os.environ.get("ZERODHA_API_KEY")
         if not api_key:
             raise ValueError("api_key is required for Zerodha.")
 
