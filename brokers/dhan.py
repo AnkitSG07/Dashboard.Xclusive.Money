@@ -186,13 +186,18 @@ class DhanBroker(BrokerBase):
                     headers=self.headers,
                     timeout=self.timeout,  # Pass timeout to the request
                 )
-                data = r.json()
-                if isinstance(data, dict) and any(
-                    k in data for k in ("errorCode", "errorMessage", "errorType")
-                ):
+                status = getattr(r, "status_code", 200)
+                if status >= 400:
+                    # Attempt to surface a meaningful error message from the
+                    # API response rather than failing with a cryptic
+                    # structure error downstream.
+                    try:
+                        data = r.json()
+                    except Exception:
+                        data = {}
                     logger.error(
                         "Error response from Dhan API while fetching order list: %r",
-                        data,
+                        data or r.text,
                     )
                     return {
                         "status": "failure",
@@ -201,6 +206,7 @@ class DhanBroker(BrokerBase):
                         or "Failed to fetch order list from Dhan API.",
                         "source": "broker",
                     }
+                data = r.json()
                 return {"status": "success", "data": data}
             except requests.exceptions.Timeout:
                 return {
@@ -235,6 +241,23 @@ class DhanBroker(BrokerBase):
             try:
                 url = "{}/orders?offset={}&limit={}".format(self.api_base, offset, batch_size)
                 r = self._request("get", url, headers=self.headers, timeout=self.timeout)  # Pass timeout
+                status = getattr(r, "status_code", 200)
+                if status >= 400:
+                    try:
+                        batch = r.json()
+                    except Exception:
+                        batch = {}
+                    logger.error(
+                        "Error response from Dhan API at offset %s: %r", offset, batch or r.text
+                    )
+                    return {
+                        "status": "partial_failure" if all_orders else "failure",
+                        "error": batch.get("errorMessage")
+                        or batch.get("message")
+                        or "Failed to fetch order list from Dhan API.",
+                        "data": all_orders,
+                        "source": "broker",
+                    }
                 batch = r.json()
                 if isinstance(batch, dict) and any(
                     k in batch for k in ("errorCode", "errorMessage", "errorType")
