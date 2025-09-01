@@ -66,6 +66,12 @@ def monitor_master_trades(
         # orders again.
         invalid_creds: Dict[str, str] = {}
         while max_iterations is None or iterations < max_iterations:
+            # Ensure we see any credential updates made by other processes.
+            # Without ending the previous transaction the session may return
+            # stale Account objects, causing the monitor to keep using an
+            # expired access token even after it has been refreshed in the
+            # database.
+            db_session.rollback()
             masters: Iterable[Account] = (
                 db_session.query(Account).filter_by(role="master").all()
             )
