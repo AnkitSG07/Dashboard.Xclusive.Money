@@ -181,14 +181,14 @@ def consume_webhook_events(
                 
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
-                creds = dict(broker_cfg)
-                access_token = creds.pop("access_token", "")
-                creds.pop("name", None)
-                creds.pop("client_id", None)
+                credentials = dict(broker_cfg)
+                access_token = credentials.pop("access_token", "")
+                client_id = credentials.pop("client_id", None)
+                credentials.pop("name", None)
                 client = client_cls(
-                    broker_cfg.get("client_id"),
-                    access_token,
-                    **creds,
+                    client_id=client_id,
+                    access_token=access_token,
+                    **credentials,
                 )
                 order_params = {
                     "symbol": event["symbol"],
@@ -220,7 +220,7 @@ def consume_webhook_events(
                 if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
                     raise RuntimeError(f"broker order failed: {result}")
                 trade_event = {
-                    "master_id": broker_cfg.get("client_id"),
+                    "master_id": client_id,
                     **{k: v for k, v in order_params.items() if k != "master_accounts"},
                 }
                 return trade_event
