@@ -1,10 +1,11 @@
-from brokers.symbol_map import SYMBOL_MAP
+from brokers.symbol_map import get_symbol_map
 
 
 def get_symbols():
     """Return list of symbols with token mappings for common brokers."""
     symbols = []
-    for sym, data in SYMBOL_MAP.items():
+    symbol_map = get_symbol_map()
+    for sym, data in symbol_map.items():
         entry = {"symbol": sym}
 
         dhan_id = data.get("dhan", {}).get("security_id")
