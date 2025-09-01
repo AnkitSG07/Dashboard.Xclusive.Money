@@ -480,8 +480,8 @@ def test_webhook(strategy_id):
         token = secrets.token_hex(16)
         user.webhook_token = token
         db.session.commit()
-    from brokers.symbol_map import SYMBOL_MAP
-    symbol = next(iter(SYMBOL_MAP.keys()))
+    from brokers.symbol_map import get_symbol_map
+    symbol = next(iter(get_symbol_map().keys()))
     payload = {"symbol": symbol, "action": "BUY", "quantity": 1}
     if not strategy.webhook_secret:
         import secrets
