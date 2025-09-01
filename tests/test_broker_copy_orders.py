@@ -1,5 +1,4 @@
 import pytest
-pytest.skip("poll_and_copy_trades migrated to queue-based service", allow_module_level=True)
 
 import os
 import sys
@@ -12,17 +11,59 @@ os.environ.setdefault("ADMIN_EMAIL", "a@a.com")
 os.environ.setdefault("ADMIN_PASSWORD", "pass")
 os.environ.setdefault("RUN_SCHEDULER", "0")
 
+import tempfile
+from importlib import reload
+
 import app as app_module
 import brokers
 
-from .test_api import client  # reuse fixture
+@pytest.fixture
+def client():
+    db_fd, db_path = tempfile.mkstemp()
+    os.environ["DATABASE_URL"] = "sqlite:///" + db_path
+    reload(app_module)
+    local_app = app_module.app
+    local_db = app_module.db
+    User = app_module.User
+    local_app.config["TESTING"] = True
+    with local_app.app_context():
+        local_db.create_all()
+        if not local_db.session.query(User).filter_by(email="test@example.com").first():
+            user = User(email="test@example.com")
+            user.set_password("secret")
+            local_db.session.add(user)
+            local_db.session.commit()
+        with local_app.test_client() as client:
+            yield client
+        local_db.session.remove()
+        local_db.drop_all()
+    os.close(db_fd)
+    os.unlink(db_path)
 
 
 def make_dummy_broker(broker_name, master_id, child_id, orders, placed):
+    required_fields = {
+        "zerodha": ["api_key", "api_secret", "access_token"],
+        "aliceblue": ["api_key"],
+        "dhan": ["access_token"],
+        "finvasia": ["password", "totp_secret", "vendor_code", "api_key", "imei"],
+        "fyers": ["access_token"],
+        "flattrade": ["access_token"],
+        "groww": ["access_token"],
+    }
+
     class DummyBroker(brokers.base.BrokerBase):
         BROKER = broker_name
 
         def __init__(self, client_id, access_token=None, *args, **kwargs):
+            for field in required_fields.get(broker_name, []):
+                if field == "access_token":
+                    token = access_token or kwargs.get(field)
+                    assert token, f"{field} is required"
+                    if access_token is None and field in kwargs:
+                        access_token = kwargs[field]
+                else:
+                    assert field in kwargs, f"{field} is required"
             if access_token is None and "access_token" in kwargs:
                 access_token = kwargs.pop("access_token")
             super().__init__(client_id, access_token or "", **kwargs)
@@ -68,8 +109,8 @@ BROKER_CASES = [
                 "transactionType": "SELL",
             },
         ],
-        {"access_token": "x"},
-        {"access_token": "y"},
+        {"api_key": "k", "api_secret": "s", "access_token": "x"},
+        {"api_key": "k", "api_secret": "s", "access_token": "y"},
     ),
     (
         "aliceblue",
@@ -91,8 +132,8 @@ BROKER_CASES = [
                 "Trantype": "S",
             },
         ],
-        {"api_key": "k"},
-        {"api_key": "k"},
+        {"api_key": "k", "device_number": "d"},
+        {"api_key": "k", "device_number": "d"},
     ),
     (
         "dhan",
@@ -223,7 +264,22 @@ BROKER_CASES = [
     ),
 ]
 
+@pytest.mark.parametrize(
+    "broker, creds, missing",
+    [
+        ("aliceblue", {"device_number": "d"}, "api_key"),
+        ("zerodha", {"api_secret": "s", "access_token": "x"}, "api_key"),
+        ("zerodha", {"api_key": "k", "access_token": "x"}, "api_secret"),
+        ("zerodha", {"api_key": "k", "api_secret": "s"}, "access_token"),
+    ],
+)
+def test_dummy_broker_requires_mandatory_credentials(broker, creds, missing):
+    Dummy = make_dummy_broker(broker, "M", "C", [], [])
+    with pytest.raises(AssertionError, match=missing):
+        Dummy("id", **creds)
 
+
+@pytest.mark.skip(reason="poll_and_copy_trades migrated to queue-based service")
 @pytest.mark.parametrize("broker, orders, master_creds, child_creds", BROKER_CASES)
 def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, master_creds, child_creds):
     app = app_module.app
@@ -286,7 +342,7 @@ def test_buy_sell_copied_for_each_broker(client, monkeypatch, broker, orders, ma
         assert result["BUY"] == 10
         assert result["SELL"] == 5
 
-
+@pytest.mark.skip(reason="poll_and_copy_trades migrated to queue-based service")
 def test_dhan_copy_without_symbol_map(client, monkeypatch):
     app = app_module.app
     db = app_module.db
@@ -353,6 +409,7 @@ def test_dhan_copy_without_symbol_map(client, monkeypatch):
         assert params["security_id"] == "12345"
         assert params["exchange_segment"] == "NSE_EQ"
 
+@pytest.mark.skip(reason="poll_and_copy_trades migrated to queue-based service")
 def test_aliceblue_market_order_without_price_copies(client, monkeypatch):
     app = app_module.app
     db = app_module.db
