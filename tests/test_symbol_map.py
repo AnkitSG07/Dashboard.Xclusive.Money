@@ -64,7 +64,7 @@ def test_refresh_symbol_map(monkeypatch):
         return _make_response(zerodha_csv1 if "kite" in url else dhan_csv1)
 
     monkeypatch.setattr(sm.requests, "get", fake_get1)
-    refresh_symbol_map()
+    refresh_symbol_map(force=True)
     assert "AAA" in sm.SYMBOL_MAP
 
     # Now switch the datasets to contain only BBB and refresh again.
@@ -81,7 +81,7 @@ def test_refresh_symbol_map(monkeypatch):
         return _make_response(zerodha_csv2 if "kite" in url else dhan_csv2)
 
     monkeypatch.setattr(sm.requests, "get", fake_get2)
-    refresh_symbol_map()
+    refresh_symbol_map(force=True)
     assert "BBB" in sm.SYMBOL_MAP
     assert "AAA" not in sm.SYMBOL_MAP
 
