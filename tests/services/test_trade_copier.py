@@ -1,6 +1,7 @@
 import asyncio
 import time
 from types import SimpleNamespace
+import json
 import pytest
 import requests
 from services import trade_copier
@@ -115,6 +116,214 @@ def test_copy_order_with_extra_credentials(monkeypatch):
         "api_key": "k",
         "access_token": "t",
     }
+
+def test_copy_from_dhan_to_aliceblue(monkeypatch):
+    from brokers.aliceblue import AliceBlueBroker
+    captured = {}
+
+    class DummyAliceBlue(AliceBlueBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            self.client_id = client_id
+            self.session_id = "sid"
+            captured["instance"] = self
+
+        def ensure_session(self):
+            pass
+
+        def _request(self, method, url, headers=None, data=None):
+            captured["payload"] = json.loads(data)
+            class Resp:
+                def json(self_inner):
+                    return [{"stat": "Ok", "nestOrderNumber": "1"}]
+            return Resp()
+
+        monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyAliceBlue)
+    import brokers.aliceblue as alice_mod
+    monkeypatch.setattr(
+        alice_mod,
+        "get_symbol_for_broker",
+        lambda symbol, broker: {"symbol_id": "1", "trading_symbol": symbol, "exch": "NSE"},
+    )
+    master = SimpleNamespace(broker="dhan", client_id="m")
+    child = SimpleNamespace(broker="aliceblue", client_id="c1", credentials={}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "INTRADAY", "order_type": "MARKET"}
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["payload"][0]["pCode"] == "MIS"
+    assert captured["payload"][0]["prctyp"] == "MKT"
+
+
+def test_copy_from_dhan_to_zerodha(monkeypatch):
+    from brokers.zerodha import ZerodhaBroker
+    captured = {}
+
+    class DummyZerodha(ZerodhaBroker):
+        def __init__(self, client_id, access_token="", api_key="k", **kwargs):
+            self.client_id = client_id
+            self.kite = SimpleNamespace(VARIETY_REGULAR="regular")
+            self.timeout = 1
+
+            def place_order(**params):
+                captured["params"] = params
+                return "1"
+
+            self.kite.place_order = lambda variety, **params: place_order(**params)
+
+        def ensure_token(self):
+            pass
+
+        def _kite_call(self, func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyZerodha)
+    master = SimpleNamespace(broker="dhan", client_id="m")
+    child = SimpleNamespace(broker="zerodha", client_id="c1", credentials={"api_key": "k"}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "INTRADAY", "order_type": "MARKET"}
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["params"]["product"] == "MIS"
+    assert captured["params"]["order_type"] == "MARKET"
+
+
+def test_copy_from_aliceblue_to_dhan(monkeypatch):
+    from brokers.dhan import DhanBroker
+    captured = {}
+
+    class DummyDhan(DhanBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            super().__init__(client_id, access_token, **kwargs)
+
+        def _request(self, method, url, headers=None, json=None, **kwargs):
+            captured["payload"] = json
+            class Resp:
+                def json(self_inner):
+                    return {"orderId": "1"}
+
+            return Resp()
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyDhan)
+    master = SimpleNamespace(broker="aliceblue", client_id="m")
+    child = SimpleNamespace(broker="dhan", client_id="c1", credentials={}, multiplier=1)
+    order = {
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "product_type": "MIS",
+        "order_type": "MKT",
+        "security_id": "1",
+        "exchange_segment": "NSE_EQ",
+    }
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["payload"]["productType"] == "INTRADAY"
+    assert captured["payload"]["orderType"] == "MARKET"
+
+
+def test_copy_from_zerodha_to_dhan(monkeypatch):
+    from brokers.dhan import DhanBroker
+    captured = {}
+
+    class DummyDhan(DhanBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            super().__init__(client_id, access_token, **kwargs)
+
+        def _request(self, method, url, headers=None, json=None, **kwargs):
+            captured["payload"] = json
+            class Resp:
+                def json(self_inner):
+                    return {"orderId": "1"}
+
+            return Resp()
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyDhan)
+    master = SimpleNamespace(broker="zerodha", client_id="m")
+    child = SimpleNamespace(broker="dhan", client_id="c1", credentials={}, multiplier=1)
+    order = {
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "product_type": "MIS",
+        "order_type": "MARKET",
+        "security_id": "1",
+        "exchange_segment": "NSE_EQ",
+    }
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["payload"]["productType"] == "INTRADAY"
+    assert captured["payload"]["orderType"] == "MARKET"
+
+def test_copy_from_aliceblue_to_zerodha(monkeypatch):
+    from brokers.zerodha import ZerodhaBroker
+    captured = {}
+
+    class DummyZerodha(ZerodhaBroker):
+        def __init__(self, client_id, access_token="", api_key="k", **kwargs):
+            self.client_id = client_id
+            self.kite = SimpleNamespace(VARIETY_REGULAR="regular")
+            self.timeout = 1
+
+            def place_order(**params):
+                captured["params"] = params
+                return "1"
+
+            self.kite.place_order = lambda variety, **params: place_order(**params)
+
+        def ensure_token(self):
+            pass
+
+        def _kite_call(self, func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyZerodha)
+    master = SimpleNamespace(broker="aliceblue", client_id="m")
+    child = SimpleNamespace(broker="zerodha", client_id="c1", credentials={"api_key": "k"}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MIS", "order_type": "MKT"}
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["params"]["order_type"] == "MARKET"
+    assert captured["params"]["product"] == "MIS"
+
+
+def test_copy_from_zerodha_to_aliceblue(monkeypatch):
+    from brokers.aliceblue import AliceBlueBroker
+    captured = {}
+
+    class DummyAliceBlue(AliceBlueBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            self.client_id = client_id
+            self.session_id = "sid"
+
+        def ensure_session(self):
+            pass
+
+        def _request(self, method, url, headers=None, data=None):
+            captured["payload"] = json.loads(data)
+            class Resp:
+                def json(self_inner):
+                    return [{"stat": "Ok", "nestOrderNumber": "1"}]
+            return Resp()
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyAliceBlue)
+    import brokers.aliceblue as alice_mod
+    monkeypatch.setattr(
+        alice_mod,
+        "get_symbol_for_broker",
+        lambda symbol, broker: {"symbol_id": "1", "trading_symbol": symbol, "exch": "NSE"},
+    )
+    master = SimpleNamespace(broker="zerodha", client_id="m")
+    child = SimpleNamespace(broker="aliceblue", client_id="c1", credentials={}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MIS", "order_type": "MARKET"}
+
+    resp = trade_copier.copy_order(master, child, order)
+    assert resp["status"] == "success"
+    assert captured["payload"][0]["prctyp"] == "MKT"
+    assert captured["payload"][0]["pCode"] == "MIS"
+
 
 def test_copy_order_logs_broker_error(monkeypatch, caplog):
     class StubBroker:
