@@ -303,8 +303,9 @@ def test_poll_and_copy_trades_cross_broker(client, monkeypatch):
         db.session.add_all([master, child])
         db.session.commit()
 
+        symbol_map = brokers.symbol_map.get_symbol_map()
         monkeypatch.setitem(
-            brokers.symbol_map.SYMBOL_MAP,
+            symbol_map,
             "TESTSYM",
             {
                 "master_broker": {"trading_symbol": "TESTSYM"},
@@ -451,8 +452,9 @@ def test_poll_and_copy_trades_token_lookup(client, monkeypatch):
         db.session.add_all([master, child])
         db.session.commit()
 
+        symbol_map = brokers.symbol_map.get_symbol_map()
         monkeypatch.setitem(
-            brokers.symbol_map.SYMBOL_MAP,
+            symbol_map,
             "IDEA",
             {"zerodha": {"trading_symbol": "IDEA", "token": "926241"}},
         )
@@ -544,8 +546,9 @@ def test_poll_and_copy_trades_maps_cnc_to_cnc_for_dhan_child(client, monkeypatch
         db.session.add_all([master, child])
         db.session.commit()
 
+        symbol_map = brokers.symbol_map.get_symbol_map()
         monkeypatch.setitem(
-            brokers.symbol_map.SYMBOL_MAP,
+            symbol_map,
             "ABCD",
             {
                 "master_broker": {"trading_symbol": "ABCD"},
@@ -639,8 +642,9 @@ def test_poll_and_copy_trades_preserves_product_type_mtf(client, monkeypatch):
         db.session.add_all([master, child])
         db.session.commit()
 
+        symbol_map = brokers.symbol_map.get_symbol_map()
         monkeypatch.setitem(
-            brokers.symbol_map.SYMBOL_MAP,
+            symbol_map,
             "ABCD",
             {
                 "master_broker": {"trading_symbol": "ABCD"},
