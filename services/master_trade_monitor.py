@@ -65,11 +65,11 @@ def monitor_master_trades(
                 db_session.query(Account).filter_by(role="master").all()
             )
             for master in masters:
-                credentials: Dict[str, Any] = master.credentials or {}
-                extras = credentials.get("extras", {})
+                credentials: Dict[str, Any] = dict(master.credentials or {})
+                access_token = credentials.pop("access_token", "")
                 client_cls = get_broker_client(master.broker)
                 client = client_cls(
-                    master.client_id, credentials.get("access_token", ""), **extras
+                    master.client_id, access_token, **credentials
                 )
                 try:
                     orders = client.list_orders()
