@@ -73,16 +73,31 @@ class FinvasiaBroker(BrokerBase):
             logger.error(error_msg)
             return {"status": "failure", "error": error_msg}
 
-    def _normalize_product(self, product_type):
+    def _normalize_product_type(self, product_type):
         """Normalize product type for Finvasia API."""
         product_type = str(product_type).strip().upper()
         if product_type in ["MIS", "INTRA", "INTRADAY", "INTRA DAY"]:
             return "M"  # Margin Intraday Square Off
-        elif product_type in ["CNC", "CARRYFORWARD"]:
+        if product_type in ["CNC", "CARRYFORWARD"]:
             return "C"  # Cash & Carry / Delivery
-        elif product_type in ["NRML", "NORMAL"]:
+        if product_type in ["NRML", "NORMAL"]:
             return "H"  # Normal/Holding (for F&O carryforward)
-        return product_type # Return as is if not in common aliases
+        return product_type  # Return as is if not in common aliases
+
+    def _normalize_order_type(self, order_type):
+        if not order_type:
+            return order_type
+        ot = str(order_type).upper()
+        mapping = {
+            "MARKET": "MKT",
+            "MKT": "MKT",
+            "LIMIT": "LMT",
+            "L": "LMT",
+            "SL": "SL",
+            "SL-M": "SL-M",
+        }
+        return mapping.get(ot, ot)
+
 
     def check_token_valid(self):
         try:
@@ -130,16 +145,19 @@ class FinvasiaBroker(BrokerBase):
         tradingsymbol = tradingsymbol or kwargs.pop("symbol", None)
         transaction_type = transaction_type or kwargs.pop("action", None)
         quantity = quantity or kwargs.pop("qty", None)
+        product = kwargs.pop("product_type", product)
 
         if not self._is_logged_in():
             self.login()
             if not self._is_logged_in():
                 return {"status": "failure", "error": "Finvasia API not logged in."}
 
-        product_code = self._normalize_product(product)
+        product_code = self._normalize_product_type(product)
+        order_type = self._normalize_order_type(order_type)
+
         
         # Convert price to paise for Finvasia API
-        price_in_paise = int(float(price) * 100) if order_type.upper() in ["LMT", "SL", "SL-M"] and price is not None else 0
+        price_in_paise = int(float(price) * 100) if order_type in ["LMT", "SL", "SL-M"] and price is not None else 0
         
         trigger_price_in_paise = 0
         if kwargs.get("trigger_price") is not None:
@@ -221,7 +239,7 @@ class FinvasiaBroker(BrokerBase):
             # Convert new_price to paise for modify_order
             modify_params["newprice"] = int(float(new_price) * 100)
         if new_order_type is not None:
-            modify_params["newprice_type"] = new_order_type # This parameter is named newprice_type in Shoonya
+            modify_params["newprice_type"] = self._normalize_order_type(new_order_type)
         if new_trigger_price is not None:
             # Convert new_trigger_price to paise for modify_order
             modify_params["newtriggerprice"] = int(float(new_trigger_price) * 100)
