@@ -116,6 +116,38 @@ def test_copy_order_with_extra_credentials(monkeypatch):
         "access_token": "t",
     }
 
+def test_copy_order_logs_broker_error(monkeypatch, caplog):
+    class StubBroker:
+        def __init__(self, client_id, access_token):
+            pass
+
+        def place_order(self, **params):
+            raise ValueError("invalid product type")
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    master = SimpleNamespace(client_id="m")
+    child = SimpleNamespace(broker="stub", client_id="c1", credentials={}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m, s: [child]
+    )
+
+    with caplog.at_level("ERROR"):
+        asyncio.run(
+            _replicate_to_children(None, master, order, trade_copier.copy_order)
+        )
+
+    assert any(
+        r.levelname == "ERROR"
+        and "child c1 (stub) copy failed: invalid product type" in r.message
+        and getattr(r, "child", None) == "c1"
+        and getattr(r, "broker", None) == "stub"
+        and getattr(r, "error", None) == "invalid product type"
+        for r in caplog.records
+    )
+
 async def slow_replicate(
     db_session,
     master,
@@ -250,11 +282,15 @@ def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
 
     assert executed == ["c2"]
     assert any(
-        r.levelname == "ERROR" and "child c1 copy failed" in r.message
+        r.levelname == "ERROR"
+        and "child c1 (mock) copy failed: fail" in r.message
         for r in caplog.records
     )
     assert any(
-        r.levelname == "ERROR" and getattr(r, "child", None) == "c1"
+        r.levelname == "ERROR"
+        and getattr(r, "child", None) == "c1"
+        and getattr(r, "broker", None) == "mock"
+        and getattr(r, "error", None) == "fail"
         for r in caplog.records
     )
 
@@ -325,7 +361,11 @@ def test_replicate_to_children_logs_warning_for_timeout(monkeypatch, caplog):
         for r in caplog.records
     )
     assert any(
-        r.levelname == "ERROR" and "child err copy failed" in r.message
+        r.levelname == "ERROR"
+        and "child err (mock) copy failed: fail" in r.message
+        and getattr(r, "child", None) == "err"
+        and getattr(r, "broker", None) == "mock"
+        and getattr(r, "error", None) == "fail"
         for r in caplog.records
     )
 
@@ -467,8 +507,18 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
 
     assert processed == ["good"]
     assert redis.acks == [b"1"]
-    assert any("child bad copy failed" in r.message for r in caplog.records)
-    assert any(getattr(r, "child", None) == "bad" for r in caplog.records)
+    assert any(
+        r.levelname == "ERROR"
+        and "child bad (mock) copy failed: boom" in r.message
+        for r in caplog.records
+    )
+    assert any(
+        r.levelname == "ERROR"
+        and getattr(r, "child", None) == "bad"
+        and getattr(r, "broker", None) == "mock"
+        and getattr(r, "error", None) == "boom"
+        for r in caplog.records
+    )
 
 
 def test_poll_and_copy_trades_logs_task_errors(monkeypatch, caplog):
