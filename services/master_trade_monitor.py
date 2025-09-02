@@ -133,13 +133,20 @@ def monitor_master_trades(
                     if order_id is not None and str(order_id) in seen:
                         continue
 
+                    symbol = order.get("symbol") or order.get("tradingSymbol")
+                    action = order.get("action") or order.get("transactionType")
+                    qty = order.get("qty") or order.get("orderQty")
+                    exchange = order.get("exchange") or order.get("exchangeSegment")
+                    order_type = order.get("order_type") or order.get("orderType")
+
+
                     raw_event = {
                         "master_id": master.client_id,
-                        "symbol": order.get("symbol"),
-                        "action": order.get("action"),
-                        "qty": order.get("qty"),
-                        "exchange": order.get("exchange"),
-                        "order_type": order.get("order_type"),
+                        "symbol": symbol,
+                        "action": action,
+                        "qty": qty,
+                        "exchange": exchange,
+                        "order_type": order_type,
                     }
                     # Filter out ``None`` values and convert the rest to strings so
                     # the Redis client never receives ``None``.
