@@ -346,9 +346,15 @@ class FinvasiaBroker(BrokerBase):
         if resp is None:
             return {"status": "failure", "error": "No response received from Finvasia API (get_order_book)."}
 
-        if isinstance(resp, list): # Order book is usually a list of orders
-            # Optionally, you can transform the order structure to a common format here
-            return {"status": "success", "orders": resp}
+        if isinstance(resp, list):  # Order book is usually a list of orders
+            for o in resp:
+                o["symbol"] = o.get("tsym")
+                o["action"] = o.get("trantype")
+                o["qty"] = o.get("qty")
+                o["exchange"] = o.get("exch")
+                o["order_type"] = o.get("prctyp")
+                o["id"] = o.get("norenordno")
+            return {"status": "success", "data": resp}
         elif isinstance(resp, dict) and resp.get("stat") == "Not_Ok":
             return {"status": "failure", "error": resp.get("emsg", "Failed to retrieve order book.")}
 
