@@ -24,8 +24,15 @@ from .db import get_session
 log = logging.getLogger(__name__)
 
 # Order statuses that indicate a completed or filled order.  Orders in any
-# other state (e.g. ``REJECTED`` or ``PENDING``) are ignored.
-COMPLETED_STATUSES = {"COMPLETE", "COMPLETED", "FILLED", "EXECUTED"}
+# other state (e.g. ``REJECTED`` or ``PENDING``) are ignored.  Include
+# broker-specific values such as Dhan's ``TRADED`` status.
+COMPLETED_STATUSES = {
+    "COMPLETE",
+    "COMPLETED",
+    "FILLED",
+    "EXECUTED",
+    "TRADED",
+}
 
 def monitor_master_trades(
     db_session: Session,
@@ -127,6 +134,7 @@ def monitor_master_trades(
                     order_id = (
                         order.get("id")
                         or order.get("order_id")
+                        or order.get("orderId")
                         or order.get("norenordno")
                         or order.get("timestamp")
                     )
