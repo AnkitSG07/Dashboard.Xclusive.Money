@@ -235,20 +235,16 @@ def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed
                 and b.get("client_id") == account.client_id
             )
         ]
-        creds = account.credentials or {}
-        broker_entry = {
+        broker_info = {
             "name": account.broker,
             "client_id": account.client_id,
-            "access_token": creds.get("access_token"),
         }
-        # Some brokers require additional fields like ``api_key`` or
-        # ``device_number`` when placing orders. Include them if available so
-        # the order consumer has the required credentials.
-        for field in ("api_key", "device_number"):
-            if field in creds:
-                broker_entry[field] = creds[field]
-        brokers.append(broker_entry)
-        
+        creds = account.credentials or {}
+        if "access_token" in creds:
+            broker_info["access_token"] = creds["access_token"]
+        if "api_key" in creds:
+            broker_info["api_key"] = creds["api_key"]
+        brokers.append(broker_info)
         settings["brokers"] = brokers
         if max_qty is not None:
             settings["max_qty"] = max_qty
