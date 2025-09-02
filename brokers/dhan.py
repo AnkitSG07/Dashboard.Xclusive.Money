@@ -418,6 +418,39 @@ class DhanBroker(BrokerBase):
                 }
         return {"status": "success", "data": all_orders}
 
+    def list_orders(self, **kwargs):
+        """Return a list of orders with ``status`` and ``orderId`` fields.
+
+        The base :class:`BrokerBase` provides a ``list_orders`` helper, but it
+        simply returns whatever structure the underlying ``get_order_list``
+        method exposes.  Dhan's API uses ``orderStatus`` and sometimes
+        ``order_id`` for these fields which means callers such as
+        :mod:`services.order_consumer` cannot reliably determine the completion
+        state of an order.  This override normalises the response so each order
+        dictionary contains ``status`` and ``orderId`` keys regardless of the
+        original naming used by the API.
+        """
+
+        resp = self.get_order_list(**kwargs)
+        if isinstance(resp, dict):
+            if resp.get("status") != "success":
+                raise RuntimeError(resp.get("error") or "failed to fetch order list")
+            orders = resp.get("data", [])
+        else:
+            orders = resp
+
+        normalized = []
+        for o in orders:
+            if not isinstance(o, dict):
+                continue
+            order = dict(o)
+            if "status" not in order and order.get("orderStatus") is not None:
+                order["status"] = order.get("orderStatus")
+            if "orderId" not in order and order.get("order_id") is not None:
+                order["orderId"] = order.get("order_id")
+            normalized.append(order)
+        return normalized
+
     def cancel_order(self, order_id):
         """
         Cancel an order by order_id.
