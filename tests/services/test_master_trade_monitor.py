@@ -200,6 +200,94 @@ def test_duplicate_orders_not_republished(monkeypatch):
     assert len(redis.stream) == 1
 
 
+def test_dhan_orders_are_published_and_copied(monkeypatch):
+    BrokerStub.placed = []
+    order = {
+        "orderId": "1",
+        "tradingSymbol": "AAPL",
+        "transactionType": "BUY",
+        "orderQty": 1,
+        "exchangeSegment": "NSE",
+        "orderType": "LIMIT",
+    }
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+        user_id=1,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="c1",
+        credentials={},
+        multiplier=1,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    assert redis.stream == [
+        (
+            b"1",
+            {
+                "master_id": "m",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": "1",
+                "exchange": "NSE",
+                "order_type": "LIMIT",
+            },
+        )
+    ]
+
+    processed = trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=1,
+    )
+
+    assert processed == 1
+    assert BrokerStub.placed == [
+        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
+    ]
+    assert redis.acks == [b"1"]
+
+
+def test_dhan_duplicate_orders_not_republished(monkeypatch):
+    order = {
+        "orderId": "1",
+        "tradingSymbol": "AAPL",
+        "transactionType": "BUY",
+        "orderQty": 1,
+    }
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+    )
+    session = SessionStub(master, [])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=2, poll_interval=0
+    )
+
+    assert len(redis.stream) == 1
+
+
 def test_none_values_filtered(monkeypatch):
     order = {
         "id": "1",
