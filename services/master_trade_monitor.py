@@ -23,6 +23,9 @@ from .db import get_session
 
 log = logging.getLogger(__name__)
 
+# Order statuses that indicate a completed or filled order.  Orders in any
+# other state (e.g. ``REJECTED`` or ``PENDING``) are ignored.
+COMPLETED_STATUSES = {"COMPLETE", "COMPLETED", "FILLED", "EXECUTED"}
 
 def monitor_master_trades(
     db_session: Session,
@@ -117,8 +120,14 @@ def monitor_master_trades(
 
                 seen = seen_order_ids[master.client_id]
                 for order in orders:
-                    order_id = order.get("id") or order.get("order_id") or order.get(
-                        "timestamp"
+                    status = str(order.get("status") or "").upper()
+                    if status and status not in COMPLETED_STATUSES:
+                        continue
+
+                    order_id = (
+                        order.get("id")
+                        or order.get("order_id")
+                        or order.get("timestamp")
                     )
                     # Skip orders that were already published in a previous poll
                     if order_id is not None and str(order_id) in seen:
