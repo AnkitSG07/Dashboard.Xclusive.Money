@@ -31,6 +31,22 @@ class DhanBroker(BrokerBase):
         # Initialize symbol_map if it's expected to be used
         self.symbol_map = kwargs.pop("symbol_map", {}) # Add this line to initialize symbol_map
 
+    def _is_invalid_auth(self, data, status):
+        """Return ``True`` if ``data``/``status`` indicate invalid credentials."""
+        if status == 401:
+            return True
+        if isinstance(data, dict):
+            code = str(data.get("errorCode") or "").upper()
+            err_type = str(data.get("errorType") or "").lower()
+            msg = str(
+                data.get("errorMessage") or data.get("message") or ""
+            ).lower()
+            if err_type == "invalid_authentication" or code in {"DH-901"}:
+                return True
+            if "invalid" in msg and "token" in msg:
+                return True
+        return False
+
     def _normalize_segment(self, seg):
         """Return API-compatible exchange segment string."""
         if not seg or str(seg).upper() in ("ALL", "", "NONE"):
@@ -269,6 +285,17 @@ class DhanBroker(BrokerBase):
                         batch = r.json()
                     except Exception:
                         batch = {}
+                    if self._is_invalid_auth(batch, status):
+                        logger.error(
+                            "Error response from Dhan API at offset %s: %r", offset, batch or r.text
+                        )
+                        return {
+                            "status": "failure",
+                            "error": batch.get("errorMessage")
+                            or batch.get("message")
+                            or "Failed to fetch order list from Dhan API.",
+                            "source": "broker",
+                        }
                     log_fn = logger.warning if offset == 0 and use_pagination else logger.error
                     log_fn(
                         "Error response from Dhan API at offset %s: %r", offset, batch or r.text
@@ -291,6 +318,17 @@ class DhanBroker(BrokerBase):
                 if isinstance(batch, dict) and any(
                     k in batch for k in ("errorCode", "errorMessage", "errorType")
                 ):
+                    if self._is_invalid_auth(batch, status):
+                        logger.error(
+                            "Error response from Dhan API at offset %s: %r", offset, batch
+                        )
+                        return {
+                            "status": "failure",
+                            "error": batch.get("errorMessage")
+                            or batch.get("message")
+                            or "Failed to fetch order list from Dhan API.",
+                            "source": "broker",
+                        }
                     log_fn = logger.warning if offset == 0 and use_pagination else logger.error
                     log_fn(
                         "Error response from Dhan API at offset %s: %r", offset, batch
