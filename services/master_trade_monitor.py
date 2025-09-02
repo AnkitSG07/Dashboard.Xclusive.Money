@@ -97,8 +97,13 @@ def monitor_master_trades(
                     continue
 
                 client_cls = get_broker_client(master.broker)
+                # Pass the access token as a keyword argument so that broker
+                # clients which expect other positional parameters (like
+                # ``api_key`` for AliceBlue) don't receive the token as a
+                # second positional value.  Any additional credentials are
+                # expanded as keyword arguments as well.
                 client = client_cls(
-                    master.client_id, access_token, **credentials
+                    master.client_id, access_token=access_token, **credentials
                 )
                 try:
                     orders = client.list_orders()
