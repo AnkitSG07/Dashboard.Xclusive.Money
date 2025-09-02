@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import time
+import inspect
 from concurrent.futures import ThreadPoolExecutor, wait
 from functools import partial
 from typing import Any, Dict, Iterable, List
@@ -196,6 +197,33 @@ def consume_webhook_events(
                 access_token = credentials.pop("access_token", "")
                 client_id = credentials.pop("client_id", None)
                 credentials.pop("name", None)
+                # Validate that all required credentials are present before
+                # instantiating the broker client.  This avoids cryptic
+                # ``TypeError`` exceptions when mandatory parameters like
+                # ``api_key`` are missing from the configuration.
+                try:
+                    sig = inspect.signature(client_cls)
+                except (TypeError, ValueError):
+                    sig = None
+                if sig is not None:
+                    required = [
+                        p.name
+                        for p in sig.parameters.values()
+                        if p.kind
+                        in (
+                            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                            inspect.Parameter.KEYWORD_ONLY,
+                        )
+                        and p.default is inspect._empty
+                        and p.name not in ("self", "client_id", "access_token")
+                    ]
+                    missing = [p for p in required if p not in credentials]
+                    if missing:
+                        raise ValueError(
+                            "missing required broker credential(s): "
+                            + ", ".join(missing)
+                        )
+
                 client = client_cls(
                     client_id=client_id,
                     access_token=access_token,
