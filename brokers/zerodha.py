@@ -271,6 +271,11 @@ class ZerodhaBroker(BrokerBase):
                 self.access_token = None
                 self.ensure_token()
                 orders = self._kite_call(self.kite.orders, timeout=timeout)
+            if isinstance(orders, list):
+                for o in orders:
+                    o["symbol"] = o.pop("tradingsymbol", "")
+                    o["action"] = o.pop("transaction_type", "")
+                    o["qty"] = o.pop("quantity", 0)
             return {"status": "success", "data": orders}
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": []}
