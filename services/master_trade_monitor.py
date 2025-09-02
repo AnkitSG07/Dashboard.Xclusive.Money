@@ -89,7 +89,13 @@ def monitor_master_trades(
             for master in masters:
                 credentials: Dict[str, Any] = dict(master.credentials or {})
                 access_token = credentials.pop("access_token", "")
-
+                # Some accounts may persist ``client_id`` within the credentials
+                # blob.  Passing it alongside the explicit ``master.client_id``
+                # argument would result in ``TypeError: multiple values for
+                # client_id`` when instantiating the broker client, so drop it
+                # here.
+                credentials.pop("client_id", None)
+                
                 # Skip masters whose credentials are known to be invalid unless
                 # the access token has changed since the last failure.
                 cached_token = invalid_creds.get(master.client_id)
