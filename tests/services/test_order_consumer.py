@@ -238,6 +238,48 @@ def test_consumer_normalizes_camelcase_credentials(monkeypatch):
         )
     ]
 
+def test_consumer_errors_on_missing_api_key(monkeypatch, caplog):
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    class ApiKeyBroker:
+        orders = []
+
+        def __init__(self, client_id, api_key, access_token):
+            self.client_id = client_id
+            self.api_key = api_key
+            self.access_token = access_token
+
+        def place_order(self, **order):
+            ApiKeyBroker.orders.append(order)
+            return {"status": "success", "order_id": "1"}
+
+        def get_order(self, order_id):
+            return {"status": "COMPLETE"}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: ApiKeyBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    reset_metrics()
+    ApiKeyBroker.orders = []
+
+    with caplog.at_level(logging.ERROR):
+        processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+
+    assert processed == 1
+    assert ApiKeyBroker.orders == []
+    assert order_consumer.orders_success._value.get() == 0
+    # The broker failure is counted once for the specific broker and once more
+    # for the overall event which produced no trade events.
+    assert order_consumer.orders_failed._value.get() == 2
+    assert stub.added == []
+    assert "missing required broker credential(s): api_key" in caplog.text
+
 def test_consumer_passes_optional_order_fields(monkeypatch):
     event = {
         "user_id": 1,
