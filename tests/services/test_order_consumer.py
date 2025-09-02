@@ -3,6 +3,7 @@ from marshmallow import ValidationError
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import logging
+import time
 
 def guard(event):
     """Test helper that always allows an event."""
@@ -866,3 +867,62 @@ def test_consumer_logs_error_when_order_id_missing(monkeypatch, caplog):
     assert any("failed to place master order" in r.message for r in caplog.records)
     assert order_consumer.orders_success._value.get() == 0
     assert order_consumer.orders_failed._value.get() >= 1
+
+
+
+def test_slow_broker_logs_late_success(monkeypatch, caplog):
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    class SlowBroker(MockBroker):
+        def place_order(self, **order):
+            time.sleep(0.05)
+            return super().place_order(**order)
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: SlowBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+    monkeypatch.setattr(
+        order_consumer,
+        "get_user_settings",
+        lambda _: {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]},
+    )
+    reset_metrics()
+
+    with caplog.at_level(logging.WARNING):
+        processed = order_consumer.consume_webhook_events(
+            max_messages=1, redis_client=stub, order_timeout=0.01
+        )
+    assert processed == 1
+    assert any("broker order timed out" in r.message for r in caplog.records)
+    time.sleep(0.06)
+    assert any("completed after timeout" in r.message for r in caplog.records)
+
+
+def test_slow_broker_logs_late_failure(monkeypatch, caplog):
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    class FailingSlowBroker(MockBroker):
+        def place_order(self, **order):
+            time.sleep(0.05)
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: FailingSlowBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+    monkeypatch.setattr(
+        order_consumer,
+        "get_user_settings",
+        lambda _: {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]},
+    )
+    reset_metrics()
+
+    with caplog.at_level(logging.WARNING):
+        processed = order_consumer.consume_webhook_events(
+            max_messages=1, redis_client=stub, order_timeout=0.01
+        )
+    assert processed == 1
+    assert any("broker order timed out" in r.message for r in caplog.records)
+    time.sleep(0.06)
+    assert any("failed after timeout" in r.message for r in caplog.records)
