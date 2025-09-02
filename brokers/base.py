@@ -106,7 +106,10 @@ class BrokerBase(ABC):
         if isinstance(resp, dict):
             status = resp.get("status", "success")
             if status != "success":
-                raise RuntimeError(resp.get("error") or "failed to fetch order list")
+                error_msg = resp.get("error") or "failed to fetch order list"
+                if "no data" in str(error_msg).lower():
+                    return []
+                raise RuntimeError(error_msg)
             return resp.get("data", [])
         return resp
 
