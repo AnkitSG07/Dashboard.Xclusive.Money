@@ -8,6 +8,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, wait
+from functools import partial
 from typing import Any, Dict, Iterable, List
 
 from prometheus_client import Counter
@@ -256,11 +257,29 @@ def consume_webhook_events(
                     **{k: v for k, v in order_params.items() if k != "master_accounts"},
                 }
                 return trade_event
-                
+
+
+            def _late_completion(cfg, fut):
+                try:
+                    result = fut.result()
+                    log.warning(
+                        "broker %s completed after timeout: %s",
+                        cfg["name"],
+                        result,
+                    )
+                except BaseException as exc:
+                    log.warning(
+                        "broker %s failed after timeout: %s",
+                        cfg["name"],
+                        exc,
+                        exc_info=exc,
+                    )
+
             trade_events: List[Dict[str, Any]] = []
             if brokers:
                 futures = {executor.submit(submit, cfg): cfg for cfg in brokers}
                 done, pending = wait(futures, timeout=order_timeout)
+                timed_out = []
                 for future in done:
                     cfg = futures[future]
                     try:
@@ -278,7 +297,10 @@ def consume_webhook_events(
                     log.warning(
                         "broker order timed out", extra={"event": event, "broker": cfg}
                     )
-                    future.cancel()
+                    if not future.cancel():
+                        timed_out.append((future, cfg))
+                for fut, cfg in timed_out:
+                    fut.add_done_callback(partial(_late_completion, cfg))
             else:
                 # Provide explicit feedback when no brokers are configured for a user.
                 orders_failed.inc()
