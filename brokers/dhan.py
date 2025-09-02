@@ -269,9 +269,16 @@ class DhanBroker(BrokerBase):
                         batch = r.json()
                     except Exception:
                         batch = {}
-                    logger.error(
+                    log_fn = logger.warning if offset == 0 and use_pagination else logger.error
+                    log_fn(
                         "Error response from Dhan API at offset %s: %r", offset, batch or r.text
                     )
+                    if offset == 0 and use_pagination:
+                        # Some Dhan accounts reject offset/limit parameters.
+                        # Fall back to a single non-paginated request.
+                        return self.get_order_list(
+                            use_pagination=False
+                        )
                     return {
                         "status": "partial_failure" if all_orders else "failure",
                         "error": batch.get("errorMessage")
@@ -284,9 +291,16 @@ class DhanBroker(BrokerBase):
                 if isinstance(batch, dict) and any(
                     k in batch for k in ("errorCode", "errorMessage", "errorType")
                 ):
-                    logger.error(
+                    log_fn = logger.warning if offset == 0 and use_pagination else logger.error
+                    log_fn(
                         "Error response from Dhan API at offset %s: %r", offset, batch
                     )
+                    if offset == 0 and use_pagination:
+                        # Retry without pagination if the API rejects the request
+                        # structure that includes offset/limit parameters.
+                        return self.get_order_list(
+                            use_pagination=False
+                        )
                     return {
                         "status": "partial_failure" if all_orders else "failure",
                         "error": batch.get("errorMessage")
