@@ -579,6 +579,29 @@ def test_replicate_to_children_logs_warning_for_timeout(monkeypatch, caplog):
     )
 
 
+def test_replicate_to_children_logs_late_completion(monkeypatch, caplog):
+    master = SimpleNamespace(client_id="m")
+    child = SimpleNamespace(broker="mock", client_id="slow", credentials={}, multiplier=1)
+    order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
+
+    monkeypatch.setattr(
+        trade_copier, "active_children_for_master", lambda m, s: [child]
+    )
+
+    def processor(master, child, order):
+        time.sleep(0.02)
+    async def runner():
+        await _replicate_to_children(None, master, order, processor, timeout=0.01)
+        await asyncio.sleep(0.05)
+
+    with caplog.at_level("WARNING"):
+        asyncio.run(runner())
+
+    assert any(
+        r.levelname == "WARNING" and "copy completed after timeout" in r.message
+        for r in caplog.records
+    )
+
 
 def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
     master = SimpleNamespace(client_id="m")
@@ -656,6 +679,41 @@ def test_poll_and_copy_trades_reads_max_workers_env(monkeypatch):
     trade_copier.poll_and_copy_trades(session, max_messages=1, redis_client=redis)
 
     assert calls == [7]
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "none", "NONE"])
+def test_poll_and_copy_trades_disables_child_timeout(monkeypatch, value):
+    master = SimpleNamespace(client_id="m")
+    session = DummySession(master)
+
+    class OneRedis(StubRedis):
+        def xreadgroup(self, group, consumer, streams, count, block):
+            if self.calls == 0:
+                self.calls += 1
+                return [("trade_events", [(b"1", {b"master_id": b"m"})])]
+            return []
+
+    redis = OneRedis()
+    seen = []
+
+    async def fake_rep(
+        db_session,
+        master,
+        event,
+        processor,
+        *,
+        executor=None,
+        max_workers=None,
+        timeout=None,
+    ):
+        seen.append(timeout)
+
+    monkeypatch.setenv("TRADE_COPIER_TIMEOUT", value)
+    monkeypatch.setattr(trade_copier, "_replicate_to_children", fake_rep)
+
+    trade_copier.poll_and_copy_trades(session, max_messages=1, redis_client=redis)
+
+    assert seen == [None]
 
 
 def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
