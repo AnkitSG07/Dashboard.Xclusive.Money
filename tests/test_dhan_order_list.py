@@ -50,3 +50,25 @@ def test_get_order_list_invalid_auth_does_not_retry(monkeypatch):
     assert 'invalid' in result['error'].lower()
     # ensure we did not retry with non-paginated request
     assert len(calls) == 1
+
+
+
+def test_list_orders_normalizes_status(monkeypatch):
+    sample = [
+        {"orderId": "1", "orderStatus": "COMPLETE"},
+        {"order_id": "2", "orderStatus": "REJECTED"},
+    ]
+
+    def fake_get_order_list(self, **kwargs):
+        return {"status": "success", "data": sample}
+
+    monkeypatch.setattr(DhanBroker, "get_order_list", fake_get_order_list)
+
+    br = DhanBroker("C1", "token")
+    orders = br.list_orders()
+
+    assert isinstance(orders, list) and len(orders) == 2
+    assert orders[0]["status"] == "COMPLETE"
+    assert orders[0]["orderId"] == "1"
+    assert orders[1]["orderId"] == "2"
+    assert orders[1]["status"] == "REJECTED"
