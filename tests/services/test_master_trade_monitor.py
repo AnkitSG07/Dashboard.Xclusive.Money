@@ -343,3 +343,59 @@ def test_poll_interval_from_env(monkeypatch):
     )
 
     assert calls == [0.01]
+
+
+def test_zerodha_manual_orders_published_once(monkeypatch):
+    order = {
+        "order_id": "1",
+        "tradingsymbol": "AAPL",
+        "transaction_type": "BUY",
+        "quantity": 1,
+        "status": "COMPLETE",
+    }
+
+    class DummyKite:
+        def __init__(self, api_key):
+            self.api_key = api_key
+
+        def set_access_token(self, token):
+            pass
+
+        def orders(self, timeout=None):
+            return [dict(order)]
+
+    import brokers.zerodha as zerodha
+
+    monkeypatch.setattr(zerodha, "KiteConnect", lambda api_key: DummyKite(api_key))
+    monkeypatch.setattr(zerodha.ZerodhaBroker, "ensure_token", lambda self: None)
+    monkeypatch.setattr(
+        zerodha.ZerodhaBroker,
+        "_kite_call",
+        lambda self, func, *args, **kwargs: func(*args, **kwargs),
+    )
+
+    master = SimpleNamespace(
+        client_id="m",
+        broker="zerodha",
+        credentials={"access_token": "t", "api_key": "k"},
+        role="master",
+    )
+    session = SessionStub(master, [])
+    redis = RedisStub()
+
+    monkeypatch.setattr(
+        master_trade_monitor, "get_broker_client", lambda name: zerodha.ZerodhaBroker
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=2, poll_interval=0
+    )
+
+    assert len(redis.stream) == 1
+    event = redis.stream[0][1]
+    assert event == {
+        "master_id": "m",
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": "1",
+    }
