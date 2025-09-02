@@ -164,6 +164,14 @@ async def _replicate_to_children(
                 broker_name,
                 extra={"child": client_id, "broker": broker_name},
             )
+        except asyncio.CancelledError:
+            log.warning(
+                "child %s (%s) copy cancelled after timeout",
+                client_id,
+                broker_name,
+                extra={"child": client_id, "broker": broker_name},
+            )
+            return
         except Exception as exc:
             msg = str(exc)
             log.warning(
