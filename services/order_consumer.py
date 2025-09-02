@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, wait
 from functools import partial
@@ -180,10 +181,18 @@ def consume_webhook_events(
                 )
                 orders_failed.inc()
                 return
-                
+
+            def _normalize_keys(data: Dict[str, Any]) -> Dict[str, Any]:
+                """Return a dict with camelCase keys converted to snake_case."""
+                normalized: Dict[str, Any] = {}
+                for key, value in data.items():
+                    new_key = re.sub(r"([A-Z])", lambda m: "_" + m.group(1).lower(), key)
+                    normalized[new_key] = value
+                return normalized
+
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
                 client_cls = get_broker_client(broker_cfg["name"])
-                credentials = dict(broker_cfg)
+                credentials = _normalize_keys(dict(broker_cfg))
                 access_token = credentials.pop("access_token", "")
                 client_id = credentials.pop("client_id", None)
                 credentials.pop("name", None)
