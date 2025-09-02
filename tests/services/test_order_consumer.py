@@ -190,6 +190,54 @@ def test_consumer_handles_api_key_and_client_id(monkeypatch):
         )
     ]
 
+
+def test_consumer_normalizes_camelcase_credentials(monkeypatch):
+    """Credentials with camelCase keys should be accepted."""
+    event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+
+    captured = {}
+
+    class CamelBroker:
+        def __init__(self, client_id, api_key, access_token):
+            captured["client_id"] = client_id
+            captured["api_key"] = api_key
+            captured["access_token"] = access_token
+
+        def place_order(self, **order):
+            return {"status": "success", "order_id": "1"}
+
+        def get_order(self, order_id):
+            return {"status": "COMPLETE"}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: CamelBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {
+            "brokers": [
+                {
+                    "name": "mock",
+                    "clientId": "c",
+                    "accessToken": "t",
+                    "apiKey": "k",
+                }
+            ]
+        }
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert captured == {"client_id": "c", "api_key": "k", "access_token": "t"}
+    assert stub.added == [
+        (
+            "trade_events",
+            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+        )
+    ]
+
 def test_consumer_passes_optional_order_fields(monkeypatch):
     event = {
         "user_id": 1,
