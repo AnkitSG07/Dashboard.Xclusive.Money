@@ -74,7 +74,12 @@ def test_add_account_updates_alert_guard(client, monkeypatch):
         user = User.query.filter_by(email="test@example.com").first()
     assert captured["user_id"] == user.id
     assert captured["settings"]["brokers"] == [
-        {"name": "finvasia", "client_id": "FIN123", "access_token": "tok"}
+        {
+            "name": "finvasia",
+            "client_id": "FIN123",
+            "access_token": "tok",
+            "api_key": "a",
+        }
     ]
     assert captured["settings"]["max_qty"] == 5
 
@@ -128,6 +133,11 @@ def test_update_account_updates_alert_guard(client, monkeypatch):
         user = User.query.filter_by(email="test@example.com").first()
     assert captured["user_id"] == user.id
     assert captured["settings"]["brokers"] == [
-        {"name": "finvasia", "client_id": "FIN124", "access_token": "tok"}
+        {
+            "name": "finvasia",
+            "client_id": "FIN124",
+            "access_token": "tok",
+            "api_key": "a",
+        }
     ]
     assert captured["settings"]["max_qty"] == 1
