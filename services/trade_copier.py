@@ -38,7 +38,8 @@ log = logging.getLogger(__name__)
 DEFAULT_MAX_WORKERS = 10
 # Default per-child broker submission timeout in seconds. The value can be
 # overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
-# for brokers with slower APIs.
+# for brokers with slower APIs.  Setting the variable to ``0``, a negative
+# number or ``"none"`` disables the timeout entirely.
 DEFAULT_CHILD_TIMEOUT = 20.0
 
 def _load_symbol_map_or_exit() -> None:
@@ -190,7 +191,8 @@ async def _replicate_to_children(
             orig_fut = loop.run_in_executor(
                 executor, processor, master, child, order
             )
-            wrapped = asyncio.wait_for(orig_fut, timeout) if timeout is not None else orig_fut
+            shielded = asyncio.shield(orig_fut)
+            wrapped = asyncio.wait_for(shielded, timeout) if timeout is not None else shielded
             async_tasks.append((child, wrapped, orig_fut))
 
         results = await asyncio.gather(
@@ -200,10 +202,8 @@ async def _replicate_to_children(
         for (child, _wrapped, orig_fut), result in zip(async_tasks, results):
             client_id = getattr(child, "client_id", None)
             if isinstance(result, (asyncio.TimeoutError, TimeoutError)):
-                if isinstance(result, asyncio.TimeoutError):
-                    cancelled = orig_fut.cancel()
-                    if not cancelled:
-                        timed_out.append((child, orig_fut))
+                if isinstance(result, asyncio.TimeoutError) and not orig_fut.done():
+                    timed_out.append((child, orig_fut))
                 log.warning(
                     "child %s copy timed out; order may still have executed",
                     client_id,
@@ -276,7 +276,8 @@ def poll_and_copy_trades(
     child_timeout:
         Maximum time in seconds to wait for each child broker submission.
         Defaults to the ``TRADE_COPIER_TIMEOUT`` environment variable or
-        ``20`` seconds if unset.
+        ``20`` seconds if unset.  Values of ``0``, negative numbers or the
+        string ``"none"`` disable the timeout.
 
     Returns
     -------
@@ -288,11 +289,19 @@ def poll_and_copy_trades(
     max_workers = max_workers or int(
         os.getenv("TRADE_COPIER_MAX_WORKERS", str(DEFAULT_MAX_WORKERS))
     )
-    child_timeout = (
-        child_timeout
-        if child_timeout is not None
-        else float(os.getenv("TRADE_COPIER_TIMEOUT", str(DEFAULT_CHILD_TIMEOUT)))
-    )
+    if child_timeout is None:
+        env_timeout = os.getenv("TRADE_COPIER_TIMEOUT", str(DEFAULT_CHILD_TIMEOUT))
+        env_timeout = env_timeout.strip().lower()
+        if env_timeout in {"none", ""}:
+            child_timeout = None
+        else:
+            try:
+                parsed = float(env_timeout)
+            except ValueError:
+                parsed = DEFAULT_CHILD_TIMEOUT
+            child_timeout = None if parsed <= 0 else parsed
+    elif child_timeout <= 0:
+        child_timeout = None
 
     executor = ThreadPoolExecutor(max_workers=max_workers)
     try:
