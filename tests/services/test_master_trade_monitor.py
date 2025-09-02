@@ -199,6 +199,47 @@ def test_duplicate_orders_not_republished(monkeypatch):
 
     assert len(redis.stream) == 1
 
+def test_credentials_with_embedded_client_id(monkeypatch):
+    """Ensure a client_id stored inside credentials doesn't break instantiation."""
+    BrokerStub.placed = []
+    order = {"id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1}
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"client_id": "ignored", "access_token": "", "orders": [order]},
+        role="master",
+        user_id=1,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="c1",
+        credentials={},
+        multiplier=1,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    processed = trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=1,
+    )
+
+    assert processed == 1
+    assert BrokerStub.placed == [
+        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
+    ]
+
 
 def test_dhan_orders_are_published_and_copied(monkeypatch):
     BrokerStub.placed = []
