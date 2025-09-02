@@ -166,7 +166,15 @@ class FyersBroker(BrokerBase):
             if not isinstance(data, list):
                 data = []
 
-            return {"status": "success", "data": data}
+            normalized_orders = []
+            for o in data:
+                o["action"] = "BUY" if o.get("side") == 1 else "SELL"
+                o["order_type"] = "MARKET" if o.get("type") == 2 else "LIMIT"
+                o["exchange"] = o.get("exchange") or o.get("symbol", "").split(":")[0]
+                o["symbol"] = o.get("symbol", "").split(":")[-1]
+                normalized_orders.append(o)
+
+            return {"status": "success", "data": normalized_orders}
 
         except Exception as e:
             return {"status": "failure", "error": str(e), "data": []}
