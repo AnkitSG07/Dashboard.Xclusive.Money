@@ -127,6 +127,7 @@ def monitor_master_trades(
                     order_id = (
                         order.get("id")
                         or order.get("order_id")
+                        or order.get("norenordno")
                         or order.get("timestamp")
                     )
                     # Skip orders that were already published in a previous poll
