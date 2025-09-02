@@ -20,6 +20,7 @@ from .webhook_receiver import redis_client, get_redis_client
 from .utils import _decode_event
 from .db import get_session
 from models import Strategy, Account
+from .master_trade_monitor import COMPLETED_STATUSES
 
 log = logging.getLogger(__name__)
 
@@ -219,6 +220,37 @@ def consume_webhook_events(
                     )
                 if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
                     raise RuntimeError(f"broker order failed: {result}")
+                status = None
+                try:
+                    if hasattr(client, "get_order"):
+                        info = client.get_order(order_id)
+                        if isinstance(info, dict):
+                            status = info.get("status") or info.get("data", {}).get("status")
+                    elif hasattr(client, "list_orders"):
+                        orders = client.list_orders()
+                        for order in orders:
+                            oid = (
+                                order.get("id")
+                                or order.get("order_id")
+                                or order.get("orderId")
+                                or order.get("data", {}).get("order_id")
+                            )
+                            if str(oid) == str(order_id):
+                                status = order.get("status") or order.get("data", {}).get("status")
+                                break
+                except Exception:
+                    log.warning(
+                        "failed to fetch order status",
+                        extra={"order_id": order_id},
+                        exc_info=True,
+                    )
+                if status is None or str(status).upper() not in COMPLETED_STATUSES:
+                    log.info(
+                        "skipping trade event due to incomplete status",
+                        extra={"order_id": order_id, "status": status},
+                    )
+                    return None
+
                 trade_event = {
                     "master_id": client_id,
                     **{k: v for k, v in order_params.items() if k != "master_accounts"},
@@ -232,7 +264,9 @@ def consume_webhook_events(
                 for future in done:
                     cfg = futures[future]
                     try:
-                        trade_events.append(future.result())
+                        trade_event = future.result()
+                        if trade_event:
+                            trade_events.append(trade_event)
                     except Exception:
                         orders_failed.inc()
                         log.exception(
