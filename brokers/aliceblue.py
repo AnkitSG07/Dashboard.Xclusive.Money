@@ -224,19 +224,55 @@ class AliceBlueBroker(BrokerBase):
             return {"status": "failure", "error": str(e)}
 
     def get_order_list(self):
-        """Fetch Alice Blue trade book and return it as an order list.
-
-        Alice Blue's "order book" endpoint often leaves completed trades in a
-        pending state, which causes confusion in the dashboard.  Instead of
-        using the order book API we call ``fetchTradeBook`` and expose the
-        resulting trades under the ``orders`` key so the rest of the
-        application can treat them like an order book.
-        """
+        """Return a normalized order list based on the trade book."""
 
         trade_resp = self.get_trade_book()
-        if isinstance(trade_resp, dict) and trade_resp.get("status") == "success":
-            return {"status": "success", "orders": trade_resp.get("trades", [])}
-        return trade_resp
+        if not (
+            isinstance(trade_resp, dict) and trade_resp.get("status") == "success"
+        ):
+            return trade_resp
+
+        orders = []
+        for trade in trade_resp.get("trades", []):
+            order_id = (
+                trade.get("NOrdNo")
+                or trade.get("nestOrderNumber")
+                or trade.get("Nstordno")
+                or trade.get("nestorderno")
+                or trade.get("ExchOrdID")
+            )
+            if isinstance(order_id, str):
+                order_id = order_id.strip()
+
+            status = trade.get("status") or trade.get("Status")
+            if not status:
+                filled = (
+                    trade.get("Fillshares")
+                    or trade.get("filledQty")
+                    or trade.get("filled_qty")
+                )
+                try:
+                    status = "COMPLETE" if float(filled or 0) > 0 else "PENDING"
+                except (TypeError, ValueError):
+                    status = "PENDING"
+
+            orders.append({"order_id": order_id, "status": str(status).upper(), **trade})
+
+        return {"status": "success", "data": orders, "orders": orders}
+
+    def get_order(self, order_id):
+        """Return details for a single order if available."""
+
+        for order in self.list_orders():
+            oid = (
+                order.get("order_id")
+                or order.get("id")
+                or order.get("orderId")
+                or order.get("order_id")
+            )
+            if str(oid) == str(order_id):
+                return order
+        return {}
 
     def get_trade_book(self):
         """Fetch the trade book which includes filled quantity information."""
