@@ -40,3 +40,26 @@ def test_place_order_accepts_generic_params(monkeypatch):
     assert payload["trading_symbol"] == "AAPL"
     assert payload["qty"] == 5
     assert payload["transtype"] == "BUY"
+
+def test_place_order_handles_nordno(monkeypatch):
+    def fake_auth(self):
+        self.session_id = "SID"
+        self.headers = {}
+
+    monkeypatch.setattr(AliceBlueBroker, "authenticate", fake_auth, raising=False)
+
+    def fake_request(self, method, url, **kwargs):
+        return Resp([{"stat": "Ok", "NOrdNo": "10"}])
+
+    monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
+
+    def fake_mapper(symbol, broker):
+        return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
+
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+
+    br = AliceBlueBroker("C1", "token")
+    result = br.place_order(symbol="AAPL", action="BUY", qty=1)
+
+    assert result["status"] == "success"
+    assert result["order_id"] == "10"
