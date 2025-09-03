@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import pytest
 
 from services import master_trade_monitor, trade_copier
 
@@ -440,3 +441,43 @@ def test_zerodha_manual_orders_published_once(monkeypatch):
         "action": "BUY",
         "qty": "1",
     }
+
+@pytest.mark.parametrize(
+    "status", ["FULL_EXECUTED", "FULLY_EXECUTED", "CONFIRMED", "SUCCESS", "2"]
+)
+def test_orders_with_new_completed_statuses_published(monkeypatch, status):
+    order = {
+        "id": "1",
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "status": status,
+    }
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+    )
+    session = SessionStub(master, [])
+    redis = RedisStub()
+
+    monkeypatch.setattr(
+        master_trade_monitor, "get_broker_client", fake_get_broker_client
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    assert redis.stream == [
+        (
+            b"1",
+            {
+                "master_id": "m",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": "1",
+            },
+        )
+    ]
