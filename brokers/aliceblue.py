@@ -204,8 +204,11 @@ class AliceBlueBroker(BrokerBase):
                 return {"status": "failure", "error": r.text}
             if isinstance(resp, list):
                 resp = resp[0] if resp else {}
+            status = str(resp.get("stat", "")).strip().lower()
             order_id = resp.get("nestOrderNumber") or resp.get("NOrdNo")
-            if resp.get("stat", "").lower() == "ok" and order_id:
+            if isinstance(order_id, str):
+                order_id = order_id.strip()
+            if status == "ok" and order_id:
                 return {"status": "success", "order_id": order_id, **resp}
             else:
                 # Try to extract the most meaningful error message available
