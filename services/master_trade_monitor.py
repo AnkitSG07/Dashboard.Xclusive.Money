@@ -32,6 +32,11 @@ COMPLETED_STATUSES = {
     "FILLED",
     "EXECUTED",
     "TRADED",
+    "FULL_EXECUTED",
+    "FULLY_EXECUTED",
+    "2",
+    "CONFIRMED",
+    "SUCCESS",
 }
 
 def monitor_master_trades(
