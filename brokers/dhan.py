@@ -419,16 +419,13 @@ class DhanBroker(BrokerBase):
         return {"status": "success", "data": all_orders}
 
     def list_orders(self, **kwargs):
-        """Return a list of orders with ``status`` and ``orderId`` fields.
+        """Return a list of orders with canonical field names.
 
-        The base :class:`BrokerBase` provides a ``list_orders`` helper, but it
-        simply returns whatever structure the underlying ``get_order_list``
-        method exposes.  Dhan's API uses ``orderStatus`` and sometimes
-        ``order_id`` for these fields which means callers such as
-        :mod:`services.order_consumer` cannot reliably determine the completion
-        state of an order.  This override normalises the response so each order
-        dictionary contains ``status`` and ``orderId`` keys regardless of the
-        original naming used by the API.
+        Dhan's API uses a mixture of naming conventions (e.g. ``orderStatus``
+        vs ``status``) and data types.  This override normalises each order so
+        callers can rely on the standard keys used throughout the project:
+        ``symbol``, ``action``, ``qty``, ``exchange``, ``order_type``,
+        ``status`` and ``order_id``.
         """
 
         resp = self.get_order_list(**kwargs)
@@ -444,11 +441,38 @@ class DhanBroker(BrokerBase):
             if not isinstance(o, dict):
                 continue
             order = dict(o)
-            if "status" not in order and order.get("orderStatus") is not None:
-                order["status"] = order.get("orderStatus")
-            if "orderId" not in order and order.get("order_id") is not None:
-                order["orderId"] = order.get("order_id")
+            symbol = order.get("tradingSymbol") or order.get("tradingsymbol") or order.get("symbol")
+            if symbol is not None:
+                order["symbol"] = str(symbol)
+
+            action = order.get("transactionType") or order.get("action")
+            if action is not None:
+                order["action"] = str(action).upper()
+
+            qty = order.get("quantity") or order.get("orderQty") or order.get("qty")
+            try:
+                order["qty"] = int(qty)
+            except (TypeError, ValueError):
+                pass
+
+            exchange = order.get("exchangeSegment") or order.get("exchange")
+            if exchange is not None:
+                order["exchange"] = str(exchange).upper()
+
+            order_type = order.get("orderType") or order.get("order_type")
+            if order_type is not None:
+                order["order_type"] = str(order_type).upper()
+
+            status = order.get("status") or order.get("orderStatus")
+            if status is not None:
+                order["status"] = str(status).upper()
+
+            order_id = order.get("orderId") or order.get("order_id")
+            if order_id is not None:
+                order["order_id"] = str(order_id)
+                
             normalized.append(order)
+            
         return normalized
 
     def cancel_order(self, order_id):
