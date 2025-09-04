@@ -469,6 +469,7 @@ class DhanBroker(BrokerBase):
 
             order_id = order.get("orderId") or order.get("order_id")
             if order_id is not None:
+                order["orderId"] = str(order_id)
                 order["order_id"] = str(order_id)
                 
             normalized.append(order)
