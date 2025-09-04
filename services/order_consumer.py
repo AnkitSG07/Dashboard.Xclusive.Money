@@ -39,6 +39,7 @@ orders_failed = Counter(
 
 DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
 
+REJECTED_STATUSES = {"REJECTED", "CANCELLED", "CANCELED", "FAILED"}
 
 def consume_webhook_events(
     *,
@@ -282,13 +283,19 @@ def consume_webhook_events(
                         extra={"order_id": order_id},
                         exc_info=True,
                     )
-                if status is None or str(status).upper() not in COMPLETED_STATUSES:
+                status_upper = str(status).upper() if status is not None else None
+                if status_upper in REJECTED_STATUSES:
                     log.info(
-                        "skipping trade event due to incomplete status",
+                        "skipping trade event due to rejected status",
                         extra={"order_id": order_id, "status": status},
                     )
                     return None
-
+                if status_upper not in COMPLETED_STATUSES:
+                    log.info(
+                        "publishing trade event with incomplete status",
+                        extra={"order_id": order_id, "status": status},
+                    )
+                    
                 trade_event = {
                     "master_id": client_id,
                     **{k: v for k, v in order_params.items() if k != "master_accounts"},
