@@ -231,8 +231,9 @@ def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed
             b
             for b in brokers
             if not (
-                b.get("name") == account.broker
-                and b.get("client_id") == account.client_id
+                str(b.get("name", "")).lower() == (account.broker or "").lower()
+                and str(b.get("client_id", "")).lower()
+                == str(account.client_id or "").lower()
             )
         ]
         broker_info = {
@@ -5103,16 +5104,18 @@ def update_account():
         acc_db.last_login_time = datetime.utcnow()
         db.session.commit()
         clear_connection_error_logs(acc_db)
-        _update_alert_guard(
-            db_user.id,
-            acc_db,
-            max_qty=data.get("max_qty"),
-            allowed_symbols=data.get("allowed_symbols"),
-        )
     except Exception as e:
         db.session.rollback()
         logger.error(f"Failed to update account {client_id}: {str(e)}")
         return jsonify({"error": f"Failed to update account: {str(e)}"}), 500
+
+    _update_alert_guard(
+        db_user.id,
+        acc_db,
+        max_qty=data.get("max_qty"),
+        allowed_symbols=data.get("allowed_symbols"),
+    )
+
 
     return jsonify({"message": f"Account {client_id} updated."})
 
