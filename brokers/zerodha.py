@@ -280,6 +280,62 @@ class ZerodhaBroker(BrokerBase):
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": []}
 
+    def list_orders(self, **kwargs):
+        """Return a list of orders with canonical field names.
+
+        Zerodha orders use ``tradingsymbol``/``transaction_type``/``quantity`` and
+        other broker-specific keys.  This helper maps each order to the common
+        structure used throughout the project and upper-cases status values.
+        """
+
+        resp = self.get_order_list(**kwargs)
+        if isinstance(resp, dict):
+            if resp.get("status") != "success":
+                raise RuntimeError(resp.get("error") or "failed to fetch order list")
+            orders = resp.get("data", [])
+        else:
+            orders = resp
+
+        normalized = []
+        for o in orders:
+            if not isinstance(o, dict):
+                continue
+            order = dict(o)
+
+            symbol = order.get("symbol") or order.get("tradingsymbol")
+            if symbol is not None:
+                order["symbol"] = str(symbol)
+
+            action = order.get("action") or order.get("transaction_type")
+            if action is not None:
+                order["action"] = str(action).upper()
+
+            qty = order.get("qty") or order.get("quantity")
+            try:
+                order["qty"] = int(qty)
+            except (TypeError, ValueError):
+                pass
+
+            exchange = order.get("exchange")
+            if exchange is not None:
+                order["exchange"] = str(exchange).upper()
+
+            order_type = order.get("order_type")
+            if order_type is not None:
+                order["order_type"] = str(order_type).upper()
+
+            status = order.get("status")
+            if status is not None:
+                order["status"] = str(status).upper()
+
+            order_id = order.get("order_id") or order.get("id")
+            if order_id is not None:
+                order["order_id"] = str(order_id)
+
+            normalized.append(order)
+
+        return normalized
+
     def cancel_order(self, order_id, *, timeout=None):
         self.ensure_token()
         timeout = timeout or self.timeout
