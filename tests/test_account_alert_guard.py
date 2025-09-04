@@ -141,3 +141,56 @@ def test_update_account_updates_alert_guard(client, monkeypatch):
         }
     ]
     assert captured["settings"]["max_qty"] == 1
+
+def test_update_account_case_insensitive_replace(client, monkeypatch):
+    app = app_module.app
+
+    class DummyBroker:
+        def __init__(self, *a, **k):
+            self.access_token = "tok"
+
+        def check_token_valid(self):
+            return True
+
+    monkeypatch.setattr(app_module, "get_broker_class", lambda name: DummyBroker)
+    monkeypatch.setattr(app_module, "get_user_settings", lambda uid: {})
+    monkeypatch.setattr(app_module, "update_user_settings", lambda *a, **k: None)
+
+    data = {
+        "broker": "finvasia",
+        "client_id": "FIN124",
+        "username": "u",
+        "password": "p",
+        "totp_secret": "t",
+        "vendor_code": "v",
+        "api_key": "a",
+        "imei": "i",
+    }
+    assert client.post("/api/add-account", json=data).status_code == 200
+
+    captured = {}
+    monkeypatch.setattr(
+        app_module,
+        "get_user_settings",
+        lambda uid: {
+            "brokers": [
+                {"name": "FINVASIA", "client_id": "fin124", "access_token": "old"}
+            ]
+        },
+    )
+
+    def fake_update(user_id, settings):
+        captured["settings"] = settings
+
+    monkeypatch.setattr(app_module, "update_user_settings", fake_update)
+
+    resp = client.post("/api/update-account", json={"client_id": "FIN124"})
+    assert resp.status_code == 200
+    assert captured["settings"]["brokers"] == [
+        {
+            "name": "finvasia",
+            "client_id": "FIN124",
+            "access_token": "tok",
+            "api_key": "a",
+        }
+    ]
