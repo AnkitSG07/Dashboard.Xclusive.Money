@@ -113,10 +113,10 @@ def monitor_master_trades(
                 # ``api_key`` for AliceBlue) don't receive the token as a
                 # second positional value.  Any additional credentials are
                 # expanded as keyword arguments as well.
-                client = client_cls(
-                    master.client_id, access_token=access_token, **credentials
-                )
                 try:
+                    client = client_cls(
+                        master.client_id, access_token=access_token, **credentials
+                    )
                     orders = client.list_orders()
                     # If we successfully fetched orders, clear any cached
                     # invalid credential flag for this master.
