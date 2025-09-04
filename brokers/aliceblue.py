@@ -223,7 +223,7 @@ class AliceBlueBroker(BrokerBase):
         except Exception as e:
             return {"status": "failure", "error": str(e)}
 
-    def get_order_list(self):
+    def get_order_list(self, **kwargs):
         """Return a normalized order list based on the trade book."""
 
         trade_resp = self.get_trade_book()
@@ -251,8 +251,19 @@ class AliceBlueBroker(BrokerBase):
                     or trade.get("filledQty")
                     or trade.get("filled_qty")
                 )
+                qty = trade.get("Qty") or trade.get("qty") or trade.get("quantity")
                 try:
-                    status = "COMPLETE" if float(filled or 0) > 0 else "PENDING"
+                    filled = float(filled or 0)
+                    qty = float(qty or 0)
+                    if qty > 0:
+                        if filled >= qty:
+                            status = "COMPLETE"
+                        elif filled > 0:
+                            status = "PARTIAL"
+                        else:
+                            status = "PENDING"
+                    else:
+                        status = "COMPLETE" if filled > 0 else "PENDING"
                 except (TypeError, ValueError):
                     status = "PENDING"
 
