@@ -242,6 +242,11 @@ window.pageScripts["Add-Account"] = function() {
   let editingAccountId = null;
   let currentBrokerSelected = null; // Track the currently selected broker in the form
   let autoLoginResults = {}; // Track auto-login results per account
+
+  function getSelectedBroker() {
+    const selected = document.querySelector('.broker-item.selected');
+    return selected ? selected.dataset.broker : null;
+  }
     
   // === Utility Functions ===
   function fetchJson(url, options = {}) {
@@ -532,8 +537,9 @@ window.pageScripts["Add-Account"] = function() {
     const data = {};
     for (const [key, value] of formData.entries()) data[key] = value;
 
-    if (!currentBrokerSelected) { showToast('Please select a broker.', 'warning'); return; }
-    data['broker'] = currentBrokerSelected;
+    const selectedBroker = getSelectedBroker();
+    if (!selectedBroker) { showToast('Please select a broker.', 'warning'); return; }
+    data['broker'] = selectedBroker;
 
     if (data['broker'] === 'zerodha') {
       fetchJson('/api/init-zerodha-login', {
