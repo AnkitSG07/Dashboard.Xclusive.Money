@@ -335,15 +335,35 @@ window.pageScripts["Add-Account"] = function() {
     fields.forEach(f => {
       const isRequired = f.optional ? '' : 'required';
       const ph = f.placeholder || f.label;
-      
-      formHtml += `
+      if (f.type === 'password') {
+        formHtml += `
+        <div class="form-group">
+            <label for="${f.name}">${f.label}</label>
+            <div class="input-group">
+                <input class="form-control" name="${f.name}" type="password" id="${f.name}" placeholder="${ph}" ${isRequired}>
+                <span class="input-group-text toggle-password" data-target="${f.name}" style="cursor: pointer;"><i class="bi bi-eye"></i></span>
+            </div>
+        </div>`;
+      } else {
+        formHtml += `
         <div class="form-group">
             <label for="${f.name}">${f.label}</label>
             <input class="form-control" name="${f.name}" type="${f.type}" id="${f.name}" placeholder="${ph}" ${isRequired}>
         </div>`;
+      }
     });
 
     container.innerHTML = formHtml;
+    container.querySelectorAll('.toggle-password').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const target = container.querySelector(`#${this.dataset.target}`);
+        if (target) {
+          const show = target.type === 'password';
+          target.type = show ? 'text' : 'password';
+          this.innerHTML = show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+        }
+      });
+    });
     if (submitBtn) submitBtn.style.display = "inline-flex";
     if (formActions) formActions.style.display = 'flex';
   }
@@ -615,7 +635,7 @@ window.pageScripts["Add-Account"] = function() {
         const inp = form.querySelector(`input[name="${k}"]`);
         if (inp) {
           inp.value = v;
-          if (k === 'client_id' || k === 'api_key' || k === 'access_token') {
+          if (k === 'client_id') {
             inp.readOnly = true;
             inp.classList.add('bg-light');
           }
