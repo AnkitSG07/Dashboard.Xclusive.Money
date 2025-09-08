@@ -103,9 +103,17 @@ def _load_zerodha() -> Dict[Key, str]:
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, str] = {}
     for row in reader:
-        if row["segment"] in {"NSE", "BSE"} and row["instrument_type"] == "EQ":
+        segment = row["segment"].upper()
+        inst_type = row["instrument_type"].upper()
+        if segment in {"NSE", "BSE"} and inst_type == "EQ":
             key = (row["tradingsymbol"], row["exchange"].upper())
-            data[key] = row["instrument_token"]
+        elif segment in {"NFO", "BFO"} and inst_type in {
+            "FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX"
+        }:
+            key = (row["tradingsymbol"], segment)
+        else:
+            continue
+        data[key] = row["instrument_token"]
     return data
 
 
@@ -142,6 +150,13 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
     for (symbol, exchange), token in zerodha.items():
+        is_equity = exchange in {"NSE", "BSE"}
+        if is_equity:
+            ab_symbol = f"{symbol}-EQ"
+            fyers_symbol = f"{exchange}:{symbol}-EQ"
+        else:
+            ab_symbol = symbol
+            fyers_symbol = f"{exchange}:{symbol}"
         entry = {
             "zerodha": {
                 "trading_symbol": symbol,
@@ -149,26 +164,26 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "token": token,
             },
             "aliceblue": {
-                "trading_symbol": f"{symbol}-EQ",
+                "trading_symbol": ab_symbol,
                 "symbol_id": token,
                 "exch": exchange,
             },
             "fyers": {
-                "symbol": f"{exchange}:{symbol}-EQ",
+                "symbol": fyers_symbol,
                 "token": token,
             },
             "finvasia": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
             "flattrade": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
             "acagarwal": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
@@ -183,17 +198,17 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "exchange": exchange,
             },
             "tradejini": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
             "zebu": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
             "enrichmoney": {
-                "symbol": f"{symbol}-EQ",
+                "symbol": ab_symbol,
                 "token": token,
                 "exchange": exchange,
             },
