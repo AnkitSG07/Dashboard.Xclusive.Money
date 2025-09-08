@@ -72,6 +72,16 @@ def test_webhook_defaults_exchange_and_formats_symbol(client):
     assert data["exchange"] == "NSE"
     assert data["symbol"] == "IDEA-EQ"
 
+
+def test_webhook_allows_derivative_symbol(client):
+    client_app, events = client
+    payload = {"symbol": "NIFTY24AUGFUT", "action": "BUY", "qty": 1, "exchange": "NFO"}
+    resp = client_app.post("/webhook/tok1", json=payload)
+    assert resp.status_code == 202
+    assert events
+    _, data = events[0]
+    assert data["symbol"] == "NIFTY24AUGFUT"
+
 def test_enqueue_webhook_redis_failure(monkeypatch):
     class FailingRedis:
         def xadd(self, stream, data):
