@@ -1021,7 +1021,7 @@ def _account_to_dict(acc: Account) -> dict:
         "role": acc.role,
         "linked_master_id": acc.linked_master_id,
         "copy_status": acc.copy_status,
-        "multiplier": acc.multiplier,
+        "copy_qty": acc.copy_qty,
         "copy_value_limit": acc.copy_value_limit,
         "copied_value": acc.copied_value,
         "credentials": acc.credentials,
@@ -1087,7 +1087,7 @@ def orphan_children_without_master(user: User) -> None:
             child.role = None
             child.linked_master_id = None
             child.copy_status = "Off"
-            child.multiplier = 1.0
+            child.copy_qty = None
             child.copy_value_limit = None
             child.copied_value = 0.0
             child.last_copied_trade_id = None
@@ -1392,7 +1392,7 @@ def save_account_to_user(owner: str, account: dict):
         acc.role = account.get("role", acc.role)
         acc.linked_master_id = account.get("linked_master_id", acc.linked_master_id)
         acc.copy_status = account.get("copy_status", acc.copy_status)
-        acc.multiplier = account.get("multiplier", acc.multiplier)
+        acc.copy_qty = account.get("copy_qty", acc.copy_qty)
         acc.copy_value_limit = account.get("copy_value_limit", acc.copy_value_limit)
         acc.copied_value = account.get("copied_value", acc.copied_value)
         acc.credentials = account.get("credentials", acc.credentials)
@@ -1418,7 +1418,7 @@ def save_account_to_user(owner: str, account: dict):
             role=account.get("role"),
             linked_master_id=account.get("linked_master_id"),
             copy_status=account.get("copy_status", "Off"),
-            multiplier=account.get("multiplier", 1.0),
+            copy_qty=account.get("copy_qty"),
             copy_value_limit=account.get("copy_value_limit"),
             copied_value=account.get("copied_value", 0.0),
             credentials=account.get("credentials"),
@@ -2283,7 +2283,7 @@ def _legacy_poll_and_copy_trades():
                                 logger.debug(f"Skipping {symbol} due to missing price")
                                 continue
 
-                        # Determine quantity based on value limit or multiplier
+                        # Determine quantity based on value limit or fixed copy quantity
                         try:
                             value_limit = child.copy_value_limit
                             if value_limit is not None:
@@ -2295,11 +2295,11 @@ def _legacy_poll_and_copy_trades():
                                     continue
                                 copied_qty = qty_limit
 
+                            elif child.copy_qty is not None:
+                                copied_qty = int(child.copy_qty)
+
                             else:
-                                multiplier = float(child.multiplier or 1)
-                                if multiplier <= 0:
-                                    continue
-                                copied_qty = max(1, int(float(filled_qty) * multiplier))
+                                copied_qty = int(filled_qty)
                         except Exception as e:
                             logger.debug(f"Failed to calculate quantity: {e}")
                             continue
@@ -4634,224 +4634,35 @@ def remove_master():
             "details": str(e)
         }), 500
 
-# PATCH for /api/update-multiplier
-@app.route('/api/update-multiplier', methods=['POST'])
+# PATCH for /api/update-copy-qty
+@app.route('/api/update-copy-qty', methods=['POST'])
 @login_required
-def update_multiplier():
-    """Update multiplier for account - Complete Database Version.
-    
-    Expected POST data:
-        {
-            "client_id": "string",
-            "multiplier": float
-        }
+def update_copy_qty():
+    """Update fixed copy quantity for an account."""
+    data = request.get_json() or {}
+    client_id = data.get('client_id')
+    copy_qty = data.get('copy_qty')
+    if not client_id or copy_qty is None:
+        return jsonify({'error': 'Missing client_id or copy_qty'}), 400
         
-    Returns:
-        JSON response with update confirmation or error
-    """
-    logger.info("Processing update multiplier request")
-    
     try:
-        # ✅ STEP 1: Validate request data
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        copy_qty = int(copy_qty)
+        if copy_qty < 1:
+            return jsonify({'error': 'copy_qty must be positive'}), 400
             
-        client_id = data.get("client_id")
-        new_multiplier = data.get("multiplier")
-        
-        if not client_id or new_multiplier is None:
-            logger.error(f"Missing required fields: client_id={bool(client_id)}, multiplier={new_multiplier is not None}")
-            return jsonify({"error": "Missing client_id or multiplier"}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid copy_qty'}), 400
 
-        # ✅ STEP 2: Validate multiplier value
-        try:
-            new_multiplier = float(new_multiplier)
-            if new_multiplier < 0.1:
-                return jsonify({"error": "Multiplier must be at least 0.1"}), 400
-            if new_multiplier > 100.0:  # Reasonable upper limit
-                return jsonify({"error": "Multiplier cannot exceed 100.0"}), 400
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid multiplier format - must be a number"}), 400
+    user = current_user()
+    account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    if not account:
+        return jsonify({'error': 'Account not found'}), 404
 
-        # ✅ STEP 3: Get current user from session
-        user_email = session.get("user")
-        user = current_user() # Use current_user() helper
-        if not user:
-            logger.error(f"User not found: {user_email}")
-            return jsonify({"error": "User not found"}), 404
+    previous = account.copy_qty
+    account.copy_qty = copy_qty
+    db.session.commit()
 
-        # ✅ STEP 4: Find and validate account
-        account = Account.query.filter_by(
-            user_id=user.id,
-            client_id=client_id
-        ).first()
-        
-        if not account:
-            logger.error(f"Account not found: {client_id} for user {user_email}")
-            return jsonify({"error": "Account not found"}), 404
-
-        # ✅ STEP 5: Store previous state for logging and response
-        previous_state = {
-            "multiplier": account.multiplier,
-            "role": account.role,
-            "copy_status": account.copy_status,
-            "linked_master_id": account.linked_master_id,
-            "broker": account.broker,
-            "username": account.username
-        }
-
-        # ✅ STEP 6: Check if multiplier is actually changing
-        if abs(float(account.multiplier or 1.0) - new_multiplier) < 0.001:  # Account for floating point precision
-            logger.info(f"Multiplier for {client_id} already set to {new_multiplier}")
-            return jsonify({
-                "message": f"Multiplier for {client_id} is already set to {new_multiplier}",
-                "no_change_needed": True,
-                "current_multiplier": float(account.multiplier or 1.0),
-                "account_details": {
-                    "client_id": client_id,
-                    "broker": account.broker,
-                    "username": account.username,
-                    "role": account.role
-                }
-            }), 200
-
-        # ✅ STEP 7: Get master account details if account is a child
-        master_account = None
-        if account.role == "child" and account.linked_master_id:
-            master_account = Account.query.filter_by(
-                client_id=account.linked_master_id,
-                user_id=user.id
-            ).first()
-
-        # ✅ STEP 8: Update multiplier
-        logger.info(f"Updating multiplier for {client_id}: {previous_state['multiplier']} -> {new_multiplier}")
-        
-        account.multiplier = new_multiplier
-
-        # ✅ STEP 9: Handle special cases based on account role
-        warnings = []
-        
-        if account.role == "child":
-            if account.copy_status == "On":
-                warnings.append("Multiplier changed while copying is active - new multiplier will apply to future trades")
-            if new_multiplier > 10.0:
-                warnings.append("High multiplier detected - please ensure sufficient margin available")
-        elif account.role == "master":
-            warnings.append("Multiplier set for master account - this only affects if the master is also used as a child")
-        else:
-            warnings.append("Multiplier set for unassigned account - will take effect when account is configured as child")
-
-        # ✅ STEP 10: Check for any active order mappings that might be affected
-        active_mappings = []
-        if account.role == "child":
-            active_mappings = OrderMapping.query.filter_by(
-                child_client_id=client_id,
-                status="ACTIVE"
-            ).all()
-
-        active_mapping_count = len(active_mappings)
-        
-        if active_mapping_count > 0:
-            warnings.append(f"{active_mapping_count} active order mappings found - multiplier change affects future orders only")
-
-        # ✅ STEP 11: Commit changes to database
-        try:
-            db.session.commit()
-            logger.info(f"Successfully updated multiplier for {client_id} to {new_multiplier}")
-        except Exception as e:
-            logger.error(f"Failed to commit multiplier update: {str(e)}")
-            db.session.rollback()
-            return jsonify({
-                "error": "Failed to save multiplier update",
-                "details": str(e)
-            }), 500
-
-        # ✅ STEP 12: Log the action for audit trail
-        try:
-            publish_log_event(
-                {
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "level": "INFO",
-                    "message": f"Multiplier updated: {client_id} from {previous_state['multiplier']} to {new_multiplier}",
-                    "user_id": str(user.id),
-                    "module": "system",
-                    "details": {
-                        "action": "update_multiplier",
-                        "client_id": client_id,
-                        "user": user_email,
-                        "old_multiplier": previous_state['multiplier'],
-                        "new_multiplier": new_multiplier,
-                        "account_role": account.role,
-                        "copy_status": account.copy_status,
-                        "master_id": account.linked_master_id,
-                        "active_mappings": active_mapping_count,
-                        "timestamp": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                        "warnings_generated": warnings,
-                    },
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Failed to log multiplier update: {str(e)}")
-
-        # ✅ STEP 13: Calculate impact estimation if child account
-        impact_estimation = None
-        if account.role == "child" and master_account:
-            impact_estimation = {
-                "example_scenario": {
-                    "master_trade_qty": 100,
-                    "old_child_qty": int(100 * float(previous_state['multiplier'] or 1.0)),
-                    "new_child_qty": int(100 * new_multiplier),
-                    "qty_change": int(100 * new_multiplier) - int(100 * float(previous_state['multiplier'] or 1.0))
-                },
-                "multiplier_change": {
-                    "percentage": f"{((new_multiplier / float(previous_state['multiplier'] or 1.0)) - 1) * 100:+.1f}%",
-                    "factor": f"{new_multiplier / float(previous_state['multiplier'] or 1.0):.2f}x"
-                }
-            }
-
-        # ✅ STEP 14: Prepare comprehensive response
-        response_data = {
-            "message": f"Multiplier updated to {new_multiplier} for {client_id}",
-            "account_details": {
-                "client_id": client_id,
-                "broker": account.broker,
-                "username": account.username,
-                "role": account.role,
-                "copy_status": account.copy_status
-            },
-            "multiplier_update": {
-                "previous_multiplier": float(previous_state['multiplier'] or 1.0),
-                "new_multiplier": new_multiplier,
-                "change": new_multiplier - float(previous_state['multiplier'] or 1.0),
-                "updated_at": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            },
-            "linked_master": {
-                "client_id": account.linked_master_id,
-                "broker": master_account.broker if master_account else None,
-                "username": master_account.username if master_account else None
-            } if master_account else None,
-            "active_mappings": {
-                "count": active_mapping_count,
-                "note": "New multiplier applies to future trades only" if active_mapping_count > 0 else None
-            },
-            "warnings": warnings if warnings else []
-        }
-
-        # Add impact estimation if available
-        if impact_estimation:
-            response_data["impact_estimation"] = impact_estimation
-
-        return jsonify(response_data), 200
-
-    except Exception as e:
-        logger.error(f"Unexpected error in update_multiplier: {str(e)}")
-        # Ensure rollback on unexpected error before commit
-        db.session.rollback()
-        return jsonify({
-            "error": "Internal server error",
-            "details": str(e)
-        }), 500
+    return jsonify({'message': f'Copy quantity updated to {copy_qty} for {client_id}', 'previous_copy_qty': previous, 'copy_qty': copy_qty}), 200
 
 # Delete an account entirely
 @app.route('/api/delete-account', methods=['POST'])
@@ -4881,7 +4692,7 @@ def delete_account():
                 child.role = None
                 child.linked_master_id = None
                 child.copy_status = "Off"
-                child.multiplier = 1.0
+                child.copy_qty = None
                 child.last_copied_trade_id = None
 
             # Mark any active order mappings for this master as removed
@@ -5911,7 +5722,7 @@ def set_child():
         client_id = request.json.get('client_id')
         linked_master_id = request.json.get('linked_master_id')
         value_limit = request.json.get('value_limit')
-        multiplier = request.json.get('multiplier')
+        copy_qty = request.json.get('copy_qty')
         
         if not client_id or not linked_master_id:
             return jsonify({"error": "Missing client_id or linked_master_id"}), 400
@@ -5932,21 +5743,20 @@ def set_child():
         account.role = "child"
         account.linked_master_id = linked_master_id
         account.copy_status = "Off"
-        # Value limit takes priority over multiplier. If a value limit is
-        # provided we store it and reset the multiplier to 1.0 so it is
-        # effectively ignored during copying.
+        # Value limit takes priority over a fixed copy quantity. If a value
+        # limit is provided we store it and reset any copy quantity override.
         if value_limit is not None:
             try:
                 account.copy_value_limit = float(value_limit)
             except (TypeError, ValueError):
                 account.copy_value_limit = None
-            account.multiplier = 1.0
+            account.copy_qty = None
         else:
             account.copy_value_limit = None
             try:
-                account.multiplier = float(multiplier or 1.0)
+                account.copy_qty = int(copy_qty) if copy_qty is not None else None
             except (TypeError, ValueError):
-                account.multiplier = 1.0
+                account.copy_qty = None
         account.copied_value = 0.0
         try:
             db.session.commit()
