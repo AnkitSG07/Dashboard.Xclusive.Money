@@ -1,4 +1,4 @@
-    """Webhook receiver service.
+"""Webhook receiver service.
 
 This module provides minimal validation and serialization of webhook
 payloads and publishes validated events to a low-latency queue. Redis
