@@ -53,32 +53,37 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <script>
-const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-const _fetch = window.fetch;
-window.fetch = function(url, options = {}) {
-  options = options || {};
-  const headers = options.headers instanceof Headers ? options.headers : new Headers(options.headers || {});
-  if (!headers.has('X-CSRFToken')) {
-    headers.set('X-CSRFToken', csrfToken);
-  }
-  options.headers = headers;
-  if (!options.credentials) {
-    options.credentials = 'same-origin';
-  }
-  return _fetch(url, options);
-};
-
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('form').forEach(function (form) {
-    if (!form.querySelector('input[name="csrf_token"]')) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'csrf_token';
-      input.value = csrfToken;
-      form.appendChild(input);
+(function () {
+  if (window.__csrfInitialized) return;
+  window.__csrfInitialized = true;
+  const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  window.csrfToken = token;
+  const _fetch = window.fetch;
+  window.fetch = function (url, options = {}) {
+    options = options || {};
+    const headers = options.headers instanceof Headers ? options.headers : new Headers(options.headers || {});
+    if (!headers.has('X-CSRFToken')) {
+      headers.set('X-CSRFToken', token);
     }
+    options.headers = headers;
+    if (!options.credentials) {
+      options.credentials = 'same-origin';
+    }
+    return _fetch(url, options);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(function (form) {
+      if (!form.querySelector('input[name="csrf_token"]')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = token;
+        form.appendChild(input);
+      }
+    });
   });
-});
+})();
 </script>
 {% block scripts %}{% endblock %}
 </body>
