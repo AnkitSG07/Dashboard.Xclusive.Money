@@ -3516,6 +3516,9 @@ def get_master_orders():
     logger.info("Fetching master orders")
     
     try:
+        # Ensure account table has latest columns before querying
+        ensure_account_schema()
+
         # Fetch order mappings from the database
         master_id_filter = request.args.get("master_id")
         status_filter = request.args.get("status", "").upper()
@@ -5318,6 +5321,9 @@ def add_account():
 @login_required
 def get_accounts():
     try:
+        # Ensure schema is up-to-date so queries don't fail on missing columns
+        ensure_account_schema()
+
         user_email = session.get("user")
         user = current_user()  # Use current_user() helper
         if not user:
