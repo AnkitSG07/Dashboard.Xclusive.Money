@@ -452,6 +452,7 @@ def ensure_account_schema():
         existing_columns = {col['name'] for col in insp.get_columns(table_name)}
 
         columns_to_add = {
+            'copy_qty': 'INTEGER',
             'copy_value_limit': 'FLOAT',
             'copied_value': 'FLOAT DEFAULT 0'
         }
