@@ -60,7 +60,7 @@ class Account(db.Model):
     role = db.Column(db.String(20), index=True)
     linked_master_id = db.Column(db.String(50), index=True)
     copy_status = db.Column(db.String(10), default="Off", index=True)
-    multiplier = db.Column(db.Float, default=1.0)
+    copy_qty = db.Column(db.Integer)
     copy_value_limit = db.Column(db.Float)
     copied_value = db.Column(db.Float, default=0.0)
     credentials = db.Column(db.JSON)
@@ -80,6 +80,16 @@ class Account(db.Model):
 
     def __repr__(self):
         return f"<Account {self.client_id} - {self.broker}>"
+
+    # Deprecated property retained for backward compatibility
+    @property
+    def multiplier(self):
+        return float(self.copy_qty or 1)
+
+    @multiplier.setter
+    def multiplier(self, value):
+        self.copy_qty = None if value in (None, 1, 1.0) else int(value)
+
 
 class Trade(db.Model):
     __tablename__ = "trade"
