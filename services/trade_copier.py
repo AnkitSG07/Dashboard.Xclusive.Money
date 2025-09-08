@@ -86,11 +86,12 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         client_id=child.client_id, access_token=access_token, **credentials
     )
 
-    # Apply quantity multiplier for the child account.  Default multiplier is
-    # 1.0 if not specified.
-    multiplier = getattr(child, "multiplier", 1) or 1
-    qty = int(order.get("qty", 0))
-    qty = int(qty * multiplier)
+    # Apply fixed quantity override for the child account if provided.
+    qty = (
+        int(child.copy_qty)
+        if getattr(child, "copy_qty", None) is not None
+        else int(order.get("qty", 0))
+    )
 
     params = {
         "symbol": order.get("symbol"),
