@@ -507,8 +507,7 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   // Generate a status badge with optional tooltip for error messages
-  function statusBadge(status, errors) {
-    const st = (status || '').toLowerCase();
+  function statusBadge(errors) {
     const errList = Array.isArray(errors)
       ? errors.map(e => String(e))
       : errors
@@ -520,14 +519,6 @@ window.pageScripts["copy-trading"] = function () {
       return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${tip}"></i>`;
     }
 
-    if (st && !['live', 'connected'].includes(st)) {
-      if (st === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
-      return `<span class="badge bg-warning text-dark">${escapeHtml(status)}</span>`;
-    }
-    if (st === 'connected') {
-      return '<span class="badge bg-success">Connected</span>';
-    }
-    
     return '<span class="badge bg-success">LIVE</span>';
   }
 
@@ -921,7 +912,7 @@ window.pageScripts["copy-trading"] = function () {
                         ${brokerIconHTML(master.broker)}
                         <span class="ms-2 fw-semibold">${masterClientId}</span>
                         <span class="text-muted ms-3 d-none d-md-inline-block">${masterUsername}</span>
-                        <div class="ms-auto">${statusBadge(master.status, master.system_errors)}</div>
+                        <div class="ms-auto">${statusBadge(master.system_errors)}</div>
                       </div>
                     </button>
                   </h2>
@@ -1021,7 +1012,7 @@ window.pageScripts["copy-trading"] = function () {
                         ${brokerIconHTML(child.broker)}
                         <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
                         <span class="text-muted ms-3 d-block d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
-                        <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.status, child.system_errors)}</div>
+                        <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
                         <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                             <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
@@ -1186,7 +1177,7 @@ window.pageScripts["copy-trading"] = function () {
               <div class="list-group-item list-group-item-action py-3 d-flex align-items-center flex-wrap">
                 ${brokerIconHTML(child.broker)}
                 <span class="ms-2 me-auto fw-semibold">${childUsername} (${childClientId})</span>
-                <div class="me-3 mt-2 mt-md-0">${statusBadge(child.status, child.system_errors)}</div>
+                <div class="me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
                 <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
                   <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
                     data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
