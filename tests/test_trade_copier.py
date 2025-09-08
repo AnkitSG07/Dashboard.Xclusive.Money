@@ -98,7 +98,7 @@ def test_child_orders_submitted(monkeypatch):
             self.client_id = cid
             self.broker = "stub"
             self.credentials = {"access_token": "t"}
-            self.multiplier = 1
+            self.copy_qty = None
 
     class Master:
         client_id = "m1"
@@ -178,7 +178,7 @@ def test_child_orders_mirror_master_params(monkeypatch):
             self.client_id = cid
             self.broker = "stub"
             self.credentials = {"access_token": "t"}
-            self.multiplier = 1
+            self.copy_qty = None
 
     class Session:
         def query(self, model):
