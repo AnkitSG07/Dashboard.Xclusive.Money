@@ -7266,10 +7266,12 @@ def start_scheduler() -> None:
     # No scheduler is started by default when ``SCHEDULER_FACTORY`` is absent.
     return None
 
-
+# Ensure core database schemas exist when the module is imported. This allows
+# WSGI servers that import the application module (rather than executing it as a
+# script) to operate against an up-to-date schema.
+initialize_database()
 if __name__ == '__main__':
-    # Initialize database schemas and start the optional scheduler.
-    initialize_database()
+    # Start the optional scheduler when running the development server.
     start_scheduler()
     debug = os.environ.get("FLASK_DEBUG") == "1"
     app.run(debug=debug)
