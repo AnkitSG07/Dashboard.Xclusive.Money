@@ -239,6 +239,15 @@ def consume_webhook_events(
                     order_params["exchange"] = event["exchange"]
                 if event.get("order_type") is not None:
                     order_params["order_type"] = event["order_type"]
+                for field in [
+                    "instrument_type",
+                    "expiry",
+                    "strike",
+                    "option_type",
+                    "lot_size",
+                ]:
+                    if event.get(field) is not None:
+                        order_params[field] = event[field]
                 optional_map = {
                     "productType": "product_type",
                     "orderValidity": "validity",
