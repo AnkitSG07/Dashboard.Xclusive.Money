@@ -104,7 +104,7 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
         broker="mock",
         client_id="c1",
         credentials={},
-        multiplier=1,
+        copy_qty=None,
         role="child",
     )
     session = SessionStub(master, [child])
@@ -154,7 +154,7 @@ def test_rejected_orders_not_copied(monkeypatch):
         broker="mock",
         client_id="c1",
         credentials={},
-        multiplier=1,
+        copy_qty=None,
         role="child",
     )
     session = SessionStub(master, [child])
@@ -215,7 +215,7 @@ def test_credentials_with_embedded_client_id(monkeypatch):
         broker="mock",
         client_id="c1",
         credentials={},
-        multiplier=1,
+        copy_qty=None,
         role="child",
     )
     session = SessionStub(master, [child])
@@ -263,7 +263,7 @@ def test_dhan_orders_are_published_and_copied(monkeypatch):
         broker="mock",
         client_id="c1",
         credentials={},
-        multiplier=1,
+        copy_qty=None,
         role="child",
     )
     session = SessionStub(master, [child])
