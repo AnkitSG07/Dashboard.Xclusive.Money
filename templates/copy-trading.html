@@ -1014,7 +1014,7 @@ window.pageScripts["copy-trading"] = function () {
                         <span class="text-muted ms-3 d-block d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
                         <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
                         <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
-                            <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
+                            <input type="checkbox" class="form-check-input" onclick="event.stopPropagation()" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
                         <div class="copy-qty-control me-3">
