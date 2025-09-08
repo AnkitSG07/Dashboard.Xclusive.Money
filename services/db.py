@@ -23,6 +23,20 @@ else:
 _engine = create_engine(sqlalchemy_url)
 _Session = sessionmaker(bind=_engine)
 
+# Ensure the core tables exist when using lightweight setups like SQLite.
+# The worker processes operate outside the Flask application context so the
+# database schema may not have been created yet.  Calling ``create_all`` is
+# idempotent and will only create missing tables, avoiding errors such as
+# "no such table: account" when starting workers against a fresh database.
+try:  # pragma: no cover - defensive
+    from models import db as models_db
+
+    models_db.metadata.create_all(bind=_engine)
+except Exception:  # pragma: no cover - best effort
+    # If the import fails or the database is unavailable we simply defer
+    # table creation.  Subsequent database operations will then surface the
+    # underlying problem rather than masking it here.
+    pass
 
 def get_session() -> Session:
     """Return a new SQLAlchemy session bound to the configured engine."""
