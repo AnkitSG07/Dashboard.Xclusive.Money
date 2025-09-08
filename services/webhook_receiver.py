@@ -1,4 +1,4 @@
-"""Webhook receiver service.
+    """Webhook receiver service.
 
 This module provides minimal validation and serialization of webhook
 payloads and publishes validated events to a low-latency queue. Redis
@@ -67,6 +67,11 @@ class WebhookEventSchema(Schema):
     transactionType = fields.Str(load_default=None)
     orderQty = fields.Int(load_default=None)
     tradingSymbols = fields.List(fields.Str(), load_default=None)
+    instrument_type = fields.Str(load_default="EQ")
+    expiry = fields.Str(load_default=None)
+    strike = fields.Int(load_default=None)
+    option_type = fields.Str(load_default=None)
+    lot_size = fields.Int(load_default=None)
 
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
@@ -110,7 +115,7 @@ class WebhookEventSchema(Schema):
             data["action"] = data["action"].upper()
 
         # Upper-case broker-specific fields expected in a canonical form.
-        for key in ["productType", "orderValidity", "order_type"]:
+        for key in ["productType", "orderValidity", "order_type", "instrument_type", "option_type"]:
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
@@ -120,10 +125,16 @@ class WebhookEventSchema(Schema):
         elif isinstance(data["exchange"], str):
             data["exchange"] = data["exchange"].upper()
 
-        # Upper-case the symbol and append '-EQ' for equities when missing.
+        # Upper-case the symbol. Append '-EQ' only for equities.
         if "symbol" in data and isinstance(data["symbol"], str):
             sym = data["symbol"].upper()
-            if ":" not in sym and "-" not in sym:
+            if (
+                ":" not in sym
+                and "-" not in sym
+                and not sym.endswith("FUT")
+                and not sym.endswith("CE")
+                and not sym.endswith("PE")
+            ):
                 sym = f"{sym}-EQ"
             data["symbol"] = sym
 
