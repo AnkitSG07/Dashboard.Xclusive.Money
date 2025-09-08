@@ -3176,7 +3176,7 @@ def test_poll_and_copy_trades_handles_negative_filled_qty(client, monkeypatch):
             credentials={"access_token": "ct"},
             copy_status="On",
             linked_master_id="M1",
-            multiplier=1,
+            copy_qty=None,
             last_copied_trade_id="1",
         )
         db.session.add_all([master, child])
