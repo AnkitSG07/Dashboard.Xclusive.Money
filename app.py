@@ -142,7 +142,7 @@ limiter_storage = os.environ.get("LIMITER_STORAGE_URL", "memory://")
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["20000 per day", "1000 per hour"],
     storage_uri=limiter_storage,
 )
 # Persist data in a configurable directory. By default this is ``./data`` so
@@ -4675,7 +4675,7 @@ def delete_account():
     data = request.json
     client_id = data.get("client_id")
     if not client_id:
-        return jsonify({"error": "Missing client_id"}), 400
+        return jsonify({"error": "Missing client_id"}), 200
     user = session.get("user")
     db_user = User.query.filter_by(email=user).first()
     if not db_user:
@@ -4747,7 +4747,7 @@ def reconnect_account():
 
     client_id = data.get("client_id")
     if not client_id:
-        return jsonify({"error": "Missing client_id"}), 400
+        return jsonify({"error": "Missing client_id"}), 200
 
     user_email = session.get("user")
     db_user = User.query.filter_by(email=user_email).first()
@@ -4777,7 +4777,7 @@ def reconnect_account():
         if not valid:
             acc_db.status = 'Failed'
             db.session.commit()
-            return jsonify({"error": "Failed to reconnect with stored credentials"}), 400
+            return jsonify({"error": "Failed to reconnect with stored credentials"}), 200
 
         # Update stored access token and token_time if available
         if getattr(api, 'access_token', None):
