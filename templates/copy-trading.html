@@ -157,8 +157,8 @@
 
     /* --- FIXES FOR MOBILE VIEW & MULTIPLIER --- */
 
-    /* Multiplier input and button on the same line and responsive */
-    .multiplier-control {
+    /* Quantity input and button on the same line and responsive */
+    .copy-qty-control {
         display: inline-flex; /* Prevent block-level expansion */
         align-items: center;
         gap: .5rem; /* Space between input and button */
@@ -167,8 +167,8 @@
         flex-shrink: 0; /* Avoid shrinking that can cause wrapping */
     }
 
-    .multiplier-control .form-control {
-        max-width: 80px; /* Limit width of multiplier input */
+    .copy-qty-control .form-control {
+        max-width: 80px; /* Limit width of quantity input */
         text-align: center;
     }
 
@@ -214,8 +214,8 @@
             font-size: 0.85rem;
         }
 
-        /* Remove the width 100% rule for multiplier control on mobile */
-        .accordion-button .multiplier-control {
+        /* Remove the width 100% rule for quantity control on mobile */
+        .accordion-button .copy-qty-control {
             width: auto;
         }
 
@@ -647,14 +647,14 @@ window.pageScripts["copy-trading"] = function () {
           </div>
           <div class="mb-3">
             <div class="form-check d-flex align-items-center gap-1">
-              <input class="form-check-input" type="radio" name="copyOption" id="copyOptMultiplier" value="multiplier" checked>
-              <label class="form-check-label" for="copyOptMultiplier">Multiplier</label>
-              <span data-bs-toggle="tooltip" title="Child order quantity = Master order quantity × Multiplier.">
+              <input class="form-check-input" type="radio" name="copyOption" id="copyOptQuantity" value="quantity" checked>
+              <label class="form-check-label" for="copyOptQuantity">Quantity</label>
+              <span data-bs-toggle="tooltip" title="Child order quantity overrides master quantity.">
                 <i class="bi bi-info-circle"></i>
               </span>
             </div>
-            <div id="multiplierContainer" class="mt-2">
-              <input type="number" class="form-control" id="newChildMultiplier" value="1" min="0.1" step="0.1">
+            <div id="quantityContainer" class="mt-2">
+              <input type="number" class="form-control" id="newChildQuantity" value="1" min="1" step="1">
             </div>
             <div class="form-check mt-3 d-flex align-items-center gap-1">
               <input class="form-check-input" type="radio" name="copyOption" id="copyOptValue" value="value">
@@ -697,21 +697,21 @@ window.pageScripts["copy-trading"] = function () {
         modalElement.querySelector('.modal-body').innerHTML = selectHtml;
         const tooltipList = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
         tooltipList.forEach(el => new bootstrap.Tooltip(el));
-        const optMultiplier = modalElement.querySelector('#copyOptMultiplier');
+        const optQuantity = modalElement.querySelector('#copyOptQuantity');
         const optValue = modalElement.querySelector('#copyOptValue');
-        const multiplierContainer = modalElement.querySelector('#multiplierContainer');
+        const quantityContainer = modalElement.querySelector('#quantityContainer');
         const valueContainer = modalElement.querySelector('#valueContainer');
 
         const toggleInputs = () => {
           if (optValue.checked) {
-            multiplierContainer.style.display = 'none';
+            quantityContainer.style.display = 'none';
             valueContainer.style.display = 'block';
           } else {
-            multiplierContainer.style.display = 'block';
+            quantityContainer.style.display = 'block';
             valueContainer.style.display = 'none';
           }
         };
-        optMultiplier.addEventListener('change', toggleInputs);
+        optQuantity.addEventListener('change', toggleInputs);
         optValue.addEventListener('change', toggleInputs);
         toggleInputs();
 
@@ -721,18 +721,18 @@ window.pageScripts["copy-trading"] = function () {
         document.getElementById("confirmSetAsChildBtn").onclick = function() {
           const linked_master_id = document.getElementById("setChildMasterSelect").value;
           const selected = modalElement.querySelector('input[name="copyOption"]:checked').value;
-          let multiplier = 1;
+          let copy_qty = 1;
           let value_limit = null;
           if (selected === 'value') {
             const raw = document.getElementById("newChildValueLimit").value;
             value_limit = raw ? parseFloat(raw) : null;
           } else {
-            multiplier = parseFloat(document.getElementById("newChildMultiplier").value || "1");
+            copy_qty = parseInt(document.getElementById("newChildQuantity").value || "1", 10);
           }
           fetch("/api/set-child", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ client_id: clientId, linked_master_id, multiplier, value_limit })
+            body: JSON.stringify({ client_id: clientId, linked_master_id, copy_qty, value_limit })
           })
           .then(res => res.json())
           .then(data => {
@@ -1008,7 +1008,7 @@ window.pageScripts["copy-trading"] = function () {
               const rawMasterId = master.client_id || "-";
               const linkedMasterId = escapeHtml(rawMasterId);
               const linkedMasterUsername = escapeHtml(master.username || "-");
-              const childMultiplier = child.multiplier || 1;
+              const childQty = child.copy_qty != null ? child.copy_qty : '';
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
               const childOpen = openChildren.has(childDomId);
@@ -1026,13 +1026,13 @@ window.pageScripts["copy-trading"] = function () {
                             <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
                             <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
                         </div>
-                        <div class="multiplier-control me-3">
-                          <input type="number" min="0.1" step="0.1"
+                        <div class="copy-qty-control me-3">
+                          <input type="number" min="1" step="1"
                                  class="form-control form-control-sm"
-                                 id="mult-${childDomId}"
-                                 value="${childMultiplier}" style="width: 60px;">
-                          <button class="btn btn-sm btn-outline-primary" onclick='window.updateMultiplier(${JSON.stringify(rawChildId)})'>Save</button>
-                          <span data-bs-toggle="tooltip" title="Set how much larger or smaller you want copied trades to be for this account. For example, 2 means double the trade size, 0.5 means half. Trades copied to this account will use: Master trade size × Multiplier.">
+                                 id="qty-${childDomId}"
+                                 value="${childQty}" style="width: 60px;">
+                          <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty(${JSON.stringify(rawChildId)})'>Save</button>
+                          <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
                             <i class="bi bi-info-circle"></i>
                           </span>
                         </div>
@@ -1178,7 +1178,7 @@ window.pageScripts["copy-trading"] = function () {
               const rawChildUsername = child.username || "-";
               const childClientId = escapeHtml(rawChildId);
               const childUsername = escapeHtml(rawChildUsername);
-              const multiplier = child.multiplier || 1;
+              const qty = child.copy_qty;
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
 
@@ -1193,7 +1193,7 @@ window.pageScripts["copy-trading"] = function () {
                     ${disableCopy ? '' : `onchange='window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)'` }>
                   <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
                 </div>
-                <span class="me-3 mt-2 mt-md-0">Mult: ${multiplier}</span>
+                ${qty != null ? `<span class="me-3 mt-2 mt-md-0">Qty: ${qty}</span>` : ''}
                 ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
                 <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove</button>
               </div>
@@ -2257,24 +2257,24 @@ window.pageScripts["copy-trading"] = function () {
     });
   };
 
-  window.updateMultiplier = function(clientId) {
-    const inputElement = document.getElementById(`mult-${domId(clientId)}`);
-    const newMultiplier = parseFloat(inputElement.value);
+  window.updateCopyQty = function(clientId) {
+    const inputElement = document.getElementById(`qty-${domId(clientId)}`);
+    const newQty = parseInt(inputElement.value, 10);
 
-    if (isNaN(newMultiplier) || newMultiplier < 0.1) {
-      showMessage("Please enter a valid multiplier (minimum 0.1).", 'warning');
+    if (isNaN(newQty) || newQty < 1) {
+      showMessage("Please enter a valid quantity (minimum 1).", 'warning');
       inputElement.value = inputElement.defaultValue; // Reset to previous valid value
       return;
     }
-    if (!confirm(`Confirm update multiplier for ${clientId} to ${newMultiplier}?`)) {
+    if (!confirm(`Confirm update quantity for ${clientId} to ${newQty}?`)) {
         inputElement.value = inputElement.defaultValue; // Reset if cancelled
         return;
     }
 
-    fetch("/api/update-multiplier", {
+    fetch("/api/update-copy-qty", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: clientId, multiplier: newMultiplier })
+      body: JSON.stringify({ client_id: clientId, copy_qty: newQty })
     })
     .then(res => res.json())
     .then(data => {
@@ -2284,8 +2284,8 @@ window.pageScripts["copy-trading"] = function () {
       window.loadAccounts(); // Reload to update master's children list and child's own section
     })
     .catch(err => {
-      console.error("Error updating multiplier:", err);
-      showMessage("Failed to update multiplier.", 'danger');
+      console.error("Error updating quantity:", err);
+      showMessage("Failed to update quantity.", 'danger');
       inputElement.value = inputElement.defaultValue; // Reset on error
     });
   };
