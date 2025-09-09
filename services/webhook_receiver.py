@@ -48,6 +48,35 @@ def get_redis_client() -> redis.Redis:
         redis_client = redis.Redis.from_url(redis_url)
     return redis_client
 
+
+def get_expiry_year(month: str) -> str:
+    """Determine the correct expiry year for a given month.
+    
+    Args:
+        month: Three-letter month code (JAN, FEB, etc.)
+        
+    Returns:
+        Two-digit year string
+    """
+    current_date = date.today()
+    current_year = current_date.year
+    current_month = current_date.month
+    
+    month_num = {
+        'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+        'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+    }[month]
+    
+    # If the month is in the past for current year, assume next year
+    # Add buffer of 1 month for contracts that expire in current month
+    if month_num < current_month:
+        year = current_year + 1
+    else:
+        year = current_year
+        
+    return str(year % 100).zfill(2)
+
+
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
 
@@ -119,42 +148,140 @@ class WebhookEventSchema(Schema):
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
-        # Corrected: Normalise and upper-case the symbol to Dhan's format.
+        # CORRECTED: Normalize symbol to Dhan's expected format
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
             
-            # Match futures: NIFTYNXT50 25 NOV FUT
-            fut_match = re.fullmatch(
-                r"^([A-Z]+)\s*(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*FUT$",
-                raw_sym,
+            logger.info(f"Processing symbol: {raw_sym}")
+            
+            # Pattern 1: Handle compact derivative formats (no spaces)
+            # Futures: NIFTYNXT5025NOVFUT -> NIFTYNXT5025NOVFUT
+            compact_fut_match = re.match(
+                r"^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$",
+                raw_sym
             )
-            if fut_match:
-                root, year, month = fut_match.groups()
+            if compact_fut_match:
+                root, year, month = compact_fut_match.groups()
                 if not year:
-                    year = str(date.today().year % 100)
-                data["symbol"] = f"{root}{year}{month}FUT"
+                    year = get_expiry_year(month)
+                # Dhan typically uses compact format without spaces
+                normalized_symbol = f"{root}{year}{month}FUT"
+                data["symbol"] = normalized_symbol
                 data["exchange"] = "NFO"
+                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
+                logger.info(f"Normalized futures symbol: {normalized_symbol}")
                 return data
 
-            # Match options: NIFTYNXT50 25 NOV 35500 CALL
-            opt_match = re.fullmatch(
-                r"^([A-Z]+)\s*(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*(\d+)\s*(CALL|PUT|CE|PE)$",
-                raw_sym,
+            # Options: NIFTYNXT5025NOV35500CALL -> NIFTYNXT5025NOV35500CE
+            compact_opt_match = re.match(
+                r"^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$",
+                raw_sym
             )
-            if opt_match:
-                root, year, month, strike, opt_type = opt_match.groups()
+            if compact_opt_match:
+                root, year, month, strike, opt_type = compact_opt_match.groups()
                 if not year:
-                    year = str(date.today().year % 100)
+                    year = get_expiry_year(month)
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                data["symbol"] = f"{root}{year}{month}{strike}{opt_code}"
+                # Dhan typically uses compact format without spaces
+                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
+                data["symbol"] = normalized_symbol
                 data["exchange"] = "NFO"
+                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
+                data["strike"] = int(strike)
+                data["option_type"] = opt_code
+                logger.info(f"Normalized options symbol: {normalized_symbol}")
                 return data
 
+            # Pattern 2: Handle spaced derivative formats (TradingView style)
+            # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
+            spaced_fut_match = re.match(
+                r"^([A-Z]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
+                raw_sym
+            )
+            if spaced_fut_match:
+                root, year, month = spaced_fut_match.groups()
+                if not year:
+                    year = get_expiry_year(month)
+                normalized_symbol = f"{root}{year}{month}FUT"
+                data["symbol"] = normalized_symbol
+                data["exchange"] = "NFO"
+                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
+                logger.info(f"Normalized spaced futures symbol: {normalized_symbol}")
+                return data
+
+            # Options: NIFTYNXT50 25 NOV 35500 CALL -> NIFTYNXT5025NOV35500CE
+            spaced_opt_match = re.match(
+                r"^([A-Z]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
+                raw_sym
+            )
+            if spaced_opt_match:
+                root, year, month, strike, opt_type = spaced_opt_match.groups()
+                if not year:
+                    year = get_expiry_year(month)
+                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
+                data["symbol"] = normalized_symbol
+                data["exchange"] = "NFO"
+                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
+                data["strike"] = int(strike)
+                data["option_type"] = opt_code
+                logger.info(f"Normalized spaced options symbol: {normalized_symbol}")
+                return data
+
+            # Pattern 3: Handle alternative formats with different separators
+            # Handle formats like NIFTYNXT50-25NOV-35500-CE
+            alt_opt_match = re.match(
+                r"^([A-Z]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(\d+)[-_]?(CALL|PUT|CE|PE)$",
+                raw_sym
+            )
+            if alt_opt_match:
+                root, year, month, strike, opt_type = alt_opt_match.groups()
+                if not year:
+                    year = get_expiry_year(month)
+                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
+                data["symbol"] = normalized_symbol
+                data["exchange"] = "NFO"
+                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
+                data["strike"] = int(strike)
+                data["option_type"] = opt_code
+                logger.info(f"Normalized alternative options symbol: {normalized_symbol}")
+                return data
+
+            # Pattern 4: Handle already normalized symbols (pass through)
+            if re.match(r"^[A-Z]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$", raw_sym):
+                data["symbol"] = raw_sym
+                data["exchange"] = "NFO"
+                if raw_sym.endswith("FUT"):
+                    data["instrument_type"] = "FUTIDX" if "NIFTY" in raw_sym else "FUTSTK"
+                else:
+                    data["instrument_type"] = "OPTIDX" if "NIFTY" in raw_sym else "OPTSTK"
+                    if raw_sym.endswith(("CE", "PE")):
+                        # Extract strike from the symbol
+                        strike_match = re.search(r"(\d+)(CE|PE)$", raw_sym)
+                        if strike_match:
+                            data["strike"] = int(strike_match.group(1))
+                            data["option_type"] = strike_match.group(2)
+                logger.info(f"Symbol already normalized: {raw_sym}")
+                return data
+
+            # Pattern 5: Handle equity symbols
             # If no derivative pattern matches, assume it's an equity symbol
             if not re.search(r"\d", raw_sym) and not raw_sym.endswith(("-EQ", "FUT", "CE", "PE")):
-                data["symbol"] = f"{raw_sym}-EQ"
+                # Check if it's a common equity symbol format
+                if not raw_sym.endswith("-EQ"):
+                    normalized_symbol = f"{raw_sym}-EQ"
+                else:
+                    normalized_symbol = raw_sym
+                data["symbol"] = normalized_symbol
+                data["exchange"] = "NSE"
+                data["instrument_type"] = "EQ"
+                logger.info(f"Normalized equity symbol: {normalized_symbol}")
+                return data
             else:
-                 data["symbol"] = raw_sym
+                # Keep the original symbol if no pattern matches
+                data["symbol"] = raw_sym
+                logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
             
         return data
 
