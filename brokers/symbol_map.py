@@ -126,13 +126,19 @@ def _load_dhan() -> Dict[Key, str]:
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, str] = {}
     for row in reader:
-        if row["SEM_EXM_EXCH_ID"] in {"NSE", "BSE"} and row["SEM_SEGMENT"] == "E":
-            key = (row["SEM_TRADING_SYMBOL"], row["SEM_EXM_EXCH_ID"].upper())
+        exch = row["SEM_EXM_EXCH_ID"].upper()
+        segment = row["SEM_SEGMENT"].upper()
+        symbol = row["SEM_TRADING_SYMBOL"]
+        if exch in {"NSE", "BSE"} and segment == "E":
+            key = (symbol, exch)
             # prefer the EQ series when available but fall back to any
             # other equity series so that newly listed or less common
             # scrips (e.g. BSE "X" group) are still included
             if key not in data or row["SEM_SERIES"] == "EQ":
                 data[key] = row["SEM_SMST_SECURITY_ID"]
+        elif exch in {"NSE", "BSE"} and segment == "D":
+            key = (symbol, "NFO" if exch == "NSE" else "BFO")
+            data[key] = row["SEM_SMST_SECURITY_ID"]    
     return data
 
 
@@ -216,9 +222,15 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
 
         dhan_id = dhan.get((symbol, exchange))
         if dhan_id:
+            if exchange in {"NSE", "BSE"}:
+                exch_segment = f"{exchange}_EQ"
+            elif exchange in {"NFO", "BFO"}:
+                exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
+            else:
+                exch_segment = exchange
             entry["dhan"] = {
                 "security_id": dhan_id,
-                "exchange_segment": f"{exchange}_EQ",
+                "exchange_segment": exch_segment,
             }
 
         mapping.setdefault(symbol, {})[exchange] = entry
