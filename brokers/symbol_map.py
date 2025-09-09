@@ -155,6 +155,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
 
     mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
+    # First, build the map with Zerodha as the base, as before
     for (symbol, exchange), token in zerodha.items():
         is_equity = exchange in {"NSE", "BSE"}
         if is_equity:
@@ -234,6 +235,29 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
             }
 
         mapping.setdefault(symbol, {})[exchange] = entry
+    
+    # CORRECTED: Now, iterate through Dhan's data to add any missing symbols.
+    # This ensures that derivatives with different naming conventions are included.
+    for (symbol, exchange), dhan_id in dhan.items():
+        # Check if this symbol/exchange combination was already added from Zerodha's data
+        if symbol in mapping and exchange in mapping[symbol]:
+            continue
+
+        # If not, it's a symbol unique to Dhan's list or has a different name. Add it.
+        if exchange in {"NSE", "BSE"}:
+            exch_segment = f"{exchange}_EQ"
+        elif exchange in {"NFO", "BFO"}:
+            exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
+        else:
+            exch_segment = exchange
+        
+        entry = {
+            "dhan": {
+                "security_id": dhan_id,
+                "exchange_segment": exch_segment,
+            }
+        }
+        mapping.setdefault(symbol, {})[exchange] = entry
 
     return mapping
 
@@ -301,6 +325,7 @@ def get_symbol_for_broker(
 
     ``exchange`` may be supplied to explicitly select the exchange on
     which the symbol is listed.  When omitted the lookup attempts to
+
     infer the exchange from the symbol string or defaults to the NSE
     entry.
     """
