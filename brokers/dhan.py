@@ -1,7 +1,7 @@
 import requests
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker, refresh_symbol_map
-import json  # Import the json module
+import json
 import logging
 import re
 import calendar
@@ -19,20 +19,16 @@ class DhanBroker(BrokerBase):
     LIMIT = "LIMIT"
 
     def __init__(self, client_id, access_token, **kwargs):
-        timeout = kwargs.pop("timeout", 10) # Default timeout to 10 seconds
+        timeout = kwargs.pop("timeout", 10)
         super().__init__(client_id, access_token, timeout=timeout, **kwargs)
         self.api_base = "https://api.dhan.co/v2"
-        # It's generally not recommended to modify urllib3 internals globally.
-        # If IPv6 is causing issues, it's better to configure requests specifically or address the network setup.
-        # Keeping this line for now as it was in the original, but be aware of its implications.
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
         self.headers = {
             "access-token": access_token,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        # Initialize symbol_map if it's expected to be used
-        self.symbol_map = kwargs.pop("symbol_map", {}) # Add this line to initialize symbol_map
+        self.symbol_map = kwargs.pop("symbol_map", {})
 
     def _is_invalid_auth(self, data, status):
         """Return ``True`` if ``data``/``status`` indicate invalid credentials."""
@@ -84,14 +80,12 @@ class DhanBroker(BrokerBase):
     @staticmethod
     def _expiry_from_symbol(symbol):
         """Parse expiry date from derivative symbols like BANKNIFTY24AUGFUT.
-
         Returns a ``date`` object for the contract's expiry or ``None`` if the
         symbol cannot be parsed.
         """
         if not symbol:
             return None
         sym = symbol.upper()
-        # Look for two-digit year followed by three-letter month
         m = re.search(r"(\d{2})([A-Z]{3})", sym)
         if not m:
             return None
@@ -100,26 +94,11 @@ class DhanBroker(BrokerBase):
             month = datetime.strptime(m.group(2), "%b").month
         except ValueError:
             return None
-        # Determine the last Thursday of the month (standard F&O expiry)
         last_day = calendar.monthrange(year, month)[1]
         expiry = date(year, month, last_day)
-        while expiry.weekday() != 3:  # Monday=0 ... Thursday=3
+        while expiry.weekday() != 3:
             expiry -= timedelta(days=1)
         return expiry
-
-    # Assuming _request method exists in BrokerBase.
-    # If not, you'd need to define it here or in BrokerBase.
-    # Example minimal _request for demonstration if it's missing:
-    # def _request(self, method, url, **kwargs):
-    #     try:
-    #         response = requests.request(method, url, timeout=self.timeout, **kwargs)
-    #         response.raise_for_status() # Raise an exception for HTTP errors
-    #         return response
-    #     except requests.exceptions.Timeout as e:
-    #         raise requests.exceptions.Timeout(f"Request timed out: {e}") from e
-    #     except requests.exceptions.RequestException as e:
-    #         raise Exception(f"Request failed: {e}") from e
-
 
     def place_order(
         self,
@@ -136,9 +115,6 @@ class DhanBroker(BrokerBase):
     ):
         """Place a new order on Dhan."""
 
-        # Allow generic order fields used throughout the project.  These are
-        # converted to the parameter names expected by the Dhan API if the
-        # explicit arguments were not supplied.
         tradingsymbol = tradingsymbol or extra.pop("symbol", None)
         transaction_type = transaction_type or extra.pop("action", None)
         quantity = quantity or extra.pop("qty", None)
@@ -153,7 +129,6 @@ class DhanBroker(BrokerBase):
             exchange_segment = None
             exchange_base = None
 
-        # Detect derivative instruments via instrument_type or symbol suffixes
         if not instrument_type and tradingsymbol:
             sym = tradingsymbol.upper()
             has_digits = any(ch.isdigit() for ch in sym)
@@ -174,17 +149,21 @@ class DhanBroker(BrokerBase):
                 exchange_base = "NFO"
                 exchange_segment = "NSE_FNO"
 
-        # Reject derivative contracts that have already expired
+        # Corrected: Reject derivative contracts that have already expired.
+        # This check is moved here to fail before any symbol mapping lookups.
         if tradingsymbol and instrument_type in {"FUT", "CE", "PE"}:
             expiry = self._expiry_from_symbol(tradingsymbol)
             if expiry and expiry < datetime.utcnow().date():
                 msg = f"Contract {tradingsymbol} expired on {expiry.isoformat()}"
                 logger.warning(msg)
-                return {"status": "failure", "error": msg, "source": "broker"}
+                raise ValueError(
+                    (
+                        "DhanBroker: 'security_id' for symbol {} not found. "
+                        "The symbol may be expired or not yet in Dhan's scrip master."
+                    ).format(tradingsymbol)
+                )
 
-        # Look up instrument details only when necessary. When ``security_id``
-        # is supplied directly, we can bypass the symbol->security mapping
-        # entirely which avoids unnecessary lookups and potential mismatches.
+        # Look up instrument details only when necessary.
         mapping = {}
         if security_id is None or exchange_segment is None:
             mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
@@ -217,7 +196,7 @@ class DhanBroker(BrokerBase):
             product_type = self.INTRA
         product_type = self._normalize_product_type(product_type)
         order_type = self._normalize_order_type(order_type)
-        
+
         payload = {
             "dhanClientId": self.client_id,
             "securityId": security_id,
@@ -228,16 +207,15 @@ class DhanBroker(BrokerBase):
             "quantity": int(quantity),
             "validity": "DAY",
             "price": float(price) if price else 0,
-            "triggerPrice": "", # Ensure this is compatible with Dhan API requirements for different order types
+            "triggerPrice": "",
             "afterMarketOrder": False,
         }
 
-        # Handle specific order types (LIMIT orders require a price)
         if order_type == self.LIMIT and not price:
             raise ValueError("Limit orders require a 'price'.")
         if order_type == self.MARKET:
-            payload.pop("price", None) # Market orders typically don't send a price
-            payload.pop("triggerPrice", None) # And no trigger price
+            payload.pop("price", None)
+            payload.pop("triggerPrice", None)
         try:
             r = self._request(
                 "post",
@@ -293,13 +271,10 @@ class DhanBroker(BrokerBase):
                     "get",
                     "{}/orders".format(self.api_base),
                     headers=self.headers,
-                    timeout=self.timeout,  # Pass timeout to the request
+                    timeout=self.timeout,
                 )
                 status = getattr(r, "status_code", 200)
                 if status >= 400:
-                    # Attempt to surface a meaningful error message from the
-                    # API response rather than failing with a cryptic
-                    # structure error downstream.
                     try:
                         data = r.json()
                     except Exception:
@@ -342,14 +317,13 @@ class DhanBroker(BrokerBase):
                     "source": "broker",
                 }
 
-        # Paginated fetch for large accounts
         all_orders = []
         seen_ids = set()
         offset = 0
-        for i in range(max_batches):  # Use i if you want to log batch number
+        for i in range(max_batches):
             try:
                 url = "{}/orders?offset={}&limit={}".format(self.api_base, offset, batch_size)
-                r = self._request("get", url, headers=self.headers, timeout=self.timeout)  # Pass timeout
+                r = self._request("get", url, headers=self.headers, timeout=self.timeout)
                 status = getattr(r, "status_code", 200)
                 if status >= 400:
                     try:
@@ -372,8 +346,6 @@ class DhanBroker(BrokerBase):
                         "Error response from Dhan API at offset %s: %r", offset, batch or r.text
                     )
                     if offset == 0 and use_pagination:
-                        # Some Dhan accounts reject offset/limit parameters.
-                        # Fall back to a single non-paginated request.
                         return self.get_order_list(
                             use_pagination=False
                         )
@@ -405,8 +377,6 @@ class DhanBroker(BrokerBase):
                         "Error response from Dhan API at offset %s: %r", offset, batch
                     )
                     if offset == 0 and use_pagination:
-                        # Retry without pagination if the API rejects the request
-                        # structure that includes offset/limit parameters.
                         return self.get_order_list(
                             use_pagination=False
                         )
@@ -438,9 +408,6 @@ class DhanBroker(BrokerBase):
                 if not batch_orders:
                     break
 
-                # Detect if offset is being ignored by the API by checking for
-                # orderIds we have already seen. If the first orderId of a
-                # subsequent batch repeats, stop pagination.
                 first_oid = (batch_orders[0].get("orderId") or batch_orders[0].get("order_id")) if batch_orders else None
                 if offset > 0 and first_oid in seen_ids:
                     break
@@ -448,7 +415,6 @@ class DhanBroker(BrokerBase):
                 for o in batch_orders:
                     oid = o.get("orderId") or o.get("order_id")
                     if oid in seen_ids:
-                        # Skip duplicates within or across batches
                         continue
                     seen_ids.add(oid)
                     all_orders.append(o)
@@ -457,15 +423,13 @@ class DhanBroker(BrokerBase):
                     break
                 offset += batch_size
             except requests.exceptions.Timeout:
-                # Return partial results if timeout occurs
                 return {
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "Request to Dhan API timed out during pagination.",
                     "data": all_orders,
-                    "source": "broker",    
+                    "source": "broker",
                 }
             except requests.exceptions.RequestException as e:
-                # Return partial results if other request error occurs
                 return {
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "Failed to fetch order list from Dhan API during pagination: {}".format(str(e)),
@@ -480,7 +444,6 @@ class DhanBroker(BrokerBase):
                     "source": "broker",
                 }
             except Exception as e:
-                # Return partial results if unexpected error occurs
                 return {
                     "status": "partial_failure" if all_orders else "failure",
                     "error": "An unexpected error occurred during pagination: {}".format(str(e)),
@@ -490,15 +453,7 @@ class DhanBroker(BrokerBase):
         return {"status": "success", "data": all_orders}
 
     def list_orders(self, **kwargs):
-        """Return a list of orders with canonical field names.
-
-        Dhan's API uses a mixture of naming conventions (e.g. ``orderStatus``
-        vs ``status``) and data types.  This override normalises each order so
-        callers can rely on the standard keys used throughout the project:
-        ``symbol``, ``action``, ``qty``, ``exchange``, ``order_type``,
-        ``status`` and ``order_id``.
-        """
-
+        """Return a list of orders with canonical field names."""
         resp = self.get_order_list(**kwargs)
         if isinstance(resp, dict):
             if resp.get("status") != "success":
@@ -542,9 +497,9 @@ class DhanBroker(BrokerBase):
             if order_id is not None:
                 order["orderId"] = str(order_id)
                 order["order_id"] = str(order_id)
-                
+
             normalized.append(order)
-            
+
         return normalized
 
     def cancel_order(self, order_id):
@@ -556,7 +511,7 @@ class DhanBroker(BrokerBase):
                 "delete",
                 "{}/orders/{}".format(self.api_base, order_id),
                 headers=self.headers,
-                timeout=self.timeout, # Pass timeout
+                timeout=self.timeout,
             )
             return {"status": "success", "data": r.json()}
         except requests.exceptions.Timeout:
@@ -672,7 +627,6 @@ class DhanBroker(BrokerBase):
             if not isinstance(holdings, list):
                 holdings = []
 
-            # Build securities dict for ticker API
             securities = {}
             for h in holdings:
                 seg = self._normalize_segment(h.get("exchangeSegment") or h.get("exchange"))
@@ -699,7 +653,6 @@ class DhanBroker(BrokerBase):
                 except Exception:
                     quotes = {}
 
-            # Attach LTP and P/L if possible
             for h in holdings:
                 seg = self._normalize_segment(h.get("exchangeSegment") or h.get("exchange"))
                 sid = str(h.get("securityId") or h.get("security_id"))
@@ -714,7 +667,6 @@ class DhanBroker(BrokerBase):
                 if ltp is not None:
                     try:
                         ltp_val = float(ltp)
-                        # expose LTP under both common keys
                         h["last_price"] = ltp_val
                         h.setdefault("ltp", ltp_val)
                         qty = float(h.get("availableQty") or h.get("totalQty") or 0)
@@ -734,7 +686,7 @@ class DhanBroker(BrokerBase):
             return {"status": "failure", "error": "Invalid JSON response from Dhan API: {}".format(r.text)}
         except Exception as e:
             return {"status": "failure", "error": "An unexpected error occurred while fetching holdings: {}".format(str(e))}
-            
+
     def get_profile(self):
         """
         Return profile or fund data to confirm account id.
@@ -742,9 +694,9 @@ class DhanBroker(BrokerBase):
         try:
             r = self._request(
                 "get",
-               "{}/fundlimit".format(self.api_base),
+                "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
-                timeout=self.timeout, # Pass timeout
+                timeout=self.timeout,
             )
             return {"status": "success", "data": r.json()}
         except requests.exceptions.Timeout:
@@ -765,7 +717,7 @@ class DhanBroker(BrokerBase):
                 "get",
                 "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
-                timeout=5, # Explicit timeout for token check, can be shorter
+                timeout=5,
             )
             r.raise_for_status()
             data = r.json()
@@ -774,16 +726,12 @@ class DhanBroker(BrokerBase):
                 return False
             return True
         except requests.exceptions.Timeout:
-            # Token validation timed out
             return False
         except requests.exceptions.RequestException:
-            # Any other request error means token is likely invalid or API is down
             return False
         except json.JSONDecodeError:
-            # Invalid JSON response from API during token check
             return False
         except Exception:
-            # General unexpected error
             return False
 
     def get_opening_balance(self):
@@ -795,14 +743,14 @@ class DhanBroker(BrokerBase):
                 "get",
                 "{}/fundlimit".format(self.api_base),
                 headers=self.headers,
-                timeout=self.timeout, # Pass timeout
+                timeout=self.timeout,
             )
             data = r.json()
             for key in [
                 "openingBalance",
                 "netCashAvailable",
                 "availableBalance",
-                "availabelBalance", # Corrected typo from "availabelBalance" to "availableBalance" in the actual API call, but keeping here for robustness if API uses it.
+                "availabelBalance",
                 "withdrawableBalance",
                 "availableAmount",
                 "netCash",
@@ -811,7 +759,7 @@ class DhanBroker(BrokerBase):
                     return float(data[key])
             return float(data.get("cash", 0))
         except requests.exceptions.Timeout:
-            return None # Or raise a specific error, depending on desired behavior
+            return None
         except requests.exceptions.RequestException:
             return None
         except json.JSONDecodeError:
