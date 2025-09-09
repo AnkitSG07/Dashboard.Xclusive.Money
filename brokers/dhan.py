@@ -1,8 +1,11 @@
 import requests
 from .base import BrokerBase
-from .symbol_map import get_symbol_for_broker
+from .symbol_map import get_symbol_for_broker, refresh_symbol_map
 import json  # Import the json module
 import logging
+import re
+import calendar
+from datetime import datetime, date, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +81,32 @@ class DhanBroker(BrokerBase):
         }
         return mapping.get(ot, ot)
 
+    @staticmethod
+    def _expiry_from_symbol(symbol):
+        """Parse expiry date from derivative symbols like BANKNIFTY24AUGFUT.
+
+        Returns a ``date`` object for the contract's expiry or ``None`` if the
+        symbol cannot be parsed.
+        """
+        if not symbol:
+            return None
+        sym = symbol.upper()
+        # Look for two-digit year followed by three-letter month
+        m = re.search(r"(\d{2})([A-Z]{3})", sym)
+        if not m:
+            return None
+        year = 2000 + int(m.group(1))
+        try:
+            month = datetime.strptime(m.group(2), "%b").month
+        except ValueError:
+            return None
+        # Determine the last Thursday of the month (standard F&O expiry)
+        last_day = calendar.monthrange(year, month)[1]
+        expiry = date(year, month, last_day)
+        while expiry.weekday() != 3:  # Monday=0 ... Thursday=3
+            expiry -= timedelta(days=1)
+        return expiry
+
     # Assuming _request method exists in BrokerBase.
     # If not, you'd need to define it here or in BrokerBase.
     # Example minimal _request for demonstration if it's missing:
@@ -113,6 +142,7 @@ class DhanBroker(BrokerBase):
         tradingsymbol = tradingsymbol or extra.pop("symbol", None)
         transaction_type = transaction_type or extra.pop("action", None)
         quantity = quantity or extra.pop("qty", None)
+        security_id = security_id or extra.pop("security_id", None)
         instrument_type = instrument_type or extra.pop("instrument_type", None)
         exchange = exchange_segment or extra.pop("exchange", None)
         if exchange:
@@ -144,25 +174,43 @@ class DhanBroker(BrokerBase):
                 exchange_base = "NFO"
                 exchange_segment = "NSE_FNO"
 
-        # Look up the instrument details for this symbol/exchange pair.  The
-        # mapping provides the authoritative ``security_id`` for Dhan while an
-        # optional ``symbol_map`` passed in via the constructor acts merely as a
-        # fallback.  This prevents outdated or NSE-only maps from overriding the
-        # correct per-exchange security id which would otherwise lead to "Invalid
-        # SecurityId" errors when placing BSE orders.
-        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
-        if not security_id:
-            security_id = mapping.get("security_id")
-        if not security_id and tradingsymbol and self.symbol_map:
-            security_id = self.symbol_map.get(tradingsymbol.upper())
+        # Reject derivative contracts that have already expired
+        if tradingsymbol and instrument_type in {"FUT", "CE", "PE"}:
+            expiry = self._expiry_from_symbol(tradingsymbol)
+            if expiry and expiry < datetime.utcnow().date():
+                msg = f"Contract {tradingsymbol} expired on {expiry.isoformat()}"
+                logger.warning(msg)
+                return {"status": "failure", "error": msg, "source": "broker"}
+
+        # Look up instrument details only when necessary. When ``security_id``
+        # is supplied directly, we can bypass the symbol->security mapping
+        # entirely which avoids unnecessary lookups and potential mismatches.
+        mapping = {}
+        if security_id is None or exchange_segment is None:
+            mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
+        if security_id is None:
+            try:
+                security_id = mapping["security_id"]
+            except KeyError:
+                refresh_symbol_map()
+                mapping = get_symbol_for_broker(
+                    tradingsymbol or "", self.BROKER, exchange_base
+                )
+                try:
+                    security_id = mapping["security_id"]
+                except KeyError:
+                    security_id = None
+            if not security_id and tradingsymbol and self.symbol_map:
+                security_id = self.symbol_map.get(tradingsymbol.upper())
         if not security_id:
             raise ValueError(
-                "DhanBroker: 'security_id' required (tradingsymbol={})".format(
-                    tradingsymbol
-                )
-            )    
+                (
+                    "DhanBroker: 'security_id' for symbol {} not found. "
+                    "The symbol may be expired or not yet in Dhan's scrip master."
+                ).format(tradingsymbol)
+            )
 
-        if not exchange_segment:
+        if exchange_segment is None:
             exchange_segment = mapping.get("exchange_segment", self.NSE)
 
         if not product_type:
