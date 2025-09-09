@@ -125,16 +125,15 @@ class WebhookEventSchema(Schema):
         elif isinstance(data["exchange"], str):
             data["exchange"] = data["exchange"].upper()
 
-        # Corrected: Normalise and upper-case the symbol to Dhan's format.
+        # Final symbol normalization logic. This has been completely rewritten for robustness.
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
             
-            # A more robust regex that handles various formats with spaces or no spaces
-            # for options and futures, and correctly extracts the components.
-            # Example: NIFTYNXT50 25 NOV 35500 CALL
-            # Example: NIFTYNXT5025NOV35500CE
-            opt_pattern = r"^([A-Z]+)(?:\s*(\d{2}))?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*(\d+)\s*(CALL|PUT|CE|PE)(?:-EQ)?$"
-            opt_match = re.fullmatch(opt_pattern, raw_sym)
+            # --- Option Symbol Parsing ---
+            opt_pattern = re.compile(
+                r"^([A-Z]+)\s*(?:\s*(\d{2}))?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*(\d+)\s*(CALL|PUT|CE|PE)$"
+            )
+            opt_match = opt_pattern.fullmatch(raw_sym)
             if opt_match:
                 root, year, month, strike, opt_type = opt_match.groups()
                 if not year:
@@ -144,25 +143,24 @@ class WebhookEventSchema(Schema):
                 data["exchange"] = "NFO"
                 return data
 
-            # A more robust regex for futures.
-            # Example: NIFTYNXT50 25 NOV FUT
-            # Example: NIFTYNXT5025FUT
-            fut_pattern = r"^([A-Z]+)(?:\s*(\d{2}))?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*FUT$"
-            fut_match = re.fullmatch(fut_pattern, raw_sym)
+            # --- Futures Symbol Parsing ---
+            fut_pattern = re.compile(
+                r"^([A-Z]+)\s*(?:\s*(\d{2}))?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*FUT$"
+            )
+            fut_match = fut_pattern.fullmatch(raw_sym)
             if fut_match:
-                root, year, month, fut_type = fut_match.groups()
+                root, year, month, _ = fut_match.groups()
                 if not year:
                     year = str(date.today().year % 100)
-                data["symbol"] = f"{root}{year}{month}{fut_type}"
+                data["symbol"] = f"{root}{year}{month}FUT"
                 data["exchange"] = "NFO"
                 return data
 
-            # If no derivative pattern matches, assume it's an equity symbol
-            if not re.search(r"\d", raw_sym) and not raw_sym.endswith(("-EQ", "FUT", "CE", "PE")):
-                data["symbol"] = f"{raw_sym}-EQ"
-            else:
-                 data["symbol"] = raw_sym
-            
+            # --- Default/Fallback (e.g., Equities) ---
+            data["symbol"] = raw_sym.replace(" ", "")
+            if not re.search(r"[0-9]", data["symbol"]) and not data["symbol"].endswith(("-EQ", "FUT", "CE", "PE")):
+                data["symbol"] = f"{data['symbol']}-EQ"
+
         return data
 
 
