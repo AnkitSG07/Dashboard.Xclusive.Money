@@ -53,6 +53,7 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
     )
     dhan_csv = (
         "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,BANKNIFTY24AUGFUT,D,,100\n"
     )
 
     def fake_get(url, timeout=30):
@@ -63,7 +64,39 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
     sm._load_dhan.cache_clear()
     mapping = sm.build_symbol_map()
     assert mapping["BANKNIFTY24AUGFUT"]["NFO"]["zerodha"]["token"] == "1"
+    assert mapping["BANKNIFTY24AUGFUT"]["NFO"]["dhan"]["security_id"] == "100"
+    assert (
+        mapping["BANKNIFTY24AUGFUT"]["NFO"]["dhan"]["exchange_segment"]
+        == "NSE_FNO"
+    )
 
+
+def test_get_symbol_for_broker_derivative(monkeypatch):
+    import brokers.symbol_map as sm
+
+    original_map = sm.get_symbol_map().copy()
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NFO,NIFTY24SEPFUT,NFO,FUTIDX\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,NIFTY24SEPFUT,D,,200\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    refresh_symbol_map(force=True)
+    mapping = get_symbol_for_broker("NIFTY24SEPFUT", "dhan", "NFO")
+    assert mapping["security_id"] == "200"
+    assert mapping["exchange_segment"] == "NSE_FNO"
+
+    sm.SYMBOL_MAP.clear()
+    sm.SYMBOL_MAP.update(original_map)
+    
 def test_refresh_symbol_map(monkeypatch):
     # Save original map so we can restore it after the test to avoid
     # side effects for other tests.
