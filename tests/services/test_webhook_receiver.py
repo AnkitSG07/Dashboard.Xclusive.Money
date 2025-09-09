@@ -1,3 +1,8 @@
+import datetime
+
+import pytest
+from marshmallow import ValidationError
+
 from services import webhook_receiver as wr
 
 
@@ -80,3 +85,30 @@ def test_symbol_preserves_existing_suffix(monkeypatch):
     event = wr.enqueue_webhook(1, None, payload)
     assert event["symbol"] == "IDEA-EQ"
     assert event["exchange"] == "BSE"
+
+def test_parses_human_readable_futures_symbol(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    class FixedDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2024, 9, 1)
+
+    monkeypatch.setattr(wr.datetime, "date", FixedDate)
+
+    payload = {"symbol": "NIFTY SEP FUT", "action": "buy", "qty": 1}
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == "NIFTY24SEPFUT"
+    assert event["exchange"] == "NFO"
+
+
+def test_rejects_invalid_human_futures_symbol(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {"symbol": "NIFTY BAD FUT", "action": "buy", "qty": 1}
+    with pytest.raises(ValidationError):
+        wr.enqueue_webhook(1, None, payload)
