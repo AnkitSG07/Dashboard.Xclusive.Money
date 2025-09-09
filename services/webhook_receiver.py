@@ -134,6 +134,14 @@ class WebhookEventSchema(Schema):
                 r"^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
                 raw_sym,
             )
+            if fut_match:
+                root, year, month = fut_match.groups()
+                if year is None:
+                    year = datetime.date.today().year % 100
+                canonical = f"{root}{int(year):02d}{month}FUT"
+                data["symbol"] = canonical
+                data["exchange"] = "NFO"
+            else:
                 # Detect human readable option symbols ending with CALL/PUT
                 opt_match = re.fullmatch(
                     r"^([A-Z]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT)$",
