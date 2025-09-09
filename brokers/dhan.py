@@ -99,6 +99,7 @@ class DhanBroker(BrokerBase):
         exchange_segment=None,
         transaction_type=None,
         quantity=None,
+        instrument_type=None,
         order_type="MARKET",
         product_type="INTRADAY",
         price=0,
@@ -112,6 +113,7 @@ class DhanBroker(BrokerBase):
         tradingsymbol = tradingsymbol or extra.pop("symbol", None)
         transaction_type = transaction_type or extra.pop("action", None)
         quantity = quantity or extra.pop("qty", None)
+        instrument_type = instrument_type or extra.pop("instrument_type", None)
         exchange = exchange_segment or extra.pop("exchange", None)
         if exchange:
             exchange = str(exchange).upper()
@@ -120,6 +122,27 @@ class DhanBroker(BrokerBase):
         else:
             exchange_segment = None
             exchange_base = None
+
+        # Detect derivative instruments via instrument_type or symbol suffixes
+        if not instrument_type and tradingsymbol:
+            sym = tradingsymbol.upper()
+            has_digits = any(ch.isdigit() for ch in sym)
+            if sym.endswith("FUT") and has_digits:
+                instrument_type = "FUT"
+            elif sym.endswith("CE") and has_digits:
+                instrument_type = "CE"
+            elif sym.endswith("PE") and has_digits:
+                instrument_type = "PE"
+
+        if instrument_type in {"FUT", "CE", "PE"} and (
+            exchange_base in {None, "NSE", "BSE"}
+        ):
+            if exchange_base == "BSE":
+                exchange_base = "BFO"
+                exchange_segment = "BSE_FNO"
+            else:
+                exchange_base = "NFO"
+                exchange_segment = "NSE_FNO"
 
         # Look up the instrument details for this symbol/exchange pair.  The
         # mapping provides the authoritative ``security_id`` for Dhan while an
