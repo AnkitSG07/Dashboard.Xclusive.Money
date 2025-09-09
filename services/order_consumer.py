@@ -235,6 +235,8 @@ def consume_webhook_events(
                     "action": event["action"],
                     "qty": event["qty"],
                 }
+                if event.get("security_id") is not None:
+                    order_params["security_id"] = event["security_id"]
                 if event.get("exchange") is not None:
                     exchange = event["exchange"]
                     instrument_type = event.get("instrument_type")
@@ -261,6 +263,7 @@ def consume_webhook_events(
                     "productType": "product_type",
                     "orderValidity": "validity",
                     "masterAccounts": "master_accounts",
+                    "securityId": "security_id",
                 }
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
