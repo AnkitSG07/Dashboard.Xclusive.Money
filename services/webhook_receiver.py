@@ -194,6 +194,7 @@ class WebhookEventSchema(Schema):
 
             # Pattern 2: Handle spaced derivative formats (TradingView style)
             # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
+            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
             spaced_fut_match = re.match(
                 r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
                 raw_sym
@@ -210,6 +211,7 @@ class WebhookEventSchema(Schema):
                 return data
 
             # Options: NIFTYNXT50 25 NOV 35500 CALL -> NIFTYNXT5025NOV35500CE
+            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
             spaced_opt_match = re.match(
                 r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
                 raw_sym
