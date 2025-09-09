@@ -352,10 +352,16 @@ def poll_and_copy_trades(
                                 log.exception(
                                     "error processing trade event %s", msg_id, exc_info=exc
                                 )
+                                db_session.rollback()
+                                log.info(
+                                    "database session rolled back after error processing trade event %s",
+                                    msg_id,
+                                )    
                                 raise
+                            else:
+                                redis_client.xack(stream, group, msg_id)
                             finally:
                                 LATENCY.observe(time.time() - start)
-                                redis_client.xack(stream, group, msg_id)
 
                         tasks.append((msg_id, asyncio.create_task(handle())))
                         count += 1
