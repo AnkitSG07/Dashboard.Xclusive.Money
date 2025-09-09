@@ -112,3 +112,29 @@ def test_rejects_invalid_human_futures_symbol(monkeypatch):
     payload = {"symbol": "NIFTY BAD FUT", "action": "buy", "qty": 1}
     with pytest.raises(ValidationError):
         wr.enqueue_webhook(1, None, payload)
+
+
+
+@pytest.mark.parametrize(
+    "symbol,expected",
+    [
+        ("NIFTY SEP 24500 CALL", "NIFTY24SEP24500CE"),
+        ("NIFTY SEP 24500 PUT", "NIFTY24SEP24500PE"),
+    ],
+)
+def test_parses_human_readable_option_symbol(monkeypatch, symbol, expected):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    class FixedDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2024, 9, 1)
+
+    monkeypatch.setattr(wr.datetime, "date", FixedDate)
+
+    payload = {"symbol": symbol, "action": "buy", "qty": 1}
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == expected
+    assert event["exchange"] == "NFO"
