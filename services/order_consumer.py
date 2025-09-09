@@ -236,7 +236,16 @@ def consume_webhook_events(
                     "qty": event["qty"],
                 }
                 if event.get("exchange") is not None:
-                    order_params["exchange"] = event["exchange"]
+                    exchange = event["exchange"]
+                    instrument_type = event.get("instrument_type")
+                    symbol = str(event.get("symbol", ""))
+                    is_derivative = (
+                        (instrument_type and instrument_type.upper() in {"FUT", "OPT"})
+                        or bool(re.search(r"(FUT|CE|PE)$", symbol))
+                    )
+                    if exchange in {"NSE", "BSE"} and is_derivative:
+                        exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
+                    order_params["exchange"] = exchange
                 if event.get("order_type") is not None:
                     order_params["order_type"] = event["order_type"]
                 for field in [
