@@ -125,18 +125,41 @@ class WebhookEventSchema(Schema):
         elif isinstance(data["exchange"], str):
             data["exchange"] = data["exchange"].upper()
 
-        # Upper-case the symbol. Append '-EQ' only for equities.
+        # Normalise and upper-case the symbol.
         if "symbol" in data and isinstance(data["symbol"], str):
-            sym = data["symbol"].upper()
-            if (
-                ":" not in sym
-                and "-" not in sym
-                and not sym.endswith("FUT")
-                and not sym.endswith("CE")
-                and not sym.endswith("PE")
-            ):
-                sym = f"{sym}-EQ"
-            data["symbol"] = sym
+            raw_sym = data["symbol"].strip().upper()
+            fut_match = re.fullmatch(
+                r"^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
+                raw_sym,
+            )
+            if fut_match:
+                root, year, month = fut_match.groups()
+                if year is None:
+                    year = datetime.date.today().year % 100
+                canonical = f"{root}{int(year):02d}{month}FUT"
+                data["symbol"] = canonical
+                data["exchange"] = "NFO"
+            else:
+                if "FUT" in raw_sym and " " in raw_sym:
+                    raise ValidationError("Invalid futures symbol format")
+                sym = raw_sym
+                if (
+                    ":" not in sym
+                    and "-" not in sym
+                    and not sym.endswith("FUT")
+                    and not sym.endswith("CE")
+                    and not sym.endswith("PE")
+                ):
+                    sym = f"{sym}-EQ"
+                data["symbol"] = sym
+
+        # Ensure derivatives default to the NFO exchange.
+        if (
+            "symbol" in data
+            and isinstance(data["symbol"], str)
+            and data["symbol"].endswith(("FUT", "CE", "PE"))
+        ):
+            data["exchange"] = "NFO"
 
 
         return data
