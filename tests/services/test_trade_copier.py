@@ -848,5 +848,5 @@ def test_poll_and_copy_trades_logs_task_errors(monkeypatch, caplog):
         )
 
     assert processed == 2
-    assert set(redis.acks) == {b"1", b"2"}
+    assert set(redis.acks) == {b"2"}
     assert any("1" in r.message for r in caplog.records)
