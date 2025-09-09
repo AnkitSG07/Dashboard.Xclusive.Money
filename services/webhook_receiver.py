@@ -134,17 +134,32 @@ class WebhookEventSchema(Schema):
                 r"^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
                 raw_sym,
             )
-            if fut_match:
-                root, year, month = fut_match.groups()
-                if year is None:
-                    year = datetime.date.today().year % 100
-                canonical = f"{root}{int(year):02d}{month}FUT"
-                data["symbol"] = canonical
-                data["exchange"] = "NFO"
-            else:
-                if "FUT" in raw_sym and " " in raw_sym:
-                    raise ValidationError("Invalid futures symbol format")
-                sym = raw_sym
+                # Detect human readable option symbols ending with CALL/PUT
+                opt_match = re.fullmatch(
+                    r"^([A-Z]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT)$",
+                    raw_sym.replace(" ", ""),
+                )
+                if opt_match:
+                    root, year, month, strike, opt = opt_match.groups()
+                    if year is None:
+                        year = datetime.date.today().year % 100
+                    opt_code = "CE" if opt == "CALL" else "PE"
+                    canonical = f"{root}{int(year):02d}{month}{int(strike)}{opt_code}"
+                    data["symbol"] = canonical
+                    data["exchange"] = "NFO"
+                else:
+                    if "FUT" in raw_sym and " " in raw_sym:
+                        raise ValidationError("Invalid futures symbol format")
+                    sym = raw_sym
+                    if (
+                        ":" not in sym
+                        and "-" not in sym
+                        and not sym.endswith("FUT")
+                        and not sym.endswith("CE")
+                        and not sym.endswith("PE")
+                    ):
+                        sym = f"{sym}-EQ"
+                    data["symbol"] = sym
                 if (
                     ":" not in sym
                     and "-" not in sym
