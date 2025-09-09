@@ -20,7 +20,12 @@ if DATABASE_URL.startswith("postgresql://"):
 else:
     sqlalchemy_url = DATABASE_URL
 
-_engine = create_engine(sqlalchemy_url)
+# The engine is configured with ``pool_pre_ping`` to gracefully handle stale
+# connections in long-running worker processes and ``pool_recycle`` to ensure
+# connections are refreshed periodically (here every 30 minutes).
+_engine = create_engine(
+    sqlalchemy_url, pool_pre_ping=True, pool_recycle=1800
+)
 _Session = sessionmaker(bind=_engine)
 
 # Ensure the core tables exist when using lightweight setups like SQLite.
