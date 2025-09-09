@@ -11,7 +11,6 @@ The expected event schema is documented in ``docs/webhook_events.md``.
 from __future__ import annotations
 
 import os
-from collections import deque
 import logging
 import json
 import re
@@ -27,7 +26,6 @@ from .alert_guard import check_duplicate_and_risk
 logger = logging.getLogger(__name__)
 
 # Redis client used for publishing events. In tests this object can be
-
 # monkeypatched with a stub that implements ``xadd``. It is initialised lazily
 # so the module can be imported without a ``REDIS_URL`` being configured.
 redis_client: Optional[redis.Redis] = None
@@ -127,66 +125,49 @@ class WebhookEventSchema(Schema):
         elif isinstance(data["exchange"], str):
             data["exchange"] = data["exchange"].upper()
 
-        # Normalise and upper-case the symbol.
+        # Corrected: Normalise and upper-case the symbol with a single, robust function.
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
+            
+            # Remove any -EQ suffix for derivatives, as it's not standard
+            if raw_sym.endswith("-EQ"):
+                raw_sym = raw_sym[:-3]
+
+            # Replace spaces with hyphens to create a consistent format
+            clean_sym = raw_sym.replace(" ", "-")
+            
+            # Match futures: NIFTYNXT50-SEP-FUT or NIFTYNXT50-25-SEP-FUT
             fut_match = re.fullmatch(
-                r"^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
-                raw_sym,
+                r"^([A-Z0-9]+)-(\d{2})?-?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-(FUT)$",
+                clean_sym,
             )
             if fut_match:
-                root, year, month = fut_match.groups()
-                if year is None:
+                root, year, month, fut_type = fut_match.groups()
+                if not year:
                     year = datetime.date.today().year % 100
-                canonical = f"{root}{int(year):02d}{month}FUT"
-                data["symbol"] = canonical
+                data["symbol"] = f"{root}-{month}{year}-{fut_type}"
                 data["exchange"] = "NFO"
-            else:
-                # Detect human readable option symbols ending with CALL/PUT
-                opt_match = re.fullmatch(
-                    r"^([A-Z]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT)$",
-                    raw_sym.replace(" ", ""),
-                )
-                if opt_match:
-                    root, year, month, strike, opt = opt_match.groups()
-                    if year is None:
-                        year = datetime.date.today().year % 100
-                    opt_code = "CE" if opt == "CALL" else "PE"
-                    canonical = f"{root}{int(year):02d}{month}{int(strike)}{opt_code}"
-                    data["symbol"] = canonical
-                    data["exchange"] = "NFO"
-                else:
-                    if "FUT" in raw_sym and " " in raw_sym:
-                        raise ValidationError("Invalid futures symbol format")
-                    sym = raw_sym
-                    if (
-                        ":" not in sym
-                        and "-" not in sym
-                        and not sym.endswith("FUT")
-                        and not sym.endswith("CE")
-                        and not sym.endswith("PE")
-                    ):
-                        sym = f"{sym}-EQ"
-                    data["symbol"] = sym
-                if (
-                    ":" not in sym
-                    and "-" not in sym
-                    and not sym.endswith("FUT")
-                    and not sym.endswith("CE")
-                    and not sym.endswith("PE")
-                ):
-                    sym = f"{sym}-EQ"
-                data["symbol"] = sym
+                return data
 
-        # Ensure derivatives default to the NFO exchange.
-        if (
-            "symbol" in data
-            and isinstance(data["symbol"], str)
-            and data["symbol"].endswith(("FUT", "CE", "PE"))
-        ):
-            data["exchange"] = "NFO"
+            # Match options: NIFTYNXT50-25-NOV-35500-CALL
+            opt_match = re.fullmatch(
+                r"^([A-Z0-9]+)-(\d{2})?-?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-(\d+)-(CALL|PUT|CE|PE)$",
+                clean_sym,
+            )
+            if opt_match:
+                root, year, month, strike, opt_type = opt_match.groups()
+                if not year:
+                    year = datetime.date.today().year % 100
+                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+                data["symbol"] = f"{root}-{month}{year}-{strike}-{opt_code}"
+                data["exchange"] = "NFO"
+                return data
 
-
+            # If no derivative pattern matches, assume it's an equity symbol
+            if ":" not in raw_sym and "-" not in raw_sym:
+                raw_sym = f"{raw_sym}-EQ"
+            data["symbol"] = raw_sym
+            
         return data
 
 
@@ -236,11 +217,7 @@ def enqueue_webhook(
     # Run duplicate and risk checks before publishing.
     check_duplicate_and_risk(validated)
 
-    # Serialize event to the Redis Stream. Redis expects a mapping of
-    # field/value pairs. Transform ``None`` values to the configured
-    # placeholder before publishing. ``xadd`` returns the generated ID
-    # which we don't use but keeping the call ensures the event is
-    # queued.
+    # Serialize event to the Redis Stream.
     sanitized: Dict[str, Any] = {}
     for k, v in validated.items():
         if v is None:
