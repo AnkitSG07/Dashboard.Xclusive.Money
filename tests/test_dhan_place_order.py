@@ -49,3 +49,27 @@ def test_symbol_map_injection_does_not_override_exchange(monkeypatch):
     assert result['status'] == 'success'
     assert captured['payload']['securityId'] == '500325'
     assert captured['payload']['exchangeSegment'] == 'BSE_EQ'
+
+def test_derivative_exchange_adjustment(monkeypatch):
+    """Derivative orders should map to F&O segments even when exchange is NSE."""
+    captured = {}
+
+    def fake_request(self, method, url, **kwargs):
+        captured['payload'] = kwargs.get('json')
+        return Resp({"orderId": "1"})
+
+    monkeypatch.setattr(DhanBroker, '_request', fake_request, raising=False)
+
+    def fake_mapper(symbol, broker, exchange=None):
+        # Ensure the broker lookup is performed against the F&O exchange
+        assert exchange == 'NFO'
+        return {"security_id": "12345", "exchange_segment": "NSE_FNO"}
+
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+
+    br = DhanBroker('C1', 'token')
+    result = br.place_order(symbol='BANKNIFTY24AUGFUT', action='BUY', qty=25, exchange='NSE')
+
+    assert result['status'] == 'success'
+    assert captured['payload']['exchangeSegment'] == 'NSE_FNO'
+    assert captured['payload']['securityId'] == '12345'
