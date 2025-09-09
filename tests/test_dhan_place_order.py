@@ -1,4 +1,5 @@
 from brokers.dhan import DhanBroker
+import pytest
 
 class Resp:
     def __init__(self, data, payload=None):
@@ -68,8 +69,48 @@ def test_derivative_exchange_adjustment(monkeypatch):
     monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
 
     br = DhanBroker('C1', 'token')
-    result = br.place_order(symbol='BANKNIFTY24AUGFUT', action='BUY', qty=25, exchange='NSE')
+    result = br.place_order(symbol='BANKNIFTY50DECFUT', action='BUY', qty=25, exchange='NSE')
 
     assert result['status'] == 'success'
     assert captured['payload']['exchangeSegment'] == 'NSE_FNO'
     assert captured['payload']['securityId'] == '12345'
+
+def test_rejects_expired_contract(monkeypatch):
+    """Expired FUT/OPT symbols should not be submitted for trading."""
+    def fake_request(*args, **kwargs):  # Should not be called
+        raise AssertionError("request should not be made for expired contracts")
+
+    monkeypatch.setattr(DhanBroker, '_request', fake_request, raising=False)
+
+    def fake_mapper(symbol, broker, exchange=None):  # Should not be called
+        raise AssertionError("symbol lookup should not be performed")
+
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+
+    br = DhanBroker('C1', 'token')
+    # Use a clearly expired symbol (Aug 2020)
+    result = br.place_order(symbol='BANKNIFTY20AUGFUT', action='BUY', qty=25)
+    assert result['status'] == 'failure'
+    assert 'expired' in result['error'].lower()
+    
+def test_missing_security_id_triggers_refresh(monkeypatch):
+    calls = {"refresh": 0, "mapper": 0}
+
+    def fake_refresh():
+        calls["refresh"] += 1
+
+    monkeypatch.setattr("brokers.dhan.refresh_symbol_map", fake_refresh)
+
+    def fake_mapper(symbol, broker, exchange=None):
+        calls["mapper"] += 1
+        return {}
+
+    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker", fake_mapper)
+
+    br = DhanBroker("C1", "token")
+    with pytest.raises(ValueError) as exc:
+        br.place_order(symbol="MISSING", action="BUY", qty=1)
+
+    assert "expired" in str(exc.value)
+    assert calls["refresh"] == 1
+    assert calls["mapper"] == 2
