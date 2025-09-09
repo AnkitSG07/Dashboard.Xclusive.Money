@@ -118,7 +118,7 @@ def test_consumer_places_derivative_order(monkeypatch):
         "action": "BUY",
         "qty": 50,
         "alert_id": "1",
-        "exchange": "NFO",
+        "exchange": "NSE",
         "instrument_type": "FUT",
         "expiry": "2024-08-29",
     }
@@ -145,7 +145,20 @@ def test_consumer_places_derivative_order(monkeypatch):
             "expiry": "2024-08-29",
         }
     ]
-
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "NIFTY24AUGFUT",
+                "action": "BUY",
+                "qty": 50,
+                "exchange": "NFO",
+                "instrument_type": "FUT",
+                "expiry": "2024-08-29",
+            },
+        )
+    ]
 
 def test_consumer_publishes_traded_status(monkeypatch):
     """Orders with a Dhan ``TRADED`` status should publish events."""
