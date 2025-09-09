@@ -157,7 +157,7 @@ class WebhookEventSchema(Schema):
             # Pattern 1: Handle compact derivative formats (no spaces)
             # Futures: NIFTYNXT5025NOVFUT -> NIFTYNXT5025NOVFUT
             compact_fut_match = re.match(
-                r"^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$",
+                r"^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$",
                 raw_sym
             )
             if compact_fut_match:
@@ -174,7 +174,7 @@ class WebhookEventSchema(Schema):
 
             # Options: NIFTYNXT5025NOV35500CALL -> NIFTYNXT5025NOV35500CE
             compact_opt_match = re.match(
-                r"^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$",
+                r"^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$",
                 raw_sym
             )
             if compact_opt_match:
@@ -195,7 +195,7 @@ class WebhookEventSchema(Schema):
             # Pattern 2: Handle spaced derivative formats (TradingView style)
             # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
             spaced_fut_match = re.match(
-                r"^([A-Z]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
+                r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
                 raw_sym
             )
             if spaced_fut_match:
@@ -211,7 +211,7 @@ class WebhookEventSchema(Schema):
 
             # Options: NIFTYNXT50 25 NOV 35500 CALL -> NIFTYNXT5025NOV35500CE
             spaced_opt_match = re.match(
-                r"^([A-Z]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
+                r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
                 raw_sym
             )
             if spaced_opt_match:
@@ -231,7 +231,7 @@ class WebhookEventSchema(Schema):
             # Pattern 3: Handle alternative formats with different separators
             # Handle formats like NIFTYNXT50-25NOV-35500-CE
             alt_opt_match = re.match(
-                r"^([A-Z]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(\d+)[-_]?(CALL|PUT|CE|PE)$",
+                r"^([A-Z0-9]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(\d+)[-_]?(CALL|PUT|CE|PE)$",
                 raw_sym
             )
             if alt_opt_match:
@@ -249,7 +249,7 @@ class WebhookEventSchema(Schema):
                 return data
 
             # Pattern 4: Handle already normalized symbols (pass through)
-            if re.match(r"^[A-Z]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$", raw_sym):
+            if re.match(r"^[A-Z0-9]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$", raw_sym):
                 data["symbol"] = raw_sym
                 data["exchange"] = "NFO"
                 if raw_sym.endswith("FUT"):
