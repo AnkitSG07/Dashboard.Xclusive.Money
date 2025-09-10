@@ -107,6 +107,35 @@ def test_canonical_dhan_option_symbol_without_year_and_two_digit_year():
     assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV23 35500 CALL") == expected
 
 
+def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NFO,NIFTYNXT5025SEP38000CE,NFO,OPTIDX\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_EXPIRY_DATE\n"
+        "NSE,NIFTYNXT50-Sep2025-38000-CE,D,,500,2025-09-25\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+    assert (
+        mapping["NIFTYNXT5025SEP38000CE"]["NFO"]["dhan"]["security_id"]
+        == "500"
+    )
+    assert (
+        sm._canonical_dhan_symbol("NIFTYNXT50-Sep2025-38000-CE", "2025-09-25")
+        == "NIFTYNXT5025SEP38000CE"
+    )
+
+
 def test_get_symbol_for_broker_derivative(monkeypatch):
     import brokers.symbol_map as sm
 
