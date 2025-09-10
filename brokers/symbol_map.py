@@ -24,6 +24,7 @@ from typing import Dict, Tuple
 import logging
 import threading
 import time
+import re
 import requests
 
 log = logging.getLogger(__name__)
@@ -88,6 +89,28 @@ def _fetch_csv(url: str, cache_name: str) -> str:
 
 Key = Tuple[str, str]
 
+def _canonical_dhan_symbol(symbol: str) -> str:
+    """Return canonical representation for Dhan derivative symbols.
+
+    Dhan uses spaces or hyphens and CALL/PUT suffixes for option contracts.
+    This normalises such names to the compact form used by other brokers.
+    If *symbol* does not match the expected pattern it is returned unchanged
+    (aside from removal of separators).
+    """
+
+    parts = re.split(r"[\s-]+", symbol.strip().upper())
+    if len(parts) >= 5:
+        base, day, month, strike, opt = parts[:5]
+        if opt == "CALL":
+            opt = "CE"
+        elif opt == "PUT":
+            opt = "PE"
+        return f"{base}{day}{month}{strike}{opt}"
+    if len(parts) >= 4:
+        base, day, month, fut = parts[:4]
+        return f"{base}{day}{month}{fut}"
+    return symbol.replace(" ", "").replace("-", "").upper()
+
 
 @lru_cache(maxsize=1)
 def _load_zerodha() -> Dict[Key, str]:
@@ -137,8 +160,9 @@ def _load_dhan() -> Dict[Key, str]:
             if key not in data or row["SEM_SERIES"] == "EQ":
                 data[key] = row["SEM_SMST_SECURITY_ID"]
         elif exch in {"NSE", "BSE"} and segment == "D":
+            symbol = _canonical_dhan_symbol(symbol)
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
-            data[key] = row["SEM_SMST_SECURITY_ID"]    
+            data[key] = row["SEM_SMST_SECURITY_ID"]
     return data
 
 
