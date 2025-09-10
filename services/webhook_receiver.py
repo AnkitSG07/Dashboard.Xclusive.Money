@@ -281,10 +281,15 @@ class WebhookEventSchema(Schema):
                 logger.info(f"Normalized equity symbol: {normalized_symbol}")
                 return data
             else:
-                # Keep the original symbol if no pattern matches
+                # Keep the original symbol if no pattern matches. If the input
+                # looks like a derivative contract but none of the patterns
+                # matched, treat it as invalid and raise a validation error so
+                # callers receive explicit feedback.
                 data["symbol"] = raw_sym
                 logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
-            
+                if any(term in raw_sym for term in ("FUT", "CALL", "PUT", "CE", "PE")):
+                    raise ValidationError(f"Invalid symbol: {raw_sym}")
+                    
         return data
 
 
