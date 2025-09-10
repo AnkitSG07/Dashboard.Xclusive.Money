@@ -47,6 +47,12 @@ class DummySession:
     def query(self, model):
         return self._Query(model)
 
+    def rollback(self):
+        pass
+
+    def expire_all(self):
+        pass
+
 def test_poll_and_copy_trades_processes_event(monkeypatch):
     processed = []
 
@@ -124,6 +130,12 @@ def test_child_orders_submitted(monkeypatch):
             # Two child accounts to replicate the trade to
             return [Child("c1"), Child("c2")]
 
+        def rollback(self):
+            pass
+
+        def expire_all(self):
+            pass
+
     event = {
         b"master_id": b"m1",
         b"symbol": b"AAPL",
@@ -198,6 +210,12 @@ def test_child_orders_mirror_master_params(monkeypatch):
 
         def all(self):
             return [Child("c1"), Child("c2")]
+
+        def rollback(self):
+            pass
+
+        def expire_all(self):
+            pass
 
     event = {
         b"master_id": b"m1",
