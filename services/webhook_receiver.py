@@ -151,6 +151,23 @@ class WebhookEventSchema(Schema):
         # CORRECTED: Normalize symbol to Dhan's expected format
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
+
+            # Preserve the incoming exchange if provided. If the symbol has a
+            # prefix (e.g. ``NSE:SBIN`` or ``NFO:BANKNIFTY``) derive the base
+            # exchange from that prefix and strip it from the symbol.
+            base_exchange = str(data.get("exchange") or "").upper()
+            m = re.match(r"^(NSE|BSE|NFO|BFO):(.*)$", raw_sym)
+            if m:
+                prefix, raw_sym = m.groups()
+                if not base_exchange:
+                    base_exchange = "BSE" if prefix in {"BSE", "BFO"} else "NSE"
+            if not base_exchange:
+                base_exchange = "NSE"
+            if base_exchange in {"NFO", "NSE"}:
+                base_exchange = "NSE"
+            elif base_exchange in {"BFO", "BSE"}:
+                base_exchange = "BSE"
+            data["exchange"] = base_exchange
             
             logger.info(f"Processing symbol: {raw_sym}")
             
@@ -167,7 +184,7 @@ class WebhookEventSchema(Schema):
                 # Dhan typically uses compact format without spaces
                 normalized_symbol = f"{root}{year}{month}FUT"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
                 logger.info(f"Normalized futures symbol: {normalized_symbol}")
                 return data
@@ -185,7 +202,7 @@ class WebhookEventSchema(Schema):
                 # Dhan typically uses compact format without spaces
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
@@ -205,7 +222,7 @@ class WebhookEventSchema(Schema):
                     year = get_expiry_year(month)
                 normalized_symbol = f"{root}{year}{month}FUT"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
                 logger.info(f"Normalized spaced futures symbol: {normalized_symbol}")
                 return data
@@ -223,7 +240,7 @@ class WebhookEventSchema(Schema):
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
@@ -243,7 +260,7 @@ class WebhookEventSchema(Schema):
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
@@ -253,7 +270,7 @@ class WebhookEventSchema(Schema):
             # Pattern 4: Handle already normalized symbols (pass through)
             if re.match(r"^[A-Z0-9]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$", raw_sym):
                 data["symbol"] = raw_sym
-                data["exchange"] = "NFO"
+                data["exchange"] = base_exchange
                 if raw_sym.endswith("FUT"):
                     data["instrument_type"] = "FUTIDX" if "NIFTY" in raw_sym else "FUTSTK"
                 else:
@@ -276,7 +293,7 @@ class WebhookEventSchema(Schema):
                 else:
                     normalized_symbol = raw_sym
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NSE"
+                data["exchange"] = base_exchange
                 data["instrument_type"] = "EQ"
                 logger.info(f"Normalized equity symbol: {normalized_symbol}")
                 return data
