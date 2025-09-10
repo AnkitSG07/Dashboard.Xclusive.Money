@@ -102,12 +102,14 @@ def _canonical_dhan_symbol(symbol: str) -> str:
     symbol = symbol.strip().upper()
 
     # Option contracts: ``BASE-DDMMMYYYY-STRIKE-TYPE`` or spaced equivalent.
+    # The year component is optional and may be two or four digits.  Since the
+    # canonical form drops the year entirely, simply ignore it here.
     m = re.match(
-        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(\d{4})[-\s]+(\d+(?:\.\d+)?)[-\s]+(CALL|PUT)$",
+        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(?:\d{2,4})?[-\s]+(\d+(?:\.\d+)?)[-\s]+(CALL|PUT)$",
         symbol,
     )
     if m:
-        base, day, month, _year, strike, opt = m.groups()
+        base, day, month, strike, opt = m.groups()
         opt = "CE" if opt == "CALL" else "PE"
         
         return f"{base}{day}{month}{strike}{opt}"
