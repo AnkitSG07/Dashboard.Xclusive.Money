@@ -149,19 +149,16 @@ class DhanBroker(BrokerBase):
                 exchange_base = "NFO"
                 exchange_segment = "NSE_FNO"
 
-        # Corrected: Reject derivative contracts that have already expired.
-        # This check is moved here to fail before any symbol mapping lookups.
+        # Reject derivative contracts that have already expired before looking up
+        # any security identifiers. The service should return a failure response
+        # instead of raising an exception so callers can handle the error
+        # gracefully and avoid network requests or symbol map lookups.
         if tradingsymbol and instrument_type in {"FUT", "CE", "PE"}:
             expiry = self._expiry_from_symbol(tradingsymbol)
             if expiry and expiry < datetime.utcnow().date():
                 msg = f"Contract {tradingsymbol} expired on {expiry.isoformat()}"
                 logger.warning(msg)
-                raise ValueError(
-                    (
-                        "DhanBroker: 'security_id' for symbol {} not found. "
-                        "The symbol may be expired or not yet in Dhan's scrip master."
-                    ).format(tradingsymbol)
-                )
+                return {"status": "failure", "error": msg}
 
         # Look up instrument details only when necessary.
         mapping = {}
