@@ -335,12 +335,16 @@ def poll_and_copy_trades(
                         async def handle(msg_id=msg_id, event=event):
                             start = time.time()
                             try:
+                                db_session.rollback()
+                                db_session.expire_all()    
                                 master = (
                                     db_session.query(Account)
                                     .filter_by(client_id=str(event["master_id"]), role="master")
                                     .first()
                                 )
                                 if master:
+                                    db_session.rollback()
+                                    db_session.expire_all()
                                     await _replicate_to_children(
                                         db_session,
                                         master,
@@ -357,7 +361,7 @@ def poll_and_copy_trades(
                                 log.info(
                                     "database session rolled back after error processing trade event %s",
                                     msg_id,
-                                )    
+                                )
                                 raise
                             else:
                                 redis_client.xack(stream, group, msg_id)
