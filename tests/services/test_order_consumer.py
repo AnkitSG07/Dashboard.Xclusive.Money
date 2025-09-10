@@ -205,6 +205,54 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     assert order_consumer.orders_failed._value.get() == 1
     assert "lot size" in caplog.text
 
+def test_consumer_derivative_symbol_map_uses_normalized_exchange(monkeypatch):
+    events = [
+        {
+            "user_id": 1,
+            "symbol": "NIFTY24AUGFUT",
+            "action": "BUY",
+            "qty": 1,
+            "alert_id": "1",
+            "exchange": "NSE",
+            "instrument_type": "FUT",
+            "expiry": "2024-08-29",
+        },
+        {
+            "user_id": 1,
+            "symbol": "SENSEX24AUGFUT",
+            "action": "BUY",
+            "qty": 1,
+            "alert_id": "2",
+            "exchange": "BSE",
+            "instrument_type": "FUT",
+            "expiry": "2024-08-29",
+        },
+    ]
+    stub = StubRedis(events)
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+
+    calls = []
+
+    def fake_get_symbol(symbol, broker, exchange=None):
+        calls.append(exchange)
+        return {"lot_size": 25}
+
+    monkeypatch.setattr(
+        order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=2, redis_client=stub)
+    assert processed == 2
+    assert calls == ["NFO", "BFO"]
+    assert [o["exchange"] for o in MockBroker.orders] == ["NFO", "BFO"]
 def test_consumer_publishes_traded_status(monkeypatch):
     """Orders with a Dhan ``TRADED`` status should publish events."""
     event = {"user_id": 1, "symbol": "AAPL", "action": "BUY", "qty": 1, "alert_id": "1"}
