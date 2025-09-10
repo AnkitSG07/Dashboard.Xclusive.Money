@@ -79,7 +79,7 @@ def test_canonical_dhan_option_symbol(monkeypatch):
     )
     dhan_csv = (
         "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
-        "NSE,NIFTYNXT50 25 NOV 35500 CALL,D,,500\n"
+        "NSE,NIFTYNXT50 25NOV2023 35500 CALL,D,,500\n"
     )
 
     def fake_get(url, timeout=30):
@@ -94,7 +94,7 @@ def test_canonical_dhan_option_symbol(monkeypatch):
         == "500"
     )
     assert (
-        sm._canonical_dhan_symbol("NIFTYNXT50 25 NOV 35500 CALL")
+        sm._canonical_dhan_symbol("NIFTYNXT50 25NOV2023 35500 CALL")
         == "NIFTYNXT5025NOV35500CE"
     )
 
