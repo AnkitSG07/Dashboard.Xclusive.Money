@@ -242,11 +242,11 @@ def consume_webhook_events(
                 sym_upper = symbol.upper()
                 is_derivative = bool(re.search(r"(FUT|CE|PE)$", inst_upper)) or bool(
                     re.search(r"(FUT|CE|PE)$", sym_upper)
-                )    
+                )
+                exchange = event.get("exchange")
                 if event.get("security_id") is not None:
                     order_params["security_id"] = event["security_id"]
-                if event.get("exchange") is not None:
-                    exchange = event["exchange"]
+                if exchange is not None:
                     if exchange in {"NSE", "BSE"} and is_derivative:
                         exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
                     order_params["exchange"] = exchange
@@ -274,7 +274,7 @@ def consume_webhook_events(
                     lot_size = event.get("lot_size")
                     if lot_size is None:
                         mapping = symbol_map.get_symbol_for_broker(
-                            event.get("symbol", ""), broker_cfg["name"], event.get("exchange")
+                            event.get("symbol", ""), broker_cfg["name"], exchange
                         )
                         lot_size = mapping.get("lot_size") or mapping.get("lotSize")
                     if not lot_size:
