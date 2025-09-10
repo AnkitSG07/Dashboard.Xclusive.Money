@@ -123,8 +123,12 @@ class DhanBroker(BrokerBase):
         exchange = exchange_segment or extra.pop("exchange", None)
         if exchange:
             exchange = str(exchange).upper()
-            exchange_segment = self._normalize_segment(exchange)
-            exchange_base = exchange.split("_")[0]
+            if exchange in {"NFO", "BFO"}:
+                exchange_segment = "NSE_FNO" if exchange == "NFO" else "BSE_FNO"
+                exchange_base = exchange
+            else:
+                exchange_segment = self._normalize_segment(exchange)
+                exchange_base = exchange.split("_")[0]
         else:
             exchange_segment = None
             exchange_base = None
