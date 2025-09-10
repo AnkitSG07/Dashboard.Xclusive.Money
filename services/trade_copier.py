@@ -8,6 +8,7 @@ run as an independent microservice.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -388,7 +389,6 @@ def poll_and_copy_trades(
 def main() -> None:
     """Entry point for the trade copier service."""
     
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
     block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
 
     # Ensure symbol mappings are available before processing any trades.  The
@@ -396,17 +396,19 @@ def main() -> None:
     # cached data.  If neither is accessible the trade copier aborts so that
     # orders are not submitted with missing tokens.
     _load_symbol_map_or_exit()
+    log.info("trade copier worker starting")
 
     while True:
         session = get_session()
         client = get_redis_client()
         try:
-            poll_and_copy_trades(
+            processed = poll_and_copy_trades(
                 session,
                 processor=copy_order,
                 redis_client=client,
                 block=block,
             )
+            log.info("processed %d trade event(s)", processed)
         except redis.exceptions.RedisError:
             log.exception("redis error while copying trades")
         finally:
@@ -417,6 +419,15 @@ __all__ = ["poll_and_copy_trades", "copy_order", "LATENCY", "main"]
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the trade copier worker")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="enable debug logging",
+    )
+    args = parser.parse_args()
+    level = "DEBUG" if args.verbose else os.getenv("LOG_LEVEL", "INFO")
+    logging.basicConfig(level=level)
     try:
         main()
     except KeyboardInterrupt:
