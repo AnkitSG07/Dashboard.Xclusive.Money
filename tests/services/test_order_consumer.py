@@ -131,10 +131,12 @@ def test_consumer_places_derivative_order(monkeypatch):
         return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    # Provide a minimal symbol map with lot size information so that the
+    # consumer can resolve the contract size automatically.
     monkeypatch.setattr(
         order_consumer.symbol_map,
-        "get_symbol_for_broker",
-        lambda symbol, broker, exchange=None: {"lot_size": 25},
+        "SYMBOL_MAP",
+        {"NIFTY24AUGFUT": {"NFO": {"mock": {"lot_size": 25}}}},
     )
     reset_metrics()
 
@@ -168,7 +170,7 @@ def test_consumer_places_derivative_order(monkeypatch):
     ]
 
 
-def test_consumer_skips_derivative_without_lot_size(monkeypatch, caplog):
+def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     event = {
         "user_id": 1,
         "symbol": "NIFTY24AUGFUT",
