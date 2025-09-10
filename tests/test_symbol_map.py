@@ -99,6 +99,14 @@ def test_canonical_dhan_option_symbol(monkeypatch):
     )
 
 
+def test_canonical_dhan_option_symbol_without_year_and_two_digit_year():
+    import brokers.symbol_map as sm
+
+    expected = "NIFTYNXT5025NOV35500CE"
+    assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV 35500 CALL") == expected
+    assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV23 35500 CALL") == expected
+
+
 def test_get_symbol_for_broker_derivative(monkeypatch):
     import brokers.symbol_map as sm
 
