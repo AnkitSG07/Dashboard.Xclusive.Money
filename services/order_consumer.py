@@ -16,6 +16,7 @@ from typing import Any, Dict, Iterable, List
 from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
+from brokers import symbol_map
 import redis
 
 from .alert_guard import check_risk_limits, get_user_settings
@@ -235,16 +236,17 @@ def consume_webhook_events(
                     "action": event["action"],
                     "qty": event["qty"],
                 }
+                instrument_type = event.get("instrument_type")
+                symbol = str(event.get("symbol", ""))
+                inst_upper = instrument_type.upper() if instrument_type else ""
+                sym_upper = symbol.upper()
+                is_derivative = bool(re.search(r"(FUT|CE|PE)$", inst_upper)) or bool(
+                    re.search(r"(FUT|CE|PE)$", sym_upper)
+                )    
                 if event.get("security_id") is not None:
                     order_params["security_id"] = event["security_id"]
                 if event.get("exchange") is not None:
                     exchange = event["exchange"]
-                    instrument_type = event.get("instrument_type")
-                    symbol = str(event.get("symbol", ""))
-                    is_derivative = (
-                        (instrument_type and instrument_type.upper() in {"FUT", "OPT"})
-                        or bool(re.search(r"(FUT|CE|PE)$", symbol))
-                    )
                     if exchange in {"NSE", "BSE"} and is_derivative:
                         exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
                     order_params["exchange"] = exchange
@@ -268,6 +270,22 @@ def consume_webhook_events(
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
+                if is_derivative:
+                    lot_size = event.get("lot_size")
+                    if lot_size is None:
+                        mapping = symbol_map.get_symbol_for_broker(
+                            event.get("symbol", ""), broker_cfg["name"], event.get("exchange")
+                        )
+                        lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                    if not lot_size:
+                        log.error(
+                            "unable to resolve lot size for derivative instrument",
+                            extra={"event": event, "broker": broker_cfg},
+                        )
+                        return None
+                    order_params["qty"] = int(event["qty"]) * int(lot_size)
+                    if "lot_size" not in order_params:
+                        order_params["lot_size"] = lot_size
                 result = client.place_order(**order_params)
                 order_id = None
                 if isinstance(result, dict):
