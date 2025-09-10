@@ -211,10 +211,10 @@ def _load_dhan() -> Dict[Key, Dict[str, Union[str, int]]]:
         elif exch in {"NSE", "BSE"} and segment == "D":
             symbol = _canonical_dhan_symbol(symbol, row.get("SEM_EXPIRY_DATE"))
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
-                info: Dict[str, str] = {"security_id": row["SEM_SMST_SECURITY_ID"]}
-                if lot_size:
-                    info["lot_size"] = lot_size
-                data[key] = info
+            info = {"security_id": row["SEM_SMST_SECURITY_ID"]}
+            if lot_size:
+                info["lot_size"] = lot_size
+            data[key] = info
     return data
 
 
