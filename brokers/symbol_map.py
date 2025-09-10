@@ -25,6 +25,7 @@ import logging
 import threading
 import time
 import re
+from datetime import datetime
 import requests
 
 log = logging.getLogger(__name__)
@@ -89,28 +90,38 @@ def _fetch_csv(url: str, cache_name: str) -> str:
 
 Key = Tuple[str, str]
 
-def _canonical_dhan_symbol(symbol: str) -> str:
+def _canonical_dhan_symbol(symbol: str, expiry_date: str | None = None) -> str:
     """Return canonical representation for Dhan derivative symbols.
 
-    Dhan uses separators and CALL/PUT suffixes for option contracts, e.g.
-    ``BASE-25NOV2023-35500-CALL``.  This normalises such names to the
+    Dhan uses separators and CALL/PUT or CE/PE suffixes for option contracts,
+    e.g. ``BASE-25NOV2023-35500-CALL``.  This normalises such names to the
     compact form used by other brokers while dropping the year component.
     If *symbol* does not match the expected pattern it is returned unchanged
-    (aside from removal of separators).
+    (aside from removal of separators).  When the day component is missing
+    from the trading symbol the ``expiry_date`` field is used instead.
     """
 
     symbol = symbol.strip().upper()
 
-    # Option contracts: ``BASE-DDMMMYYYY-STRIKE-TYPE`` or spaced equivalent.
-    # The year component is optional and may be two or four digits.  Since the
-    # canonical form drops the year entirely, simply ignore it here.
+    # Option contracts: ``BASE-DDMMMYYYY-STRIKE-TYPE`` or variants where the
+    # day and/or year may be omitted.  Since the canonical form drops the year
+    # entirely, simply ignore it here.
     m = re.match(
-        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(?:\d{2,4})?[-\s]+(\d+(?:\.\d+)?)[-\s]+(CALL|PUT)$",
+        r"^([A-Z0-9]+)[-\s]+(?:(\d{1,2})?([A-Z]{3})(?:\d{2}|\d{4})?)[-\s]+(\d+(?:\.\d+)?)[-\s]+(CE|PE|CALL|PUT)$",
         symbol,
     )
     if m:
         base, day, month, strike, opt = m.groups()
-        opt = "CE" if opt == "CALL" else "PE"
+        if not day and expiry_date:
+            for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y"):
+                try:
+                    day = f"{datetime.strptime(expiry_date, fmt).day:02d}"
+                    break
+                except ValueError:
+                    continue
+        if not day:
+            return symbol.replace(" ", "").replace("-", "")
+        opt = "CE" if opt in {"CALL", "CE"} else "PE"
         
         return f"{base}{day}{month}{strike}{opt}"
 
@@ -175,7 +186,7 @@ def _load_dhan() -> Dict[Key, str]:
             if key not in data or row["SEM_SERIES"] == "EQ":
                 data[key] = row["SEM_SMST_SECURITY_ID"]
         elif exch in {"NSE", "BSE"} and segment == "D":
-            symbol = _canonical_dhan_symbol(symbol)
+            symbol = _canonical_dhan_symbol(symbol, row.get("SEM_EXPIRY_DATE"))
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
             data[key] = row["SEM_SMST_SECURITY_ID"]
     return data
