@@ -70,6 +70,34 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
         == "NSE_FNO"
     )
 
+def test_canonical_dhan_option_symbol(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NFO,NIFTYNXT5025NOV35500CE,NFO,OPTIDX\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,NIFTYNXT50 25 NOV 35500 CALL,D,,500\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+    assert (
+        mapping["NIFTYNXT5025NOV35500CE"]["NFO"]["dhan"]["security_id"]
+        == "500"
+    )
+    assert (
+        sm._canonical_dhan_symbol("NIFTYNXT50 25 NOV 35500 CALL")
+        == "NIFTYNXT5025NOV35500CE"
+    )
+
 
 def test_get_symbol_for_broker_derivative(monkeypatch):
     import brokers.symbol_map as sm
