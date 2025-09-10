@@ -92,24 +92,37 @@ Key = Tuple[str, str]
 def _canonical_dhan_symbol(symbol: str) -> str:
     """Return canonical representation for Dhan derivative symbols.
 
-    Dhan uses spaces or hyphens and CALL/PUT suffixes for option contracts.
-    This normalises such names to the compact form used by other brokers.
+    Dhan uses separators and CALL/PUT suffixes for option contracts, e.g.
+    ``BASE-25NOV2023-35500-CALL``.  This normalises such names to the
+    compact form used by other brokers while dropping the year component.
     If *symbol* does not match the expected pattern it is returned unchanged
     (aside from removal of separators).
     """
 
-    parts = re.split(r"[\s-]+", symbol.strip().upper())
-    if len(parts) >= 5:
-        base, day, month, strike, opt = parts[:5]
-        if opt == "CALL":
-            opt = "CE"
-        elif opt == "PUT":
-            opt = "PE"
+    symbol = symbol.strip().upper()
+
+    # Option contracts: ``BASE-DDMMMYYYY-STRIKE-TYPE`` or spaced equivalent.
+    m = re.match(
+        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(\d{4})[-\s]+(\d+(?:\.\d+)?)[-\s]+(CALL|PUT)$",
+        symbol,
+    )
+    if m:
+        base, day, month, _year, strike, opt = m.groups()
+        opt = "CE" if opt == "CALL" else "PE"
+        
         return f"{base}{day}{month}{strike}{opt}"
-    if len(parts) >= 4:
-        base, day, month, fut = parts[:4]
+
+    # Futures contracts: ``BASE-DDMMMYYYY-FUT``
+    m = re.match(
+        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(\d{4})[-\s]+([A-Z]+)$",
+        symbol,
+    )
+    if m:
+        base, day, month, _year, fut = m.groups()
         return f"{base}{day}{month}{fut}"
-    return symbol.replace(" ", "").replace("-", "").upper()
+
+    # Non-derivative symbols: strip separators.
+    return symbol.replace(" ", "").replace("-", "")
 
 
 @lru_cache(maxsize=1)
