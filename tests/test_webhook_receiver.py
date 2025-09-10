@@ -52,7 +52,7 @@ def test_webhook_enqueues_event(client):
     assert events
     stream, data = events[0]
     assert stream == "webhook_events"
-    assert data["symbol"] == "NSE:SBIN"
+    assert data["symbol"] == "NSE:SBIN-EQ"
     assert data["action"] == "BUY"
     assert data["qty"] == 1
     assert data["orderType"] == "market"
