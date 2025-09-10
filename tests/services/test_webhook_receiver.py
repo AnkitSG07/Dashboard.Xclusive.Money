@@ -96,7 +96,7 @@ def test_parses_human_readable_futures_symbol(monkeypatch):
         def today(cls):
             return cls(2024, 9, 1)
 
-    monkeypatch.setattr(wr.datetime, "date", FixedDate)
+    monkeypatch.setattr(wr, "date", FixedDate)
 
     payload = {"symbol": "NIFTY SEP FUT", "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
@@ -132,7 +132,7 @@ def test_parses_human_readable_option_symbol(monkeypatch, symbol, expected):
         def today(cls):
             return cls(2024, 9, 1)
 
-    monkeypatch.setattr(wr.datetime, "date", FixedDate)
+    monkeypatch.setattr(wr, "date", FixedDate)
 
     payload = {"symbol": symbol, "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
