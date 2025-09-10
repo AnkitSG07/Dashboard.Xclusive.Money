@@ -116,7 +116,7 @@ def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
     )
     dhan_csv = (
         "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_EXPIRY_DATE\n"
-        "NSE,NIFTYNXT50-Sep2025-38000-CE,D,,500,2025-09-25\n"
+        "NSE,NIFTYNXT50-Sep2025-38000-CE,D,,500,2025-09-25 14:30:00\n"
     )
 
     def fake_get(url, timeout=30):
@@ -131,9 +131,12 @@ def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
         == "500"
     )
     assert (
-        sm._canonical_dhan_symbol("NIFTYNXT50-Sep2025-38000-CE", "2025-09-25")
+        sm._canonical_dhan_symbol(
+            "NIFTYNXT50-Sep2025-38000-CE", "2025-09-25 14:30:00"
+        )
         == "NIFTYNXT5025SEP38000CE"
     )
+
 
 
 def test_get_symbol_for_broker_derivative(monkeypatch):
