@@ -101,7 +101,7 @@ def test_parses_human_readable_futures_symbol(monkeypatch):
     payload = {"symbol": "NIFTY SEP FUT", "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
     assert event["symbol"] == "NIFTY24SEPFUT"
-    assert event["exchange"] == "NFO"
+    assert event["exchange"] == "NSE"
 
 
 def test_rejects_invalid_human_futures_symbol(monkeypatch):
@@ -137,4 +137,4 @@ def test_parses_human_readable_option_symbol(monkeypatch, symbol, expected):
     payload = {"symbol": symbol, "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
     assert event["symbol"] == expected
-    assert event["exchange"] == "NFO"
+    assert event["exchange"] == "NSE"
