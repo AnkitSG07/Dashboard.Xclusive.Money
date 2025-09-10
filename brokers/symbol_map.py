@@ -98,7 +98,8 @@ def _canonical_dhan_symbol(symbol: str, expiry_date: str | None = None) -> str:
     compact form used by other brokers while dropping the year component.
     If *symbol* does not match the expected pattern it is returned unchanged
     (aside from removal of separators).  When the day component is missing
-    from the trading symbol the ``expiry_date`` field is used instead.
+    from the trading symbol the ``expiry_date`` field is used instead, ignoring
+    any time portion.
     """
 
     symbol = symbol.strip().upper()
@@ -113,16 +114,20 @@ def _canonical_dhan_symbol(symbol: str, expiry_date: str | None = None) -> str:
     if m:
         base, day, month, strike, opt = m.groups()
         if not day and expiry_date:
-            for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y"):
-                try:
-                    day = f"{datetime.strptime(expiry_date, fmt).day:02d}"
-                    break
-                except ValueError:
-                    continue
+            date_str = expiry_date.strip()
+            try:
+                day = f"{datetime.fromisoformat(date_str).day:02d}"
+            except ValueError:
+                date_str = date_str.split()[0]
+                for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y"):
+                    try:
+                        day = f"{datetime.strptime(date_str, fmt).day:02d}"
+                        break
+                    except ValueError:
+                        continue
         if not day:
             return symbol.replace(" ", "").replace("-", "")
         opt = "CE" if opt in {"CALL", "CE"} else "PE"
-        
         return f"{base}{day}{month}{strike}{opt}"
 
     # Futures contracts: ``BASE-DDMMMYYYY-FUT``
