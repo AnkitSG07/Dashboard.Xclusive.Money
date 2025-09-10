@@ -84,6 +84,13 @@ class DummySession:
     def first(self):
         return self.master
 
+    def rollback(self):
+        pass
+
+    def expire_all(self):
+        pass
+
+
 def test_copy_order_with_extra_credentials(monkeypatch):
     """Ensure client and API keys in credentials don't cause TypeErrors."""
 
@@ -773,6 +780,12 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
                 return self.children
             return []
 
+        def rollback(self):
+            pass
+
+        def expire_all(self):
+            pass
+
     class OneRedis(StubRedis):
         def xreadgroup(self, group, consumer, streams, count, block):
             if self.calls == 0:
@@ -850,3 +863,93 @@ def test_poll_and_copy_trades_logs_task_errors(monkeypatch, caplog):
     assert processed == 2
     assert set(redis.acks) == {b"2"}
     assert any("1" in r.message for r in caplog.records)
+
+def test_poll_and_copy_trades_refreshes_child_credentials(monkeypatch):
+    from sqlalchemy import Column, Integer, String, JSON, create_engine
+    from sqlalchemy.orm import declarative_base, sessionmaker
+
+    Base = declarative_base()
+
+    class Account(Base):
+        __tablename__ = "account"
+        id = Column(Integer, primary_key=True)
+        client_id = Column(String)
+        broker = Column(String)
+        role = Column(String)
+        linked_master_id = Column(String)
+        copy_status = Column(String)
+        credentials = Column(JSON)
+        user_id = Column(Integer)
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+
+    setup = Session()
+    master = Account(
+        client_id="m",
+        broker="stub",
+        role="master",
+        copy_status="On",
+        user_id=1,
+    )
+    child = Account(
+        client_id="c1",
+        broker="stub",
+        role="child",
+        linked_master_id="m",
+        copy_status="On",
+        credentials={"access_token": "old"},
+        user_id=1,
+    )
+    setup.add_all([master, child])
+    setup.commit()
+    setup.close()
+
+    session = Session()
+    updater = Session()
+
+    class Redis:
+        def __init__(self):
+            self.calls = 0
+            self.acks = []
+
+        def xgroup_create(self, *args, **kwargs):
+            pass
+
+        def xreadgroup(self, group, consumer, streams, count, block):
+            self.calls += 1
+            if self.calls == 1:
+                return [("trade_events", [(b"1", {b"master_id": b"m"})])]
+            elif self.calls == 2:
+                ch = updater.query(Account).filter_by(client_id="c1").one()
+                ch.credentials = {"access_token": "new"}
+                updater.commit()
+                return [("trade_events", [(b"2", {b"master_id": b"m"})])]
+            return []
+
+        def xack(self, stream, group, msg_id):
+            self.acks.append(msg_id)
+
+    redis = Redis()
+
+    monkeypatch.setattr(trade_copier, "Account", Account)
+
+    def active_children_for_master(master, session):
+        return session.query(Account).filter_by(
+            role="child", linked_master_id=master.client_id, copy_status="On"
+        ).all()
+
+    monkeypatch.setattr(trade_copier, "active_children_for_master", active_children_for_master)
+
+    tokens = []
+
+    def processor(master, child, order):
+        tokens.append(child.credentials.get("access_token"))
+
+    processed = trade_copier.poll_and_copy_trades(
+        session, processor=processor, max_messages=2, redis_client=redis
+    )
+
+    assert processed == 2
+    assert tokens == ["old", "new"]
