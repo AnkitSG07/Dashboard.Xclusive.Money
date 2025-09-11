@@ -169,26 +169,26 @@ class DhanBroker(BrokerBase):
         if security_id is None or exchange_segment is None:
             mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
         if security_id is None:
-            if not mapping:
-                # The symbol was not found on the first attempt, try refreshing the symbol map
-                # to get newly listed scrips and try the lookup again.
+            try:
+                security_id = mapping["security_id"]
+            except KeyError:
                 refresh_symbol_map()
                 mapping = get_symbol_for_broker(
                     tradingsymbol or "", self.BROKER, exchange_base
                 )
-            # Now, check if the mapping is still empty or if it contains the required key.
-            if not mapping or "security_id" not in mapping:
-                if tradingsymbol and self.symbol_map and self.symbol_map.get(tradingsymbol.upper()):
-                    security_id = self.symbol_map.get(tradingsymbol.upper())
-                else:
-                    raise ValueError(
-                        (
-                            "DhanBroker: 'security_id' for symbol {} not found. "
-                            "The symbol may be expired or not yet in Dhan's scrip master."
-                        ).format(tradingsymbol)
-                    )
-            else:
-                security_id = mapping["security_id"]
+                try:
+                    security_id = mapping["security_id"]
+                except KeyError:
+                    security_id = None
+            if not security_id and tradingsymbol and self.symbol_map:
+                security_id = self.symbol_map.get(tradingsymbol.upper())
+        if not security_id:
+            raise ValueError(
+                (
+                    "DhanBroker: 'security_id' for symbol {} not found. "
+                    "The symbol may be expired or not yet in Dhan's scrip master."
+                ).format(tradingsymbol)
+            )
 
         if exchange_segment is None:
             exchange_segment = mapping.get("exchange_segment", self.NSE)
