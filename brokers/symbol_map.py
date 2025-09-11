@@ -20,12 +20,10 @@ import time
 from functools import lru_cache
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple
 import logging
 import threading
 import time
-import re
-from datetime import datetime
 import requests
 
 log = logging.getLogger(__name__)
@@ -46,18 +44,16 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
-def _fetch_csv(url: str, cache_name: str, force: bool = False) -> str:
+def _fetch_csv(url: str, cache_name: str) -> str:
     """Return CSV content from *url* using a small on-disk cache.
 
-    When ``force`` is ``True`` the cache file is ignored and a fresh copy is
-    downloaded from ``url``.  Otherwise the data is downloaded as usual and
-    cached for future calls.  Should the download fail but a previous cache
-    entry exist and is younger than :data:`CACHE_MAX_AGE`, the cached data is
-    returned instead of raising an exception.
+    If the cache file exists and is younger than ``CACHE_MAX_AGE`` it is used
+    directly.  Otherwise the data is downloaded from ``url`` and cached for
+    future calls.  Should the download fail but a previous cache entry exist,
+    the cached data is returned instead of raising an exception.
     """
 
     cache_file = CACHE_DIR / cache_name
-    
     # The upstream endpoints occasionally respond with HTTP 429 when too many
     # concurrent requests are made.  To make the service more robust we retry
     # the download a couple of times before falling back to any cached data.
@@ -79,7 +75,7 @@ def _fetch_csv(url: str, cache_name: str, force: bool = False) -> str:
                 pass
             return text
         except requests.RequestException:
-            if not force and cache_file.exists():
+            if cache_file.exists():
                 age = time.time() - cache_file.stat().st_mtime
                 if age < CACHE_MAX_AGE:
                     return cache_file.read_text()
@@ -92,74 +88,20 @@ def _fetch_csv(url: str, cache_name: str, force: bool = False) -> str:
 
 Key = Tuple[str, str]
 
-def _canonical_dhan_symbol(symbol: str, expiry_date: str | None = None) -> str:
-    """Return canonical representation for Dhan derivative symbols.
-
-    Dhan uses separators and CALL/PUT or CE/PE suffixes for option contracts,
-    e.g. ``BASE-25NOV2023-35500-CALL``.  This normalises such names to the
-    compact form used by other brokers while dropping the year component.
-    If *symbol* does not match the expected pattern it is returned unchanged
-    (aside from removal of separators).  When the day component is missing
-    from the trading symbol the ``expiry_date`` field is used instead, ignoring
-    any time portion.
-    """
-
-    symbol = symbol.strip().upper()
-
-    # Option contracts: ``BASE-DDMMMYYYY-STRIKE-TYPE`` or variants where the
-    # day and/or year may be omitted.  Since the canonical form drops the year
-    # entirely, simply ignore it here.
-    m = re.match(
-        r"^([A-Z0-9]+)[-\s]+(?:(\d{1,2})?([A-Z]{3})(?:\d{2}|\d{4})?)[-\s]+(\d+(?:\.\d+)?)[-\s]+(CE|PE|CALL|PUT)$",
-        symbol,
-    )
-    if m:
-        base, day, month, strike, opt = m.groups()
-        if not day and expiry_date:
-            date_str = expiry_date.strip()
-            try:
-                day = f"{datetime.fromisoformat(date_str).day:02d}"
-            except ValueError:
-                date_str = date_str.split()[0]
-                for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y"):
-                    try:
-                        day = f"{datetime.strptime(date_str, fmt).day:02d}"
-                        break
-                    except ValueError:
-                        continue
-        if not day:
-            return symbol.replace(" ", "").replace("-", "")
-        opt = "CE" if opt in {"CALL", "CE"} else "PE"
-        return f"{base}{day}{month}{strike}{opt}"
-
-    # Futures contracts: ``BASE-DDMMMYYYY-FUT``
-    m = re.match(
-        r"^([A-Z0-9]+)[-\s]+(\d{1,2})([A-Z]{3})(\d{4})[-\s]+([A-Z]+)$",
-        symbol,
-    )
-    if m:
-        base, day, month, _year, fut = m.groups()
-        return f"{base}{day}{month}{fut}"
-
-    # Non-derivative symbols: strip separators.
-    return symbol.replace(" ", "").replace("-", "")
-
 
 @lru_cache(maxsize=1)
-def _load_zerodha(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
-    """Return mapping of (symbol, exchange) to instrument info.
+def _load_zerodha() -> Dict[Key, str]:
+    """Return mapping of (symbol, exchange) to instrument token.
 
     Zerodha publishes an instrument dump containing tokens for all
     instruments across exchanges.  Only equity instruments from NSE and
-    BSE are considered here.  For derivative instruments the ``lot_size``
-    column is also parsed so that downstream consumers can size orders
-    correctly.
+    BSE are considered here.
     """
 
-    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv", force=force)
+    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv")
 
     reader = csv.DictReader(StringIO(csv_text))
-    data: Dict[Key, Dict[str, Union[str, int]]] = {}
+    data: Dict[Key, str] = {}
     for row in reader:
         segment = row["segment"].upper()
         inst_type = row["instrument_type"].upper()
@@ -171,77 +113,36 @@ def _load_zerodha(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
             key = (row["tradingsymbol"], segment)
         else:
             continue
-        info = {"token": row["instrument_token"]}
-        lot = row.get("lot_size")
-        if lot:
-            try:
-                lot_int = int(float(lot))
-            except ValueError:
-                lot_int = None
-            if lot_int:
-                info["lot_size"] = lot_int
-        data[key] = info
+        data[key] = row["instrument_token"]
     return data
 
 
 @lru_cache(maxsize=1)
-def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
-    """Return mapping of (symbol, exchange) to Dhan instrument info."""
+def _load_dhan() -> Dict[Key, str]:
+    """Return mapping of (symbol, exchange) to Dhan security id."""
 
-    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv", force=force)
+    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv")
 
     reader = csv.DictReader(StringIO(csv_text))
-    data: Dict[Key, Dict[str, Union[str, int]]] = {}
+    data: Dict[Key, str] = {}
     for row in reader:
         exch = row["SEM_EXM_EXCH_ID"].upper()
         segment = row["SEM_SEGMENT"].upper()
         symbol = row["SEM_TRADING_SYMBOL"]
-        lot = row.get("SEM_LOT_UNITS")
-        lot_size = None
-        if lot:
-            try:
-                lot_size = int(float(lot))
-                if lot_size <= 0:
-                    lot_size = None
-            except (ValueError, TypeError):
-                lot_size = None
-        
-        # Add logging for debugging lot size issues.
-        if segment == "D" and lot_size is None:
-            log.warning(f"Lot size is missing for derivative symbol {symbol} in Dhan CSV.")
-
         if exch in {"NSE", "BSE"} and segment == "E":
             key = (symbol, exch)
+            # prefer the EQ series when available but fall back to any
+            # other equity series so that newly listed or less common
+            # scrips (e.g. BSE "X" group) are still included
             if key not in data or row["SEM_SERIES"] == "EQ":
-                info: Dict[str, str] = {"security_id": row["SEM_SMST_SECURITY_ID"]}
-                if lot_size:
-                    info["lot_size"] = lot_size
-                existing = data.get(key)
-                if existing and "lot_size" in existing and "lot_size" not in info:
-                    info["lot_size"] = existing["lot_size"]
-                if existing:
-                    existing.update(info)
-                    data[key] = existing
-                else:
-                    data[key] = info
+                data[key] = row["SEM_SMST_SECURITY_ID"]
         elif exch in {"NSE", "BSE"} and segment == "D":
-            symbol = _canonical_dhan_symbol(symbol, row.get("SEM_EXPIRY_DATE"))
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
-            info = {"security_id": row["SEM_SMST_SECURITY_ID"]}
-            if lot_size:
-                info["lot_size"] = lot_size
-            existing = data.get(key)
-            if existing and "lot_size" in existing and "lot_size" not in info:
-                info["lot_size"] = existing["lot_size"]
-            if existing:
-                existing.update(info)
-                data[key] = existing
-            else:
-                data[key] = info
+            data[key] = row["SEM_SMST_SECURITY_ID"]    
     return data
 
 
-def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]]:
+def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Construct the complete symbol map.
 
     The returned mapping is structured as ``{symbol -> {exchange -> broker
@@ -249,15 +150,13 @@ def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[
     for each exchange separately.
     """
 
-    zerodha = _load_zerodha(force=force)
-    dhan = _load_dhan(force=force)
+    zerodha = _load_zerodha()
+    dhan = _load_dhan()
 
-    mapping: Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]] = {}
+    mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
     # First, build the map with Zerodha as the base, as before
-    for (symbol, exchange), info in zerodha.items():
-        token = info["token"]
-        lot_size = info.get("lot_size")
+    for (symbol, exchange), token in zerodha.items():
         is_equity = exchange in {"NSE", "BSE"}
         if is_equity:
             ab_symbol = f"{symbol}-EQ"
@@ -322,32 +221,24 @@ def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[
             },
         }
 
-        dhan_info = dhan.get((symbol, exchange))
-        if dhan_info:
+        dhan_id = dhan.get((symbol, exchange))
+        if dhan_id:
             if exchange in {"NSE", "BSE"}:
                 exch_segment = f"{exchange}_EQ"
             elif exchange in {"NFO", "BFO"}:
                 exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
             else:
                 exch_segment = exchange
-            lot_size = lot_size or dhan_info.get("lot_size")
-            dhan_entry = {
-                "security_id": dhan_info["security_id"],
+            entry["dhan"] = {
+                "security_id": dhan_id,
                 "exchange_segment": exch_segment,
             }
-            if lot_size:
-                dhan_entry["lot_size"] = lot_size
-            entry["dhan"] = dhan_entry
-
-        if lot_size:
-            for broker_map in entry.values():
-                broker_map["lot_size"] = lot_size
 
         mapping.setdefault(symbol, {})[exchange] = entry
     
-    # CORRECTED: Now, iterate through Dhan's data to add any missing symbols.
+    # Now, iterate through Dhan's data to add any missing symbols.
     # This ensures that derivatives with different naming conventions are included.
-    for (symbol, exchange), info in dhan.items():
+    for (symbol, exchange), dhan_id in dhan.items():
         # Check if this symbol/exchange combination was already added from Zerodha's data
         if symbol in mapping and exchange in mapping[symbol]:
             continue
@@ -362,13 +253,10 @@ def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[
         
         entry = {
             "dhan": {
-                "security_id": info["security_id"],
+                "security_id": dhan_id,
                 "exchange_segment": exch_segment,
             }
         }
-        lot_size = info.get("lot_size")
-        if lot_size:
-            entry["dhan"]["lot_size"] = lot_size
         mapping.setdefault(symbol, {})[exchange] = entry
 
     return mapping
@@ -379,13 +267,13 @@ def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[
 # require the data avoid the heavy upfront memory cost.  When the map is
 # built before forking worker processes the pages are shared via
 # copy‑on‑write which keeps the overall memory footprint low.
-SYMBOL_MAP: Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]] = {}
+SYMBOL_MAP: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
 
 _REFRESH_LOCK = threading.Lock()
 _LAST_REFRESH = 0.0
 _MIN_REFRESH_INTERVAL = 60.0  # seconds
 
-def _ensure_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]]:
+def _ensure_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Return the global symbol map, loading it if necessary."""
 
     global SYMBOL_MAP, _LAST_REFRESH
@@ -395,7 +283,7 @@ def _ensure_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, i
     return SYMBOL_MAP
 
 
-def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]]:
+def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Public wrapper to obtain the global symbol map."""
 
     return _ensure_symbol_map()
@@ -404,10 +292,8 @@ def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]
 def refresh_symbol_map(force: bool = False) -> None:
     """Reload the global :data:`SYMBOL_MAP` from upstream sources.
 
-    The refresh is throttled to avoid hitting upstream rate limits.  When
-    ``force`` is ``True`` the throttling is bypassed and the underlying CSV
-    files are re-downloaded instead of using any cached copies.  If a refresh
-    fails the previous symbol map is retained.
+    The refresh is throttled to avoid hitting upstream rate limits.  If a
+    refresh fails the previous symbol map is retained.
     """
 
     global SYMBOL_MAP, _LAST_REFRESH
@@ -420,7 +306,7 @@ def refresh_symbol_map(force: bool = False) -> None:
         try:
             _load_zerodha.cache_clear()
             _load_dhan.cache_clear()
-            new_map = build_symbol_map(force=force)
+            new_map = build_symbol_map()
         except requests.RequestException as exc:  # pragma: no cover - network errors
             log.warning("Failed to refresh symbol map: %s", exc)
             return
@@ -434,12 +320,11 @@ __all__ = ["SYMBOL_MAP", "build_symbol_map", "refresh_symbol_map", "get_symbol_m
 
 def get_symbol_for_broker(
     symbol: str, broker: str, exchange: str | None = None
-) -> Dict[str, Union[str, int]]:
+) -> Dict[str, str]:
     """Return the mapping for *symbol* for the given *broker*.
 
     ``exchange`` may be supplied to explicitly select the exchange on
     which the symbol is listed.  When omitted the lookup attempts to
-
     infer the exchange from the symbol string or defaults to the NSE
     entry.
     """
@@ -452,40 +337,87 @@ def get_symbol_for_broker(
     elif ":" in symbol:
         exchange_hint, symbol = symbol.split(":", 1)
 
+    # ENHANCED: Better symbol variants for lookup
     base = symbol
     if base.endswith("-EQ"):
         base = base[:-3]
 
-    base2 = base.split("-")[0]
+    # Handle derivative symbols - try multiple variants
+    base_variants = [symbol, base]
+    
+    # For derivatives, also try without the suffix
+    if symbol.endswith(("FUT", "CE", "PE")):
+        # Extract the root symbol before expiry/strike info
+        import re
+        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
+        if root_match:
+            root = root_match.group(1)
+            base_variants.append(root)
+            # Also try common variations
+            if "NIFTYNX" in root:
+                base_variants.extend([root.replace("NIFTYNX", "NIFTYNXT"), root.replace("NIFTYNX", "NIFTYNXT50")])
+            elif "NIFTYNXT" in root:
+                base_variants.extend([root.replace("NIFTYNXT", "NIFTYNX"), root.replace("NIFTYNXT", "NIFTYNXT50")])
+
+    # Also try splitting on common delimiters
+    base2 = base.split("-")[0].split("_")[0]
+    if base2 not in base_variants:
+        base_variants.append(base2)
 
     symbol_map = _ensure_symbol_map()
-    mapping = (
-        symbol_map.get(symbol)
-        or symbol_map.get(base)
-        or symbol_map.get(base2)
-    )
+    mapping = None
+    
+    # Try each variant in order of preference
+    for variant in base_variants:
+        mapping = symbol_map.get(variant)
+        if mapping:
+            log.debug(f"Found symbol mapping for variant: {variant}")
+            break
 
     # If the symbol was not found we may be dealing with a newly listed
     # scrip.  Refresh the symbol map once so that recently added tokens are
     # picked up without requiring an application restart.
     if not mapping:
+        log.info(f"Symbol not found, refreshing symbol map for: {symbol}")
         refresh_symbol_map()
         symbol_map = _ensure_symbol_map()
-        mapping = (
-            symbol_map.get(symbol)
-            or symbol_map.get(base)
-            or symbol_map.get(base2)
-        )
+        
+        # Try all variants again after refresh
+        for variant in base_variants:
+            mapping = symbol_map.get(variant)
+            if mapping:
+                log.info(f"Found symbol mapping after refresh for variant: {variant}")
+                break
 
     if not mapping:
+        log.warning(f"No symbol mapping found for {symbol} (tried variants: {base_variants})")
         return {}
 
+    # Select the appropriate exchange
     if exchange_hint and exchange_hint in mapping:
         exchange_map = mapping[exchange_hint]
+        log.debug(f"Using specified exchange: {exchange_hint}")
     else:
-        exchange_map = mapping.get("NSE") or next(iter(mapping.values()))
+        # Prefer NFO for derivatives, NSE for equities
+        if symbol.endswith(("FUT", "CE", "PE")) and "NFO" in mapping:
+            exchange_map = mapping["NFO"]
+            log.debug("Using NFO for derivative symbol")
+        elif "NSE" in mapping:
+            exchange_map = mapping["NSE"]
+            log.debug("Using NSE exchange")
+        else:
+            exchange_map = next(iter(mapping.values()))
+            log.debug(f"Using first available exchange: {list(mapping.keys())[0]}")
 
-    return exchange_map.get(broker, {}) if exchange_map else {}
+    broker_data = exchange_map.get(broker, {}) if exchange_map else {}
+    
+    if not broker_data:
+        log.warning(f"No broker data found for {broker} with symbol {symbol}")
+        # Log available brokers for debugging
+        if exchange_map:
+            log.debug(f"Available brokers for {symbol}: {list(exchange_map.keys())}")
+    
+    return broker_data
 
 
 def get_symbol_by_token(token: str, broker: str) -> str | None:
@@ -503,4 +435,91 @@ def get_symbol_by_token(token: str, broker: str) -> str | None:
     return None
 
 
-__all__.extend(["get_symbol_for_broker", "get_symbol_by_token"])
+def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None = None) -> Dict[str, any]:
+    """Debug helper to show symbol lookup process and available data.
+    
+    This function provides detailed information about the symbol lookup process
+    to help diagnose mapping issues.
+    """
+    
+    result = {
+        "original_symbol": symbol,
+        "broker": broker,
+        "exchange": exchange,
+        "found_mapping": False,
+        "available_variants": [],
+        "available_exchanges": [],
+        "available_brokers": [],
+        "broker_data": {},
+        "debug_info": []
+    }
+    
+    symbol = symbol.upper()
+    broker = broker.lower()
+    
+    # Generate variants
+    base = symbol
+    if base.endswith("-EQ"):
+        base = base[:-3]
+    
+    base_variants = [symbol, base]
+    
+    if symbol.endswith(("FUT", "CE", "PE")):
+        import re
+        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
+        if root_match:
+            root = root_match.group(1)
+            base_variants.append(root)
+            if "NIFTYNX" in root:
+                base_variants.extend([root.replace("NIFTYNX", "NIFTYNXT"), root.replace("NIFTYNX", "NIFTYNXT50")])
+            elif "NIFTYNXT" in root:
+                base_variants.extend([root.replace("NIFTYNXT", "NIFTYNX"), root.replace("NIFTYNXT", "NIFTYNXT50")])
+    
+    base2 = base.split("-")[0].split("_")[0]
+    if base2 not in base_variants:
+        base_variants.append(base2)
+    
+    result["available_variants"] = base_variants
+    
+    symbol_map = _ensure_symbol_map()
+    
+    # Check each variant
+    for variant in base_variants:
+        if variant in symbol_map:
+            result["found_mapping"] = True
+            result["available_exchanges"] = list(symbol_map[variant].keys())
+            
+            # Check available brokers
+            for exch, exch_data in symbol_map[variant].items():
+                result["available_brokers"].extend(list(exch_data.keys()))
+            
+            result["available_brokers"] = list(set(result["available_brokers"]))
+            result["debug_info"].append(f"Found variant '{variant}' in symbol map")
+            
+            # Get broker data
+            if exchange and exchange.upper() in symbol_map[variant]:
+                exchange_map = symbol_map[variant][exchange.upper()]
+            elif "NFO" in symbol_map[variant] and symbol.endswith(("FUT", "CE", "PE")):
+                exchange_map = symbol_map[variant]["NFO"]
+                result["debug_info"].append("Selected NFO for derivative")
+            elif "NSE" in symbol_map[variant]:
+                exchange_map = symbol_map[variant]["NSE"]
+                result["debug_info"].append("Selected NSE as default")
+            else:
+                exchange_map = next(iter(symbol_map[variant].values()))
+                result["debug_info"].append(f"Selected first available exchange: {list(symbol_map[variant].keys())[0]}")
+            
+            result["broker_data"] = exchange_map.get(broker, {})
+            if result["broker_data"]:
+                result["debug_info"].append(f"Found broker data for {broker}")
+            else:
+                result["debug_info"].append(f"No broker data found for {broker}")
+            
+            break
+        else:
+            result["debug_info"].append(f"Variant '{variant}' not found in symbol map")
+    
+    return result
+
+
+__all__.extend(["get_symbol_for_broker", "get_symbol_by_token", "debug_symbol_lookup"])
