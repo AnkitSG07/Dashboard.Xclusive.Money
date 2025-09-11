@@ -153,16 +153,26 @@ class WebhookEventSchema(Schema):
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
+        if "exchange" in data and isinstance(data["exchange"], str):
+            data["exchange"] = data["exchange"].upper()
+
         # Symbol normalization
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
-            
+
+            # Support symbols prefixed with an exchange (e.g. ``NSE:SBIN``)
+            if ":" in raw_sym:
+                exch, sym = raw_sym.split(":", 1)
+                raw_sym = sym
+                if not data.get("exchange"):
+                    data["exchange"] = exch
+
             logger.info(f"Processing symbol: {raw_sym}")
             
             # Handle already correctly formatted equity symbols
             if raw_sym.endswith("-EQ"):
                 data["symbol"] = raw_sym
-                data["exchange"] = "NSE"
+                data.setdefault("exchange", "NSE")
                 data["instrument_type"] = "EQ"
                 logger.info(f"Equity symbol already formatted: {raw_sym}")
                 return data
@@ -224,7 +234,7 @@ class WebhookEventSchema(Schema):
             # Compact formats without spaces
             # Options: FINNIFTY25SEP33300CE or FINNIFTY30SEP33300CE
             compact_opt_match = re.match(
-                r'^([A-Z0-9]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
+                r'^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
                 raw_sym
             )
             if compact_opt_match:
@@ -244,7 +254,7 @@ class WebhookEventSchema(Schema):
             
             # Futures: FINNIFTY25SEPFUT or FINNIFTY30SEPFUT
             compact_fut_match = re.match(
-                r'^([A-Z0-9]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+                r'^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
                 raw_sym
             )
             if compact_fut_match:
@@ -317,7 +327,7 @@ class WebhookEventSchema(Schema):
             if not re.search(r'\d', raw_sym) and not raw_sym.endswith(("FUT", "CE", "PE")):
                 normalized_symbol = f"{raw_sym}-EQ"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NSE"
+                data.setdefault("exchange", "NSE")
                 data["instrument_type"] = "EQ"
                 logger.info(f"Normalized equity symbol: {normalized_symbol}")
                 return data
@@ -326,12 +336,16 @@ class WebhookEventSchema(Schema):
             if not raw_sym.endswith(("FUT", "CE", "PE", "-EQ")) and not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', raw_sym):
                 normalized_symbol = f"{raw_sym}-EQ"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NSE"
+                data.setdefault("exchange", "NSE")
                 data["instrument_type"] = "EQ"
                 logger.info(f"Assumed equity symbol: {normalized_symbol}")
                 return data
             
-            # If no pattern matches, keep original but log warning
+            # If no pattern matches, reject strings that look derivative-like
+            if re.search(r"(FUT|CALL|PUT|CE|PE)", raw_sym):
+                raise ValidationError(f"Unrecognized derivative symbol: {raw_sym}")
+
+            # Otherwise keep the original symbol but log a warning
             data["symbol"] = raw_sym
             logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
             
