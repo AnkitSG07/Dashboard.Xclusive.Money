@@ -231,7 +231,28 @@ def test_get_symbol_for_broker_derivative(monkeypatch):
 
     sm.SYMBOL_MAP.clear()
     sm.SYMBOL_MAP.update(original_map)
-    
+
+
+def test_get_symbol_for_broker_handles_raw_dhan_symbol():
+    import brokers.symbol_map as sm
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {
+        "FINNIFTY 30 SEP 33300 CE": {
+            "NFO": {
+                "dhan": {
+                    "security_id": "42",
+                    "exchange_segment": "NSE_FNO",
+                    "lot_size": "1",
+                }
+            }
+        }
+    }
+    try:
+        mapping = get_symbol_for_broker("FINNIFTY30SEP33300CE", "dhan")
+        assert mapping["security_id"] == "42"
+    finally:
+        sm.SYMBOL_MAP = original_map
 def test_refresh_symbol_map(monkeypatch):
     # Save original map so we can restore it after the test to avoid
     # side effects for other tests.
