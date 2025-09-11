@@ -58,6 +58,7 @@ def get_expiry_year(month: str) -> str:
     Returns:
         Two-digit year string
     """
+    from datetime import date
     current_date = date.today()
     current_year = current_date.year
     current_month = current_date.month
@@ -75,7 +76,6 @@ def get_expiry_year(month: str) -> str:
         year = current_year
         
     return str(year % 100).zfill(2)
-
 
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
@@ -209,43 +209,59 @@ class WebhookEventSchema(Schema):
                 logger.info(f"Normalized options symbol: {normalized_symbol}")
                 return data
 
-            # Pattern 2: Handle spaced derivative formats (TradingView style)
-            # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
-            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
-            spaced_fut_match = re.match(
-                r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
-                raw_sym
-            )
-            if spaced_fut_match:
-                root, year, month = spaced_fut_match.groups()
-                if not year:
+                # Pattern 2: Handle spaced derivative formats (TradingView style)
+                # This handles multiple formats:
+                # NIFTY 09 SEP 24950 PUT -> NIFTY24SEP24950PE (09 is day)
+                # NIFTY 24 SEP 24950 PUT -> NIFTY24SEP24950PE (24 is year)
+                # NIFTY SEP 24950 PUT -> NIFTY24SEP24950PE (year inferred)
+                
+                # First, try to match with day-month pattern (like "09 SEP")
+                day_month_opt_match = re.match(
+                    r"^([A-Z0-9]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
+                    raw_sym
+                )
+                if day_month_opt_match:
+                    root, day_or_year, month, strike, opt_type = day_month_opt_match.groups()
+                    
+                    # Determine if the number is a day or year
+                    # If it's <= 31, it's likely a day; if it's > 31, it's definitely a year
+                    if int(day_or_year) <= 31:
+                        # It's a day, we need to infer the year
+                        year = get_expiry_year(month)
+                        # For weekly/daily expiries, we might want to include the day
+                        # But for standard monthly expiries, we typically don't include the day in the symbol
+                        # Dhan format typically uses just SYMBOLYYMONSTRIKE[CE/PE]
+                    else:
+                        # It's a year (like 24 for 2024)
+                        year = day_or_year
+                    
+                    opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+                    normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
+                    data["symbol"] = normalized_symbol
+                    data["exchange"] = base_exchange
+                    data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
+                    data["strike"] = int(strike)
+                    data["option_type"] = opt_code
+                    logger.info(f"Normalized spaced options symbol: {normalized_symbol}")
+                    return data
+                
+                # Alternative pattern without day/year
+                no_year_opt_match = re.match(
+                    r"^([A-Z0-9]+)\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
+                    raw_sym
+                )
+                if no_year_opt_match:
+                    root, month, strike, opt_type = no_year_opt_match.groups()
                     year = get_expiry_year(month)
-                normalized_symbol = f"{root}{year}{month}FUT"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
-                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
-                logger.info(f"Normalized spaced futures symbol: {normalized_symbol}")
-                return data
-
-            # Options: NIFTYNXT50 25 NOV 35500 CALL -> NIFTYNXT5025NOV35500CE
-            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
-            spaced_opt_match = re.match(
-                r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
-                raw_sym
-            )
-            if spaced_opt_match:
-                root, year, month, strike, opt_type = spaced_opt_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
-                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
-                data["strike"] = int(strike)
-                data["option_type"] = opt_code
-                logger.info(f"Normalized spaced options symbol: {normalized_symbol}")
-                return data
+                    opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+                    normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
+                    data["symbol"] = normalized_symbol
+                    data["exchange"] = base_exchange
+                    data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
+                    data["strike"] = int(strike)
+                    data["option_type"] = opt_code
+                    logger.info(f"Normalized spaced options symbol (no year): {normalized_symbol}")
+                    return data
 
             # Pattern 3: Handle alternative formats with different separators
             # Handle formats like NIFTYNXT50-25NOV-35500-CE
