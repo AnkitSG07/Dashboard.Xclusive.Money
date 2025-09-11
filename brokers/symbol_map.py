@@ -46,16 +46,18 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
-def _fetch_csv(url: str, cache_name: str) -> str:
+def _fetch_csv(url: str, cache_name: str, force: bool = False) -> str:
     """Return CSV content from *url* using a small on-disk cache.
 
-    If the cache file exists and is younger than ``CACHE_MAX_AGE`` it is used
-    directly.  Otherwise the data is downloaded from ``url`` and cached for
-    future calls.  Should the download fail but a previous cache entry exist,
-    the cached data is returned instead of raising an exception.
+    When ``force`` is ``True`` the cache file is ignored and a fresh copy is
+    downloaded from ``url``.  Otherwise the data is downloaded as usual and
+    cached for future calls.  Should the download fail but a previous cache
+    entry exist and is younger than :data:`CACHE_MAX_AGE`, the cached data is
+    returned instead of raising an exception.
     """
 
     cache_file = CACHE_DIR / cache_name
+    
     # The upstream endpoints occasionally respond with HTTP 429 when too many
     # concurrent requests are made.  To make the service more robust we retry
     # the download a couple of times before falling back to any cached data.
@@ -77,7 +79,7 @@ def _fetch_csv(url: str, cache_name: str) -> str:
                 pass
             return text
         except requests.RequestException:
-            if cache_file.exists():
+            if not force and cache_file.exists():
                 age = time.time() - cache_file.stat().st_mtime
                 if age < CACHE_MAX_AGE:
                     return cache_file.read_text()
@@ -144,7 +146,7 @@ def _canonical_dhan_symbol(symbol: str, expiry_date: str | None = None) -> str:
 
 
 @lru_cache(maxsize=1)
-def _load_zerodha() -> Dict[Key, Dict[str, Union[str, int]]]:
+def _load_zerodha(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
     """Return mapping of (symbol, exchange) to instrument info.
 
     Zerodha publishes an instrument dump containing tokens for all
@@ -154,7 +156,7 @@ def _load_zerodha() -> Dict[Key, Dict[str, Union[str, int]]]:
     correctly.
     """
 
-    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv")
+    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv", force=force)
 
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, Dict[str, Union[str, int]]] = {}
@@ -183,10 +185,10 @@ def _load_zerodha() -> Dict[Key, Dict[str, Union[str, int]]]:
 
 
 @lru_cache(maxsize=1)
-def _load_dhan() -> Dict[Key, Dict[str, Union[str, int]]]:
+def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
     """Return mapping of (symbol, exchange) to Dhan instrument info."""
 
-    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv")
+    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv", force=force)
 
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, Dict[str, Union[str, int]]] = {}
@@ -220,7 +222,7 @@ def _load_dhan() -> Dict[Key, Dict[str, Union[str, int]]]:
     return data
 
 
-def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]]:
+def build_symbol_map(force: bool = False) -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]]:
     """Construct the complete symbol map.
 
     The returned mapping is structured as ``{symbol -> {exchange -> broker
@@ -228,8 +230,8 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int
     for each exchange separately.
     """
 
-    zerodha = _load_zerodha()
-    dhan = _load_dhan()
+    zerodha = _load_zerodha(force=force)
+    dhan = _load_dhan(force=force)
 
     mapping: Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]]]] = {}
 
@@ -383,8 +385,10 @@ def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, Union[str, int]]
 def refresh_symbol_map(force: bool = False) -> None:
     """Reload the global :data:`SYMBOL_MAP` from upstream sources.
 
-    The refresh is throttled to avoid hitting upstream rate limits.  If a
-    refresh fails the previous symbol map is retained.
+    The refresh is throttled to avoid hitting upstream rate limits.  When
+    ``force`` is ``True`` the throttling is bypassed and the underlying CSV
+    files are re-downloaded instead of using any cached copies.  If a refresh
+    fails the previous symbol map is retained.
     """
 
     global SYMBOL_MAP, _LAST_REFRESH
@@ -397,7 +401,7 @@ def refresh_symbol_map(force: bool = False) -> None:
         try:
             _load_zerodha.cache_clear()
             _load_dhan.cache_clear()
-            new_map = build_symbol_map()
+            new_map = build_symbol_map(force=force)
         except requests.RequestException as exc:  # pragma: no cover - network errors
             log.warning("Failed to refresh symbol map: %s", exc)
             return
