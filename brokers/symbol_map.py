@@ -204,8 +204,8 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
             
         lot_raw = row.get("SEM_LOT_UNITS")
         try:
-            lot_size = int(lot_raw) if lot_raw else 1
-        except ValueError:
+            lot_size = int(float(lot_raw)) if lot_raw else 1
+        except (ValueError, TypeError):
             lot_size = 1
 
         if exch in {"NSE", "BSE"} and segment == "E":
