@@ -13,7 +13,9 @@ def _make_response(text: str):
 
 
 def test_symbol_map_includes_bse_x_series():
-    mapping = get_symbol_for_broker("CASPIAN", "dhan", "BSE")
+    mapping = get_symbol_for_broker(
+        "CASPIANCORPORATESERVICES", "dhan", "BSE"
+    )
     assert mapping.get("security_id")
     assert mapping.get("exchange_segment") == "BSE_EQ"
 
@@ -147,6 +149,17 @@ def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
     )
 
 
+def test_canonical_dhan_option_symbol_missing_day_non_iso():
+    import brokers.symbol_map as sm
+
+    expected = "NIFTYNXT5025SEP38000CE"
+    assert (
+        sm._canonical_dhan_symbol(
+            "NIFTYNXT50-Sep2025-38000-CE", "25-09-2025"
+        )
+        == expected
+    )
+
 
 def test_dhan_derivative_includes_lot_size(monkeypatch):
     import brokers.symbol_map as sm
@@ -213,6 +226,45 @@ def test_load_dhan_retains_existing_lot_size(monkeypatch):
     data = sm._load_dhan(force=True)
     assert data[("AAA", "NSE")]["lot_size"] == 25
 
+def test_load_dhan_prefers_custom_symbol(monkeypatch, caplog):
+    import brokers.symbol_map as sm
+    import logging
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_CUSTOM_SYMBOL,SEM_SEGMENT,"
+        "SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,BADSYMBOL,GOODSYMBOL,E,EQ,10\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_dhan.cache_clear()
+    with caplog.at_level(logging.WARNING):
+        data = sm._load_dhan(force=True)
+
+    assert ("GOODSYMBOL", "NSE") in data
+    assert ("BADSYMBOL", "NSE") not in data
+    assert "Dhan trading/custom symbol mismatch" in caplog.text
+
+
+def test_load_dhan_retains_derivative_lot_size_when_missing(monkeypatch):
+    import brokers.symbol_map as sm
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "NSE,NIFTY24AUGFUT,D,,100,50\n"
+        "NSE,NIFTY24AUGFUT,D,,100,\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_dhan.cache_clear()
+    data = sm._load_dhan(force=True)
+    assert data[("NIFTY24AUGFUT", "NFO")]["lot_size"] == 50
 
 
 def test_get_symbol_for_broker_derivative(monkeypatch):
@@ -262,6 +314,7 @@ def test_get_symbol_for_broker_handles_raw_dhan_symbol():
         assert mapping["security_id"] == "42"
     finally:
         sm.SYMBOL_MAP = original_map
+        
 def test_refresh_symbol_map(monkeypatch):
     # Save original map so we can restore it after the test to avoid
     # side effects for other tests.
