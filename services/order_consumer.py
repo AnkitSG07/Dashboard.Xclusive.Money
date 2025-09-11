@@ -59,15 +59,34 @@ def normalize_derivative_symbol(symbol: str) -> str:
     sym = symbol.upper()
 
     # Pattern for symbols already in Dhan's day-based format
-    dhan_match = re.match(
-        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})(.+)$',
+    # Already normalized Dhan-style options
+    opt_match = re.match(
+        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})(\d+)(CE|PE)$',
         sym,
     )
-    if dhan_match:
+    if opt_match:
         current_year = date.today().year % 100
-        year_candidate = int(dhan_match.group(4))
-        # Accept previous, current or next year as valid
-        if year_candidate in {(current_year - 1) % 100, current_year, (current_year + 1) % 100}:
+        year_candidate = int(opt_match.group(4))
+        if year_candidate in {
+            (current_year - 1) % 100,
+            current_year,
+            (current_year + 1) % 100,
+        }:
+            return sym
+
+    # Already normalized Dhan-style futures
+    fut_match = re.match(
+        r'^([A-Z0-9]+)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        sym,
+    )
+    if fut_match:
+        current_year = date.today().year % 100
+        year_candidate = int(fut_match.group(2))
+        if year_candidate in {
+            (current_year - 1) % 100,
+            current_year,
+            (current_year + 1) % 100,
+        }:
             return sym
 
     # Pattern for symbols missing the year component (e.g., FINNIFTY30SEP33300PE)
@@ -374,16 +393,18 @@ def consume_webhook_events(
                             lot_size = mapping.get("lot_size") or mapping.get("lotSize")
                             
                             if not lot_size:
-                                # Log debug info for troubleshooting
-                                log.debug(f"Symbol map lookup returned: {mapping}")
+                                # Log info so operators can inspect the mapping
+                                log.info("Symbol map lookup returned: %s", mapping)
                                 
                                 # Try to debug what symbols are available
                                 debug_info = symbol_map.debug_symbol_lookup(
-                                    event.get("symbol", ""), 
-                                    broker_cfg["name"], 
-                                    exchange
+                                    event.get("symbol", ""),
+                                    broker_cfg["name"],
+                                    exchange,
                                 )
-                                log.info(f"Symbol debug info: {json.dumps(debug_info, indent=2)}")
+                                log.info(
+                                    f"Symbol debug info: {json.dumps(debug_info, indent=2)}"
+                                )
                                 
                         except Exception as e:
                             log.warning(
@@ -408,6 +429,10 @@ def consume_webhook_events(
                             log.info(f"Using default BANKNIFTY lot size: {lot_size}")
                         else:
                             # For other derivatives, we can't assume lot size
+                            log.info(
+                                "Symbol map entry when resolving lot size: %s",
+                                mapping,
+                            )
                             log.error(
                                 "Unable to determine lot size for %s (%s) on broker %s. "
                                 "Cannot proceed with order.",
