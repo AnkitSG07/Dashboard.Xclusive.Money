@@ -170,7 +170,7 @@ class WebhookEventSchema(Schema):
             # Special pattern for "FINNIFTY 30 SEP 33300 CALL" format
             # This matches: SYMBOL + DAY + MONTH + STRIKE + OPTION_TYPE
             special_pattern = re.match(
-                r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+                r'^([A-Z0-9]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
                 raw_sym
             )
             if special_pattern:
@@ -202,7 +202,7 @@ class WebhookEventSchema(Schema):
             
             # Pattern for futures with day: "FINNIFTY 30 SEP FUT"
             fut_with_day = re.match(
-                r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+                r'^([A-Z0-9]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
                 raw_sym
             )
             if fut_with_day:
@@ -224,7 +224,7 @@ class WebhookEventSchema(Schema):
             # Compact formats without spaces
             # Options: FINNIFTY25SEP33300CE or FINNIFTY30SEP33300CE
             compact_opt_match = re.match(
-                r'^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
+                r'^([A-Z0-9]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
                 raw_sym
             )
             if compact_opt_match:
@@ -244,7 +244,7 @@ class WebhookEventSchema(Schema):
             
             # Futures: FINNIFTY25SEPFUT or FINNIFTY30SEPFUT
             compact_fut_match = re.match(
-                r'^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+                r'^([A-Z0-9]+)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
                 raw_sym
             )
             if compact_fut_match:
@@ -262,7 +262,7 @@ class WebhookEventSchema(Schema):
             # Standard spaced formats (without day)
             # Options: "FINNIFTY 25 SEP 33300 CALL" or "FINNIFTY SEP 33300 CALL"
             spaced_opt_match = re.match(
-                r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+                r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
                 raw_sym
             )
             if spaced_opt_match:
@@ -282,7 +282,7 @@ class WebhookEventSchema(Schema):
             
             # Futures: "FINNIFTY 25 SEP FUT" or "FINNIFTY SEP FUT"
             spaced_fut_match = re.match(
-                r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+                r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
                 raw_sym
             )
             if spaced_fut_match:
@@ -298,7 +298,7 @@ class WebhookEventSchema(Schema):
                 return data
             
             # Handle already normalized derivative symbols
-            if re.match(r'^[A-Z]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$', raw_sym):
+            if re.match(r'^[A-Z0-9]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$', raw_sym):
                 data["symbol"] = raw_sym
                 data["exchange"] = "NFO"
                 if raw_sym.endswith("FUT"):
