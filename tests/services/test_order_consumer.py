@@ -193,7 +193,7 @@ def test_consumer_places_derivative_order(monkeypatch):
 def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     event = {
         "user_id": 1,
-        "symbol": "NIFTY24AUGFUT",
+        "symbol": "ABC24AUGFUT",
         "action": "BUY",
         "qty": 2,
         "alert_id": "1",
@@ -215,6 +215,9 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
         "get_symbol_for_broker",
         lambda symbol, broker, exchange=None: {},
     )
+    monkeypatch.setattr(
+        order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
+    )
     reset_metrics()
 
     with caplog.at_level(logging.ERROR):
@@ -223,6 +226,42 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     assert MockBroker.orders == []
     assert stub.added == []
     assert order_consumer.orders_failed._value.get() == 1
+    assert "lot size" in caplog.text
+
+
+def test_consumer_errors_when_lot_size_is_one(monkeypatch, caplog):
+    event = {
+        "user_id": 1,
+        "symbol": "NIFTY24AUGFUT",
+        "action": "BUY",
+        "qty": 2,
+        "alert_id": "1",
+        "exchange": "NSE",
+        "instrument_type": "FUT",
+        "expiry": "2024-08-29",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(
+        order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {"lot_size": 1}
+    )
+    monkeypatch.setattr(
+        order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
+    )
+    reset_metrics()
+
+    with caplog.at_level(logging.ERROR):
+        processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+
+    assert processed == 1
+    assert MockBroker.orders == []
     assert "lot size" in caplog.text
 
 def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
@@ -246,6 +285,9 @@ def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
     monkeypatch.setattr(order_consumer.symbol_map, "debug_symbol_lookup", lambda *a, **k: {})
+    monkeypatch.setattr(
+        order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
+    )
     reset_metrics()
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
