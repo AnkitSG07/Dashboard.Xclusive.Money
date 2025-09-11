@@ -279,9 +279,10 @@ def consume_webhook_events(
                         lot_size = mapping.get("lot_size") or mapping.get("lotSize")
                     if not lot_size:
                         log.error(
-                            "unable to resolve lot size for %s (%s)",
+                            "unable to resolve lot size for %s (%s) on broker %s",
                             event.get("symbol"),
                             exchange,
+                            broker_cfg["name"],
                             extra={"event": event, "broker": broker_cfg},
                         )
                         return None
