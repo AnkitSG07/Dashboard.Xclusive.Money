@@ -81,20 +81,16 @@ class DummySession:
 
 
 @pytest.mark.parametrize(
-    "symbol,expected",
+    "symbol",
     [
-        ("NIFTYNXT5030SEP33300CE", "NIFTYNXT5030SEP2433300CE"),
-        ("MIDCPNIFTY30SEP33300PE", "MIDCPNIFTY30SEP2433300PE"),
+        "NIFTYNXT5025NOV35500CE",
+        "NIFTYNXT5030SEP33300CE",
+        "MIDCPNIFTY30SEP33300PE",
     ],
 )
-def test_normalize_derivative_symbol_supports_numeric_roots(monkeypatch, symbol, expected):
-    class FixedDate(date):
-        @classmethod
-        def today(cls):
-            return cls(2024, 8, 1)
 
-    monkeypatch.setattr(order_consumer, "date", FixedDate)
-    assert order_consumer.normalize_derivative_symbol(symbol) == expected
+def test_normalize_derivative_symbol_preserves_dhan_day_format(symbol):
+    assert order_consumer.normalize_derivative_symbol(symbol) == symbol
 
 
 def test_normalize_derivative_symbol_preserves_dhan_format():
@@ -228,6 +224,39 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     assert stub.added == []
     assert order_consumer.orders_failed._value.get() == 1
     assert "lot size" in caplog.text
+
+def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
+    """NIFTYNXT50 symbols should not use the generic NIFTY fallback."""
+    event = {
+        "user_id": 1,
+        "symbol": "NIFTYNXT5025SEP38000CE",
+        "action": "BUY",
+        "qty": 2,
+        "alert_id": "1",
+        "exchange": "NSE",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
+    monkeypatch.setattr(order_consumer.symbol_map, "debug_symbol_lookup", lambda *a, **k: {})
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    # Lot size should default to 40, not the generic NIFTY 50 value
+    assert len(MockBroker.orders) == 1
+    order = MockBroker.orders[0]
+    assert order["qty"] == 80
+    assert order.get("lot_size") == 40
+    assert order["symbol"].startswith("NIFTYNXT50")
+
 
 def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
     event = {
