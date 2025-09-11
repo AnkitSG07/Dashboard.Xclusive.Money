@@ -58,15 +58,11 @@ def normalize_derivative_symbol(symbol: str) -> str:
     
     sym = symbol.upper()
     
-    # Check if symbol already has year (2 digits before month)
-    if re.search(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym):
-        # Symbol already has year
-        return sym
     
     # Pattern for symbols without year (e.g., FINNIFTY30SEP33300PE)
     # This matches: ROOT + DAY + MONTH + STRIKE + OPTION_TYPE
     match = re.match(
-        r'^([A-Z]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
+        r'^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
         sym
     )
     
