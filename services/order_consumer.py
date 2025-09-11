@@ -270,33 +270,45 @@ def consume_webhook_events(
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
+                
+                # --- START OF FIXES FOR LOT_SIZE ERROR ---
+                lot_size = None
                 if is_derivative:
+                    # First, try to get lot_size from the original event payload
                     lot_size = event.get("lot_size")
+                    
+                    # If not available, try to get it from the symbol map
                     if lot_size is None:
                         mapping = symbol_map.get_symbol_for_broker(
                             event.get("symbol", ""), broker_cfg["name"], exchange
                         )
                         lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-                        if not lot_size:
-                            symbol_map.refresh_symbol_map(force=True)
-                            mapping = symbol_map.get_symbol_for_broker(
-                                event.get("symbol", ""), broker_cfg["name"], exchange
-                            )
-                            lot_size = (
-                                mapping.get("lot_size") or mapping.get("lotSize")
-                            )
+
+                    # If lot_size is still None after all lookups, this is a fatal error
                     if not lot_size:
                         log.error(
-                            "unable to resolve lot size for %s (%s) on broker %s",
+                            "unable to resolve lot size for %s (%s) on broker %s. The symbol may be expired or not yet in scrip master.",
                             event.get("symbol"),
                             exchange,
                             broker_cfg["name"],
                             extra={"event": event, "broker": broker_cfg},
                         )
                         return None
-                    order_params["qty"] = int(event["qty"]) * int(lot_size)
-                    if "lot_size" not in order_params:
-                        order_params["lot_size"] = lot_size
+                    
+                    try:
+                        order_params["qty"] = int(event["qty"]) * int(lot_size)
+                        if "lot_size" not in order_params:
+                            order_params["lot_size"] = lot_size
+                    except (ValueError, TypeError):
+                         log.error(
+                            "Invalid lot size or quantity. Could not calculate final order quantity. lot_size: %s, event_qty: %s",
+                            lot_size,
+                            event.get("qty"),
+                            extra={"event": event, "broker": broker_cfg}
+                         )
+                         return None
+                # --- END OF FIXES FOR LOT_SIZE ERROR ---
+                
                 result = client.place_order(**order_params)
                 order_id = None
                 if isinstance(result, dict):
