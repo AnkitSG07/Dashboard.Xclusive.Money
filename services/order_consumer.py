@@ -1,511 +1,622 @@
-"""Dynamic symbol map for Indian equities with lot size support.
-
-This module builds a mapping of every equity symbol available on the
-Indian stock exchanges (NSE and BSE) across a number of supported
-brokers, including lot size information for derivatives.
-"""
-
 from __future__ import annotations
 
-import csv
-import os
-import time
-from functools import lru_cache
-from io import StringIO
-from pathlib import Path
-from typing import Dict, Tuple
+"""Asynchronous worker that consumes webhook events and places orders."""
+
+import asyncio
+import json
 import logging
-import threading
+import os
+import re
 import time
-import requests
+import inspect
+from concurrent.futures import ThreadPoolExecutor, wait
+from functools import partial
+from typing import Any, Dict, Iterable, List
+from datetime import datetime, date
+
+from prometheus_client import Counter
+
+from brokers.factory import get_broker_client
+from brokers import symbol_map
+import redis
+
+from .alert_guard import check_risk_limits, get_user_settings
+from .webhook_receiver import redis_client, get_redis_client
+from .utils import _decode_event
+from .db import get_session
+from models import Strategy, Account
+from .master_trade_monitor import COMPLETED_STATUSES
 
 log = logging.getLogger(__name__)
 
-# URLs that expose complete instrument dumps for the respective brokers.
-ZERODHA_URL = "https://api.kite.trade/instruments"
-DHAN_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
-
-# Store downloaded instrument dumps locally
-CACHE_DIR = Path(
-    os.getenv("SYMBOL_MAP_CACHE_DIR", Path(__file__).parent / "_cache")
+orders_success = Counter(
+    "order_consumer_success_total",
+    "Number of webhook events processed successfully",
 )
-CACHE_DIR.mkdir(exist_ok=True)
-CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
+orders_failed = Counter(
+    "order_consumer_failure_total",
+    "Number of webhook events that failed processing",
+)
 
 
-def _fetch_csv(url: str, cache_name: str) -> str:
-    """Return CSV content from *url* using a small on-disk cache."""
-    cache_file = CACHE_DIR / cache_name
+DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
+
+REJECTED_STATUSES = {"REJECTED", "CANCELLED", "CANCELED", "FAILED"}
+
+
+def normalize_derivative_symbol(symbol: str) -> str:
+    """Normalize derivative symbols by adding year if missing.
     
-    # Try to use cache if it's fresh
-    if cache_file.exists():
-        age = time.time() - cache_file.stat().st_mtime
-        if age < CACHE_MAX_AGE:
-            return cache_file.read_text()
-    
-    # Download fresh data
-    for attempt in range(3):
-        try:
-            resp = requests.get(url, timeout=30)
-            status = getattr(resp, "status_code", 200)
-            if status == 429:
-                retry_after = int(resp.headers.get("Retry-After", "1"))
-                time.sleep(retry_after)
-                continue
-            resp.raise_for_status()
-            text = resp.text
-            try:
-                cache_file.write_text(text)
-            except Exception:
-                pass
-            return text
-        except requests.RequestException:
-            if cache_file.exists():
-                return cache_file.read_text()
-            time.sleep(2 ** attempt)
-            continue
-    raise requests.RequestException(f"failed to fetch {url}")
-
-Key = Tuple[str, str]
-
-
-@lru_cache(maxsize=1)
-def _load_zerodha() -> Dict[Key, Dict[str, str]]:
-    """Return mapping of (symbol, exchange) to instrument data including lot size."""
-    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv")
-    
-    reader = csv.DictReader(StringIO(csv_text))
-    data: Dict[Key, Dict[str, str]] = {}
-    
-    for row in reader:
-        segment = row["segment"].upper()
-        inst_type = row["instrument_type"].upper()
+    Args:
+        symbol: Trading symbol like FINNIFTY30SEP33300PE or FINNIFTY25SEP33300PE
         
-        if segment in {"NSE", "BSE"} and inst_type == "EQ":
-            key = (row["tradingsymbol"], row["exchange"].upper())
-            data[key] = {
-                "instrument_token": row["instrument_token"],
-                "lot_size": row.get("lot_size", "1")  # Equity lot size is usually 1
-            }
-        elif segment in {"NFO", "BFO"} and inst_type in {
-            "FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"
-        }:
-            key = (row["tradingsymbol"], segment)
-            data[key] = {
-                "instrument_token": row["instrument_token"],
-                "lot_size": row.get("lot_size", "1")
-            }
-    
-    return data
-
-
-@lru_cache(maxsize=1)
-def _load_dhan() -> Dict[Key, Dict[str, str]]:
-    """Return mapping of (symbol, exchange) to Dhan security data including lot size."""
-    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv")
-    
-    reader = csv.DictReader(StringIO(csv_text))
-    data: Dict[Key, Dict[str, str]] = {}
-    
-    for row in reader:
-        exch = row["SEM_EXM_EXCH_ID"].upper()
-        segment = row["SEM_SEGMENT"].upper()
-        symbol = row["SEM_TRADING_SYMBOL"]
-        
-        # Get lot size from SEM_LOT_UNITS column
-        lot_size = row.get("SEM_LOT_UNITS", "1")
-        if not lot_size or lot_size == "":
-            lot_size = "1"
-        
-        if exch in {"NSE", "BSE"} and segment == "E":
-            key = (symbol, exch)
-            # Prefer EQ series when available
-            if key not in data or row["SEM_SERIES"] == "EQ":
-                data[key] = {
-                    "security_id": row["SEM_SMST_SECURITY_ID"],
-                    "lot_size": lot_size
-                }
-        elif exch in {"NSE", "BSE"} and segment == "D":
-            # Derivatives segment
-            key = (symbol, "NFO" if exch == "NSE" else "BFO")
-            data[key] = {
-                "security_id": row["SEM_SMST_SECURITY_ID"],
-                "lot_size": lot_size
-            }
-    
-    return data
-
-
-def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
-    """Construct the complete symbol map with lot size information."""
-    zerodha_data = _load_zerodha()
-    dhan_data = _load_dhan()
-    
-    mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
-    
-    # Build map with Zerodha as base
-    for (symbol, exchange), zdata in zerodha_data.items():
-        token = zdata.get("instrument_token", "")
-        lot_size = zdata.get("lot_size", "1")
-        
-        is_equity = exchange in {"NSE", "BSE"}
-        if is_equity:
-            ab_symbol = f"{symbol}-EQ"
-            fyers_symbol = f"{exchange}:{symbol}-EQ"
-        else:
-            ab_symbol = symbol
-            fyers_symbol = f"{exchange}:{symbol}"
-        
-        entry = {
-            "zerodha": {
-                "trading_symbol": symbol,
-                "exchange": exchange,
-                "token": token,
-                "lot_size": lot_size
-            },
-            "aliceblue": {
-                "trading_symbol": ab_symbol,
-                "symbol_id": token,
-                "exch": exchange,
-                "lot_size": lot_size
-            },
-            "fyers": {
-                "symbol": fyers_symbol,
-                "token": token,
-                "lot_size": lot_size
-            },
-            "finvasia": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "flattrade": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "acagarwal": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "motilaloswal": {
-                "symbol": symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "kotakneo": {
-                "symbol": symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "tradejini": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "zebu": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-            "enrichmoney": {
-                "symbol": ab_symbol,
-                "token": token,
-                "exchange": exchange,
-                "lot_size": lot_size
-            },
-        }
-        
-        # Add Dhan data if available
-        dhan_info = dhan_data.get((symbol, exchange))
-        if dhan_info:
-            if exchange in {"NSE", "BSE"}:
-                exch_segment = f"{exchange}_EQ"
-            elif exchange in {"NFO", "BFO"}:
-                exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
-            else:
-                exch_segment = exchange
-            
-            entry["dhan"] = {
-                "security_id": dhan_info["security_id"],
-                "exchange_segment": exch_segment,
-                "lot_size": dhan_info.get("lot_size", lot_size)  # Use Dhan's lot size or fallback
-            }
-        
-        mapping.setdefault(symbol, {})[exchange] = entry
-    
-    # Add Dhan-only symbols (not in Zerodha)
-    for (symbol, exchange), dhan_info in dhan_data.items():
-        if symbol in mapping and exchange in mapping[symbol]:
-            continue
-        
-        if exchange in {"NSE", "BSE"}:
-            exch_segment = f"{exchange}_EQ"
-        elif exchange in {"NFO", "BFO"}:
-            exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
-        else:
-            exch_segment = exchange
-        
-        entry = {
-            "dhan": {
-                "security_id": dhan_info["security_id"],
-                "exchange_segment": exch_segment,
-                "lot_size": dhan_info.get("lot_size", "1")
-            }
-        }
-        mapping.setdefault(symbol, {})[exchange] = entry
-    
-    return mapping
-
-
-# Public symbol map
-SYMBOL_MAP: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
-
-_REFRESH_LOCK = threading.Lock()
-_LAST_REFRESH = 0.0
-_MIN_REFRESH_INTERVAL = 60.0
-
-
-def _ensure_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
-    """Return the global symbol map, loading it if necessary."""
-    global SYMBOL_MAP, _LAST_REFRESH
-    if not SYMBOL_MAP:
-        SYMBOL_MAP = build_symbol_map()
-        _LAST_REFRESH = time.time()
-    return SYMBOL_MAP
-
-
-def get_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
-    """Public wrapper to obtain the global symbol map."""
-    return _ensure_symbol_map()
-
-
-def refresh_symbol_map(force: bool = False) -> None:
-    """Reload the global symbol map from upstream sources."""
-    global SYMBOL_MAP, _LAST_REFRESH
-    with _REFRESH_LOCK:
-        if not force and SYMBOL_MAP and time.time() - _LAST_REFRESH < _MIN_REFRESH_INTERVAL:
-            return
-        
-        try:
-            _load_zerodha.cache_clear()
-            _load_dhan.cache_clear()
-            new_map = build_symbol_map()
-        except requests.RequestException as exc:
-            log.warning("Failed to refresh symbol map: %s", exc)
-            return
-        
-        SYMBOL_MAP = new_map
-        _LAST_REFRESH = time.time()
-
-
-def get_symbol_for_broker(
-    symbol: str, broker: str, exchange: str | None = None
-) -> Dict[str, str]:
-    """Return the mapping for *symbol* for the given *broker* including lot size.
-    
-    The returned dict will include a 'lot_size' key with the lot size from
-    the broker's scrip master.
+    Returns:
+        Normalized symbol with year component
     """
-    symbol = symbol.upper()
-    broker = broker.lower()
+    if not symbol:
+        return symbol
     
-    exchange_hint = None
-    if exchange:
-        exchange_hint = exchange.upper()
-    elif ":" in symbol:
-        exchange_hint, symbol = symbol.split(":", 1)
+    sym = symbol.upper()
     
-    # Handle symbol variants
-    base = symbol
-    if base.endswith("-EQ"):
-        base = base[:-3]
+    # Check if symbol already has year (2 digits before month)
+    if re.search(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym):
+        # Symbol already has year
+        return sym
     
-    base_variants = [symbol, base]
+    # Pattern for symbols without year (e.g., FINNIFTY30SEP33300PE)
+    # This matches: ROOT + DAY + MONTH + STRIKE + OPTION_TYPE
+    match = re.match(
+        r'^([A-Z]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
+        sym
+    )
     
-    # For derivatives, try multiple variants
-    if symbol.endswith(("FUT", "CE", "PE")):
-        import re
-        # Try to extract root symbol
-        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
-        if root_match:
-            root = root_match.group(1)
-            base_variants.append(root)
-    
-    base2 = base.split("-")[0].split("_")[0]
-    if base2 not in base_variants:
-        base_variants.append(base2)
-    
-    symbol_map = _ensure_symbol_map()
-    mapping = None
-    
-    # Try each variant
-    for variant in base_variants:
-        mapping = symbol_map.get(variant)
-        if mapping:
-            log.debug(f"Found symbol mapping for variant: {variant}")
-            break
-    
-    # Refresh once if not found
-    if not mapping:
-        log.info(f"Symbol not found, refreshing symbol map for: {symbol}")
-        refresh_symbol_map()
-        symbol_map = _ensure_symbol_map()
+    if match:
+        root = match.group(1)
+        day = match.group(2)
+        month = match.group(3)
+        rest = match.group(4)  # Strike and option type
         
-        for variant in base_variants:
-            mapping = symbol_map.get(variant)
-            if mapping:
-                log.info(f"Found symbol mapping after refresh for variant: {variant}")
-                break
-    
-    if not mapping:
-        log.warning(f"No symbol mapping found for {symbol} (tried variants: {base_variants})")
-        return {}
-    
-    # Select the appropriate exchange
-    if exchange_hint and exchange_hint in mapping:
-        exchange_map = mapping[exchange_hint]
-        log.debug(f"Using specified exchange: {exchange_hint}")
-    else:
-        # Prefer NFO for derivatives, NSE for equities
-        if symbol.endswith(("FUT", "CE", "PE")) and "NFO" in mapping:
-            exchange_map = mapping["NFO"]
-            log.debug("Using NFO for derivative symbol")
-        elif "NSE" in mapping:
-            exchange_map = mapping["NSE"]
-            log.debug("Using NSE exchange")
+        # Determine the year
+        current_date = date.today()
+        current_year = current_date.year
+        current_month = current_date.month
+        
+        month_map = {
+            'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+        }
+        
+        month_num = month_map[month]
+        
+        # For 2025, year code is 25
+        # If the expiry month is before current month, assume next year
+        if month_num < current_month:
+            year = (current_year + 1) % 100
         else:
-            exchange_map = next(iter(mapping.values()))
-            log.debug(f"Using first available exchange: {list(mapping.keys())[0]}")
+            year = current_year % 100
+        
+        # Reconstruct symbol with year: ROOT + YEAR + MONTH + DAY + REST
+        # Note: The format should be ROOT + YEAR + MONTH + STRIKE + OPTION_TYPE
+        # But we need to handle the day component correctly
+        
+        # For monthly expiry, day is typically the last Thursday
+        # For weekly, it could be any Thursday
+        # The symbol format is typically: ROOT + YY + MMM + STRIKE + CE/PE
+        
+        # Since we have day in the original, let's preserve it
+        # Format: ROOT + DAY + YEAR + MONTH + REST
+        # Actually, standard format is ROOT + YEAR + MONTH + STRIKE + TYPE
+        # Let's try: ROOT + YEAR + MONTH + REST (where REST contains strike and type)
+        
+        year_str = str(year).zfill(2)
+        
+        # Try multiple formats as different brokers might expect different formats
+        # Standard format: ROOT + YY + MMM + STRIKE + CE/PE
+        normalized = f"{root}{year_str}{month}{rest}"
+        
+        log.info(f"Normalized symbol from {sym} to {normalized}")
+        return normalized
     
-    broker_data = exchange_map.get(broker, {}) if exchange_map else {}
-    
-    if not broker_data:
-        log.warning(f"No broker data found for {broker} with symbol {symbol}")
-        if exchange_map:
-            log.debug(f"Available brokers for {symbol}: {list(exchange_map.keys())}")
-    else:
-        # Log the lot size if found
-        if "lot_size" in broker_data:
-            log.debug(f"Found lot size {broker_data['lot_size']} for {symbol} on {broker}")
-    
-    return broker_data
+    # If no pattern matches, return original
+    return sym
 
 
-def get_symbol_by_token(token: str, broker: str) -> str | None:
-    """Return the base symbol for a broker given its token/instrument id."""
-    broker = broker.lower()
-    token = str(token)
-    
-    symbol_map = _ensure_symbol_map()
-    for sym, exchanges in symbol_map.items():
-        for exchange_map in exchanges.values():
-            broker_map = exchange_map.get(broker)
-            if broker_map and str(broker_map.get("token")) == token:
-                return sym
-    return None
+def consume_webhook_events(
+    *,
+    stream: str = "webhook_events",
+    group: str = "order_consumer",
+    consumer: str = "worker-1",
+    redis_client=redis_client,
+    max_messages: int | None = None,
+    block: int = 0,
+    batch_size: int = 10,
+    max_workers: int | None = None,
+    order_timeout: float | None = None,
+) -> int:
+    """Consume events from *stream* using a consumer group and place orders.
 
+    Args:
+        stream: Redis Stream name to consume from.
+        group: Consumer group name used for coordinated consumption.
+        consumer: Consumer name within the group.
+        redis_client: Redis client instance.  Tests may supply a stub.
+        max_messages: Optional limit for the number of messages processed.  If
+            ``None`` the consumer runs until the stream is exhausted.
+        block: Milliseconds to block waiting for new events.  ``0`` means do not
+            block.
+        batch_size: Number of messages to fetch per ``xreadgroup`` call.
+        max_workers: Maximum number of broker submissions dispatched
+            concurrently for a single webhook event.  Defaults to the value of
+            the ``ORDER_CONSUMER_MAX_WORKERS`` environment variable.
+        order_timeout: Maximum time in seconds to wait for a broker API
+            response. ``None`` disables the timeout.
 
-def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None = None) -> Dict[str, any]:
-    """Debug helper to show symbol lookup process and available data."""
-    result = {
-        "original_symbol": symbol,
-        "broker": broker,
-        "exchange": exchange,
-        "found_mapping": False,
-        "available_variants": [],
-        "available_exchanges": [],
-        "available_brokers": [],
-        "broker_data": {},
-        "lot_size": None,
-        "debug_info": []
-    }
+    Returns the number of messages processed.
+    """
     
-    symbol = symbol.upper()
-    broker = broker.lower()
-    
-    # Generate variants
-    base = symbol
-    if base.endswith("-EQ"):
-        base = base[:-3]
-    
-    base_variants = [symbol, base]
-    
-    if symbol.endswith(("FUT", "CE", "PE")):
-        import re
-        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
-        if root_match:
-            root = root_match.group(1)
-            base_variants.append(root)
-    
-    base2 = base.split("-")[0].split("_")[0]
-    if base2 not in base_variants:
-        base_variants.append(base2)
-    
-    result["available_variants"] = base_variants
-    
-    symbol_map = _ensure_symbol_map()
-    
-    # Check each variant
-    for variant in base_variants:
-        if variant in symbol_map:
-            result["found_mapping"] = True
-            result["available_exchanges"] = list(symbol_map[variant].keys())
+    max_workers = max_workers or DEFAULT_MAX_WORKERS
+    if order_timeout is None:
+        # Wait slightly longer than broker HTTP calls so the worker doesn't
+        # cancel orders prematurely.  Defaults to the broker timeout (25s) but
+        # can be overridden via ``ORDER_CONSUMER_TIMEOUT``.
+        order_timeout = float(
+            os.getenv(
+                "ORDER_CONSUMER_TIMEOUT",
+                os.getenv("BROKER_TIMEOUT", "20"),
+            )
+        )
+
+    # Lazily create a Redis client if one was not supplied.
+    if redis_client is None:
+        redis_client = get_redis_client()
+
+    # Ensure the consumer group exists. Ignore error if it already exists.
+    try:
+        redis_client.xgroup_create(stream, group, id="0", mkstream=True)
+    except Exception as exc:  # pragma: no cover - stub may not raise
+        if "BUSYGROUP" not in str(exc):
+            raise
+
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    def process_message(msg_id: str, data: Dict[Any, Any]) -> None:
+        event = _decode_event(data)
+        try:
+            check_risk_limits(event)
+            settings = get_user_settings(event["user_id"])
+            brokers = settings.get("brokers", [])
+
+            # Normalize derivative symbols to include year if missing
+            symbol = event.get("symbol", "")
+            instrument_type = event.get("instrument_type", "")
             
-            # Check available brokers and lot sizes
-            for exch, exch_data in symbol_map[variant].items():
-                for broker_name, broker_info in exch_data.items():
-                    if broker_name not in result["available_brokers"]:
-                        result["available_brokers"].append(broker_name)
-                    # Log lot size info
-                    if broker_name == broker and "lot_size" in broker_info:
-                        result["debug_info"].append(
-                            f"Lot size for {broker} on {exch}: {broker_info['lot_size']}"
+            # Check if it's a derivative
+            is_derivative = (
+                instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
+                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
+            )
+            
+            if is_derivative:
+                normalized_symbol = normalize_derivative_symbol(symbol)
+                if normalized_symbol != symbol:
+                    log.info(f"Normalized derivative symbol from {symbol} to {normalized_symbol}")
+                    event["symbol"] = normalized_symbol
+
+            allowed_accounts = event.get("masterAccounts") or []
+            if isinstance(allowed_accounts, str):
+                try:
+                    allowed_accounts = json.loads(allowed_accounts)
+                except json.JSONDecodeError:
+                    log.error(
+                        "invalid masterAccounts JSON: %s",
+                        allowed_accounts,
+                        extra={"event": event},
+                    )
+                    orders_failed.inc()
+                    return
+                if not isinstance(allowed_accounts, list):
+                    log.error(
+                        "masterAccounts JSON was not a list: %s",
+                        allowed_accounts,
+                        extra={"event": event},
+                    )
+                    orders_failed.inc()
+                    return
+                event["masterAccounts"] = allowed_accounts
+            if not allowed_accounts:
+                strategy_id = event.get("strategy_id")
+                if strategy_id is not None:
+                    session = get_session()
+                    try:
+                        strategy = session.query(Strategy).get(strategy_id)
+                        if strategy and strategy.master_accounts:
+                            allowed_accounts = [
+                                a.strip()
+                                for a in str(strategy.master_accounts).split(",")
+                                if a.strip()
+                            ]
+                    finally:
+                        session.close()
+            if allowed_accounts:
+                invalid_ids = [
+                    acc_id for acc_id in allowed_accounts if not str(acc_id).isdigit()
+                ]
+                if invalid_ids:
+                    log.error(
+                        "non-numeric master account id(s): %s",
+                        invalid_ids,
+                        extra={"event": event},
+                    )
+                    orders_failed.inc()
+                    return
+
+                ids: List[int] = [int(acc_id) for acc_id in allowed_accounts]
+                session = get_session()
+                try:
+                    rows = (
+                        session.query(Account)
+                        .filter(Account.id.in_(ids))
+                        .all()
+                    )
+                finally:
+                    session.close()
+                allowed_pairs = {(r.broker, r.client_id) for r in rows}
+                brokers = [
+                    b
+                    for b in brokers
+                    if (b.get("name"), b.get("client_id")) in allowed_pairs
+                ]
+
+                if not brokers:
+                    log.error(
+                        "no brokers permitted for user", extra={"event": event}
+                    )
+                    orders_failed.inc()
+                    return
+            elif not brokers:
+                log.error(
+                    "no brokers configured for user", extra={"event": event}
+                )
+                orders_failed.inc()
+                return
+
+            def _normalize_keys(data: Dict[str, Any]) -> Dict[str, Any]:
+                """Return a dict with camelCase keys converted to snake_case."""
+                normalized: Dict[str, Any] = {}
+                for key, value in data.items():
+                    new_key = re.sub(r"([A-Z])", lambda m: "_" + m.group(1).lower(), key)
+                    normalized[new_key] = value
+                return normalized
+
+            def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
+                client_cls = get_broker_client(broker_cfg["name"])
+                credentials = _normalize_keys(dict(broker_cfg))
+                access_token = credentials.pop("access_token", "")
+                client_id = credentials.pop("client_id", None)
+                credentials.pop("name", None)
+                # Validate that all required credentials are present before
+                # instantiating the broker client.  This avoids cryptic
+                # ``TypeError`` exceptions when mandatory parameters like
+                # ``api_key`` are missing from the configuration.
+                try:
+                    sig = inspect.signature(client_cls)
+                except (TypeError, ValueError):
+                    sig = None
+                if sig is not None:
+                    required = [
+                        p.name
+                        for p in sig.parameters.values()
+                        if p.kind
+                        in (
+                            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                            inspect.Parameter.KEYWORD_ONLY,
                         )
-            
-            result["debug_info"].append(f"Found variant '{variant}' in symbol map")
-            
-            # Get broker data
-            if exchange and exchange.upper() in symbol_map[variant]:
-                exchange_map = symbol_map[variant][exchange.upper()]
-            elif "NFO" in symbol_map[variant] and symbol.endswith(("FUT", "CE", "PE")):
-                exchange_map = symbol_map[variant]["NFO"]
-                result["debug_info"].append("Selected NFO for derivative")
-            elif "NSE" in symbol_map[variant]:
-                exchange_map = symbol_map[variant]["NSE"]
-                result["debug_info"].append("Selected NSE as default")
+                        and p.default is inspect._empty
+                        and p.name not in ("self", "client_id", "access_token")
+                    ]
+                    missing = [p for p in required if p not in credentials]
+                    if missing:
+                        raise ValueError(
+                            "missing required broker credential(s): "
+                            + ", ".join(missing)
+                        )
+
+                client = client_cls(
+                    client_id=client_id,
+                    access_token=access_token,
+                    **credentials,
+                )
+                order_params = {
+                    "symbol": event["symbol"],
+                    "action": event["action"],
+                    "qty": event["qty"],
+                }
+                instrument_type = event.get("instrument_type")
+                symbol = str(event.get("symbol", ""))
+                inst_upper = instrument_type.upper() if instrument_type else ""
+                sym_upper = symbol.upper()
+                is_derivative = bool(re.search(r"(FUT|CE|PE)$", inst_upper)) or bool(
+                    re.search(r"(FUT|CE|PE)$", sym_upper)
+                )
+                exchange = event.get("exchange")
+                if event.get("security_id") is not None:
+                    order_params["security_id"] = event["security_id"]
+                if exchange is not None:
+                    if exchange in {"NSE", "BSE"} and is_derivative:
+                        exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
+                    order_params["exchange"] = exchange
+                if event.get("order_type") is not None:
+                    order_params["order_type"] = event["order_type"]
+                for field in [
+                    "instrument_type",
+                    "expiry",
+                    "strike",
+                    "option_type",
+                    "lot_size",
+                ]:
+                    if event.get(field) is not None:
+                        order_params[field] = event[field]
+                optional_map = {
+                    "productType": "product_type",
+                    "orderValidity": "validity",
+                    "masterAccounts": "master_accounts",
+                    "securityId": "security_id",
+                }
+                for src, dest in optional_map.items():
+                    if event.get(src) is not None:
+                        order_params[dest] = event[src]
+                
+                # Handle lot size for derivatives
+                lot_size = None
+                if is_derivative:
+                    # First, try to get lot_size from the original event payload
+                    lot_size = event.get("lot_size")
+                    
+                    # If not available, try to get it from the symbol map
+                    if lot_size is None:
+                        try:
+                            # Try with the normalized symbol first
+                            mapping = symbol_map.get_symbol_for_broker(
+                                event.get("symbol", ""), broker_cfg["name"], exchange
+                            )
+                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                            
+                            if not lot_size:
+                                # Log debug info for troubleshooting
+                                log.debug(f"Symbol map lookup returned: {mapping}")
+                                
+                                # Try to debug what symbols are available
+                                debug_info = symbol_map.debug_symbol_lookup(
+                                    event.get("symbol", ""), 
+                                    broker_cfg["name"], 
+                                    exchange
+                                )
+                                log.info(f"Symbol debug info: {json.dumps(debug_info, indent=2)}")
+                                
+                        except Exception as e:
+                            log.warning(
+                                "Could not retrieve lot size from symbol map for %s: %s",
+                                event.get("symbol"),
+                                str(e),
+                                extra={"event": event, "broker": broker_cfg}
+                            )
+
+                    # For FINNIFTY, default lot size is 40 (as of 2025)
+                    # For NIFTY, default is 50
+                    # These are fallback values
+                    if not lot_size and is_derivative:
+                        if "FINNIFTY" in symbol.upper():
+                            lot_size = 40
+                            log.info(f"Using default FINNIFTY lot size: {lot_size}")
+                        elif "NIFTY" in symbol.upper() and "BANK" not in symbol.upper():
+                            lot_size = 50
+                            log.info(f"Using default NIFTY lot size: {lot_size}")
+                        elif "BANKNIFTY" in symbol.upper():
+                            lot_size = 25
+                            log.info(f"Using default BANKNIFTY lot size: {lot_size}")
+                        else:
+                            # For other derivatives, we can't assume lot size
+                            log.error(
+                                "Unable to determine lot size for %s (%s) on broker %s. "
+                                "Cannot proceed with order.",
+                                event.get("symbol"),
+                                exchange,
+                                broker_cfg["name"],
+                                extra={"event": event, "broker": broker_cfg},
+                            )
+                            return None
+                    
+                    if lot_size:
+                        try:
+                            # Multiply quantity by lot size for derivatives
+                            order_params["qty"] = int(event["qty"]) * int(lot_size)
+                            if "lot_size" not in order_params:
+                                order_params["lot_size"] = lot_size
+                            log.info(f"Adjusted quantity for {symbol}: {event['qty']} lots * {lot_size} = {order_params['qty']}")
+                        except (ValueError, TypeError):
+                            log.error(
+                                "Invalid lot size or quantity. Could not calculate final order quantity. "
+                                "lot_size: %s, event_qty: %s",
+                                lot_size,
+                                event.get("qty"),
+                                extra={"event": event, "broker": broker_cfg}
+                            )
+                            return None
+                
+                result = client.place_order(**order_params)
+                order_id = None
+                if isinstance(result, dict):
+                    order_id = (
+                        result.get("order_id")
+                        or result.get("id")
+                        or result.get("data", {}).get("order_id")
+                        or result.get("orderId")
+                        or result.get("data", {}).get("orderId")
+                    )
+                if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
+                    raise RuntimeError(f"broker order failed: {result}")
+                status = None
+                try:
+                    if hasattr(client, "get_order"):
+                        info = client.get_order(order_id)
+                        if isinstance(info, dict):
+                            status = info.get("status") or info.get("data", {}).get("status")
+                    elif hasattr(client, "list_orders"):
+                        orders = client.list_orders()
+                        for order in orders:
+                            oid = (
+                                order.get("id")
+                                or order.get("order_id")
+                                or order.get("orderId")
+                                or order.get("data", {}).get("order_id")
+                            )
+                            if str(oid) == str(order_id):
+                                status = order.get("status") or order.get("data", {}).get("status")
+                                break
+                except Exception:
+                    log.warning(
+                        "failed to fetch order status",
+                        extra={"order_id": order_id},
+                        exc_info=True,
+                    )
+                status_upper = str(status).upper() if status is not None else None
+                if status_upper in REJECTED_STATUSES:
+                    log.info(
+                        "skipping trade event due to rejected status",
+                        extra={"order_id": order_id, "status": status},
+                    )
+                    return None
+                if status_upper not in COMPLETED_STATUSES:
+                    log.info(
+                        "publishing trade event with incomplete status",
+                        extra={"order_id": order_id, "status": status},
+                    )
+                    
+                trade_event = {
+                    "master_id": client_id,
+                    **{k: v for k, v in order_params.items() if k != "master_accounts"},
+                }
+                return trade_event
+
+
+            def _late_completion(cfg, fut):
+                try:
+                    result = fut.result()
+                    log.warning(
+                        "broker %s completed after timeout: %s",
+                        cfg["name"],
+                        result,
+                    )
+                except BaseException as exc:
+                    log.warning(
+                        "broker %s failed after timeout: %s",
+                        cfg["name"],
+                        exc,
+                        exc_info=exc,
+                    )
+
+            trade_events: List[Dict[str, Any]] = []
+            if brokers:
+                futures = {executor.submit(submit, cfg): cfg for cfg in brokers}
+                done, pending = wait(futures, timeout=order_timeout)
+                timed_out = []
+                for future in done:
+                    cfg = futures[future]
+                    try:
+                        trade_event = future.result()
+                        if trade_event:
+                            trade_events.append(trade_event)
+                    except Exception:
+                        orders_failed.inc()
+                        log.exception(
+                            "failed to place master order", extra={"event": event, "broker": cfg}
+                        )
+                for future in pending:
+                    cfg = futures[future]
+                    orders_failed.inc()
+                    log.warning(
+                        "broker order timed out", extra={"event": event, "broker": cfg}
+                    )
+                    if not future.cancel():
+                        timed_out.append((future, cfg))
+                for fut, cfg in timed_out:
+                    fut.add_done_callback(partial(_late_completion, cfg))
             else:
-                exchange_map = next(iter(symbol_map[variant].values()))
-                result["debug_info"].append(f"Selected first available exchange: {list(symbol_map[variant].keys())[0]}")
-            
-            result["broker_data"] = exchange_map.get(broker, {})
-            if result["broker_data"]:
-                result["lot_size"] = result["broker_data"].get("lot_size")
-                result["debug_info"].append(f"Found broker data for {broker}, lot_size: {result['lot_size']}")
+                # Provide explicit feedback when no brokers are configured for a user.
+                orders_failed.inc()
+                log.warning("no brokers configured for user", extra={"event": event})
+                
+            for trade_event in trade_events:
+                # Publish master order to trade copier stream so child
+                # accounts can replicate the trade asynchronously.
+                redis_client.xadd("trade_events", trade_event)
+
+            if trade_events:
+                orders_success.inc()
+                log.info("processed webhook event", extra={"event": event})
             else:
-                result["debug_info"].append(f"No broker data found for {broker}")
-            
-            break
-        else:
-            result["debug_info"].append(f"Variant '{variant}' not found in symbol map")
-    
-    return result
+                orders_failed.inc()
+        except Exception:
+            orders_failed.inc()
+            log.exception("failed to process webhook event", extra={"event": event})
+        finally:
+            redis_client.xack(stream, group, msg_id)
+
+    async def _consume() -> int:
+        processed = 0
+        while max_messages is None or processed < max_messages:
+            count = batch_size
+            if max_messages is not None:
+                count = min(count, max_messages - processed)
+            messages: Iterable = redis_client.xreadgroup(
+                group, consumer, {stream: ">"}, count=count, block=block
+            )
+            if not messages:
+                break
+
+            tasks = []
+            for _stream, events in messages:
+                for msg_id, data in events:
+                    tasks.append(asyncio.to_thread(process_message, msg_id, data))
+            if tasks:
+                await asyncio.gather(*tasks)
+                processed += len(tasks)
+
+        return processed
+
+    try:
+        return asyncio.run(_consume())
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 __all__ = [
-    "SYMBOL_MAP",
-    "build_symbol_map",
-    "refresh_symbol_map",
-    "get_symbol_map",
-    "get_symbol_for_broker",
-    "get_symbol_by_token",
-    "debug_symbol_lookup"
+    "consume_webhook_events",
+    "orders_success",
+    "orders_failed",
 ]
+
+def main() -> None:
+    """Run the consumer indefinitely.
+
+    ``consume_webhook_events`` exits once the Redis stream is exhausted.
+    Wrapping it in an endless loop ensures the worker process stays alive
+    and continues to block for new webhook events.
+    """
+
+    while True:
+        # Block for up to 5 seconds waiting for new events so the loop
+        # doesn't spin when the stream is idle.
+        try:
+            consume_webhook_events(block=5000)
+        except redis.exceptions.RedisError:
+            log.exception("redis unavailable, retrying", exc_info=True)
+            time.sleep(5)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    try:
+        main()
+    except KeyboardInterrupt:  # pragma: no cover - interactive use
+        pass
