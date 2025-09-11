@@ -246,7 +246,7 @@ def test_load_dhan_prefers_custom_symbol(monkeypatch, caplog):
 
     assert ("GOODSYMBOL", "NSE") in data
     assert ("BADSYMBOL", "NSE") not in data
-    assert "Dhan trading/custom symbol mismatch" in caplog.text
+    assert "1 trading/custom symbol mismatches skipped" in caplog.text
 
 
 def test_load_dhan_retains_derivative_lot_size_when_missing(monkeypatch):
