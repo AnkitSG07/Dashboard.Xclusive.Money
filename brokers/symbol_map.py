@@ -179,6 +179,7 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
     
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, Dict[str, str]] = {}
+    mismatches = 0
     
     for row in reader:
         exch = row["SEM_EXM_EXCH_ID"].upper()
@@ -192,11 +193,7 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
         )
 
         if trading_symbol and custom_symbol and trading_symbol != custom_symbol:
-            log.warning(
-                "Dhan trading/custom symbol mismatch: trading=%s custom=%s",
-                trading_symbol,
-                custom_symbol,
-            )
+            mismatches += 1
             symbol = custom_symbol
         else:
             symbol = custom_symbol or trading_symbol
@@ -232,7 +229,12 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
                 "security_id": row["SEM_SMST_SECURITY_ID"],
                 "lot_size": lot_size
             }
-    
+
+    if mismatches:
+        log.warning("%d trading/custom symbol mismatches skipped", mismatches)
+    else:
+        log.debug("no trading/custom symbol mismatches encountered")
+
     return data
 
 
