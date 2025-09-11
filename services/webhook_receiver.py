@@ -208,7 +208,7 @@ class WebhookEventSchema(Schema):
                 data["option_type"] = opt_code
                 logger.info(f"Normalized options symbol: {normalized_symbol}")
                 return data
-
+                
             # Pattern 2: Handle spaced derivative formats (TradingView style)
             # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
             # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
@@ -248,6 +248,22 @@ class WebhookEventSchema(Schema):
                 return data
 
             # Pattern 3: Handle alternative formats with different separators
+            # Handle formats like NIFTYNXT50-25NOV-FUT
+            alt_fut_match = re.match(
+                r"^([A-Z0-9]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(FUT)$",
+                raw_sym
+            )
+            if alt_fut_match:
+                root, year, month, fut = alt_fut_match.groups()
+                if not year:
+                    year = get_expiry_year(month)
+                normalized_symbol = f"{root}{year}{month}{fut}"
+                data["symbol"] = normalized_symbol
+                data["exchange"] = base_exchange
+                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
+                logger.info(f"Normalized alternative futures symbol: {normalized_symbol}")
+                return data
+
             # Handle formats like NIFTYNXT50-25NOV-35500-CE
             alt_opt_match = re.match(
                 r"^([A-Z0-9]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(\d+)[-_]?(CALL|PUT|CE|PE)$",
