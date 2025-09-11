@@ -277,6 +277,14 @@ def consume_webhook_events(
                             event.get("symbol", ""), broker_cfg["name"], exchange
                         )
                         lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                        if not lot_size:
+                            symbol_map.refresh_symbol_map(force=True)
+                            mapping = symbol_map.get_symbol_for_broker(
+                                event.get("symbol", ""), broker_cfg["name"], exchange
+                            )
+                            lot_size = (
+                                mapping.get("lot_size") or mapping.get("lotSize")
+                            )
                     if not lot_size:
                         log.error(
                             "unable to resolve lot size for %s (%s) on broker %s",
