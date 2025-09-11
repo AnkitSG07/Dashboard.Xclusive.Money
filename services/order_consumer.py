@@ -89,6 +89,14 @@ def normalize_derivative_symbol(symbol: str) -> str:
         }:
             return sym
 
+    # Day-based Dhan option without explicit year (e.g., NIFTYNXT5025NOV35500CE)
+    day_match = re.match(
+        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        sym,
+    )
+    if day_match:
+        return sym
+
     # Pattern for symbols missing the year component (e.g., FINNIFTY30SEP33300PE)
     match = re.match(
         r'^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
@@ -418,15 +426,19 @@ def consume_webhook_events(
                     # For NIFTY, default is 50
                     # These are fallback values
                     if not lot_size and is_derivative:
-                        if "FINNIFTY" in symbol.upper():
+                        sym_upper = symbol.upper()
+                        if "NIFTYNXT50" in sym_upper:
+                            lot_size = 40
+                            log.info(f"Using default NIFTYNXT50 lot size: {lot_size}")
+                        elif "FINNIFTY" in sym_upper:
                             lot_size = 40
                             log.info(f"Using default FINNIFTY lot size: {lot_size}")
-                        elif "NIFTY" in symbol.upper() and "BANK" not in symbol.upper():
-                            lot_size = 50
-                            log.info(f"Using default NIFTY lot size: {lot_size}")
-                        elif "BANKNIFTY" in symbol.upper():
+                        elif "BANKNIFTY" in sym_upper:
                             lot_size = 25
                             log.info(f"Using default BANKNIFTY lot size: {lot_size}")
+                        elif "NIFTY" in sym_upper and "BANK" not in sym_upper:
+                            lot_size = 50
+                            log.info(f"Using default NIFTY lot size: {lot_size}")    
                         else:
                             # For other derivatives, we can't assume lot size
                             log.info(
