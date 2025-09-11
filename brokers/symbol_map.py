@@ -205,34 +205,25 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
                     lot_size = None
             except (ValueError, TypeError):
                 lot_size = None
+        
+        # Add logging for debugging lot size issues.
+        if segment == "D" and lot_size is None:
+            log.warning(f"Lot size is missing for derivative symbol {symbol} in Dhan CSV.")
+
         if exch in {"NSE", "BSE"} and segment == "E":
             key = (symbol, exch)
             if key not in data or row["SEM_SERIES"] == "EQ":
                 info: Dict[str, str] = {"security_id": row["SEM_SMST_SECURITY_ID"]}
                 if lot_size:
                     info["lot_size"] = lot_size
-                if (
-                    key in data
-                    and "lot_size" in data[key]
-                    and "lot_size" not in info
-                ):
-                    data[key].update(info)
-                else:
-                    data[key] = info
+                data[key] = info
         elif exch in {"NSE", "BSE"} and segment == "D":
             symbol = _canonical_dhan_symbol(symbol, row.get("SEM_EXPIRY_DATE"))
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
             info = {"security_id": row["SEM_SMST_SECURITY_ID"]}
             if lot_size:
                 info["lot_size"] = lot_size
-            if (
-                key in data
-                and "lot_size" in data[key]
-                and "lot_size" not in info
-            ):
-                data[key].update(info)
-            else:
-                data[key] = info
+            data[key] = info
     return data
 
 
