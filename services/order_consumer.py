@@ -57,62 +57,58 @@ def normalize_derivative_symbol(symbol: str) -> str:
         return symbol
     
     sym = symbol.upper()
-    
-    
-    # Pattern for symbols without year (e.g., FINNIFTY30SEP33300PE)
-    # This matches: ROOT + DAY + MONTH + STRIKE + OPTION_TYPE
+
+    # Pattern for symbols already in Dhan's day-based format
+    dhan_match = re.match(
+        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})(.+)$',
+        sym,
+    )
+    if dhan_match:
+        current_year = date.today().year % 100
+        year_candidate = int(dhan_match.group(4))
+        # Accept previous, current or next year as valid
+        if year_candidate in {(current_year - 1) % 100, current_year, (current_year + 1) % 100}:
+            return sym
+
+    # Pattern for symbols missing the year component (e.g., FINNIFTY30SEP33300PE)
     match = re.match(
         r'^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
-        sym
+        sym,
     )
-    
+
     if match:
-        root = match.group(1)
-        day = match.group(2)
-        month = match.group(3)
-        rest = match.group(4)  # Strike and option type
-        
-        # Determine the year
+        root, day, month, rest = match.groups()
+
+        # Determine the year based on current date
         current_date = date.today()
         current_year = current_date.year
         current_month = current_date.month
-        
+
         month_map = {
             'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
             'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
         }
-        
+
         month_num = month_map[month]
         
-        # For 2025, year code is 25
-        # If the expiry month is before current month, assume next year
+
+        # If the expiry month is before the current month, assume next year
         if month_num < current_month:
             year = (current_year + 1) % 100
         else:
             year = current_year % 100
-        
-        # Reconstruct symbol with year: ROOT + YEAR + MONTH + DAY + REST
-        # Note: The format should be ROOT + YEAR + MONTH + STRIKE + OPTION_TYPE
-        # But we need to handle the day component correctly
-        
-        # For monthly expiry, day is typically the last Thursday
-        # For weekly, it could be any Thursday
-        # The symbol format is typically: ROOT + YY + MMM + STRIKE + CE/PE
-        
-        # Since we have day in the original, let's preserve it
-        # Format: ROOT + DAY + YEAR + MONTH + REST
-        # Actually, standard format is ROOT + YEAR + MONTH + STRIKE + TYPE
-        # Let's try: ROOT + YEAR + MONTH + REST (where REST contains strike and type)
-        
+
+        day = day.zfill(2)
         year_str = str(year).zfill(2)
         
-        # Try multiple formats as different brokers might expect different formats
-        # Standard format: ROOT + YY + MMM + STRIKE + CE/PE
-        normalized = f"{root}{year_str}{month}{rest}"
+
+        # Reconstruct symbol with year inserted after the month
+        normalized = f"{root}{day}{month}{year_str}{rest}"
+
         
         log.info(f"Normalized symbol from {sym} to {normalized}")
         return normalized
-    
+
     # If no pattern matches, return original
     return sym
 
