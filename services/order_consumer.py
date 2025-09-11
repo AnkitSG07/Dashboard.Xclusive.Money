@@ -12,7 +12,6 @@ import inspect
 from concurrent.futures import ThreadPoolExecutor, wait
 from functools import partial
 from typing import Any, Dict, Iterable, List
-from datetime import datetime, date
 
 from prometheus_client import Counter
 
@@ -42,103 +41,6 @@ orders_failed = Counter(
 DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
 
 REJECTED_STATUSES = {"REJECTED", "CANCELLED", "CANCELED", "FAILED"}
-
-
-def normalize_derivative_symbol(symbol: str) -> str:
-    """Normalize derivative symbols by adding year if missing.
-    
-    Args:
-        symbol: Trading symbol like FINNIFTY30SEP33300PE or FINNIFTY25SEP33300PE
-        
-    Returns:
-        Normalized symbol with year component
-    """
-    if not symbol:
-        return symbol
-    
-    sym = symbol.upper()
-
-    # Pattern for symbols already in Dhan's day-based format
-    # Already normalized Dhan-style options
-    opt_match = re.match(
-        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})(\d+)(CE|PE)$',
-        sym,
-    )
-    if opt_match:
-        current_year = date.today().year % 100
-        year_candidate = int(opt_match.group(4))
-        if year_candidate in {
-            (current_year - 1) % 100,
-            current_year,
-            (current_year + 1) % 100,
-        }:
-            return sym
-
-    # Already normalized Dhan-style futures
-    fut_match = re.match(
-        r'^([A-Z0-9]+)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
-        sym,
-    )
-    if fut_match:
-        current_year = date.today().year % 100
-        year_candidate = int(fut_match.group(2))
-        if year_candidate in {
-            (current_year - 1) % 100,
-            current_year,
-            (current_year + 1) % 100,
-        }:
-            return sym
-
-    # Day-based Dhan option without explicit year (e.g., NIFTYNXT5025NOV35500CE)
-    day_match = re.match(
-        r'^([A-Z0-9]+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
-        sym,
-    )
-    if day_match:
-        return sym
-
-    # Pattern for symbols missing the year component (e.g., FINNIFTY30SEP33300PE)
-    match = re.match(
-        r'^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
-        sym,
-    )
-
-    if match:
-        root, day, month, rest = match.groups()
-
-        # Determine the year based on current date
-        current_date = date.today()
-        current_year = current_date.year
-        current_month = current_date.month
-
-        month_map = {
-            'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
-            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
-        }
-
-        month_num = month_map[month]
-        
-
-        # If the expiry month is before the current month, assume next year
-        if month_num < current_month:
-            year = (current_year + 1) % 100
-        else:
-            year = current_year % 100
-
-        day = day.zfill(2)
-        year_str = str(year).zfill(2)
-        
-
-        # Reconstruct symbol with year inserted after the month
-        normalized = f"{root}{day}{month}{year_str}{rest}"
-
-        
-        log.info(f"Normalized symbol from {sym} to {normalized}")
-        return normalized
-
-    # If no pattern matches, return original
-    return sym
-
 
 def consume_webhook_events(
     *,
@@ -204,22 +106,6 @@ def consume_webhook_events(
             check_risk_limits(event)
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
-
-            # Normalize derivative symbols to include year if missing
-            symbol = event.get("symbol", "")
-            instrument_type = event.get("instrument_type", "")
-            
-            # Check if it's a derivative
-            is_derivative = (
-                instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
-                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
-            )
-            
-            if is_derivative:
-                normalized_symbol = normalize_derivative_symbol(symbol)
-                if normalized_symbol != symbol:
-                    log.info(f"Normalized derivative symbol from {symbol} to {normalized_symbol}")
-                    event["symbol"] = normalized_symbol
 
             allowed_accounts = event.get("masterAccounts") or []
             if isinstance(allowed_accounts, str):
@@ -384,106 +270,25 @@ def consume_webhook_events(
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
-                
-                # Handle lot size for derivatives
-                lot_size = None
                 if is_derivative:
-                    # First, try to get lot_size from the original event payload
                     lot_size = event.get("lot_size")
-
-                    # If not available, try to get it from the symbol map
-                    mapping = {}
                     if lot_size is None:
-                        try:
-                            # Try with the normalized symbol first
-                            mapping = symbol_map.get_symbol_for_broker(
-                                event.get("symbol", ""), broker_cfg["name"], exchange
-                            )
-                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-                            
-                            if not lot_size:
-                                # Log info so operators can inspect the mapping
-                                log.info("Symbol map lookup returned: %s", mapping)
-                                
-                                # Try to debug what symbols are available
-                                debug_info = symbol_map.debug_symbol_lookup(
-                                    event.get("symbol", ""),
-                                    broker_cfg["name"],
-                                    exchange,
-                                )
-                                log.info(
-                                    f"Symbol debug info: {json.dumps(debug_info, indent=2)}"
-                                )
-
-                                # Refresh the symbol map and try again
-                                symbol_map.refresh_symbol_map(force=True)
-                                mapping = symbol_map.get_symbol_for_broker(
-                                    event.get("symbol", ""), broker_cfg["name"], exchange
-                                )
-                                lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-     
-                        except Exception as e:
-                            log.warning(
-                                "Could not retrieve lot size from symbol map for %s: %s",
-                                event.get("symbol"),
-                                str(e),
-                                extra={"event": event, "broker": broker_cfg},
-                            )
-
-                    # For FINNIFTY, default lot size is 40 (as of 2025)
-                    # For NIFTY, default is 50
-                    # These are fallback values
-                    if not lot_size and is_derivative:
-                        sym_upper = symbol.upper()
-                        if "NIFTYNXT50" in sym_upper:
-                            lot_size = 40
-                            log.info(f"Using default NIFTYNXT50 lot size: {lot_size}")
-                        elif "FINNIFTY" in sym_upper:
-                            lot_size = 40
-                            log.info(f"Using default FINNIFTY lot size: {lot_size}")
-                        elif "BANKNIFTY" in sym_upper:
-                            lot_size = 25
-                            log.info(f"Using default BANKNIFTY lot size: {lot_size}")
-                        elif "NIFTY" in sym_upper and "BANK" not in sym_upper:
-                            lot_size = 50
-                            log.info(f"Using default NIFTY lot size: {lot_size}")
-
-                    if is_derivative and (not lot_size or int(lot_size) <= 1):
-                        # For other derivatives, we can't assume lot size
-                        log.info(
-                            "Symbol map entry when resolving lot size: %s",
-                            mapping,
+                        mapping = symbol_map.get_symbol_for_broker(
+                            event.get("symbol", ""), broker_cfg["name"], exchange
                         )
+                        lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                    if not lot_size:
                         log.error(
-                            "Unable to determine lot size for %s (%s) on broker %s. "
-                            "Cannot proceed with order.",
+                            "unable to resolve lot size for %s (%s) on broker %s",
                             event.get("symbol"),
                             exchange,
                             broker_cfg["name"],
                             extra={"event": event, "broker": broker_cfg},
                         )
                         return None
-
-                    
-                    if lot_size:
-                        try:
-                            # Multiply quantity by lot size for derivatives
-                            order_params["qty"] = int(event["qty"]) * int(lot_size)
-                            if "lot_size" not in order_params:
-                                order_params["lot_size"] = lot_size
-                            log.info(
-                                f"Adjusted quantity for {symbol}: {event['qty']} lots * {lot_size} = {order_params['qty']}"
-                            )
-                        except (ValueError, TypeError):
-                            log.error(
-                                "Invalid lot size or quantity. Could not calculate final order quantity. "
-                                "lot_size: %s, event_qty: %s",
-                                lot_size,
-                                event.get("qty"),
-                                extra={"event": event, "broker": broker_cfg},
-                            )
-                            return None
-                
+                    order_params["qty"] = int(event["qty"]) * int(lot_size)
+                    if "lot_size" not in order_params:
+                        order_params["lot_size"] = lot_size
                 result = client.place_order(**order_params)
                 order_id = None
                 if isinstance(result, dict):
@@ -644,10 +449,7 @@ def main() -> None:
     Wrapping it in an endless loop ensures the worker process stays alive
     and continues to block for new webhook events.
     """
-    # Ensure we start with a fresh symbol map so newly listed contracts
-    # (and their lot sizes) are available before processing any events.
-    symbol_map.refresh_symbol_map(force=True)
-    
+
     while True:
         # Block for up to 5 seconds waiting for new events so the loop
         # doesn't spin when the stream is idle.
