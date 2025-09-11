@@ -148,31 +148,28 @@ class WebhookEventSchema(Schema):
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
-        # CORRECTED: Normalize symbol to Dhan's expected format
+        # FIXED: Improved symbol normalization logic
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
-
-            # Preserve the incoming exchange if provided. If the symbol has a
-            # prefix (e.g. ``NSE:SBIN`` or ``NFO:BANKNIFTY``) derive the base
-            # exchange from that prefix and strip it from the symbol.
-            base_exchange = str(data.get("exchange") or "").upper()
-            m = re.match(r"^(NSE|BSE|NFO|BFO):(.*)$", raw_sym)
-            if m:
-                prefix, raw_sym = m.groups()
-                if not base_exchange:
-                    base_exchange = "BSE" if prefix in {"BSE", "BFO"} else "NSE"
-            if not base_exchange:
-                base_exchange = "NSE"
-            if base_exchange in {"NFO", "NSE"}:
-                base_exchange = "NSE"
-            elif base_exchange in {"BFO", "BSE"}:
-                base_exchange = "BSE"
-            data["exchange"] = base_exchange
             
             logger.info(f"Processing symbol: {raw_sym}")
             
-            # Pattern 1: Handle compact derivative formats (no spaces)
-            # Futures: NIFTYNXT5025NOVFUT -> NIFTYNXT5025NOVFUT
+            # Handle already correctly formatted equity symbols
+            if raw_sym.endswith("-EQ"):
+                data["symbol"] = raw_sym
+                data["exchange"] = "NSE"
+                data["instrument_type"] = "EQ"
+                logger.info(f"Equity symbol already formatted: {raw_sym}")
+                return data
+            
+            # Pattern for NIFTYNXT derivatives (common issue)
+            # Handle NIFTYNXT50 variants - this appears to be "NIFTY NEXT 50" index
+            if "NIFTYNXT" in raw_sym:
+                raw_sym = raw_sym.replace("NIFTYNXT", "NIFTYNX")
+                logger.info(f"Normalized NIFTYNXT to NIFTYNX: {raw_sym}")
+            
+            # Pattern 1: Compact derivative formats (no spaces)
+            # Futures: NIFTYNX5025NOVFUT -> NIFTYNX5025NOVFUT
             compact_fut_match = re.match(
                 r"^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$",
                 raw_sym
@@ -181,15 +178,16 @@ class WebhookEventSchema(Schema):
                 root, year, month = compact_fut_match.groups()
                 if not year:
                     year = get_expiry_year(month)
-                # Dhan typically uses compact format without spaces
                 normalized_symbol = f"{root}{year}{month}FUT"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
+                # Set expiry for better broker compatibility
+                data["expiry"] = f"{year}{month}"
                 logger.info(f"Normalized futures symbol: {normalized_symbol}")
                 return data
 
-            # Options: NIFTYNXT5025NOV35500CALL -> NIFTYNXT5025NOV35500CE
+            # Options: NIFTYNX5025NOV35500CE -> NIFTYNX5025NOV35500CE
             compact_opt_match = re.match(
                 r"^([A-Z0-9]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$",
                 raw_sym
@@ -199,19 +197,18 @@ class WebhookEventSchema(Schema):
                 if not year:
                     year = get_expiry_year(month)
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                # Dhan typically uses compact format without spaces
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
+                data["expiry"] = f"{year}{month}"
                 logger.info(f"Normalized options symbol: {normalized_symbol}")
                 return data
-                
+
             # Pattern 2: Handle spaced derivative formats (TradingView style)
-            # Futures: NIFTYNXT50 25 NOV FUT -> NIFTYNXT5025NOVFUT
-            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
+            # Futures: NIFTYNX50 25 NOV FUT -> NIFTYNX5025NOVFUT
             spaced_fut_match = re.match(
                 r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$",
                 raw_sym
@@ -222,13 +219,13 @@ class WebhookEventSchema(Schema):
                     year = get_expiry_year(month)
                 normalized_symbol = f"{root}{year}{month}FUT"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
+                data["expiry"] = f"{year}{month}"
                 logger.info(f"Normalized spaced futures symbol: {normalized_symbol}")
                 return data
 
-            # Options: NIFTYNXT50 25 NOV 35500 CALL -> NIFTYNXT5025NOV35500CE
-            # CORRECTED: Changed [A-Z]+ to [A-Z0-9]+ to include numbers in the root symbol
+            # Options: NIFTYNX50 25 NOV 35500 CALL -> NIFTYNX5025NOV35500CE
             spaced_opt_match = re.match(
                 r"^([A-Z0-9]+)\s+(\d{2})?\s*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$",
                 raw_sym
@@ -240,31 +237,16 @@ class WebhookEventSchema(Schema):
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
+                data["expiry"] = f"{year}{month}"
                 logger.info(f"Normalized spaced options symbol: {normalized_symbol}")
                 return data
 
             # Pattern 3: Handle alternative formats with different separators
-            # Handle formats like NIFTYNXT50-25NOV-FUT
-            alt_fut_match = re.match(
-                r"^([A-Z0-9]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(FUT)$",
-                raw_sym
-            )
-            if alt_fut_match:
-                root, year, month, fut = alt_fut_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                normalized_symbol = f"{root}{year}{month}{fut}"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
-                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
-                logger.info(f"Normalized alternative futures symbol: {normalized_symbol}")
-                return data
-
-            # Handle formats like NIFTYNXT50-25NOV-35500-CE
+            # Handle formats like NIFTYNX50-25NOV-35500-CE
             alt_opt_match = re.match(
                 r"^([A-Z0-9]+?)[-_]?(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[-_]?(\d+)[-_]?(CALL|PUT|CE|PE)$",
                 raw_sym
@@ -276,53 +258,60 @@ class WebhookEventSchema(Schema):
                 opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
                 normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
                 data["strike"] = int(strike)
                 data["option_type"] = opt_code
+                data["expiry"] = f"{year}{month}"
                 logger.info(f"Normalized alternative options symbol: {normalized_symbol}")
                 return data
 
-            # Pattern 4: Handle already normalized symbols (pass through)
+            # Pattern 4: Handle already normalized derivative symbols
             if re.match(r"^[A-Z0-9]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$", raw_sym):
                 data["symbol"] = raw_sym
-                data["exchange"] = base_exchange
+                data["exchange"] = "NFO"
                 if raw_sym.endswith("FUT"):
                     data["instrument_type"] = "FUTIDX" if "NIFTY" in raw_sym else "FUTSTK"
+                    # Extract expiry from symbol
+                    expiry_match = re.search(r"(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)", raw_sym)
+                    if expiry_match:
+                        data["expiry"] = f"{expiry_match.group(1)}{expiry_match.group(2)}"
                 else:
                     data["instrument_type"] = "OPTIDX" if "NIFTY" in raw_sym else "OPTSTK"
                     if raw_sym.endswith(("CE", "PE")):
-                        # Extract strike from the symbol
+                        # Extract strike and expiry from the symbol
                         strike_match = re.search(r"(\d+)(CE|PE)$", raw_sym)
+                        expiry_match = re.search(r"(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)", raw_sym)
                         if strike_match:
                             data["strike"] = int(strike_match.group(1))
                             data["option_type"] = strike_match.group(2)
+                        if expiry_match:
+                            data["expiry"] = f"{expiry_match.group(1)}{expiry_match.group(2)}"
                 logger.info(f"Symbol already normalized: {raw_sym}")
                 return data
 
-            # Pattern 5: Handle equity symbols
-            # If no derivative pattern matches, assume it's an equity symbol
-            if not re.search(r"\d", raw_sym) and not raw_sym.endswith(("-EQ", "FUT", "CE", "PE")):
-                # Check if it's a common equity symbol format
-                if not raw_sym.endswith("-EQ"):
-                    normalized_symbol = f"{raw_sym}-EQ"
-                else:
-                    normalized_symbol = raw_sym
+            # Pattern 5: Handle pure equity symbols (no numbers, no derivative suffixes)
+            if not re.search(r"\d", raw_sym) and not raw_sym.endswith(("FUT", "CE", "PE")):
+                normalized_symbol = f"{raw_sym}-EQ"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = base_exchange
+                data["exchange"] = "NSE"
                 data["instrument_type"] = "EQ"
                 logger.info(f"Normalized equity symbol: {normalized_symbol}")
                 return data
-            else:
-                # Keep the original symbol if no pattern matches. If the input
-                # looks like a derivative contract but none of the patterns
-                # matched, treat it as invalid and raise a validation error so
-                # callers receive explicit feedback.
-                data["symbol"] = raw_sym
-                logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
-                if any(term in raw_sym for term in ("FUT", "CALL", "PUT", "CE", "PE")):
-                    raise ValidationError(f"Invalid symbol: {raw_sym}")
-                    
+            
+            # Pattern 6: Handle symbols that might be equity but have numbers (like company codes)
+            if not raw_sym.endswith(("FUT", "CE", "PE", "-EQ")) and not re.search(r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)", raw_sym):
+                normalized_symbol = f"{raw_sym}-EQ"
+                data["symbol"] = normalized_symbol
+                data["exchange"] = "NSE"  
+                data["instrument_type"] = "EQ"
+                logger.info(f"Assumed equity symbol: {normalized_symbol}")
+                return data
+            
+            # If no pattern matches, keep original but log warning
+            data["symbol"] = raw_sym
+            logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
+            
         return data
 
 
