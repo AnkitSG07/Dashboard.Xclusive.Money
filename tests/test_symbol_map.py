@@ -163,6 +163,30 @@ def test_dhan_derivative_includes_lot_size(monkeypatch):
     )
 
 
+def test_dhan_missing_lot_size_preserves_existing(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NSE,AAA,NSE,EQ\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "NSE,AAA,E,BE,10,25\n"
+        "NSE,AAA,E,EQ,10,\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+    assert mapping["AAA"]["NSE"]["dhan"]["lot_size"] == 25
+    assert mapping["AAA"]["NSE"]["zerodha"]["lot_size"] == 25
+
+
 def test_get_symbol_for_broker_derivative(monkeypatch):
     import brokers.symbol_map as sm
 
