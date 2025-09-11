@@ -139,6 +139,30 @@ def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
 
 
 
+def test_dhan_derivative_includes_lot_size(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "1,NFO,NIFTYNXT5025NOV35500CE,NFO,OPTIDX,\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "NSE,NIFTYNXT50 25NOV2023 35500 CALL,D,,500,40\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+    assert (
+        mapping["NIFTYNXT5025NOV35500CE"]["NFO"]["dhan"].get("lot_size") == 40
+    )
+
+
 def test_get_symbol_for_broker_derivative(monkeypatch):
     import brokers.symbol_map as sm
 
