@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import logging
 import time
+from datetime import date
+import pytest
 
 def guard(event):
     """Test helper that always allows an event."""
@@ -76,6 +78,23 @@ class DummySession:
 
     def close(self):
         pass
+
+
+@pytest.mark.parametrize(
+    "symbol,expected",
+    [
+        ("NIFTYNXT5030SEP33300CE", "NIFTYNXT5024SEP33300CE"),
+        ("MIDCPNIFTY30SEP33300PE", "MIDCPNIFTY24SEP33300PE"),
+    ],
+)
+def test_normalize_derivative_symbol_supports_numeric_roots(monkeypatch, symbol, expected):
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2024, 8, 1)
+
+    monkeypatch.setattr(order_consumer, "date", FixedDate)
+    assert order_consumer.normalize_derivative_symbol(symbol) == expected
 
 
 def test_consumer_places_order(monkeypatch):
