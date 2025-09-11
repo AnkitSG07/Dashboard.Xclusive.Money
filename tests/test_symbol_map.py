@@ -235,6 +235,26 @@ def test_load_dhan_retains_existing_lot_size(monkeypatch):
     data = sm._load_dhan(force=True)
     assert data[("AAA", "NSE")]["lot_size"] == 25
 
+
+def test_load_dhan_parses_float_lot_size(monkeypatch):
+    import brokers.symbol_map as sm
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "NSE,AAA,E,EQ,10,25.0\n"
+        "NSE,BBB,E,EQ,20,40\n"
+    )
+
+    def fake_get(url, timeout=30):
+        return _make_response(dhan_csv)
+
+    monkeypatch.setattr(sm.requests, "get", fake_get)
+    sm._load_dhan.cache_clear()
+    data = sm._load_dhan(force=True)
+
+    assert data[("AAA", "NSE")]["lot_size"] == 25
+    assert data[("BBB", "NSE")]["lot_size"] == 40
+
 def test_load_dhan_prefers_custom_symbol(monkeypatch, caplog):
     import brokers.symbol_map as sm
     import logging
