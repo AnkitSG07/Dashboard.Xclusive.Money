@@ -199,7 +199,9 @@ def _load_dhan() -> Dict[Key, Dict[str, Union[str, int]]]:
         if lot:
             try:
                 lot_size = int(float(lot))
-            except ValueError:
+                if lot_size <= 0:
+                    lot_size = None
+            except (ValueError, TypeError):
                 lot_size = None
         if exch in {"NSE", "BSE"} and segment == "E":
             key = (symbol, exch)
