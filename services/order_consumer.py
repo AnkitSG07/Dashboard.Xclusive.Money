@@ -644,7 +644,10 @@ def main() -> None:
     Wrapping it in an endless loop ensures the worker process stays alive
     and continues to block for new webhook events.
     """
-
+    # Ensure we start with a fresh symbol map so newly listed contracts
+    # (and their lot sizes) are available before processing any events.
+    symbol_map.refresh_symbol_map(force=True)
+    
     while True:
         # Block for up to 5 seconds waiting for new events so the loop
         # doesn't spin when the stream is idle.
