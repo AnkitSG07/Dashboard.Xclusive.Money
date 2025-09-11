@@ -18,6 +18,8 @@ import logging
 import threading
 import time
 import requests
+import re
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -33,12 +35,12 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
-def _fetch_csv(url: str, cache_name: str) -> str:
+def _fetch_csv(url: str, cache_name: str, force: bool = False) -> str:
     """Return CSV content from *url* using a small on-disk cache."""
     cache_file = CACHE_DIR / cache_name
     
     # Try to use cache if it's fresh
-    if cache_file.exists():
+    if not force and cache_file.exists():
         age = time.time() - cache_file.stat().st_mtime
         if age < CACHE_MAX_AGE:
             return cache_file.read_text()
@@ -60,7 +62,7 @@ def _fetch_csv(url: str, cache_name: str) -> str:
                 pass
             return text
         except requests.RequestException:
-            if cache_file.exists():
+            if cache_file.exists() and not force:
                 return cache_file.read_text()
             time.sleep(2 ** attempt)
             continue
@@ -70,9 +72,9 @@ Key = Tuple[str, str]
 
 
 @lru_cache(maxsize=1)
-def _load_zerodha() -> Dict[Key, Dict[str, str]]:
+def _load_zerodha(force: bool = False) -> Dict[Key, Dict[str, str]]:
     """Return mapping of (symbol, exchange) to instrument data including lot size."""
-    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv")
+    csv_text = _fetch_csv(ZERODHA_URL, "zerodha_instruments.csv", force)
     
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, Dict[str, str]] = {}
@@ -80,12 +82,19 @@ def _load_zerodha() -> Dict[Key, Dict[str, str]]:
     for row in reader:
         segment = row["segment"].upper()
         inst_type = row["instrument_type"].upper()
-        
+
+
+        lot_size_raw = row.get("lot_size", "1")
+        try:
+            lot_size = int(lot_size_raw)
+        except ValueError:
+            lot_size = 1
+    
         if segment in {"NSE", "BSE"} and inst_type == "EQ":
             key = (row["tradingsymbol"], row["exchange"].upper())
             data[key] = {
                 "instrument_token": row["instrument_token"],
-                "lot_size": row.get("lot_size", "1")  # Equity lot size is usually 1
+                "lot_size": lot_size  # Equity lot size is usually 1
             }
         elif segment in {"NFO", "BFO"} and inst_type in {
             "FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"
@@ -93,16 +102,73 @@ def _load_zerodha() -> Dict[Key, Dict[str, str]]:
             key = (row["tradingsymbol"], segment)
             data[key] = {
                 "instrument_token": row["instrument_token"],
-                "lot_size": row.get("lot_size", "1")
+                "lot_size": lot_size  # Equity lot size is usually 1
             }
     
     return data
 
+def _canonical_dhan_symbol(trading_symbol: str, expiry_date: str | None = None) -> str:
+    """Return a normalized Dhan trading symbol.
+
+    The canonical form removes spaces and hyphens, normalizes option type
+    (``CALL``/``PUT`` → ``CE``/``PE``) and drops any year component from the
+    expiry. If the trading symbol omits the day, *expiry_date* may be provided
+    (in ISO format) to supply it.
+    """
+
+    if not trading_symbol:
+        return ""
+
+    s = trading_symbol.upper().replace("CALL", "CE").replace("PUT", "PE")
+    s = s.replace(" ", "").replace("-", "")
+
+    # Determine suffix (CE/PE/FUT)
+    if s.endswith(("CE", "PE")):
+        suffix = s[-2:]
+        body = s[:-2]
+    elif s.endswith("FUT"):
+        suffix = "FUT"
+        body = s[:-3]
+    else:
+        return s
+
+    # Extract strike price (last 5 or 4 digits)
+    strike = ""
+    for ln in (5, 4):
+        if len(body) >= ln and body[-ln:].isdigit():
+            strike = body[-ln:]
+            body = body[:-ln]
+            break
+
+    # Parse expiry portion
+    m = re.search(r'([A-Z]{3})(\d{2,4})?$', body)
+    if m:
+        month = m.group(1)
+        prefix = body[: m.start()]
+        day_match = re.search(r'(\d{1,2})$', prefix)
+        if day_match and 1 <= int(day_match.group(1)) <= 31:
+            day = day_match.group(1)
+            underlying = prefix[: day_match.start()]
+        else:
+            day = ""
+            underlying = prefix
+
+        if not day and expiry_date:
+            try:
+                dt = datetime.fromisoformat(expiry_date.split()[0])
+                day = f"{dt.day:02d}"
+            except Exception:
+                pass
+
+        return f"{underlying}{day}{month}{strike}{suffix}"
+
+    return s
+
 
 @lru_cache(maxsize=1)
-def _load_dhan() -> Dict[Key, Dict[str, str]]:
+def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
     """Return mapping of (symbol, exchange) to Dhan security data including lot size."""
-    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv")
+    csv_text = _fetch_csv(DHAN_URL, "dhan_scrip_master.csv", force)
     
     reader = csv.DictReader(StringIO(csv_text))
     data: Dict[Key, Dict[str, str]] = {}
@@ -110,20 +176,25 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
     for row in reader:
         exch = row["SEM_EXM_EXCH_ID"].upper()
         segment = row["SEM_SEGMENT"].upper()
-        symbol = row["SEM_TRADING_SYMBOL"]
-        
-        # Get lot size from SEM_LOT_UNITS column
-        lot_size = row.get("SEM_LOT_UNITS", "1")
-        if not lot_size or lot_size == "":
-            lot_size = "1"
-        
+        symbol = _canonical_dhan_symbol(
+            row.get("SEM_TRADING_SYMBOL", ""), row.get("SEM_EXPIRY_DATE")
+        )
+
+        lot_raw = row.get("SEM_LOT_UNITS")
+        try:
+            lot_size = int(lot_raw) if lot_raw else 1
+        except ValueError:
+            lot_size = 1
+
         if exch in {"NSE", "BSE"} and segment == "E":
             key = (symbol, exch)
             # Prefer EQ series when available
             if key not in data or row["SEM_SERIES"] == "EQ":
+                if key in data and lot_size == 1:
+                    lot_size = data[key]["lot_size"]
                 data[key] = {
                     "security_id": row["SEM_SMST_SECURITY_ID"],
-                    "lot_size": lot_size
+                    "lot_size": lot_size,
                 }
         elif exch in {"NSE", "BSE"} and segment == "D":
             # Derivatives segment
@@ -138,16 +209,20 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
 
 def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Construct the complete symbol map with lot size information."""
-    zerodha_data = _load_zerodha()
-    dhan_data = _load_dhan()
+    zerodha_data = _load_zerodha(force=True)
+    dhan_data = _load_dhan(force=True)
     
     mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
     
     # Build map with Zerodha as base
     for (symbol, exchange), zdata in zerodha_data.items():
         token = zdata.get("instrument_token", "")
-        lot_size = zdata.get("lot_size", "1")
-        
+        lot_size = zdata.get("lot_size", 1)
+
+        dhan_info = dhan_data.get((symbol, exchange))
+        if dhan_info and dhan_info.get("lot_size", 1) != 1:
+            lot_size = dhan_info["lot_size"]
+
         is_equity = exchange in {"NSE", "BSE"}
         if is_equity:
             ab_symbol = f"{symbol}-EQ"
@@ -225,7 +300,6 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         }
         
         # Add Dhan data if available
-        dhan_info = dhan_data.get((symbol, exchange))
         if dhan_info:
             if exchange in {"NSE", "BSE"}:
                 exch_segment = f"{exchange}_EQ"
@@ -343,7 +417,38 @@ def get_symbol_for_broker(
     base2 = base.split("-")[0].split("_")[0]
     if base2 not in base_variants:
         base_variants.append(base2)
-    
+
+    # Include variants with spaces/hyphens for raw Dhan symbols
+    if symbol.endswith(("FUT", "CE", "PE")):
+        import re
+        # Option format: ROOT + DD + MON + STRIKE + CE/PE
+        opt_match = re.match(
+            r"^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$",
+            base,
+        )
+        if opt_match:
+            root, day, month, strike, opt = opt_match.groups()
+            for v in (
+                f"{root} {day} {month} {strike} {opt}",
+                f"{root}-{day}-{month}-{strike}-{opt}",
+            ):
+                if v not in base_variants:
+                    base_variants.append(v)
+        else:
+            # Future format: ROOT + DD + MON + YY + FUT
+            fut_match = re.match(
+                r"^([A-Z0-9]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})(FUT)$",
+                base,
+            )
+            if fut_match:
+                root, day, month, year, fut = fut_match.groups()
+                for v in (
+                    f"{root} {day} {month} {year} {fut}",
+                    f"{root}-{day}-{month}-{year}-{fut}",
+                ):
+                    if v not in base_variants:
+                        base_variants.append(v)
+                        
     symbol_map = _ensure_symbol_map()
     mapping = None
     
