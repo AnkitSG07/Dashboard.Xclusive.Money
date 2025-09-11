@@ -83,8 +83,8 @@ class DummySession:
 @pytest.mark.parametrize(
     "symbol,expected",
     [
-        ("NIFTYNXT5030SEP33300CE", "NIFTYNXT5024SEP33300CE"),
-        ("MIDCPNIFTY30SEP33300PE", "MIDCPNIFTY24SEP33300PE"),
+        ("NIFTYNXT5030SEP33300CE", "NIFTYNXT5030SEP2433300CE"),
+        ("MIDCPNIFTY30SEP33300PE", "MIDCPNIFTY30SEP2433300PE"),
     ],
 )
 def test_normalize_derivative_symbol_supports_numeric_roots(monkeypatch, symbol, expected):
@@ -95,6 +95,11 @@ def test_normalize_derivative_symbol_supports_numeric_roots(monkeypatch, symbol,
 
     monkeypatch.setattr(order_consumer, "date", FixedDate)
     assert order_consumer.normalize_derivative_symbol(symbol) == expected
+
+
+def test_normalize_derivative_symbol_preserves_dhan_format():
+    symbol = "NIFTY09SEP24950PE"
+    assert order_consumer.normalize_derivative_symbol(symbol) == symbol
 
 
 def test_consumer_places_order(monkeypatch):
