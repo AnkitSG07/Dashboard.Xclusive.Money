@@ -216,14 +216,28 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, Union[str, int]]]:
                 info: Dict[str, str] = {"security_id": row["SEM_SMST_SECURITY_ID"]}
                 if lot_size:
                     info["lot_size"] = lot_size
-                data[key] = info
+                existing = data.get(key)
+                if existing and "lot_size" in existing and "lot_size" not in info:
+                    info["lot_size"] = existing["lot_size"]
+                if existing:
+                    existing.update(info)
+                    data[key] = existing
+                else:
+                    data[key] = info
         elif exch in {"NSE", "BSE"} and segment == "D":
             symbol = _canonical_dhan_symbol(symbol, row.get("SEM_EXPIRY_DATE"))
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
             info = {"security_id": row["SEM_SMST_SECURITY_ID"]}
             if lot_size:
                 info["lot_size"] = lot_size
-            data[key] = info
+            existing = data.get(key)
+            if existing and "lot_size" in existing and "lot_size" not in info:
+                info["lot_size"] = existing["lot_size"]
+            if existing:
+                existing.update(info)
+                data[key] = existing
+            else:
+                data[key] = info
     return data
 
 
