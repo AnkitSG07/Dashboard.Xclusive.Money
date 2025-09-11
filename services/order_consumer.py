@@ -390,8 +390,9 @@ def consume_webhook_events(
                 if is_derivative:
                     # First, try to get lot_size from the original event payload
                     lot_size = event.get("lot_size")
-                    
+
                     # If not available, try to get it from the symbol map
+                    mapping = {}
                     if lot_size is None:
                         try:
                             # Try with the normalized symbol first
@@ -413,13 +414,20 @@ def consume_webhook_events(
                                 log.info(
                                     f"Symbol debug info: {json.dumps(debug_info, indent=2)}"
                                 )
-                                
+
+                                # Refresh the symbol map and try again
+                                symbol_map.refresh_symbol_map(force=True)
+                                mapping = symbol_map.get_symbol_for_broker(
+                                    event.get("symbol", ""), broker_cfg["name"], exchange
+                                )
+                                lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+     
                         except Exception as e:
                             log.warning(
                                 "Could not retrieve lot size from symbol map for %s: %s",
                                 event.get("symbol"),
                                 str(e),
-                                extra={"event": event, "broker": broker_cfg}
+                                extra={"event": event, "broker": broker_cfg},
                             )
 
                     # For FINNIFTY, default lot size is 40 (as of 2025)
@@ -438,22 +446,24 @@ def consume_webhook_events(
                             log.info(f"Using default BANKNIFTY lot size: {lot_size}")
                         elif "NIFTY" in sym_upper and "BANK" not in sym_upper:
                             lot_size = 50
-                            log.info(f"Using default NIFTY lot size: {lot_size}")    
-                        else:
-                            # For other derivatives, we can't assume lot size
-                            log.info(
-                                "Symbol map entry when resolving lot size: %s",
-                                mapping,
-                            )
-                            log.error(
-                                "Unable to determine lot size for %s (%s) on broker %s. "
-                                "Cannot proceed with order.",
-                                event.get("symbol"),
-                                exchange,
-                                broker_cfg["name"],
-                                extra={"event": event, "broker": broker_cfg},
-                            )
-                            return None
+                            log.info(f"Using default NIFTY lot size: {lot_size}")
+
+                    if is_derivative and (not lot_size or int(lot_size) <= 1):
+                        # For other derivatives, we can't assume lot size
+                        log.info(
+                            "Symbol map entry when resolving lot size: %s",
+                            mapping,
+                        )
+                        log.error(
+                            "Unable to determine lot size for %s (%s) on broker %s. "
+                            "Cannot proceed with order.",
+                            event.get("symbol"),
+                            exchange,
+                            broker_cfg["name"],
+                            extra={"event": event, "broker": broker_cfg},
+                        )
+                        return None
+
                     
                     if lot_size:
                         try:
@@ -461,14 +471,16 @@ def consume_webhook_events(
                             order_params["qty"] = int(event["qty"]) * int(lot_size)
                             if "lot_size" not in order_params:
                                 order_params["lot_size"] = lot_size
-                            log.info(f"Adjusted quantity for {symbol}: {event['qty']} lots * {lot_size} = {order_params['qty']}")
+                            log.info(
+                                f"Adjusted quantity for {symbol}: {event['qty']} lots * {lot_size} = {order_params['qty']}"
+                            )
                         except (ValueError, TypeError):
                             log.error(
                                 "Invalid lot size or quantity. Could not calculate final order quantity. "
                                 "lot_size: %s, event_qty: %s",
                                 lot_size,
                                 event.get("qty"),
-                                extra={"event": event, "broker": broker_cfg}
+                                extra={"event": event, "broker": broker_cfg},
                             )
                             return None
                 
