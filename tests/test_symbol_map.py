@@ -107,6 +107,15 @@ def test_canonical_dhan_option_symbol_without_year_and_two_digit_year():
     assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV23 35500 CALL") == expected
 
 
+def test_canonical_dhan_symbol_basic_spaces_and_types():
+    import brokers.symbol_map as sm
+
+    assert (
+        sm._canonical_dhan_symbol("FINNIFTY 30 SEP 33300 CALL")
+        == "FINNIFTY30SEP33300CE"
+    )
+
+
 def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
     import brokers.symbol_map as sm
 
