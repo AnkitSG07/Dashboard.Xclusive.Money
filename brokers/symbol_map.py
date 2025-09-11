@@ -154,11 +154,18 @@ def _canonical_dhan_symbol(trading_symbol: str, expiry_date: str | None = None) 
             underlying = prefix
 
         if not day and expiry_date:
+            date_part = expiry_date.split()[0]
             try:
-                dt = datetime.fromisoformat(expiry_date.split()[0])
+                dt = datetime.strptime(date_part, "%d-%m-%Y")
+            except ValueError:
+                try:
+                    dt = datetime.fromisoformat(date_part)
+                except Exception:
+                    pass
+                else:
+                    day = f"{dt.day:02d}"
+            else:
                 day = f"{dt.day:02d}"
-            except Exception:
-                pass
 
         return f"{underlying}{day}{month}{strike}{suffix}"
 
@@ -176,10 +183,28 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
     for row in reader:
         exch = row["SEM_EXM_EXCH_ID"].upper()
         segment = row["SEM_SEGMENT"].upper()
-        symbol = _canonical_dhan_symbol(
+
+        trading_symbol = _canonical_dhan_symbol(
             row.get("SEM_TRADING_SYMBOL", ""), row.get("SEM_EXPIRY_DATE")
         )
+        custom_symbol = _canonical_dhan_symbol(
+            row.get("SEM_CUSTOM_SYMBOL", ""), row.get("SEM_EXPIRY_DATE")
+        )
 
+        if trading_symbol and custom_symbol and trading_symbol != custom_symbol:
+            log.warning(
+                "Dhan trading/custom symbol mismatch: trading=%s custom=%s",
+                trading_symbol,
+                custom_symbol,
+            )
+            symbol = custom_symbol
+        else:
+            symbol = custom_symbol or trading_symbol
+
+        if not symbol:
+            # Skip rows that do not provide a usable symbol.
+            continue
+            
         lot_raw = row.get("SEM_LOT_UNITS")
         try:
             lot_size = int(lot_raw) if lot_raw else 1
@@ -190,8 +215,9 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
             key = (symbol, exch)
             # Prefer EQ series when available
             if key not in data or row["SEM_SERIES"] == "EQ":
-                if key in data and lot_size == 1:
-                    lot_size = data[key]["lot_size"]
+                existing = data.get(key)
+                if existing and existing.get("lot_size", 1) != 1 and lot_size == 1:
+                    lot_size = existing["lot_size"]
                 data[key] = {
                     "security_id": row["SEM_SMST_SECURITY_ID"],
                     "lot_size": lot_size,
@@ -199,6 +225,9 @@ def _load_dhan(force: bool = False) -> Dict[Key, Dict[str, str]]:
         elif exch in {"NSE", "BSE"} and segment == "D":
             # Derivatives segment
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
+            existing = data.get(key)
+            if existing and existing.get("lot_size", 1) != 1 and lot_size == 1:
+                lot_size = existing["lot_size"]
             data[key] = {
                 "security_id": row["SEM_SMST_SECURITY_ID"],
                 "lot_size": lot_size
