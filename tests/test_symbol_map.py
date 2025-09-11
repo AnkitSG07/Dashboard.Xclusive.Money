@@ -109,6 +109,15 @@ def test_canonical_dhan_option_symbol_without_year_and_two_digit_year():
     assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV23 35500 CALL") == expected
 
 
+def test_canonical_dhan_symbol_handles_embedded_year():
+    import brokers.symbol_map as sm
+
+    base = "NIFTYNXT5025NOV35500CE"
+    with_year = "NIFTYNXT5025NOV2535500CE"
+    assert sm._canonical_dhan_symbol(base) == base
+    assert sm._canonical_dhan_symbol(with_year) == base
+
+
 def test_canonical_dhan_symbol_basic_spaces_and_types():
     import brokers.symbol_map as sm
 
