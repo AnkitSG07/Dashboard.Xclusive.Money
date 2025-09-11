@@ -101,7 +101,7 @@ def test_parses_human_readable_futures_symbol(monkeypatch):
     payload = {"symbol": "NIFTY SEP FUT", "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
     assert event["symbol"] == "NIFTY24SEPFUT"
-    assert event["exchange"] == "NSE"
+    assert event["exchange"] == "NFO"
 
 
 def test_rejects_invalid_human_futures_symbol(monkeypatch):
@@ -137,4 +137,29 @@ def test_parses_human_readable_option_symbol(monkeypatch, symbol, expected):
     payload = {"symbol": symbol, "action": "buy", "qty": 1}
     event = wr.enqueue_webhook(1, None, payload)
     assert event["symbol"] == expected
-    assert event["exchange"] == "NSE"
+    assert event["exchange"] == "NFO"
+
+
+@pytest.mark.parametrize(
+    "symbol,expected",
+    [
+        ("NIFTYNXT50 SEP FUT", "NIFTYNXT5024SEPFUT"),
+        ("MIDCPNIFTY SEP 50000 CALL", "MIDCPNIFTY24SEP50000CE"),
+    ],
+)
+def test_parses_symbols_with_numeric_roots(monkeypatch, symbol, expected):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    class FixedDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2024, 8, 1)
+
+    monkeypatch.setattr(wr, "date", FixedDate)
+
+    payload = {"symbol": symbol, "action": "buy", "qty": 1}
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == expected
+    assert event["exchange"] == "NFO"
