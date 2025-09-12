@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 from services.logging import publish_log_event
+from typing import List, Optional
 
 
 def current_user():
@@ -58,16 +59,150 @@ def active_children_for_master(master, session=db.session):
     session: sqlalchemy.orm.Session
         Database session to use for querying accounts. Defaults to ``db.session``.
     """
-    return (
+    # Get all child accounts linked to this master
+    children = (
         session.query(Account)
         .filter(
             Account.role == "child",
             db.func.lower(Account.linked_master_id) == str(master.client_id).lower(),
-            db.func.lower(Account.copy_status) == "on",
             db.func.lower(Account.client_id) != str(master.client_id).lower(),
         )
         .all()
     )
+    
+    # Filter children based on copy_status and account health
+    active_children = []
+    for child in children:
+        # Check copy status - only include children with copy_status 'On'
+        copy_status = getattr(child, 'copy_status', 'Off')
+        if str(copy_status).lower() != 'on':
+            continue
+            
+        # Check for system errors that would prevent copying
+        system_errors = getattr(child, 'system_errors', [])
+        if system_errors:
+            # Skip children with system errors
+            continue
+            
+        # Check if child has valid credentials
+        credentials = getattr(child, 'credentials', {})
+        if not credentials or not credentials.get('access_token'):
+            # Skip children without valid credentials
+            continue
+            
+        active_children.append(child)
+    
+    return active_children
+
+
+def get_child_accounts_for_master(master_id: str, db_session=db.session) -> List[Account]:
+    """Get all child accounts for a specific master ID.
+    
+    Args:
+        master_id: Client ID of the master account
+        db_session: SQLAlchemy session for database queries
+        
+    Returns:
+        List of child Account objects linked to the master
+    """
+    return db_session.query(Account).filter_by(
+        linked_master_id=master_id,
+        role="child"
+    ).all()
+
+
+def is_account_active_for_copying(account: Account) -> bool:
+    """Check if an account is active and ready for trade copying.
+    
+    Args:
+        account: Account object to check
+        
+    Returns:
+        True if account is active for copying, False otherwise
+    """
+    # Check copy status
+    copy_status = getattr(account, 'copy_status', 'Off')
+    if str(copy_status).lower() != 'on':
+        return False
+        
+    # Check for system errors
+    system_errors = getattr(account, 'system_errors', [])
+    if system_errors:
+        return False
+        
+    # Check credentials
+    credentials = getattr(account, 'credentials', {})
+    if not credentials or not credentials.get('access_token'):
+        return False
+        
+    return True
+
+
+def update_account_copy_status(account_id: str, status: str, db_session=db.session) -> bool:
+    """Update the copy status for an account.
+    
+    Args:
+        account_id: Client ID of the account
+        status: New copy status ('On' or 'Off')
+        db_session: SQLAlchemy session for database operations
+        
+    Returns:
+        True if update was successful, False otherwise
+    """
+    try:
+        account = db_session.query(Account).filter_by(client_id=account_id).first()
+        if not account:
+            return False
+            
+        account.copy_status = status
+        db_session.commit()
+        return True
+    except Exception:
+        db_session.rollback()
+        return False
+
+
+def get_master_account_stats(master_id: str, db_session=db.session) -> dict:
+    """Get statistics for a master account and its children.
+    
+    Args:
+        master_id: Client ID of the master account
+        db_session: SQLAlchemy session for database queries
+        
+    Returns:
+        Dictionary with master account statistics
+    """
+    master = db_session.query(Account).filter_by(
+        client_id=master_id, 
+        role="master"
+    ).first()
+    
+    if not master:
+        return {}
+        
+    children = get_child_accounts_for_master(master_id, db_session)
+    active_children = [child for child in children if is_account_active_for_copying(child)]
+    
+    return {
+        "master_id": master_id,
+        "master_copy_status": getattr(master, 'copy_status', 'Off'),
+        "total_children": len(children),
+        "active_children": len(active_children),
+        "inactive_children": len(children) - len(active_children),
+        "children_details": [
+            {
+                "client_id": child.client_id,
+                "broker": child.broker,
+                "copy_status": getattr(child, 'copy_status', 'Off'),
+                "copy_qty": getattr(child, 'copy_qty', None),
+                "copy_value_limit": getattr(child, 'copy_value_limit', None),
+                "copied_value": getattr(child, 'copied_value', 0),
+                "has_errors": bool(getattr(child, 'system_errors', []))
+            }
+            for child in children
+        ]
+    }
+
 
 def log_connection_error(
     account: Account,
@@ -303,7 +438,7 @@ def normalize_position(position: dict, broker: str) -> dict | None:
             "buyAvg": f("avgprc"),
             "sellAvg": f("avgprc"),
             "ltp": f(["ltp", "lp"]),
-            "profitAndLoss": f("urmtm"),
+            "profitAndLoss": f("urmtom"),
         }
         return new if new["netQty"] != 0 else None
 
