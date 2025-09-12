@@ -14,7 +14,7 @@ from functools import partial
 from typing import Any, Dict, Iterable, List
 from datetime import datetime, date
 
-from prometheus_client import Counter
+from prometheus_client import Counter, core
 
 from brokers.factory import get_broker_client
 from brokers import symbol_map
@@ -29,14 +29,21 @@ from .master_trade_monitor import COMPLETED_STATUSES
 
 log = logging.getLogger(__name__)
 
-orders_success = Counter(
-    "order_consumer_success_total",
-    "Number of webhook events processed successfully",
-)
-orders_failed = Counter(
-    "order_consumer_failure_total",
-    "Number of webhook events that failed processing",
-)
+# Fix for the Prometheus Duplicated timeseries error
+try:
+    orders_success = Counter(
+        "order_consumer_success_total",
+        "Number of webhook events processed successfully",
+    )
+    orders_failed = Counter(
+        "order_consumer_failure_total",
+        "Number of webhook events that failed processing",
+    )
+except ValueError as e:
+    # This happens if metrics are already registered, e.g., in tests or a multi-process environment.
+    log.warning(f"Prometheus metric registration failed, likely already registered: {e}")
+    orders_success = core.REGISTRY._names_to_collectors["order_consumer_success_total"]
+    orders_failed = core.REGISTRY._names_to_collectors["order_consumer_failure_total"]
 
 
 DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
