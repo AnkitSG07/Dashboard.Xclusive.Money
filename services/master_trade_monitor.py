@@ -11,6 +11,7 @@ import asyncio
 import redis
 import logging
 import os
+import time
 from collections import defaultdict
 from typing import Any, Dict, Iterable, Set
 
@@ -28,7 +29,7 @@ log = logging.getLogger(__name__)
 # broker-specific values such as Dhan's ``TRADED`` status.
 COMPLETED_STATUSES = {
     "COMPLETE",
-    "COMPLETED",
+    "COMPLETED", 
     "FILLED",
     "EXECUTED",
     "TRADED",
@@ -37,7 +38,14 @@ COMPLETED_STATUSES = {
     "2",
     "CONFIRMED",
     "SUCCESS",
+    "OK",
+    "FULLY_FILLED",
+    "PARTIAL_FILLED",  # Also include partial fills for progressive copying
 }
+
+# Keep track of processed orders to avoid duplicates across restarts
+PROCESSED_ORDERS_KEY = "processed_manual_orders:{master_id}"
+PROCESSED_ORDERS_TTL = 86400 * 7  # 7 days
 
 def monitor_master_trades(
     db_session: Session,
@@ -58,14 +66,14 @@ def monitor_master_trades(
     poll_interval:
         Seconds to wait between polling iterations. If ``None`` the value of
         the ``ORDER_MONITOR_INTERVAL`` environment variable is used (default
-        ``5`` seconds).
+        ``10`` seconds).
     max_iterations:
         Optional number of polling cycles to run.  ``None`` means run
         indefinitely.  Primarily intended for tests.
     """
 
     if poll_interval is None:
-        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "5"))
+        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "10"))
 
     if redis_client is None:
         redis_client = get_redis_client()
@@ -80,6 +88,24 @@ def monitor_master_trades(
         # seen for that master.  If the token changes we will attempt to fetch
         # orders again.
         invalid_creds: Dict[str, str] = {}
+        
+        # Load previously processed orders from Redis to handle service restarts
+        def load_processed_orders(master_id: str) -> Set[str]:
+            try:
+                key = PROCESSED_ORDERS_KEY.format(master_id=master_id)
+                processed = redis_client.smembers(key)
+                return {p.decode() if isinstance(p, bytes) else str(p) for p in processed}
+            except Exception:
+                return set()
+        
+        def mark_order_processed(master_id: str, order_id: str):
+            try:
+                key = PROCESSED_ORDERS_KEY.format(master_id=master_id)
+                redis_client.sadd(key, order_id)
+                redis_client.expire(key, PROCESSED_ORDERS_TTL)
+            except Exception:
+                pass
+
         while max_iterations is None or iterations < max_iterations:
             # Ensure we see any credential updates made by other processes.
             # Without ending the previous transaction the session may return
@@ -91,7 +117,12 @@ def monitor_master_trades(
             masters: Iterable[Account] = (
                 db_session.query(Account).filter_by(role="master").all()
             )
+            
             for master in masters:
+                # Skip masters that are not active for copy trading
+                if getattr(master, 'copy_status', None) != 'On':
+                    continue
+                    
                 credentials: Dict[str, Any] = dict(master.credentials or {})
                 access_token = credentials.pop("access_token", "")
                 # Some accounts may persist ``client_id`` within the credentials
@@ -123,7 +154,7 @@ def monitor_master_trades(
                     invalid_creds.pop(master.client_id, None)
                 except Exception as exc:  # pragma: no cover - defensive
                     msg = str(exc)
-                    if "invalid" in msg.lower() and "token" in msg.lower():
+                    if any(keyword in msg.lower() for keyword in ["invalid", "token", "expired", "unauthorized"]):
                         # Log once per token and remember the failing token so
                         # future iterations skip this master until the token
                         # changes.
@@ -141,37 +172,111 @@ def monitor_master_trades(
                         )
                     continue
 
+                # Load previously processed orders for this master
+                if master.client_id not in seen_order_ids:
+                    seen_order_ids[master.client_id] = load_processed_orders(master.client_id)
+
                 seen = seen_order_ids[master.client_id]
+                new_orders_found = 0
+                
                 for order in orders:
                     status = str(order.get("status") or "").upper()
                     if status and status not in COMPLETED_STATUSES:
                         continue
 
+                    # Try multiple possible order ID fields
                     order_id = (
                         order.get("id")
                         or order.get("order_id")
                         or order.get("orderId")
-                        or order.get("norenordno")
-                        or order.get("timestamp")
+                        or order.get("norenordno")  # Finvasia
+                        or order.get("NOrdNo")      # AliceBlue
+                        or order.get("nestOrderNumber")  # AliceBlue
+                        or order.get("orderNumber") # Fyers
+                        or order.get("orderid")     # Flattrade
+                        or order.get("order_time")  # Fallback to timestamp
                     )
-                    # Skip orders that were already published in a previous poll
+                    
+                    # Skip orders that were already published
                     if order_id is not None and str(order_id) in seen:
                         continue
 
-                    symbol = order.get("symbol") or order.get("tradingSymbol")
-                    action = order.get("action") or order.get("transactionType")
-                    qty = order.get("qty") or order.get("orderQty")
-                    exchange = order.get("exchange") or order.get("exchangeSegment")
-                    order_type = order.get("order_type") or order.get("orderType")
+                    # Extract order details with multiple field name attempts
+                    symbol = (
+                        order.get("symbol") 
+                        or order.get("tradingSymbol") 
+                        or order.get("tradingsymbol")
+                        or order.get("tsym")
+                    )
+                    
+                    action = (
+                        order.get("action") 
+                        or order.get("transactionType")
+                        or order.get("transaction_type") 
+                        or order.get("trantype")
+                        or order.get("side")
+                    )
+                    
+                    qty = (
+                        order.get("qty") 
+                        or order.get("orderQty")
+                        or order.get("quantity")
+                        or order.get("filled_qty")  # Use filled quantity for partial fills
+                        or order.get("filledQty")
+                    )
+                    
+                    exchange = (
+                        order.get("exchange") 
+                        or order.get("exchangeSegment")
+                        or order.get("exch")
+                    )
+                    
+                    order_type = (
+                        order.get("order_type") 
+                        or order.get("orderType")
+                        or order.get("prctyp")
+                        or order.get("type")
+                    )
+                    
                     instrument_type = (
                         order.get("instrument_type")
                         or order.get("instrumentType")
                         or order.get("productType")
+                        or order.get("product_type")
                     )
+                    
+                    # Additional fields for derivatives
                     expiry = order.get("expiry") or order.get("expiryDate")
                     strike = order.get("strike") or order.get("strikePrice")
-                    option_type = order.get("option_type") or order.get("optionType") or order.get("right")
+                    option_type = (
+                        order.get("option_type") 
+                        or order.get("optionType") 
+                        or order.get("right")
+                    )
                     lot_size = order.get("lot_size") or order.get("lotSize")
+                    
+                    # Price information
+                    price = (
+                        order.get("price")
+                        or order.get("avg_price")
+                        or order.get("average_price")
+                        or order.get("avgPrice")
+                        or order.get("last_price")
+                    )
+
+                    # Skip orders missing essential information
+                    if not symbol or not action or not qty:
+                        log.warning(
+                            "Skipping manual order with missing essential data: symbol=%s, action=%s, qty=%s, order_id=%s",
+                            symbol, action, qty, order_id
+                        )
+                        continue
+
+                    # Normalize action to standard format
+                    if str(action).upper() in ["B", "BUY", "1"]:
+                        action = "BUY"
+                    elif str(action).upper() in ["S", "SELL", "-1", "2"]:
+                        action = "SELL"
 
                     raw_event = {
                         "master_id": master.client_id,
@@ -185,18 +290,38 @@ def monitor_master_trades(
                         "strike": strike,
                         "option_type": option_type,
                         "lot_size": lot_size,
+                        "price": price,
+                        "order_id": order_id,
+                        "order_time": order.get("order_time") or order.get("orderTime"),
+                        "source": "manual_trade_monitor"  # Mark as manual trade
                     }
+                    
                     # Filter out ``None`` values and convert the rest to strings so
                     # the Redis client never receives ``None``.
                     event = {k: str(v) for k, v in raw_event.items() if v is not None}
+                    
                     try:
+                        # Publish to trade_events stream for copying to children
                         redis_client.xadd("trade_events", event)
+                        log.info(
+                            "Published manual trade event for master %s: %s %s %s at %s",
+                            master.client_id, action, qty, symbol, exchange
+                        )
+                        new_orders_found += 1
                     except redis.exceptions.RedisError:
-                        log.exception("failed to publish trade event")
+                        log.exception("failed to publish manual trade event")
                         continue
 
+                    # Mark order as processed
                     if order_id is not None:
                         seen.add(str(order_id))
+                        mark_order_processed(master.client_id, str(order_id))
+
+                if new_orders_found > 0:
+                    log.info(
+                        "Found %d new manual orders for master %s", 
+                        new_orders_found, master.client_id
+                    )
 
             iterations += 1
             if max_iterations is not None and iterations >= max_iterations:
@@ -208,6 +333,13 @@ def monitor_master_trades(
 
 def main() -> None:
     """Run the master trade monitor service."""
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO"),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    log.info("Starting master trade monitor service...")
+    
     session = get_session()
     try:
         monitor_master_trades(session)
@@ -216,10 +348,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
     try:
         main()
     except KeyboardInterrupt:  # pragma: no cover - interactive use
+        log.info("Master trade monitor service stopped by user")
         pass
 
 
