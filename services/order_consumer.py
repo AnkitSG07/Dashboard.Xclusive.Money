@@ -14,7 +14,7 @@ from functools import partial
 from typing import Any, Dict, Iterable, List
 from datetime import datetime, date
 
-from prometheus_client import Counter, core
+from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
 from brokers import symbol_map
@@ -29,21 +29,14 @@ from .master_trade_monitor import COMPLETED_STATUSES
 
 log = logging.getLogger(__name__)
 
-# Fix for the Prometheus Duplicated timeseries error
-try:
-    orders_success = Counter(
-        "order_consumer_success_total",
-        "Number of webhook events processed successfully",
-    )
-    orders_failed = Counter(
-        "order_consumer_failure_total",
-        "Number of webhook events that failed processing",
-    )
-except ValueError as e:
-    # This happens if metrics are already registered, e.g., in tests or a multi-process environment.
-    log.warning(f"Prometheus metric registration failed, likely already registered: {e}")
-    orders_success = core.REGISTRY._names_to_collectors["order_consumer_success_total"]
-    orders_failed = core.REGISTRY._names_to_collectors["order_consumer_failure_total"]
+orders_success = Counter(
+    "order_consumer_success_total",
+    "Number of webhook events processed successfully",
+)
+orders_failed = Counter(
+    "order_consumer_failure_total",
+    "Number of webhook events that failed processing",
+)
 
 
 DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
@@ -88,180 +81,123 @@ def get_expiry_year(month: str, day: int = None) -> str:
     
     return str(year % 100).zfill(2)
 
-# New functions for symbol conversion
-def parse_fo_symbol(symbol: str, broker: str) -> dict | None:
-    """Parse F&O symbol into components for a given broker format."""
-    
-    if not symbol:
-        return None
-    
-    broker = broker.lower()
-    symbol = symbol.upper()
-    
-    # Dhan format: NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT
-    if broker == 'dhan':
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
-        if opt_match:
-            return {
-                'underlying': opt_match.group(1),
-                'month': opt_match.group(2),
-                'year': opt_match.group(3),
-                'strike': opt_match.group(4),
-                'option_type': opt_match.group(5),
-                'instrument': 'OPT'
-            }
-        
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
-        if fut_match:
-            return {
-                'underlying': fut_match.group(1),
-                'month': fut_match.group(2), 
-                'year': fut_match.group(3),
-                'instrument': 'FUT'
-            }
-    
-    # Zerodha format: NIFTY24DEC24000CE or NIFTY24DECFUT
-    elif broker == 'zerodha':
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
-        if opt_match:
-            return {
-                'underlying': opt_match.group(1),
-                'year': '20' + opt_match.group(2),
-                'month': opt_match.group(3),
-                'strike': opt_match.group(4),
-                'option_type': opt_match.group(5),
-                'instrument': 'OPT'
-            }
-        
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
-        if fut_match:
-            return {
-                'underlying': fut_match.group(1),
-                'year': '20' + fut_match.group(2),
-                'month': fut_match.group(3),
-                'instrument': 'FUT'
-            }
-
-    # Add parsing for other brokers like Fyers, AliceBlue, Finvasia if needed
-    
-    return None
-
-def format_fo_symbol(components: dict, to_broker: str) -> str:
-    """Format symbol components for target broker format."""
-    
-    if not components or not isinstance(components, dict):
-        return ""
-    
-    to_broker = to_broker.lower()
-    
-    # Dhan format: NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT
-    if to_broker == 'dhan':
-        if components['instrument'] == 'OPT':
-            return f"{components['underlying']}-{components['month'].title()}{components['year']}-{components['strike']}-{components['option_type']}"
-        elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}-{components['month'].title()}{components['year']}-FUT"
-    
-    # Zerodha format: NIFTY24DEC24000CE or NIFTY24DECFUT
-    elif to_broker == 'zerodha':
-        year_short = components['year'][-2:]
-        if components['instrument'] == 'OPT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
-        elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
-
-    # AliceBlue/Finvasia/Fyers (often similar to Zerodha, but can have variations)
-    # The symbol map handles specific IDs, but if a trading symbol is needed,
-    # it's usually the unspaced format like Zerodha.
-    elif to_broker in ['aliceblue', 'finvasia', 'fyers']:
-        year_short = components['year'][-2:]
-        if components['instrument'] == 'OPT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
-        elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
-
-    # Add formatting for other brokers
-    
-    return ""
-
-
-def convert_symbol_between_brokers(
-    symbol: str, 
-    from_broker: str, 
-    to_broker: str, 
-    instrument_type: str | None = None
-) -> str:
-    """Convert F&O symbol from one broker format to another."""
-    
-    if from_broker.lower() == to_broker.lower():
-        return symbol
-
-    # First, parse the symbol to extract components
-    components = parse_fo_symbol(symbol, from_broker)
-    
-    if not components:
-        # Fallback to parsing as another broker format if initial parse fails
-        log.debug(f"Failed to parse {symbol} as {from_broker}, trying other brokers...")
-        for other_broker in ['dhan', 'zerodha', 'finvasia', 'fyers', 'aliceblue']:
-            if other_broker.lower() == from_broker.lower():
-                continue
-            components = parse_fo_symbol(symbol, other_broker)
-            if components:
-                log.info(f"Successfully parsed {symbol} as {other_broker} format")
-                break
-    
-    if not components:
-        log.warning(f"Could not parse symbol '{symbol}' from '{from_broker}' format.")
-        return symbol
-    
-    # Convert to target broker format
-    return format_fo_symbol(components, to_broker)
-
-def get_default_lot_size(symbol: str) -> int:
-    """Get default lot size for common F&O instruments."""
-    
-    lot_size_map = {
-        'NIFTY': 50,
-        'BANKNIFTY': 25, 
-        'FINNIFTY': 40,
-        'NIFTYNXT': 50,
-        'MIDCPNIFTY': 75,
-        'SENSEX': 10,
-        'BANKEX': 15,
-    }
-    
-    for underlying, size in lot_size_map.items():
-        if underlying in symbol.upper():
-            return size
-            
-    return 1  # Default for stock F&O
-
 
 def normalize_symbol_to_dhan_format(symbol: str) -> str:
     """Convert various symbol formats to Dhan's expected format.
     
-    Uses the new symbol parsing logic for robustness.
+    Examples:
+    - NIFTYNXT50SEPFUT -> NIFTYNXT50-Sep2025-FUT
+    - FINNIFTY25SEP33300CE -> FINNIFTY-Sep2025-33300-CE
+    - BANKNIFTY25SEP55000PE -> BANKNIFTY-Sep2025-55000-PE
     """
     if not symbol:
         return symbol
     
-    # Try to parse the symbol from known formats
-    for broker in ['dhan', 'zerodha', 'finvasia', 'fyers', 'aliceblue']:
-        components = parse_fo_symbol(symbol, broker)
-        if components:
-            # Format to Dhan format using the new utility
-            normalized_symbol = format_fo_symbol(components, 'dhan')
-            if normalized_symbol:
-                log.info(f"Normalized symbol '{symbol}' (from {broker}) to Dhan format: {normalized_symbol}")
-                return normalized_symbol
-
-    # If parsing fails, fall back to original logic for equity
     sym = symbol.upper().strip()
+    log.debug(f"Normalizing symbol: {sym}")
+    
+    # Handle already correctly formatted symbols (with hyphens)
+    if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
+        log.debug(f"Symbol already in correct format: {sym}")
+        return sym
+    
+    # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
+    fut_with_year = re.match(
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        sym
+    )
+    if fut_with_year:
+        root, year, month = fut_with_year.groups()
+        # Only treat as year if it's in reasonable range (24-30)
+        year_num = int(year)
+        if 24 <= year_num <= 30:
+            full_year = f"20{year}"
+            normalized = f"{root}-{month.title()}{full_year}-FUT"
+            log.info(f"Normalized futures with year from '{sym}' to '{normalized}' (root: {root}, year: {year})")
+            return normalized
+    
+    # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
+    fut_no_year = re.match(
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        sym
+    )
+    if fut_no_year:
+        root, month = fut_no_year.groups()
+        year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        log.info(f"Normalized futures without year from '{sym}' to '{normalized}' (root: {root}, calculated year: {year})")
+        return normalized
+    
+    # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
+    opt_with_year = re.match(
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        sym
+    )
+    if opt_with_year:
+        root, year, month, strike, opt_type = opt_with_year.groups()
+        year_num = int(year)
+        if 24 <= year_num <= 30:
+            full_year = f"20{year}"
+            normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+            log.info(f"Normalized options with year from '{sym}' to '{normalized}' (root: {root}, year: {year})")
+            return normalized
+    
+    # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
+    opt_no_year = re.match(
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        sym
+    )
+    if opt_no_year:
+        root, month, strike, opt_type = opt_no_year.groups()
+        year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        log.info(f"Normalized options without year from '{sym}' to '{normalized}' (root: {root}, calculated year: {year})")
+        return normalized
+    
+    # Pattern 5: Spaced format "NIFTYNXT50 SEP FUT" or "FINNIFTY 25 SEP 33300 CE"
+    spaced_fut = re.match(
+        r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym
+    )
+    if spaced_fut:
+        root, year, month = spaced_fut.groups()
+        if not year:
+            year = get_expiry_year(month)
+        elif int(year) < 24 or int(year) > 30:
+            # If year is not in reasonable range, treat as part of root
+            root = f"{root}{year}"
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        log.info(f"Normalized spaced futures from '{sym}' to '{normalized}'")
+        return normalized
+    
+    spaced_opt = re.match(
+        r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CE|PE)$',
+        sym
+    )
+    if spaced_opt:
+        root, year, month, strike, opt_type = spaced_opt.groups()
+        if not year:
+            year = get_expiry_year(month)
+        elif int(year) < 24 or int(year) > 30:
+            root = f"{root}{year}"
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        log.info(f"Normalized spaced options from '{sym}' to '{normalized}'")
+        return normalized
+    
+    # Pattern 6: Handle equity symbols without -EQ suffix
     if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
+        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):  # Pure alphabetic or name with numbers
             normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
             log.info(f"Normalized equity symbol: {normalized}")
             return normalized
-
+    
+    # If no pattern matches, return original
     log.debug(f"No normalization pattern matched for: {sym}")
     return sym
 
@@ -285,13 +221,13 @@ def consume_webhook_events(
         group: Consumer group name used for coordinated consumption.
         consumer: Consumer name within the group.
         redis_client: Redis client instance.  Tests may supply a stub.
-        max_messages: Optional limit for the number of messages processed. If
+        max_messages: Optional limit for the number of messages processed.  If
             ``None`` the consumer runs until the stream is exhausted.
-        block: Milliseconds to block waiting for new events. ``0`` means do not
+        block: Milliseconds to block waiting for new events.  ``0`` means do not
             block.
         batch_size: Number of messages to fetch per ``xreadgroup`` call.
         max_workers: Maximum number of broker submissions dispatched
-            concurrently for a single webhook event. Defaults to the value of
+            concurrently for a single webhook event.  Defaults to the value of
             the ``ORDER_CONSUMER_MAX_WORKERS`` environment variable.
         order_timeout: Maximum time in seconds to wait for a broker API
             response. ``None`` disables the timeout.
@@ -330,6 +266,32 @@ def consume_webhook_events(
             check_risk_limits(event)
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
+
+            # Enhanced symbol normalization for derivatives
+            symbol = event.get("symbol", "")
+            instrument_type = event.get("instrument_type", "")
+            
+            # Check if it's a derivative
+            is_derivative = (
+                instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
+                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
+            )
+            
+            if is_derivative:
+                normalized_symbol = normalize_symbol_to_dhan_format(symbol)
+                if normalized_symbol != symbol:
+                    log.info(f"Normalized derivative symbol from '{symbol}' to '{normalized_symbol}'")
+                    event["symbol"] = normalized_symbol
+                    # Update instrument type based on normalized symbol
+                    if "-FUT" in normalized_symbol:
+                        event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
+                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
+                        event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
+                        # Extract and set strike price and option type
+                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
+                        if match:
+                            event["strike"] = int(match.group(1))
+                            event["option_type"] = match.group(2)
 
             allowed_accounts = event.get("masterAccounts") or []
             if isinstance(allowed_accounts, str):
@@ -424,7 +386,9 @@ def consume_webhook_events(
                 client_id = credentials.pop("client_id", None)
                 credentials.pop("name", None)
                 # Validate that all required credentials are present before
-                # instantiating the broker client.
+                # instantiating the broker client.  This avoids cryptic
+                # ``TypeError`` exceptions when mandatory parameters like
+                # ``api_key`` are missing from the configuration.
                 try:
                     sig = inspect.signature(client_cls)
                 except (TypeError, ValueError):
@@ -453,81 +417,141 @@ def consume_webhook_events(
                     access_token=access_token,
                     **credentials,
                 )
-                
-                symbol = str(event.get("symbol", ""))
-                instrument_type = event.get("instrument_type", "")
-                
-                # Determine if this is F&O
-                is_derivative = (
-                    instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
-                    bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
-                )
-
-                if is_derivative:
-                    # Normalize the symbol for the target broker
-                    target_broker = broker_cfg["name"]
-                    
-                    # Assume source is Dhan if not specified, as that's the primary webhook source
-                    source_broker = event.get("source_broker", "dhan") 
-                    
-                    if source_broker != target_broker:
-                        converted_symbol = convert_symbol_between_brokers(
-                            symbol, source_broker, target_broker, instrument_type
-                        )
-                        if converted_symbol:
-                            log.info(f"Converting F&O symbol for {target_broker}: {symbol} -> {converted_symbol}")
-                            event["symbol"] = converted_symbol
-                            symbol = converted_symbol
-
-                    # Enhanced lot size handling for F&O
-                    lot_size = event.get("lot_size")
-                    if lot_size is None:
-                        # Try to get from symbol map using converted symbol
-                        mapping = symbol_map.get_symbol_for_broker(
-                            symbol, target_broker, event.get("exchange")
-                        )
-                        lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-                        
-                        if lot_size:
-                            log.info(f"Found lot size {lot_size} for {symbol} from symbol map")
-                        else:
-                            # Enhanced fallback lot sizes
-                            lot_size = get_default_lot_size(symbol)
-                            log.info(f"Using default lot size {lot_size} for {symbol}")
-                    
-                    if lot_size:
-                        try:
-                            original_qty = int(event["qty"])
-                            calculated_qty = original_qty * int(lot_size)
-                            event["qty"] = calculated_qty
-                            event["lot_size"] = lot_size
-                            log.info(f"F&O quantity adjustment: {original_qty} lots × {lot_size} = {calculated_qty}")
-                        except (ValueError, TypeError):
-                            log.error("Invalid lot size or quantity for F&O order")
-                            return None
-                    else:
-                        log.error("Unable to determine lot size for F&O order.")
-                        return None
-                
                 order_params = {
                     "symbol": event["symbol"],
                     "action": event["action"],
                     "qty": event["qty"],
                 }
+                instrument_type = event.get("instrument_type")
+                symbol = str(event.get("symbol", ""))
+                inst_upper = instrument_type.upper() if instrument_type else ""
+                sym_upper = symbol.upper()
+                is_derivative = bool(re.search(r"(FUT|CE|PE)$", inst_upper)) or bool(
+                    re.search(r"(FUT|CE|PE)$", sym_upper)
+                )
+                exchange = event.get("exchange")
+                if event.get("security_id") is not None:
+                    order_params["security_id"] = event["security_id"]
+                if exchange is not None:
+                    if exchange in {"NSE", "BSE"} and is_derivative:
+                        exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
+                    order_params["exchange"] = exchange
+                if event.get("order_type") is not None:
+                    order_params["order_type"] = event["order_type"]
+                for field in [
+                    "instrument_type",
+                    "expiry",
+                    "strike",
+                    "option_type",
+                    "lot_size",
+                ]:
+                    if event.get(field) is not None:
+                        order_params[field] = event[field]
+                optional_map = {
+                    "productType": "product_type",
+                    "orderValidity": "validity",
+                    "masterAccounts": "master_accounts",
+                    "securityId": "security_id",
+                }
+                for src, dest in optional_map.items():
+                    if event.get(src) is not None:
+                        order_params[dest] = event[src]
                 
-                # Copy F&O specific parameters
-                fo_params = ["instrument_type", "expiry", "strike", "option_type", "lot_size"]
-                for param in fo_params:
-                    if event.get(param) is not None:
-                        order_params[param] = event[param]
-                
-                ignore_fields = {"symbol", "action", "qty", "master_id", "id"}
-                for key, value in event.items():
-                    if key in ignore_fields or value is None:
-                        continue
-                    if key not in order_params:
-                        order_params[key] = value
+                # Handle lot size for derivatives with improved symbol mapping
+                lot_size = None
+                if is_derivative:
+                    # First, try to get lot_size from the original event payload
+                    lot_size = event.get("lot_size")
+                    
+                    # If not available, try to get it from the symbol map using normalized symbol
+                    if lot_size is None:
+                        try:
+                            # Use the normalized symbol for better lookup success
+                            normalized_symbol = event.get("symbol", "")
+                            log.info(f"Looking up lot size for normalized symbol: {normalized_symbol}")
+                            
+                            mapping = symbol_map.get_symbol_for_broker(
+                                normalized_symbol, broker_cfg["name"], exchange
+                            )
+                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                            
+                            if lot_size:
+                                log.info(f"Found lot size {lot_size} for {normalized_symbol} from symbol map")
+                            else:
+                                # Log debug info for troubleshooting
+                                log.debug(f"Symbol map lookup returned: {mapping}")
+                                
+                                # Try to debug what symbols are available
+                                debug_info = symbol_map.debug_symbol_lookup(
+                                    normalized_symbol, 
+                                    broker_cfg["name"], 
+                                    exchange
+                                )
+                                log.info(f"Symbol debug info: {json.dumps(debug_info, indent=2)}")
+                                
+                        except Exception as e:
+                            log.warning(
+                                "Could not retrieve lot size from symbol map for %s: %s",
+                                event.get("symbol"),
+                                str(e),
+                                extra={"event": event, "broker": broker_cfg}
+                            )
 
+                    # Enhanced fallback lot sizes with more symbols
+                    if not lot_size and is_derivative:
+                        symbol_upper = symbol.upper()
+                        if "FINNIFTY" in symbol_upper:
+                            lot_size = 40
+                            log.info(f"Using default FINNIFTY lot size: {lot_size}")
+                        elif "NIFTYNXT" in symbol_upper or "NIFTY NEXT" in symbol_upper:
+                            lot_size = 50  # NIFTY Next 50 lot size
+                            log.info(f"Using default NIFTY Next 50 lot size: {lot_size}")
+                        elif "NIFTY" in symbol_upper and "BANK" not in symbol_upper:
+                            lot_size = 50
+                            log.info(f"Using default NIFTY lot size: {lot_size}")
+                        elif "BANKNIFTY" in symbol_upper:
+                            lot_size = 25
+                            log.info(f"Using default BANKNIFTY lot size: {lot_size}")
+                        elif "SENSEX" in symbol_upper:
+                            lot_size = 10
+                            log.info(f"Using default SENSEX lot size: {lot_size}")
+                        elif "BANKEX" in symbol_upper:
+                            lot_size = 15
+                            log.info(f"Using default BANKEX lot size: {lot_size}")
+                        else:
+                            # For individual stock derivatives, default to 1 lot = qty
+                            lot_size = 1
+                            log.warning(f"Using fallback lot size 1 for unknown derivative: {symbol}")
+                    
+                    if lot_size:
+                        try:
+                            # Multiply quantity by lot size for derivatives
+                            original_qty = int(event["qty"])
+                            calculated_qty = original_qty * int(lot_size)
+                            order_params["qty"] = calculated_qty
+                            if "lot_size" not in order_params:
+                                order_params["lot_size"] = lot_size
+                            log.info(f"Adjusted quantity for {symbol}: {original_qty} lots * {lot_size} = {calculated_qty}")
+                        except (ValueError, TypeError):
+                            log.error(
+                                "Invalid lot size or quantity. Could not calculate final order quantity. "
+                                "lot_size: %s, event_qty: %s",
+                                lot_size,
+                                event.get("qty"),
+                                extra={"event": event, "broker": broker_cfg}
+                            )
+                            return None
+                    else:
+                        log.error(
+                            "Unable to determine lot size for %s (%s) on broker %s. "
+                            "Cannot proceed with order.",
+                            event.get("symbol"),
+                            exchange,
+                            broker_cfg["name"],
+                            extra={"event": event, "broker": broker_cfg},
+                        )
+                        return None
+                
                 result = client.place_order(**order_params)
                 order_id = None
                 if isinstance(result, dict):
