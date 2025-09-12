@@ -162,7 +162,7 @@ class WebhookEventSchema(Schema):
             # Handle already correctly formatted equity symbols
             if raw_sym.endswith("-EQ"):
                 data["symbol"] = raw_sym
-                data["exchange"] = "NSE"
+                data["exchange"] = data.get("exchange", "NSE").upper()
                 data["instrument_type"] = "EQ"
                 logger.info(f"Equity symbol already formatted: {raw_sym}")
                 return data
@@ -317,7 +317,7 @@ class WebhookEventSchema(Schema):
             if not re.search(r'\d', raw_sym) and not raw_sym.endswith(("FUT", "CE", "PE")):
                 normalized_symbol = f"{raw_sym}-EQ"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NSE"
+                data["exchange"] = data.get("exchange", "NSE").upper()
                 data["instrument_type"] = "EQ"
                 logger.info(f"Normalized equity symbol: {normalized_symbol}")
                 return data
@@ -326,7 +326,7 @@ class WebhookEventSchema(Schema):
             if not raw_sym.endswith(("FUT", "CE", "PE", "-EQ")) and not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', raw_sym):
                 normalized_symbol = f"{raw_sym}-EQ"
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NSE"
+                data["exchange"] = data.get("exchange", "NSE").upper()
                 data["instrument_type"] = "EQ"
                 logger.info(f"Assumed equity symbol: {normalized_symbol}")
                 return data
