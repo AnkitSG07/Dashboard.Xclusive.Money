@@ -510,7 +510,7 @@ def get_symbol_for_broker(
         exchange_hint, symbol = symbol.split(":", 1)
     
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE), symbol):
+    if re.search(r'(FUT|CE|PE)$', symbol):
         # Try direct lookup first
         result = _direct_symbol_lookup(symbol, broker, exchange_hint)
         if result:
