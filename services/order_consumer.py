@@ -44,80 +44,161 @@ DEFAULT_MAX_WORKERS = int(os.getenv("ORDER_CONSUMER_MAX_WORKERS", "10"))
 REJECTED_STATUSES = {"REJECTED", "CANCELLED", "CANCELED", "FAILED"}
 
 
-def normalize_derivative_symbol(symbol: str) -> str:
-    """Normalize derivative symbols by adding year if missing.
+def get_expiry_year(month: str, day: int = None) -> str:
+    """Determine the correct expiry year for a given month and day.
     
     Args:
-        symbol: Trading symbol like FINNIFTY30SEP33300PE or FINNIFTY25SEP33300PE
+        month: Three-letter month code (JAN, FEB, etc.)
+        day: Optional day of month for more accurate year determination
         
     Returns:
-        Normalized symbol with year component
+        Two-digit year string
+    """
+    current_date = date.today()
+    current_year = current_date.year
+    current_month = current_date.month
+    current_day = current_date.day
+    
+    month_map = {
+        'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+        'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+    }
+    
+    month_num = month_map[month]
+    
+    if day:
+        if month_num < current_month:
+            year = current_year + 1
+        elif month_num == current_month and day < current_day:
+            year = current_year + 1
+        else:
+            year = current_year
+    else:
+        if month_num < current_month:
+            year = current_year + 1
+        else:
+            year = current_year
+    
+    return str(year % 100).zfill(2)
+
+
+def normalize_symbol_to_dhan_format(symbol: str) -> str:
+    """Convert various symbol formats to Dhan's expected format.
+    
+    Examples:
+    - NIFTYNXT50SEPFUT -> NIFTYNXT50-Sep2025-FUT
+    - FINNIFTY25SEP33300CE -> FINNIFTY-Sep2025-33300-CE
+    - BANKNIFTY25SEP55000PE -> BANKNIFTY-Sep2025-55000-PE
     """
     if not symbol:
         return symbol
     
-    sym = symbol.upper()
+    sym = symbol.upper().strip()
+    log.debug(f"Normalizing symbol: {sym}")
     
-    # Check if symbol already has year (2 digits before month)
-    if re.search(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym):
-        # Symbol already has year
+    # Handle already correctly formatted symbols (with hyphens)
+    if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
+        log.debug(f"Symbol already in correct format: {sym}")
         return sym
     
-    # Pattern for symbols without year (e.g., FINNIFTY30SEP33300PE)
-    # This matches: ROOT + DAY + MONTH + STRIKE + OPTION_TYPE
-    match = re.match(
-        r'^([A-Z]+?)(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(.+)$',
+    # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
+    fut_with_year = re.match(
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
         sym
     )
+    if fut_with_year:
+        root, year, month = fut_with_year.groups()
+        # Only treat as year if it's in reasonable range (24-30)
+        year_num = int(year)
+        if 24 <= year_num <= 30:
+            full_year = f"20{year}"
+            normalized = f"{root}-{month.title()}{full_year}-FUT"
+            log.info(f"Normalized futures with year from '{sym}' to '{normalized}' (root: {root}, year: {year})")
+            return normalized
     
-    if match:
-        root = match.group(1)
-        day = match.group(2)
-        month = match.group(3)
-        rest = match.group(4)  # Strike and option type
-        
-        # Determine the year
-        current_date = date.today()
-        current_year = current_date.year
-        current_month = current_date.month
-        
-        month_map = {
-            'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
-            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
-        }
-        
-        month_num = month_map[month]
-        
-        # For 2025, year code is 25
-        # If the expiry month is before current month, assume next year
-        if month_num < current_month:
-            year = (current_year + 1) % 100
-        else:
-            year = current_year % 100
-        
-        # Reconstruct symbol with year: ROOT + YEAR + MONTH + DAY + REST
-        # Note: The format should be ROOT + YEAR + MONTH + STRIKE + OPTION_TYPE
-        # But we need to handle the day component correctly
-        
-        # For monthly expiry, day is typically the last Thursday
-        # For weekly, it could be any Thursday
-        # The symbol format is typically: ROOT + YY + MMM + STRIKE + CE/PE
-        
-        # Since we have day in the original, let's preserve it
-        # Format: ROOT + DAY + YEAR + MONTH + REST
-        # Actually, standard format is ROOT + YEAR + MONTH + STRIKE + TYPE
-        # Let's try: ROOT + YEAR + MONTH + REST (where REST contains strike and type)
-        
-        year_str = str(year).zfill(2)
-        
-        # Try multiple formats as different brokers might expect different formats
-        # Standard format: ROOT + YY + MMM + STRIKE + CE/PE
-        normalized = f"{root}{year_str}{month}{rest}"
-        
-        log.info(f"Normalized symbol from {sym} to {normalized}")
+    # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
+    fut_no_year = re.match(
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        sym
+    )
+    if fut_no_year:
+        root, month = fut_no_year.groups()
+        year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        log.info(f"Normalized futures without year from '{sym}' to '{normalized}' (root: {root}, calculated year: {year})")
         return normalized
     
+    # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
+    opt_with_year = re.match(
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        sym
+    )
+    if opt_with_year:
+        root, year, month, strike, opt_type = opt_with_year.groups()
+        year_num = int(year)
+        if 24 <= year_num <= 30:
+            full_year = f"20{year}"
+            normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+            log.info(f"Normalized options with year from '{sym}' to '{normalized}' (root: {root}, year: {year})")
+            return normalized
+    
+    # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
+    opt_no_year = re.match(
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        sym
+    )
+    if opt_no_year:
+        root, month, strike, opt_type = opt_no_year.groups()
+        year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        log.info(f"Normalized options without year from '{sym}' to '{normalized}' (root: {root}, calculated year: {year})")
+        return normalized
+    
+    # Pattern 5: Spaced format "NIFTYNXT50 SEP FUT" or "FINNIFTY 25 SEP 33300 CE"
+    spaced_fut = re.match(
+        r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym
+    )
+    if spaced_fut:
+        root, year, month = spaced_fut.groups()
+        if not year:
+            year = get_expiry_year(month)
+        elif int(year) < 24 or int(year) > 30:
+            # If year is not in reasonable range, treat as part of root
+            root = f"{root}{year}"
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        log.info(f"Normalized spaced futures from '{sym}' to '{normalized}'")
+        return normalized
+    
+    spaced_opt = re.match(
+        r'^([A-Z0-9]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CE|PE)$',
+        sym
+    )
+    if spaced_opt:
+        root, year, month, strike, opt_type = spaced_opt.groups()
+        if not year:
+            year = get_expiry_year(month)
+        elif int(year) < 24 or int(year) > 30:
+            root = f"{root}{year}"
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        log.info(f"Normalized spaced options from '{sym}' to '{normalized}'")
+        return normalized
+    
+    # Pattern 6: Handle equity symbols without -EQ suffix
+    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
+        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):  # Pure alphabetic or name with numbers
+            normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
+            log.info(f"Normalized equity symbol: {normalized}")
+            return normalized
+    
     # If no pattern matches, return original
+    log.debug(f"No normalization pattern matched for: {sym}")
     return sym
 
 
@@ -186,7 +267,7 @@ def consume_webhook_events(
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
 
-            # Normalize derivative symbols to include year if missing
+            # Enhanced symbol normalization for derivatives
             symbol = event.get("symbol", "")
             instrument_type = event.get("instrument_type", "")
             
@@ -197,10 +278,20 @@ def consume_webhook_events(
             )
             
             if is_derivative:
-                normalized_symbol = normalize_derivative_symbol(symbol)
+                normalized_symbol = normalize_symbol_to_dhan_format(symbol)
                 if normalized_symbol != symbol:
-                    log.info(f"Normalized derivative symbol from {symbol} to {normalized_symbol}")
+                    log.info(f"Normalized derivative symbol from '{symbol}' to '{normalized_symbol}'")
                     event["symbol"] = normalized_symbol
+                    # Update instrument type based on normalized symbol
+                    if "-FUT" in normalized_symbol:
+                        event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
+                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
+                        event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
+                        # Extract and set strike price and option type
+                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
+                        if match:
+                            event["strike"] = int(match.group(1))
+                            event["option_type"] = match.group(2)
 
             allowed_accounts = event.get("masterAccounts") or []
             if isinstance(allowed_accounts, str):
@@ -366,28 +457,33 @@ def consume_webhook_events(
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
                 
-                # Handle lot size for derivatives
+                # Handle lot size for derivatives with improved symbol mapping
                 lot_size = None
                 if is_derivative:
                     # First, try to get lot_size from the original event payload
                     lot_size = event.get("lot_size")
                     
-                    # If not available, try to get it from the symbol map
+                    # If not available, try to get it from the symbol map using normalized symbol
                     if lot_size is None:
                         try:
-                            # Try with the normalized symbol first
+                            # Use the normalized symbol for better lookup success
+                            normalized_symbol = event.get("symbol", "")
+                            log.info(f"Looking up lot size for normalized symbol: {normalized_symbol}")
+                            
                             mapping = symbol_map.get_symbol_for_broker(
-                                event.get("symbol", ""), broker_cfg["name"], exchange
+                                normalized_symbol, broker_cfg["name"], exchange
                             )
                             lot_size = mapping.get("lot_size") or mapping.get("lotSize")
                             
-                            if not lot_size:
+                            if lot_size:
+                                log.info(f"Found lot size {lot_size} for {normalized_symbol} from symbol map")
+                            else:
                                 # Log debug info for troubleshooting
                                 log.debug(f"Symbol map lookup returned: {mapping}")
                                 
                                 # Try to debug what symbols are available
                                 debug_info = symbol_map.debug_symbol_lookup(
-                                    event.get("symbol", ""), 
+                                    normalized_symbol, 
                                     broker_cfg["name"], 
                                     exchange
                                 )
@@ -401,38 +497,41 @@ def consume_webhook_events(
                                 extra={"event": event, "broker": broker_cfg}
                             )
 
-                    # For FINNIFTY, default lot size is 40 (as of 2025)
-                    # For NIFTY, default is 50
-                    # These are fallback values
+                    # Enhanced fallback lot sizes with more symbols
                     if not lot_size and is_derivative:
-                        if "FINNIFTY" in symbol.upper():
+                        symbol_upper = symbol.upper()
+                        if "FINNIFTY" in symbol_upper:
                             lot_size = 40
                             log.info(f"Using default FINNIFTY lot size: {lot_size}")
-                        elif "NIFTY" in symbol.upper() and "BANK" not in symbol.upper():
+                        elif "NIFTYNXT" in symbol_upper or "NIFTY NEXT" in symbol_upper:
+                            lot_size = 50  # NIFTY Next 50 lot size
+                            log.info(f"Using default NIFTY Next 50 lot size: {lot_size}")
+                        elif "NIFTY" in symbol_upper and "BANK" not in symbol_upper:
                             lot_size = 50
                             log.info(f"Using default NIFTY lot size: {lot_size}")
-                        elif "BANKNIFTY" in symbol.upper():
+                        elif "BANKNIFTY" in symbol_upper:
                             lot_size = 25
                             log.info(f"Using default BANKNIFTY lot size: {lot_size}")
+                        elif "SENSEX" in symbol_upper:
+                            lot_size = 10
+                            log.info(f"Using default SENSEX lot size: {lot_size}")
+                        elif "BANKEX" in symbol_upper:
+                            lot_size = 15
+                            log.info(f"Using default BANKEX lot size: {lot_size}")
                         else:
-                            # For other derivatives, we can't assume lot size
-                            log.error(
-                                "Unable to determine lot size for %s (%s) on broker %s. "
-                                "Cannot proceed with order.",
-                                event.get("symbol"),
-                                exchange,
-                                broker_cfg["name"],
-                                extra={"event": event, "broker": broker_cfg},
-                            )
-                            return None
+                            # For individual stock derivatives, default to 1 lot = qty
+                            lot_size = 1
+                            log.warning(f"Using fallback lot size 1 for unknown derivative: {symbol}")
                     
                     if lot_size:
                         try:
                             # Multiply quantity by lot size for derivatives
-                            order_params["qty"] = int(event["qty"]) * int(lot_size)
+                            original_qty = int(event["qty"])
+                            calculated_qty = original_qty * int(lot_size)
+                            order_params["qty"] = calculated_qty
                             if "lot_size" not in order_params:
                                 order_params["lot_size"] = lot_size
-                            log.info(f"Adjusted quantity for {symbol}: {event['qty']} lots * {lot_size} = {order_params['qty']}")
+                            log.info(f"Adjusted quantity for {symbol}: {original_qty} lots * {lot_size} = {calculated_qty}")
                         except (ValueError, TypeError):
                             log.error(
                                 "Invalid lot size or quantity. Could not calculate final order quantity. "
@@ -442,6 +541,16 @@ def consume_webhook_events(
                                 extra={"event": event, "broker": broker_cfg}
                             )
                             return None
+                    else:
+                        log.error(
+                            "Unable to determine lot size for %s (%s) on broker %s. "
+                            "Cannot proceed with order.",
+                            event.get("symbol"),
+                            exchange,
+                            broker_cfg["name"],
+                            extra={"event": event, "broker": broker_cfg},
+                        )
+                        return None
                 
                 result = client.place_order(**order_params)
                 order_id = None
@@ -594,6 +703,7 @@ __all__ = [
     "consume_webhook_events",
     "orders_success",
     "orders_failed",
+    "normalize_symbol_to_dhan_format",
 ]
 
 def main() -> None:
