@@ -1,4 +1,4 @@
-"""Webhook receiver service - Fixed symbol normalization.
+"""Webhook receiver service - Enhanced symbol normalization for F&O.
 
 This module provides minimal validation and serialization of webhook
 payloads and publishes validated events to a low-latency queue. Redis
@@ -41,15 +41,7 @@ def get_redis_client() -> redis.Redis:
 
 
 def get_expiry_year(month: str, day: int = None) -> str:
-    """Determine the correct expiry year for a given month and day.
-    
-    Args:
-        month: Three-letter month code (JAN, FEB, etc.)
-        day: Optional day of month for more accurate year determination
-        
-    Returns:
-        Two-digit year string
-    """
+    """Determine the correct expiry year for a given month and day."""
     current_date = date.today()
     current_year = current_date.year
     current_month = current_date.month
@@ -80,6 +72,220 @@ def get_expiry_year(month: str, day: int = None) -> str:
             year = current_year
     
     return str(year % 100).zfill(2)
+
+
+def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
+    """Normalize F&O symbol to standardized format and extract metadata.
+    
+    Returns:
+        tuple: (normalized_symbol, metadata_dict)
+    """
+    if not symbol:
+        return symbol, {}
+    
+    sym = symbol.upper().strip()
+    metadata = {}
+    
+    # Pattern 1: Already normalized Dhan format with hyphens
+    if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
+        # Extract metadata from Dhan format
+        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', sym)
+        if opt_match:
+            metadata = {
+                'underlying': opt_match.group(1),
+                'expiry_month': opt_match.group(2),
+                'expiry_year': opt_match.group(3),
+                'strike': int(opt_match.group(4)),
+                'option_type': opt_match.group(5),
+                'instrument_type': 'OPTIDX' if 'NIFTY' in opt_match.group(1) else 'OPTSTK'
+            }
+        
+        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', sym)
+        if fut_match:
+            metadata = {
+                'underlying': fut_match.group(1),
+                'expiry_month': fut_match.group(2),
+                'expiry_year': fut_match.group(3),
+                'instrument_type': 'FUTIDX' if 'NIFTY' in fut_match.group(1) else 'FUTSTK'
+            }
+        
+        return sym, metadata
+    
+    # Pattern 2: Special format "FINNIFTY 30 SEP 33300 CALL"
+    special_pattern = re.match(
+        r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        sym
+    )
+    if special_pattern:
+        root = special_pattern.group(1)
+        day = int(special_pattern.group(2))
+        month = special_pattern.group(3)
+        strike = special_pattern.group(4)
+        opt_type = special_pattern.group(5)
+        
+        year = get_expiry_year(month, day)
+        full_year = f"20{year}"
+        opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+        
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'expiry_day': day,
+            'strike': int(strike),
+            'option_type': opt_code,
+            'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 3: Futures with day: "FINNIFTY 30 SEP FUT"
+    fut_with_day = re.match(
+        r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym
+    )
+    if fut_with_day:
+        root = fut_with_day.group(1)
+        day = int(fut_with_day.group(2))
+        month = fut_with_day.group(3)
+        
+        year = get_expiry_year(month, day)
+        full_year = f"20{year}"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'expiry_day': day,
+            'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 4: Compact options with year: FINNIFTY25SEP33300CE
+    compact_opt_match = re.match(
+        r'^(.+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
+        sym
+    )
+    if compact_opt_match:
+        root, year, month, strike, opt_type = compact_opt_match.groups()
+        if not year:
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+        
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'strike': int(strike),
+            'option_type': opt_code,
+            'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 5: Compact futures: FINNIFTY25SEPFUT
+    compact_fut_match = re.match(
+        r'^(.+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        sym
+    )
+    if compact_fut_match:
+        root, year, month = compact_fut_match.groups()
+        if not year:
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 6: Spaced options: "FINNIFTY 25 SEP 33300 CALL"
+    spaced_opt_match = re.match(
+        r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        sym
+    )
+    if spaced_opt_match:
+        root, year, month, strike, opt_type = spaced_opt_match.groups()
+        if not year:
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+        
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'strike': int(strike),
+            'option_type': opt_code,
+            'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 7: Spaced futures: "FINNIFTY 25 SEP FUT"
+    spaced_fut_match = re.match(
+        r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym
+    )
+    if spaced_fut_match:
+        root, year, month = spaced_fut_match.groups()
+        if not year:
+            year = get_expiry_year(month)
+        full_year = f"20{year}"
+        
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+        }
+        return normalized, metadata
+    
+    # Pattern 8: Already normalized derivative symbols (compact format)
+    if re.match(r'^[A-Z]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$', sym):
+        # Extract components for metadata
+        opt_match = re.match(r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$', sym)
+        if opt_match:
+            root, year, month, strike, opt_type = opt_match.groups()
+            metadata = {
+                'underlying': root,
+                'expiry_month': month,
+                'expiry_year': f"20{year}",
+                'strike': int(strike),
+                'option_type': opt_type,
+                'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+            }
+        
+        fut_match = re.match(r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$', sym)
+        if fut_match:
+            root, year, month = fut_match.groups()
+            metadata = {
+                'underlying': root,
+                'expiry_month': month,
+                'expiry_year': f"20{year}",
+                'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+            }
+        
+        return sym, metadata
+    
+    # Pattern 9: Equity symbols
+    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
+        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
+            normalized = f"{sym}-EQ"
+            metadata = {
+                'underlying': sym,
+                'instrument_type': 'EQ'
+            }
+            return normalized, metadata
+    
+    # Return original if no pattern matches
+    return sym, metadata
 
 
 class WebhookEventSchema(Schema):
@@ -153,188 +359,46 @@ class WebhookEventSchema(Schema):
             if key in data and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
-        # Symbol normalization
+        # Enhanced symbol normalization
         if "symbol" in data and isinstance(data["symbol"], str):
             raw_sym = data["symbol"].strip().upper()
             
             logger.info(f"Processing symbol: {raw_sym}")
             
-            # Handle already correctly formatted equity symbols
-            if raw_sym.endswith("-EQ"):
-                data["symbol"] = raw_sym
-                data["exchange"] = data.get("exchange", "NSE").upper()
-                data["instrument_type"] = "EQ"
-                logger.info(f"Equity symbol already formatted: {raw_sym}")
-                return data
+            # Normalize F&O symbol and extract metadata
+            normalized_symbol, metadata = normalize_fo_symbol(raw_sym)
             
-            # Special pattern for "FINNIFTY 30 SEP 33300 CALL" format
-            # This matches: SYMBOL + DAY + MONTH + STRIKE + OPTION_TYPE
-            special_pattern = re.match(
-                r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
-                raw_sym
-            )
-            if special_pattern:
-                root = special_pattern.group(1)
-                day = int(special_pattern.group(2))
-                month = special_pattern.group(3)
-                strike = special_pattern.group(4)
-                opt_type = special_pattern.group(5)
-                
-                # Get the year based on month and day
-                year = get_expiry_year(month, day)
-                
-                # Convert CALL/PUT to CE/PE
-                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                
-                # Standard format: ROOT + YY + MMM + STRIKE + CE/PE
-                # Note: We're not including the day in the final symbol
-                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
-                
+            if normalized_symbol != raw_sym:
+                logger.info(f"Normalized symbol from '{raw_sym}' to '{normalized_symbol}'")
                 data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
-                data["strike"] = int(strike)
-                data["option_type"] = opt_code
-                data["expiry"] = f"{day}{month}{year}"  # Store full expiry info
                 
-                logger.info(f"Normalized special format from '{raw_sym}' to '{normalized_symbol}'")
-                return data
-            
-            # Pattern for futures with day: "FINNIFTY 30 SEP FUT"
-            fut_with_day = re.match(
-                r'^([A-Z]+)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
-                raw_sym
-            )
-            if fut_with_day:
-                root = fut_with_day.group(1)
-                day = int(fut_with_day.group(2))
-                month = fut_with_day.group(3)
-                
-                year = get_expiry_year(month, day)
-                normalized_symbol = f"{root}{year}{month}FUT"
-                
-                data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
-                data["expiry"] = f"{day}{month}{year}"
-                
-                logger.info(f"Normalized futures with day from '{raw_sym}' to '{normalized_symbol}'")
-                return data
-            
-            # Compact formats without spaces
-            # Options: FINNIFTY25SEP33300CE or FINNIFTY30SEP33300CE
-            compact_opt_match = re.match(
-                r'^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
-                raw_sym
-            )
-            if compact_opt_match:
-                root, year, month, strike, opt_type = compact_opt_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
-                data["strike"] = int(strike)
-                data["option_type"] = opt_code
-                data["expiry"] = f"{year}{month}"
-                logger.info(f"Normalized compact option: {normalized_symbol}")
-                return data
-            
-            # Futures: FINNIFTY25SEPFUT or FINNIFTY30SEPFUT
-            compact_fut_match = re.match(
-                r'^([A-Z]+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
-                raw_sym
-            )
-            if compact_fut_match:
-                root, year, month = compact_fut_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                normalized_symbol = f"{root}{year}{month}FUT"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
-                data["expiry"] = f"{year}{month}"
-                logger.info(f"Normalized compact futures: {normalized_symbol}")
-                return data
-            
-            # Standard spaced formats (without day)
-            # Options: "FINNIFTY 25 SEP 33300 CALL" or "FINNIFTY SEP 33300 CALL"
-            spaced_opt_match = re.match(
-                r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
-                raw_sym
-            )
-            if spaced_opt_match:
-                root, year, month, strike, opt_type = spaced_opt_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
-                normalized_symbol = f"{root}{year}{month}{strike}{opt_code}"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "OPTIDX" if "NIFTY" in root else "OPTSTK"
-                data["strike"] = int(strike)
-                data["option_type"] = opt_code
-                data["expiry"] = f"{year}{month}"
-                logger.info(f"Normalized spaced options: {normalized_symbol}")
-                return data
-            
-            # Futures: "FINNIFTY 25 SEP FUT" or "FINNIFTY SEP FUT"
-            spaced_fut_match = re.match(
-                r'^([A-Z]+)\s+(?:(\d{2})\s+)?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
-                raw_sym
-            )
-            if spaced_fut_match:
-                root, year, month = spaced_fut_match.groups()
-                if not year:
-                    year = get_expiry_year(month)
-                normalized_symbol = f"{root}{year}{month}FUT"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = "NFO"
-                data["instrument_type"] = "FUTIDX" if "NIFTY" in root else "FUTSTK"
-                data["expiry"] = f"{year}{month}"
-                logger.info(f"Normalized spaced futures: {normalized_symbol}")
-                return data
-            
-            # Handle already normalized derivative symbols
-            if re.match(r'^[A-Z]+\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)?(FUT|CE|PE)$', raw_sym):
-                data["symbol"] = raw_sym
-                data["exchange"] = "NFO"
-                if raw_sym.endswith("FUT"):
-                    data["instrument_type"] = "FUTIDX" if "NIFTY" in raw_sym else "FUTSTK"
-                else:
-                    data["instrument_type"] = "OPTIDX" if "NIFTY" in raw_sym else "OPTSTK"
-                    if raw_sym.endswith(("CE", "PE")):
-                        strike_match = re.search(r'(\d+)(CE|PE)$', raw_sym)
-                        if strike_match:
-                            data["strike"] = int(strike_match.group(1))
-                            data["option_type"] = strike_match.group(2)
-                logger.info(f"Symbol already normalized: {raw_sym}")
-                return data
-            
-            # Pure equity symbols (no numbers, no derivative suffixes)
-            if not re.search(r'\d', raw_sym) and not raw_sym.endswith(("FUT", "CE", "PE")):
-                normalized_symbol = f"{raw_sym}-EQ"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = data.get("exchange", "NSE").upper()
-                data["instrument_type"] = "EQ"
-                logger.info(f"Normalized equity symbol: {normalized_symbol}")
-                return data
-            
-            # Symbols with numbers but not derivatives
-            if not raw_sym.endswith(("FUT", "CE", "PE", "-EQ")) and not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', raw_sym):
-                normalized_symbol = f"{raw_sym}-EQ"
-                data["symbol"] = normalized_symbol
-                data["exchange"] = data.get("exchange", "NSE").upper()
-                data["instrument_type"] = "EQ"
-                logger.info(f"Assumed equity symbol: {normalized_symbol}")
-                return data
-            
-            # If no pattern matches, keep original but log warning
-            data["symbol"] = raw_sym
-            logger.warning(f"No normalization pattern matched for symbol: {raw_sym}")
-            
+                # Apply metadata to the data
+                if metadata:
+                    # Set exchange based on instrument type
+                    if metadata.get('instrument_type') in ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']:
+                        data["exchange"] = "NFO"  # F&O trades on NFO
+                    elif metadata.get('instrument_type') == 'EQ':
+                        data["exchange"] = "NSE"  # Default equity exchange
+                    
+                    # Set instrument type
+                    if "instrument_type" not in data or data["instrument_type"] == "EQ":
+                        data["instrument_type"] = metadata.get('instrument_type', 'EQ')
+                    
+                    # Set strike and option type for options
+                    if metadata.get('strike'):
+                        data["strike"] = metadata['strike']
+                    if metadata.get('option_type'):
+                        data["option_type"] = metadata['option_type']
+                    
+                    # Set expiry information
+                    if metadata.get('expiry_month') and metadata.get('expiry_year'):
+                        expiry_str = f"{metadata['expiry_month']}{metadata['expiry_year']}"
+                        if metadata.get('expiry_day'):
+                            expiry_str = f"{metadata['expiry_day']}{expiry_str}"
+                        data["expiry"] = expiry_str
+            else:
+                logger.info(f"Symbol already normalized or no normalization needed: {raw_sym}")
+        
         return data
 
 
@@ -405,4 +469,6 @@ __all__ = [
     "get_redis_client",
     "redis_client",
     "ValidationError",
+    "normalize_fo_symbol",
+    "get_expiry_year",
 ]
