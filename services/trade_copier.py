@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Trade copier service that consumes master order events from Redis.
 
 This module listens to the ``trade_events`` Redis stream and replicates
@@ -6,8 +8,6 @@ relies on an in-memory queue or Flask application context, allowing it to be
 run as an independent microservice.
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import time
@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
 from functools import partial
+import re
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from prometheus_client import Histogram
@@ -29,6 +30,7 @@ from .db import get_session
 from .utils import _decode_event
 from helpers import active_children_for_master
 import redis
+from .order_consumer import convert_symbol_between_brokers
 
 LATENCY = Histogram(
     "trade_copier_latency_seconds", "Seconds spent processing a master order event"
@@ -86,8 +88,28 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     broker = client_cls(
         client_id=child.client_id, access_token=access_token, **credentials
     )
-
-    # Apply fixed quantity override for the child account if provided.
+    
+    # Get original symbol and determine if it's F&O
+    original_symbol = order.get("symbol")
+    instrument_type = order.get("instrument_type", "")
+    
+    is_fo = bool(re.search(r'(FUT|CE|PE)$', str(original_symbol).upper())) or \
+            instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
+    
+    # Convert symbol if it's F&O and brokers are different
+    if is_fo and master.broker.lower() != child.broker.lower():
+        converted_symbol = convert_symbol_between_brokers(
+            original_symbol, 
+            master.broker, 
+            child.broker, 
+            instrument_type
+        )
+        if converted_symbol and converted_symbol != original_symbol:
+            log.info(f"Converted F&O symbol from {original_symbol} to {converted_symbol} for {child.broker}")
+            order = dict(order)  # Make a copy
+            order["symbol"] = converted_symbol
+    
+    # Apply fixed quantity override for the child account if provided
     qty = (
         int(child.copy_qty)
         if getattr(child, "copy_qty", None) is not None
@@ -99,18 +121,22 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         "action": order.get("action"),
         "qty": qty,
     }
+    
+    # Copy F&O specific parameters
+    fo_params = ["instrument_type", "expiry", "strike", "option_type", "lot_size"]
+    for param in fo_params:
+        if order.get(param) is not None:
+            params[param] = order[param]
+    
     ignore_fields = {"symbol", "action", "qty", "master_id", "id"}
     for key, value in order.items():
         if key in ignore_fields or value is None:
             continue
         params[key] = value
+    
     try:
         return broker.place_order(**params)
     except Exception as exc:
-        # Re-raise with the original broker message so that callers can log
-        # a concise error.  Many broker SDKs attach additional metadata to
-        # exceptions which makes the default ``repr`` noisy; here we capture
-        # just the human readable message.
         message = getattr(exc, "message", None) or (
             exc.args[0] if getattr(exc, "args", None) else str(exc)
         )
