@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Dynamic symbol map for Indian equities with lot size support.
 
 This module builds a mapping of every equity symbol available on the
 Indian stock exchanges (NSE and BSE) across a number of supported
 brokers, including lot size information for derivatives.
 """
+
+from __future__ import annotations
 
 import csv
 import os
@@ -19,7 +19,6 @@ import threading
 import time
 import requests
 import re
-from services.order_consumer import parse_fo_symbol, format_fo_symbol
 
 log = logging.getLogger(__name__)
 
@@ -396,33 +395,7 @@ def get_symbol_for_broker(
             log.debug(f"Found symbol mapping for variant: {variant}")
             break
     
-    # Fallback: Try parsing and converting from other broker formats
-    if not mapping and re.search(r'(FUT|CE|PE)$', symbol):
-        log.info(f"F&O symbol '{symbol}' not found in direct lookup, trying cross-broker conversion...")
-        
-        for source_broker in ['dhan', 'zerodha', 'aliceblue', 'fyers', 'finvasia']:
-            if source_broker == broker:
-                continue
-            
-            components = parse_fo_symbol(symbol, source_broker)
-            if components:
-                converted_symbol = format_fo_symbol(components, broker)
-                if converted_symbol:
-                    # Now try to find the converted symbol in the map
-                    log.info(f"Attempting lookup with converted symbol: {converted_symbol}")
-                    new_mapping = symbol_map.get(extract_root_symbol(converted_symbol))
-                    
-                    if not new_mapping:
-                        # Sometimes the converted symbol itself might be the lookup key
-                        new_mapping = symbol_map.get(converted_symbol)
-
-                    if new_mapping:
-                        log.info(f"Found F&O mapping via conversion: {symbol} (from {source_broker}) -> {converted_symbol} (for {broker})")
-                        mapping = new_mapping
-                        symbol = converted_symbol
-                        break
-        
-    # Refresh once if still not found
+    # Refresh once if not found
     if not mapping:
         log.info(f"Symbol not found, refreshing symbol map for: {symbol}")
         refresh_symbol_map()
@@ -525,7 +498,7 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
             # Check available brokers and lot sizes
             for exch, exch_data in symbol_map[variant].items():
                 for broker_name, broker_info in exch_data.items():
-                    if broker_name not in result["available_brokers"] and broker_name != "zerodha":
+                    if broker_name not in result["available_brokers"]:
                         result["available_brokers"].append(broker_name)
                     # Log lot size info
                     if broker_name == broker and "lot_size" in broker_info:
