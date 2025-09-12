@@ -18,6 +18,7 @@ import logging
 import threading
 import time
 import requests
+import re
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +68,45 @@ def _fetch_csv(url: str, cache_name: str) -> str:
     raise requests.RequestException(f"failed to fetch {url}")
 
 Key = Tuple[str, str]
+
+
+def extract_root_symbol(symbol: str) -> str:
+    """Extract root symbol from derivative symbols.
+    
+    Examples:
+    - NIFTYNXT50-Sep2025-FUT -> NIFTYNXT50
+    - FINNIFTY-Sep2025-33300-CE -> FINNIFTY  
+    - RELIANCE-EQ -> RELIANCE
+    """
+    if not symbol:
+        return symbol
+    
+    # Remove common suffixes and extract root
+    cleaned = symbol.upper()
+    
+    # Handle Dhan format with hyphens
+    if '-' in cleaned:
+        parts = cleaned.split('-')
+        return parts[0]  # First part is always the root
+    
+    # Handle compact format without hyphens
+    # Remove trailing FUT, CE, PE
+    for suffix in ['FUT', 'CE', 'PE']:
+        if cleaned.endswith(suffix):
+            cleaned = cleaned[:-len(suffix)]
+            break
+    
+    # Remove -EQ suffix
+    if cleaned.endswith('EQ'):
+        cleaned = cleaned[:-2]
+    
+    # Remove month and year patterns
+    cleaned = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', cleaned)
+    
+    # Remove strike prices (numbers at the end)
+    cleaned = re.sub(r'\d+$', '', cleaned)
+    
+    return cleaned
 
 
 @lru_cache(maxsize=1)
@@ -240,11 +280,14 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "lot_size": dhan_info.get("lot_size", lot_size)  # Use Dhan's lot size or fallback
             }
         
-        mapping.setdefault(symbol, {})[exchange] = entry
+        # Extract root symbol for indexing
+        root_symbol = extract_root_symbol(symbol)
+        mapping.setdefault(root_symbol, {})[exchange] = entry
     
     # Add Dhan-only symbols (not in Zerodha)
     for (symbol, exchange), dhan_info in dhan_data.items():
-        if symbol in mapping and exchange in mapping[symbol]:
+        root_symbol = extract_root_symbol(symbol)
+        if root_symbol in mapping and exchange in mapping[root_symbol]:
             continue
         
         if exchange in {"NSE", "BSE"}:
@@ -258,10 +301,11 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
             "dhan": {
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
-                "lot_size": dhan_info.get("lot_size", "1")
+                "lot_size": dhan_info.get("lot_size", "1"),
+                "trading_symbol": symbol  # Store original Dhan symbol
             }
         }
-        mapping.setdefault(symbol, {})[exchange] = entry
+        mapping.setdefault(root_symbol, {})[exchange] = entry
     
     return mapping
 
@@ -324,25 +368,22 @@ def get_symbol_for_broker(
     elif ":" in symbol:
         exchange_hint, symbol = symbol.split(":", 1)
     
-    # Handle symbol variants
-    base = symbol
-    if base.endswith("-EQ"):
-        base = base[:-3]
+    # Extract root symbol for lookup
+    root_symbol = extract_root_symbol(symbol)
     
-    base_variants = [symbol, base]
+    # Generate variants to try
+    base_variants = [root_symbol]
     
-    # For derivatives, try multiple variants
+    # Add the original symbol if different from root
+    if symbol != root_symbol:
+        base_variants.append(symbol)
+    
+    # For derivatives, add additional variants
     if symbol.endswith(("FUT", "CE", "PE")):
-        import re
-        # Try to extract root symbol
-        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
-        if root_match:
-            root = root_match.group(1)
-            base_variants.append(root)
-    
-    base2 = base.split("-")[0].split("_")[0]
-    if base2 not in base_variants:
-        base_variants.append(base2)
+        # Try without month/year patterns
+        clean_variant = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', symbol)
+        if clean_variant not in base_variants:
+            base_variants.append(clean_variant)
     
     symbol_map = _ensure_symbol_map()
     mapping = None
@@ -432,23 +473,17 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
     symbol = symbol.upper()
     broker = broker.lower()
     
-    # Generate variants
-    base = symbol
-    if base.endswith("-EQ"):
-        base = base[:-3]
+    # Extract root and generate variants
+    root_symbol = extract_root_symbol(symbol)
+    base_variants = [root_symbol]
     
-    base_variants = [symbol, base]
+    if symbol != root_symbol:
+        base_variants.append(symbol)
     
     if symbol.endswith(("FUT", "CE", "PE")):
-        import re
-        root_match = re.match(r"^([A-Z0-9]+?)(\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))", symbol)
-        if root_match:
-            root = root_match.group(1)
-            base_variants.append(root)
-    
-    base2 = base.split("-")[0].split("_")[0]
-    if base2 not in base_variants:
-        base_variants.append(base2)
+        clean_variant = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', symbol)
+        if clean_variant not in base_variants:
+            base_variants.append(clean_variant)
     
     result["available_variants"] = base_variants
     
@@ -507,5 +542,6 @@ __all__ = [
     "get_symbol_map",
     "get_symbol_for_broker",
     "get_symbol_by_token",
-    "debug_symbol_lookup"
+    "debug_symbol_lookup",
+    "extract_root_symbol"
 ]
