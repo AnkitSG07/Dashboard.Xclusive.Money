@@ -159,63 +159,70 @@
   
       /* Child accordion header layout fixes */
       .child-accordion-header {
-          display: flex;
-          align-items: center;
-          width: 100%;
-          gap: 0.75rem;
-          flex-wrap: wrap;
+          display: flex !important;
+          align-items: center !important;
+          width: 100% !important;
+          gap: 0.75rem !important;
+          flex-wrap: nowrap !important; /* Force no wrapping on desktop */
       }
   
       .child-info {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex: 1;
-          min-width: 0;
+          display: flex !important;
+          align-items: center !important;
+          gap: 0.5rem !important;
+          flex: 1 !important;
+          min-width: 0 !important;
       }
   
       .child-controls {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          flex-shrink: 0;
-          margin-left: auto;
+          display: flex !important;
+          align-items: center !important;
+          gap: 0.5rem !important;
+          flex-shrink: 0 !important;
+          margin-left: auto !important;
       }
   
       .copy-status-control {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          display: flex !important;
+          align-items: center !important;
+          gap: 0.25rem !important;
       }
   
       /* Quantity input and button on the same line and responsive */
       .copy-qty-control {
-          display: flex;
-          align-items: center;
-          gap: .5rem; /* Space between input and button */
-          flex-wrap: nowrap; /* Keep them on one line */
-          width: auto; /* Allow content to dictate width */
-          flex-shrink: 0; /* Avoid shrinking that can cause wrapping */
+          display: flex !important;
+          align-items: center !important;
+          gap: 0.25rem !important; /* Tight spacing between input, button, and tooltip */
+          flex-wrap: nowrap !important; /* Keep them on one line */
+          flex-shrink: 0 !important; /* Avoid shrinking */
       }
   
       .copy-qty-control .form-control {
-          width: 70px;
-          text-align: center;
+          width: 50px !important; /* Compact input */
+          text-align: center !important;
+          font-size: 0.875rem !important;
       }
   
       .copy-qty-control .btn {
-          white-space: nowrap;
+          font-size: 0.75rem !important; /* Smaller button text */
+          padding: 0.25rem 0.5rem !important; /* Compact button */
+          white-space: nowrap !important;
+      }
+  
+      .copy-qty-control i {
+          font-size: 0.875rem !important; /* Smaller tooltip icon */
+          cursor: help !important;
       }
   
       /* Prevent toggle switch from interfering with accordion */
       .accordion-button .form-check {
-          pointer-events: all;
-          z-index: 10;
-          position: relative;
+          pointer-events: all !important;
+          z-index: 10 !important;
+          position: relative !important;
       }
   
       .accordion-button .form-check-input {
-          pointer-events: all;
+          pointer-events: all !important;
       }
   
       /* Ensure list-group-item content flows well on small screens */
@@ -240,19 +247,30 @@
   
       @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
           .child-accordion-header {
-              flex-direction: column;
-              align-items: flex-start;
+              flex-wrap: wrap !important;
+              flex-direction: column !important;
+              align-items: flex-start !important;
+          }
+  
+          .child-info {
+              width: 100% !important;
           }
   
           .child-controls {
-              width: 100%;
-              justify-content: space-between;
-              margin-left: 0;
-              margin-top: 0.5rem;
+              width: 100% !important;
+              justify-content: space-between !important;
+              margin-left: 0 !important;
+              margin-top: 0.5rem !important;
+              gap: 0.75rem !important;
           }
   
           .copy-qty-control .form-control {
-              width: 60px;
+              width: 45px !important;
+          }
+  
+          .copy-qty-control .btn {
+              font-size: 0.7rem !important;
+              padding: 0.2rem 0.4rem !important;
           }
   
           /* Updated: Use flex-nowrap to keep elements on one line, and adjust spacing. */
