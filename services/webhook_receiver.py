@@ -20,6 +20,7 @@ import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
 
 from .alert_guard import check_duplicate_and_risk
+from brokers import symbol_map
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,32 @@ def get_expiry_year(month: str, day: int = None) -> str:
     return str(year % 100).zfill(2)
 
 
+def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
+    """Get lot size from the symbol map for a given symbol."""
+    try:
+        # Ensure symbol map is loaded
+        if not symbol_map.SYMBOL_MAP:
+            symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
+        
+        # Get the symbol mapping
+        mapping = symbol_map.get_symbol_for_broker(symbol, "dhan", exchange)
+        
+        if mapping and "lot_size" in mapping:
+            lot_size = mapping["lot_size"]
+            if lot_size:
+                try:
+                    return int(lot_size)
+                except (ValueError, TypeError):
+                    pass
+        
+        logger.warning(f"Could not find lot size for symbol {symbol} in symbol map")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error fetching lot size from symbol map for {symbol}: {e}")
+        return None
+
+
 def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
     """Normalize F&O symbol to standardized format and extract metadata.
     
@@ -91,23 +118,33 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         # Extract metadata from Dhan format
         opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', sym)
         if opt_match:
+            underlying = opt_match.group(1)
             metadata = {
-                'underlying': opt_match.group(1),
+                'underlying': underlying,
                 'expiry_month': opt_match.group(2),
                 'expiry_year': opt_match.group(3),
                 'strike': int(opt_match.group(4)),
                 'option_type': opt_match.group(5),
-                'instrument_type': 'OPTIDX' if 'NIFTY' in opt_match.group(1) else 'OPTSTK'
+                'instrument_type': 'OPTIDX' if 'NIFTY' in underlying else 'OPTSTK'
             }
+            # Get lot size from symbol map
+            lot_size = get_lot_size_from_symbol_map(sym, "NFO")
+            if lot_size:
+                metadata['lot_size'] = lot_size
         
         fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', sym)
         if fut_match:
+            underlying = fut_match.group(1)
             metadata = {
-                'underlying': fut_match.group(1),
+                'underlying': underlying,
                 'expiry_month': fut_match.group(2),
                 'expiry_year': fut_match.group(3),
-                'instrument_type': 'FUTIDX' if 'NIFTY' in fut_match.group(1) else 'FUTSTK'
+                'instrument_type': 'FUTIDX' if 'NIFTY' in underlying else 'FUTSTK'
             }
+            # Get lot size from symbol map
+            lot_size = get_lot_size_from_symbol_map(sym, "NFO")
+            if lot_size:
+                metadata['lot_size'] = lot_size
         
         return sym, metadata
     
@@ -137,6 +174,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
     # Pattern 3: Futures with day: "FINNIFTY 30 SEP FUT"
@@ -159,9 +201,14 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'expiry_day': day,
             'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
-    # Pattern 4: Compact options with year: FINNIFTY25SEP33300CE
+    # Pattern 4: Compact options with year: FINNIFTY25SEP33300CE, NIFTYNXT5025NOV35500CALL
     compact_opt_match = re.match(
         r'^(.+?)(\d{2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
         sym
@@ -182,6 +229,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
     # Pattern 5: Compact futures: FINNIFTY25SEPFUT
@@ -202,6 +254,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'expiry_year': full_year,
             'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
     # Pattern 6: Spaced options: "FINNIFTY 25 SEP 33300 CALL"
@@ -225,6 +282,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
     # Pattern 7: Spaced futures: "FINNIFTY 25 SEP FUT"
@@ -245,6 +307,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             'expiry_year': full_year,
             'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
         }
+        # Get lot size from symbol map
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
         return normalized, metadata
     
     # Pattern 8: Already normalized derivative symbols (compact format)
@@ -261,6 +328,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
                 'option_type': opt_type,
                 'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
             }
+            # Convert to Dhan format and get lot size
+            normalized_dhan = f"{root}-{month.title()}20{year}-{strike}-{opt_type}"
+            lot_size = get_lot_size_from_symbol_map(normalized_dhan, "NFO")
+            if lot_size:
+                metadata['lot_size'] = lot_size
         
         fut_match = re.match(r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$', sym)
         if fut_match:
@@ -271,6 +343,11 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
                 'expiry_year': f"20{year}",
                 'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
             }
+            # Convert to Dhan format and get lot size
+            normalized_dhan = f"{root}-{month.title()}20{year}-FUT"
+            lot_size = get_lot_size_from_symbol_map(normalized_dhan, "NFO")
+            if lot_size:
+                metadata['lot_size'] = lot_size
         
         return sym, metadata
     
@@ -282,6 +359,13 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
                 'underlying': sym,
                 'instrument_type': 'EQ'
             }
+            # Get lot size from symbol map (usually 1 for equity)
+            lot_size = get_lot_size_from_symbol_map(normalized, "NSE")
+            if lot_size:
+                metadata['lot_size'] = lot_size
+            else:
+                metadata['lot_size'] = 1  # Default for equity
+            
             return normalized, metadata
     
     # Return original if no pattern matches
@@ -396,8 +480,19 @@ class WebhookEventSchema(Schema):
                         if metadata.get('expiry_day'):
                             expiry_str = f"{metadata['expiry_day']}{expiry_str}"
                         data["expiry"] = expiry_str
+                    
+                    # CRITICAL: Set lot size from symbol map
+                    if metadata.get('lot_size'):
+                        data["lot_size"] = metadata['lot_size']
+                        logger.info(f"Set lot size to {metadata['lot_size']} for symbol {normalized_symbol}")
             else:
                 logger.info(f"Symbol already normalized or no normalization needed: {raw_sym}")
+                # Even if not normalized, try to get lot size for F&O symbols
+                if re.search(r'(FUT|CE|PE)$', raw_sym):
+                    lot_size = get_lot_size_from_symbol_map(raw_sym, data.get("exchange", "NFO"))
+                    if lot_size:
+                        data["lot_size"] = lot_size
+                        logger.info(f"Found lot size {lot_size} for existing symbol {raw_sym}")
         
         return data
 
@@ -471,4 +566,5 @@ __all__ = [
     "ValidationError",
     "normalize_fo_symbol",
     "get_expiry_year",
+    "get_lot_size_from_symbol_map",
 ]
