@@ -119,7 +119,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     if broker == 'dhan':
         # NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT format
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE), symbol)
+        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -130,7 +130,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
                 'instrument': 'OPT'
             }
         
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT, symbol)
+        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -141,7 +141,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
         # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE), symbol)
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -153,7 +153,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
             }
         
         # NIFTY24DECFUT format
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT, symbol)
+        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -532,7 +532,7 @@ def get_symbol_for_broker(
         exchange_hint, symbol = symbol.split(":", 1)
     
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE), symbol):
+    if re.search(r'(FUT|CE|PE)$', symbol):
         # Try direct lookup first
         result = _direct_symbol_lookup(symbol, broker, exchange_hint)
         if result and "lot_size" in result:
