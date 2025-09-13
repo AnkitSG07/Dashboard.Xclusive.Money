@@ -104,7 +104,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
         # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE), symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -116,7 +116,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
             }
         
         # NIFTY24DECFUT format
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
+        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT, symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -189,7 +189,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
     fut_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT,
         sym
     )
     if fut_with_year:
@@ -203,7 +203,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
     fut_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT,
         sym
     )
     if fut_no_year:
@@ -216,7 +216,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE),
         sym
     )
     if opt_with_year:
@@ -230,7 +230,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE),
         sym
     )
     if opt_no_year:
@@ -242,14 +242,40 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         return normalized
     
     # Pattern 5: Handle equity symbols
-    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
+    if not re.search(r'(FUT|CE|PE), sym) and not sym.endswith('-EQ'):
+        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+, sym):
             normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
             log.info(f"Normalized equity symbol: {normalized}")
             return normalized
     
     log.debug(f"No normalization pattern matched for: {sym}")
     return sym
+
+
+def get_lot_size_from_symbol_map(symbol: str, broker: str, exchange: str = None) -> int:
+    """Get lot size from symbol map for the given symbol and broker."""
+    try:
+        # Ensure symbol map is loaded
+        if not symbol_map.SYMBOL_MAP:
+            symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
+        
+        # Get the symbol mapping
+        mapping = symbol_map.get_symbol_for_broker(symbol, broker, exchange)
+        
+        if mapping and "lot_size" in mapping:
+            lot_size = mapping["lot_size"]
+            if lot_size:
+                try:
+                    return int(lot_size)
+                except (ValueError, TypeError):
+                    pass
+        
+        log.warning(f"Could not find lot size for symbol {symbol} from symbol map")
+        return None
+        
+    except Exception as e:
+        log.error(f"Error fetching lot size from symbol map for {symbol}: {e}")
+        return None
 
 
 def get_default_lot_size(symbol: str) -> int:
@@ -322,7 +348,7 @@ def consume_webhook_events(
             # Check if it's a derivative
             is_derivative = (
                 instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
-                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
+                bool(re.search(r'(FUT|CE|PE), symbol.upper()))
             )
             
             if is_derivative:
@@ -334,10 +360,10 @@ def consume_webhook_events(
                     # Update instrument type based on normalized symbol
                     if "-FUT" in normalized_symbol:
                         event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
-                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
+                    elif re.search(r'-\d+-(CE|PE), normalized_symbol):
                         event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
                         # Extract and set strike price and option type
-                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
+                        match = re.search(r'-(\d+)-(CE|PE), normalized_symbol)
                         if match:
                             event["strike"] = int(match.group(1))
                             event["option_type"] = match.group(2)
@@ -447,7 +473,7 @@ def consume_webhook_events(
                 original_symbol = event.get("symbol", "")
                 instrument_type = event.get("instrument_type", "")
                 
-                is_fo = bool(re.search(r'(FUT|CE|PE)$', str(original_symbol).upper())) or \
+                is_fo = bool(re.search(r'(FUT|CE|PE), str(original_symbol).upper())) or \
                         instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
                 
                 # Convert symbol if it's F&O and brokers are different
@@ -498,28 +524,29 @@ def consume_webhook_events(
                 # Enhanced lot size handling for F&O
                 lot_size = None
                 if is_fo:
+                    # Priority 1: Use lot_size from event (webhook already processed it)
                     lot_size = event.get("lot_size")
                     
-                    # Try to get from symbol map using converted symbol
+                    # Priority 2: Try to get from symbol map using converted symbol
                     if lot_size is None:
-                        try:
-                            mapping = symbol_map.get_symbol_for_broker(
-                                converted_symbol, broker_cfg["name"], exchange
-                            )
-                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-                            
-                            if lot_size:
-                                log.info(f"Found lot size {lot_size} for {converted_symbol} from symbol map")
-                        except Exception as e:
-                            log.warning(
-                                "Could not retrieve lot size from symbol map for %s: %s",
-                                converted_symbol, str(e), extra={"event": event, "broker": broker_cfg}
-                            )
+                        lot_size = get_lot_size_from_symbol_map(
+                            converted_symbol, broker_cfg["name"], exchange
+                        )
+                        if lot_size:
+                            log.info(f"Found lot size {lot_size} for {converted_symbol} from symbol map")
                     
-                    # Enhanced fallback lot sizes
-                    if not lot_size:
+                    # Priority 3: Try original symbol if conversion didn't work
+                    if lot_size is None and converted_symbol != original_symbol:
+                        lot_size = get_lot_size_from_symbol_map(
+                            original_symbol, "dhan", exchange
+                        )
+                        if lot_size:
+                            log.info(f"Found lot size {lot_size} for original symbol {original_symbol} from symbol map")
+                    
+                    # Priority 4: Enhanced fallback lot sizes (only as last resort)
+                    if lot_size is None:
                         lot_size = get_default_lot_size(converted_symbol)
-                        log.info(f"Using default lot size {lot_size} for {converted_symbol}")
+                        log.warning(f"Using default lot size {lot_size} for {converted_symbol} - consider updating symbol map")
                     
                     if lot_size:
                         try:
@@ -530,7 +557,16 @@ def consume_webhook_events(
                             log.info(f"F&O quantity adjustment: {original_qty} lots × {lot_size} = {calculated_qty}")
                         except (ValueError, TypeError):
                             log.error("Invalid lot size or quantity for F&O order")
-                            return None
+                            return {
+                                "status": "failure", 
+                                "error": f"Invalid lot size ({lot_size}) or quantity ({event['qty']}) for F&O order"
+                            }
+                    else:
+                        log.error(f"Could not determine lot size for F&O symbol {converted_symbol}")
+                        return {
+                            "status": "failure", 
+                            "error": f"Could not determine lot size for F&O symbol {converted_symbol}"
+                        }
                 
                 try:
                     result = client.place_order(**order_params)
@@ -681,6 +717,7 @@ __all__ = [
     "parse_fo_symbol",
     "format_fo_symbol",
     "get_default_lot_size",
+    "get_lot_size_from_symbol_map",
 ]
 
 
