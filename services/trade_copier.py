@@ -478,8 +478,11 @@ def poll_and_copy_trades(
                         async def handle(msg_id=msg_id, event=event):
                             start = time.time()
                             try:
+                                # CRITICAL FIX: Force refresh database session to get latest credentials
                                 db_session.rollback()
-                                db_session.expire_all()    
+                                db_session.expire_all()
+                                
+                                # Re-query master account to get fresh credentials
                                 master = (
                                     db_session.query(Account)
                                     .filter_by(client_id=str(event["master_id"]), role="master")
@@ -494,7 +497,9 @@ def poll_and_copy_trades(
                                             master.client_id, master_copy_status
                                         )
                                         return
-                                        
+                                    
+                                    # CRITICAL FIX: Force another session refresh before processing children
+                                    # This ensures we get the absolute latest credentials for child accounts
                                     db_session.rollback()
                                     db_session.expire_all()
                                     
@@ -507,6 +512,7 @@ def poll_and_copy_trades(
                                         event.get('source', 'webhook')
                                     )
                                     
+                                    # Pass the fresh session to ensure latest credentials are used
                                     await _replicate_to_children(
                                         db_session,
                                         master,
