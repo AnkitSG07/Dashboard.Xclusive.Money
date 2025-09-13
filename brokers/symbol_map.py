@@ -104,7 +104,7 @@ def extract_root_symbol(symbol: str) -> str:
     cleaned = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', cleaned)
     
     # Remove strike prices (numbers at the end)
-    cleaned = re.sub(r'\d+$', '', cleaned)
+    cleaned = re.sub(r'\d+, '', cleaned)
     
     return cleaned
 
@@ -119,7 +119,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     if broker == 'dhan':
         # NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT format
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
+        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE), symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -130,7 +130,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
                 'instrument': 'OPT'
             }
         
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
+        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT, symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -141,7 +141,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
         # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE), symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -153,7 +153,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
             }
         
         # NIFTY24DECFUT format
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
+        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT, symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -233,9 +233,13 @@ def _load_zerodha() -> Dict[Key, Dict[str, str]]:
             "FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"
         }:
             key = (row["tradingsymbol"], segment)
+            lot_size = row.get("lot_size", "1")
+            # Ensure lot size is valid
+            if not lot_size or lot_size == "" or lot_size == "0":
+                lot_size = "1"
             data[key] = {
                 "instrument_token": row["instrument_token"],
-                "lot_size": row.get("lot_size", "1")
+                "lot_size": lot_size
             }
     
     return data
@@ -256,7 +260,7 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
         
         # Get lot size from SEM_LOT_UNITS column
         lot_size = row.get("SEM_LOT_UNITS", "1")
-        if not lot_size or lot_size == "":
+        if not lot_size or lot_size == "" or lot_size == "0":
             lot_size = "1"
         
         if exch in {"NSE", "BSE"} and segment == "E":
@@ -376,12 +380,22 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
             else:
                 exch_segment = exchange
             
+            # Use Dhan's lot size if available, otherwise fallback to Zerodha
+            dhan_lot_size = dhan_info.get("lot_size", lot_size)
+            
             entry["dhan"] = {
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
-                "lot_size": dhan_info.get("lot_size", lot_size),  # Use Dhan's lot size or fallback
+                "lot_size": dhan_lot_size,
                 "trading_symbol": symbol
             }
+            
+            # Update all other brokers with Dhan's lot size if it's different and valid
+            if dhan_lot_size and dhan_lot_size != lot_size and dhan_lot_size != "1":
+                log.debug(f"Using Dhan lot size {dhan_lot_size} over Zerodha {lot_size} for {symbol}")
+                for broker_data in entry.values():
+                    if broker_data != entry["dhan"]:
+                        broker_data["lot_size"] = dhan_lot_size
         
         # Extract root symbol for indexing
         root_symbol = extract_root_symbol(symbol)
@@ -400,11 +414,13 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         else:
             exch_segment = exchange
         
+        lot_size = dhan_info.get("lot_size", "1")
+        
         entry = {
             "dhan": {
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
-                "lot_size": dhan_info.get("lot_size", "1"),
+                "lot_size": lot_size,
                 "trading_symbol": symbol  # Store original Dhan symbol
             }
         }
@@ -490,7 +506,13 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
             exchange_map = next(iter(mapping.values()))
             log.debug(f"Using first available exchange: {list(mapping.keys())[0]}")
     
-    return exchange_map.get(broker, {}) if exchange_map else {}
+    broker_data = exchange_map.get(broker, {}) if exchange_map else {}
+    
+    # Log lot size for debugging
+    if broker_data and "lot_size" in broker_data:
+        log.debug(f"Found lot size {broker_data['lot_size']} for {symbol} on {broker}")
+    
+    return broker_data
 
 
 def get_symbol_for_broker(
@@ -510,10 +532,11 @@ def get_symbol_for_broker(
         exchange_hint, symbol = symbol.split(":", 1)
     
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE)$', symbol):
+    if re.search(r'(FUT|CE|PE), symbol):
         # Try direct lookup first
         result = _direct_symbol_lookup(symbol, broker, exchange_hint)
-        if result:
+        if result and "lot_size" in result:
+            log.debug(f"Direct lookup found lot size {result['lot_size']} for {symbol}")
             return result
             
         # Try parsing and converting from different broker formats
@@ -526,8 +549,8 @@ def get_symbol_for_broker(
                 converted_symbol = format_fo_symbol(components, broker)
                 if converted_symbol:
                     result = _direct_symbol_lookup(converted_symbol, broker, exchange_hint)
-                    if result:
-                        log.info(f"Found F&O mapping via conversion: {symbol} -> {converted_symbol}")
+                    if result and "lot_size" in result:
+                        log.info(f"Found F&O mapping via conversion: {symbol} -> {converted_symbol}, lot size: {result['lot_size']}")
                         return result
         
         # Try with root symbol lookup for F&O
@@ -547,13 +570,13 @@ def get_symbol_for_broker(
                 exchange_map = next(iter(mapping.values()))
             
             broker_data = exchange_map.get(broker, {}) if exchange_map else {}
-            if broker_data:
+            if broker_data and "lot_size" in broker_data:
                 # Try to convert the symbol to the broker's format
                 if broker == 'dhan' and 'trading_symbol' in broker_data:
                     # Convert from other format to Dhan format
                     dhan_symbol = broker_data.get('trading_symbol', symbol)
                     if dhan_symbol != symbol:
-                        log.info(f"Using Dhan symbol mapping: {symbol} -> {dhan_symbol}")
+                        log.info(f"Using Dhan symbol mapping: {symbol} -> {dhan_symbol}, lot size: {broker_data['lot_size']}")
                         broker_data = dict(broker_data)
                         broker_data['symbol'] = dhan_symbol
                         broker_data['trading_symbol'] = dhan_symbol
