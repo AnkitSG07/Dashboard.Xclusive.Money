@@ -104,7 +104,7 @@ def extract_root_symbol(symbol: str) -> str:
     cleaned = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', cleaned)
     
     # Remove strike prices (numbers at the end)
-    cleaned = re.sub(r'\d+, '', cleaned)
+    cleaned = re.sub(r'\d+$', '', cleaned)
     
     return cleaned
 
