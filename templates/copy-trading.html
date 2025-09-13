@@ -1,249 +1,310 @@
-
 {% extends "layout.html" %}
 {% block title %}Copy Trading - DhanBot{% endblock %}
 
 {% block head %}
   {{ super() }}
   <style>
-    :root {
-      --bs-primary: #007bff; /* A standard primary blue */
-      --bs-secondary: #6c757d;
-      --bs-success: #28a745;
-      --bs-info: #17a2b8;
-      --bs-warning: #ffc107;
-      --bs-danger: #dc3545;
-      --bs-light: #f8f9fa;
-      --bs-dark: #343a40;
-
-      --bs-body-bg: #f4f7f6; /* Light gray background for the whole page */
-      --bs-body-color: #333; /* Darker text for readability */
-
-      /* Customizing shadows for a softer look */
-      --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
-      --bs-box-shadow-sm: 0 .125rem .25rem rgba(0,0,0,.06);
-      --bs-box-shadow-lg: 0 .5rem 1rem rgba(0,0,0,.15);
-      --bs-box-shadow-inset: inset 0 1px 2px rgba(0,0,0,.075);
-
-      /* Rounded corners */
-      --bs-border-radius: .5rem; /* Slightly more rounded */
-      --bs-border-radius-sm: .3rem;
-      --bs-border-radius-lg: .75rem;
-    }
-
-    body {
-      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-      background-color: var(--bs-body-bg);
-      color: var(--bs-body-color);
-    }
-
-    .card {
-      border-radius: var(--bs-border-radius-lg); /* More pronounced rounded corners for cards */
-      box-shadow: var(--bs-box-shadow);
-      transition: all 0.3s ease; /* Smooth transition for hover effects */
-    }
-
-    .card:hover {
-      box-shadow: var(--bs-box-shadow-lg); /* Lift effect on hover */
-      transform: translateY(-2px);
-    }
-
-    .card-header {
-      border-top-left-radius: var(--bs-border-radius-lg);
-      border-top-right-radius: var(--bs-border-radius-lg);
-      font-weight: 600;
-      border-bottom: none; /* Remove default header border */
-    }
-
-    .hero-section {
-      background: linear-gradient(45deg, var(--bs-primary), #0d6efd); /* Gradient background for hero */
-      color: white;
-      padding: 2.5rem !important;
-      border-radius: var(--bs-border-radius-lg) !important;
-      box-shadow: var(--bs-box-shadow-lg) !important;
-    }
-
-    .hero-section h3, .hero-section p {
-        color: white !important; /* Ensure text is white on gradient */
-    }
-
-    .hero-section a {
-        color: rgba(255, 255, 255, 0.8) !important;
-        text-decoration: underline !important;
-    }
-    .hero-section a:hover {
-        color: white !important;
-    }
-
-    .btn {
-      border-radius: var(--bs-border-radius-sm);
-    }
-
-    .btn-outline-primary,
-    .btn-outline-secondary,
-    .btn-outline-success,
-    .btn-outline-warning,
-    .btn-outline-info,
-    .btn-outline-danger,
-    .btn-outline-dark {
-        transition: all 0.2s ease; /* Smooth hover for outline buttons */
-    }
-
-    .accordion-item {
-      border: none; /* Remove default accordion borders */
-      border-radius: var(--bs-border-radius);
-      box-shadow: var(--bs-box-shadow-sm);
-      margin-bottom: 1rem; /* Space between accordion items */
-      overflow: hidden; /* Ensure rounded corners clip content */
-    }
-
-    .accordion-button {
-      background-color: white;
-      border-radius: var(--bs-border-radius);
-      transition: background-color 0.2s ease;
-      font-weight: 500;
-      padding: 1rem 1.25rem; /* Adjust padding */
-    }
-
-    .accordion-button:not(.collapsed) {
-      background-color: var(--bs-light); /* Slightly different background for expanded */
-      color: var(--bs-primary);
-      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.125);
-    }
-
-    .accordion-body {
-      background-color: #fcfdff; /* Lighter background for accordion content */
-      border-top: 1px solid rgba(0,0,0,.05); /* Subtle separator */
-    }
-
-    .list-group-item {
-      border-radius: var(--bs-border-radius-sm);
-      margin-bottom: .5rem; /* Space between list items */
-      border: 1px solid rgba(0,0,0,.05);
-      background-color: white;
-      transition: all 0.2s ease;
-    }
-
-    .list-group-item:hover {
-        background-color: var(--bs-light);
+      :root {
+        --bs-primary: #007bff; /* A standard primary blue */
+        --bs-secondary: #6c757d;
+        --bs-success: #28a745;
+        --bs-info: #17a2b8;
+        --bs-warning: #ffc107;
+        --bs-danger: #dc3545;
+        --bs-light: #f8f9fa;
+        --bs-dark: #343a40;
+  
+        --bs-body-bg: #f4f7f6; /* Light gray background for the whole page */
+        --bs-body-color: #333; /* Darker text for readability */
+  
+        /* Customizing shadows for a softer look */
+        --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+        --bs-box-shadow-sm: 0 .125rem .25rem rgba(0,0,0,.06);
+        --bs-box-shadow-lg: 0 .5rem 1rem rgba(0,0,0,.15);
+        --bs-box-shadow-inset: inset 0 1px 2px rgba(0,0,0,.075);
+  
+        /* Rounded corners */
+        --bs-border-radius: .5rem; /* Slightly more rounded */
+        --bs-border-radius-sm: .3rem;
+        --bs-border-radius-lg: .75rem;
+      }
+  
+      body {
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        background-color: var(--bs-body-bg);
+        color: var(--bs-body-color);
+      }
+  
+      .card {
+        border-radius: var(--bs-border-radius-lg); /* More pronounced rounded corners for cards */
+        box-shadow: var(--bs-box-shadow);
+        transition: all 0.3s ease; /* Smooth transition for hover effects */
+      }
+  
+      .card:hover {
+        box-shadow: var(--bs-box-shadow-lg); /* Lift effect on hover */
+        transform: translateY(-2px);
+      }
+  
+      .card-header {
+        border-top-left-radius: var(--bs-border-radius-lg);
+        border-top-right-radius: var(--bs-border-radius-lg);
+        font-weight: 600;
+        border-bottom: none; /* Remove default header border */
+      }
+  
+      .hero-section {
+        background: linear-gradient(45deg, var(--bs-primary), #0d6efd); /* Gradient background for hero */
+        color: white;
+        padding: 2.5rem !important;
+        border-radius: var(--bs-border-radius-lg) !important;
+        box-shadow: var(--bs-box-shadow-lg) !important;
+      }
+  
+      .hero-section h3, .hero-section p {
+          color: white !important; /* Ensure text is white on gradient */
+      }
+  
+      .hero-section a {
+          color: rgba(255, 255, 255, 0.8) !important;
+          text-decoration: underline !important;
+      }
+      .hero-section a:hover {
+          color: white !important;
+      }
+  
+      .btn {
+        border-radius: var(--bs-border-radius-sm);
+      }
+  
+      .btn-outline-primary,
+      .btn-outline-secondary,
+      .btn-outline-success,
+      .btn-outline-warning,
+      .btn-outline-info,
+      .btn-outline-danger,
+      .btn-outline-dark {
+          transition: all 0.2s ease; /* Smooth hover for outline buttons */
+      }
+  
+      .accordion-item {
+        border: none; /* Remove default accordion borders */
+        border-radius: var(--bs-border-radius);
         box-shadow: var(--bs-box-shadow-sm);
-    }
-
-    .badge {
-      font-weight: 600;
-      padding: .4em .7em;
-      border-radius: .25rem;
-    }
-
-    .form-check-input:checked {
-      background-color: var(--bs-primary);
-      border-color: var(--bs-primary);
-    }
-
-    /* Adjust modal header background for consistent theme */
-    .modal-header.bg-primary,
-    .modal-header.bg-info {
-        background-color: var(--bs-primary) !important;
-    }
-
-    /* Specific adjustments for input groups in tables */
-    .input-group-sm .form-control, .input-group-sm .btn {
-        height: calc(1.5em + .5rem + 2px); /* Bootstrap's height for sm inputs */
-    }
-
-    /* Specific styling for the custom backdrop used in modals for spinner/symbol select */
-    .modal-backdrop.d-flex {
-        background-color: rgba(0, 0, 0, 0.65); /* Darker backdrop for loading */
-        backdrop-filter: blur(3px); /* Optional blur effect */
-    }
-
-    /* --- FIXES FOR MOBILE VIEW & MULTIPLIER --- */
-
-    /* Quantity input and button on the same line and responsive */
-    .copy-qty-control {
-        display: inline-flex; /* Prevent block-level expansion */
-        align-items: center;
-        gap: .5rem; /* Space between input and button */
-        flex-wrap: nowrap; /* Keep them on one line */
-        width: auto; /* Allow content to dictate width */
-        flex-shrink: 0; /* Avoid shrinking that can cause wrapping */
-    }
-
-    .copy-qty-control .form-control {
-        max-width: 80px; /* Limit width of quantity input */
-        text-align: center;
-    }
-
-    /* Ensure list-group-item content flows well on small screens */
-    .list-group-item .d-flex {
-        flex-wrap: wrap; /* Allow content inside list items to wrap */
-    }
-
-    .list-group-item .d-flex > * {
-        margin-bottom: .25rem; /* Small space for wrapped items */
-    }
-
-    .list-group-item .d-flex > *:last-child {
-        margin-bottom: 0;
-    }
-
-    /* Adjust spacing and font size for details within list items on smaller screens */
-    .list-group-item p,
-    .list-group-item small {
-        font-size: 0.875rem; /* Slightly smaller text */
-        line-height: 1.3;
-    }
-
-    @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
-        /* Updated: Use flex-nowrap to keep elements on one line, and adjust spacing. */
-        .accordion-button .d-flex.w-100.pe-3 {
-            flex-wrap: nowrap; /* Prevent wrapping to keep controls on one line */
-            justify-content: flex-start; /* Align content to the start */
-            text-align: left;
-            overflow-x: auto; /* Add horizontal scroll if necessary */
-        }
-        .accordion-button .d-flex.w-100.pe-3 > * {
-            flex-shrink: 0; /* Prevent elements from shrinking */
-            margin-bottom: 0;
-        }
-        .accordion-button .d-flex.w-100.pe-3 .ms-auto {
-            margin-left: auto !important;
-            margin-right: 0 !important;
-        }
-
-        .accordion-button .d-none.d-md-inline-block {
-            display: block !important; /* Show username on mobile */
-            font-size: 0.85rem;
-        }
-
-        /* Remove the width 100% rule for quantity control on mobile */
-        .accordion-button .copy-qty-control {
-            width: auto;
-        }
-
-        .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
-            justify-content: center;
-        }
-
-        .accordion-body .d-flex.flex-wrap.gap-2.mb-3 .btn {
-            flex-grow: 1; /* Make buttons expand on mobile */
-            max-width: 48%; /* Allow two buttons per row */
-        }
-
-        .nav-tabs .nav-item {
-            flex-grow: 1; /* Make tabs equally wide */
-            text-align: center;
-        }
-        .nav-tabs .nav-link {
-            padding: .75rem .5rem; /* Smaller padding for tabs */
-            font-size: 0.875rem;
-        }
-
-        /* Adjust list-group items for better mobile readability */
-        .list-group-item p,
-        .list-group-item small {
-            word-break: break-word; /* Break long words */
-        }
-    }
+        margin-bottom: 1rem; /* Space between accordion items */
+        overflow: hidden; /* Ensure rounded corners clip content */
+      }
+  
+      .accordion-button {
+        background-color: white;
+        border-radius: var(--bs-border-radius);
+        transition: background-color 0.2s ease;
+        font-weight: 500;
+        padding: 1rem 1.25rem; /* Adjust padding */
+      }
+  
+      .accordion-button:not(.collapsed) {
+        background-color: var(--bs-light); /* Slightly different background for expanded */
+        color: var(--bs-primary);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.125);
+      }
+  
+      .accordion-body {
+        background-color: #fcfdff; /* Lighter background for accordion content */
+        border-top: 1px solid rgba(0,0,0,.05); /* Subtle separator */
+      }
+  
+      .list-group-item {
+        border-radius: var(--bs-border-radius-sm);
+        margin-bottom: .5rem; /* Space between list items */
+        border: 1px solid rgba(0,0,0,.05);
+        background-color: white;
+        transition: all 0.2s ease;
+      }
+  
+      .list-group-item:hover {
+          background-color: var(--bs-light);
+          box-shadow: var(--bs-box-shadow-sm);
+      }
+  
+      .badge {
+        font-weight: 600;
+        padding: .4em .7em;
+        border-radius: .25rem;
+      }
+  
+      .form-check-input:checked {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+      }
+  
+      /* Adjust modal header background for consistent theme */
+      .modal-header.bg-primary,
+      .modal-header.bg-info {
+          background-color: var(--bs-primary) !important;
+      }
+  
+      /* Specific adjustments for input groups in tables */
+      .input-group-sm .form-control, .input-group-sm .btn {
+          height: calc(1.5em + .5rem + 2px); /* Bootstrap's height for sm inputs */
+      }
+  
+      /* Specific styling for the custom backdrop used in modals for spinner/symbol select */
+      .modal-backdrop.d-flex {
+          background-color: rgba(0, 0, 0, 0.65); /* Darker backdrop for loading */
+          backdrop-filter: blur(3px); /* Optional blur effect */
+      }
+  
+      /* --- FIXES FOR MOBILE VIEW & MULTIPLIER --- */
+  
+      /* Child accordion header layout fixes */
+      .child-accordion-header {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+      }
+  
+      .child-info {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex: 1;
+          min-width: 0;
+      }
+  
+      .child-controls {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-shrink: 0;
+          margin-left: auto;
+      }
+  
+      .copy-status-control {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+      }
+  
+      /* Quantity input and button on the same line and responsive */
+      .copy-qty-control {
+          display: flex;
+          align-items: center;
+          gap: .5rem; /* Space between input and button */
+          flex-wrap: nowrap; /* Keep them on one line */
+          width: auto; /* Allow content to dictate width */
+          flex-shrink: 0; /* Avoid shrinking that can cause wrapping */
+      }
+  
+      .copy-qty-control .form-control {
+          width: 70px;
+          text-align: center;
+      }
+  
+      .copy-qty-control .btn {
+          white-space: nowrap;
+      }
+  
+      /* Prevent toggle switch from interfering with accordion */
+      .accordion-button .form-check {
+          pointer-events: all;
+          z-index: 10;
+          position: relative;
+      }
+  
+      .accordion-button .form-check-input {
+          pointer-events: all;
+      }
+  
+      /* Ensure list-group-item content flows well on small screens */
+      .list-group-item .d-flex {
+          flex-wrap: wrap; /* Allow content inside list items to wrap */
+      }
+  
+      .list-group-item .d-flex > * {
+          margin-bottom: .25rem; /* Small space for wrapped items */
+      }
+  
+      .list-group-item .d-flex > *:last-child {
+          margin-bottom: 0;
+      }
+  
+      /* Adjust spacing and font size for details within list items on smaller screens */
+      .list-group-item p,
+      .list-group-item small {
+          font-size: 0.875rem; /* Slightly smaller text */
+          line-height: 1.3;
+      }
+  
+      @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
+          .child-accordion-header {
+              flex-direction: column;
+              align-items: flex-start;
+          }
+  
+          .child-controls {
+              width: 100%;
+              justify-content: space-between;
+              margin-left: 0;
+              margin-top: 0.5rem;
+          }
+  
+          .copy-qty-control .form-control {
+              width: 60px;
+          }
+  
+          /* Updated: Use flex-nowrap to keep elements on one line, and adjust spacing. */
+          .accordion-button .d-flex.w-100.pe-3 {
+              flex-wrap: nowrap; /* Prevent wrapping to keep controls on one line */
+              justify-content: flex-start; /* Align content to the start */
+              text-align: left;
+              overflow-x: auto; /* Add horizontal scroll if necessary */
+          }
+          .accordion-button .d-flex.w-100.pe-3 > * {
+              flex-shrink: 0; /* Prevent elements from shrinking */
+              margin-bottom: 0;
+          }
+          .accordion-button .d-flex.w-100.pe-3 .ms-auto {
+              margin-left: auto !important;
+              margin-right: 0 !important;
+          }
+  
+          .accordion-button .d-none.d-md-inline-block {
+              display: block !important; /* Show username on mobile */
+              font-size: 0.85rem;
+          }
+  
+          /* Remove the width 100% rule for quantity control on mobile */
+          .accordion-button .copy-qty-control {
+              width: auto;
+          }
+  
+          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
+              justify-content: center;
+          }
+  
+          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 .btn {
+              flex-grow: 1; /* Make buttons expand on mobile */
+              max-width: 48%; /* Allow two buttons per row */
+          }
+  
+          .nav-tabs .nav-item {
+              flex-grow: 1; /* Make tabs equally wide */
+              text-align: center;
+          }
+          .nav-tabs .nav-link {
+              padding: .75rem .5rem; /* Smaller padding for tabs */
+              font-size: 0.875rem;
+          }
+  
+          /* Adjust list-group items for better mobile readability */
+          .list-group-item p,
+          .list-group-item small {
+              word-break: break-word; /* Break long words */
+          }
+      }
   </style>
 {% endblock %}
 
@@ -1009,26 +1070,29 @@ window.pageScripts["copy-trading"] = function () {
                 <div class="accordion-item shadow-sm mb-3 rounded">
                   <h2 class="accordion-header" id="headingChild${childDomId}">
                     <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
-                      <div class="d-flex align-items-center flex-wrap w-100 pe-3">
-                        ${brokerIconHTML(child.broker)}
-                        <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
-                        <span class="text-muted ms-3 d-block d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
-                        <div class="ms-auto me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
-                        <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0" onclick="event.stopPropagation()">
-                            <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange=\"window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, this)\"`}>
-                            <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
+                      <div class="child-accordion-header">
+                        <div class="child-info">
+                          ${brokerIconHTML(child.broker)}
+                          <span class="fw-semibold">${childUsername} (${childClientId})</span>
+                          <span class="text-muted d-none d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
                         </div>
-                        <div class="copy-qty-control me-3">
-                          <input type="number" min="1" step="1"
-                                 class="form-control form-control-sm"
-                                 id="qty-${childDomId}"
-                                 value="${childQty}" style="width: 60px;">
-                          <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty(${JSON.stringify(rawChildId)})'>Save</button>
-                          <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
-                            <i class="bi bi-info-circle"></i>
-                          </span>
+                        <div class="child-controls" onclick="event.stopPropagation()">
+                          <div>${statusBadge(child.system_errors)}</div>
+                          <div class="copy-status-control">
+                            <div class="form-check form-switch m-0">
+                              <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`}>
+                              <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
+                            </div>
+                          </div>
+                          <div class="copy-qty-control">
+                            <input type="number" min="1" step="1" class="form-control form-control-sm" id="qty-${childDomId}" value="${childQty}">
+                            <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty("${rawChildId}")'>Save</button>
+                            <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
+                              <i class="bi bi-info-circle"></i>
+                            </span>
+                          </div>
+                          ${remainingValue != null ? `<span class="badge bg-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
                         </div>
-                        ${remainingValue != null ? `<span class="badge bg-secondary me-3">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
                       </div>
                     </button>
                   </h2>
