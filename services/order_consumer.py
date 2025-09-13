@@ -104,7 +104,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
         # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE), symbol)
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -116,7 +116,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict:
             }
         
         # NIFTY24DECFUT format
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT, symbol)
+        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
         if fut_match:
             return {
                 'underlying': fut_match.group(1),
@@ -189,7 +189,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
     fut_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT,
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
         sym
     )
     if fut_with_year:
@@ -203,7 +203,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
     fut_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT,
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
         sym
     )
     if fut_no_year:
@@ -216,7 +216,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE),
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
         sym
     )
     if opt_with_year:
@@ -230,7 +230,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE),
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
         sym
     )
     if opt_no_year:
@@ -242,8 +242,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         return normalized
     
     # Pattern 5: Handle equity symbols
-    if not re.search(r'(FUT|CE|PE), sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+, sym):
+    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
+        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
             normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
             log.info(f"Normalized equity symbol: {normalized}")
             return normalized
@@ -348,7 +348,7 @@ def consume_webhook_events(
             # Check if it's a derivative
             is_derivative = (
                 instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
-                bool(re.search(r'(FUT|CE|PE), symbol.upper()))
+                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
             )
             
             if is_derivative:
@@ -360,10 +360,10 @@ def consume_webhook_events(
                     # Update instrument type based on normalized symbol
                     if "-FUT" in normalized_symbol:
                         event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
-                    elif re.search(r'-\d+-(CE|PE), normalized_symbol):
+                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
                         event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
                         # Extract and set strike price and option type
-                        match = re.search(r'-(\d+)-(CE|PE), normalized_symbol)
+                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
                         if match:
                             event["strike"] = int(match.group(1))
                             event["option_type"] = match.group(2)
@@ -473,7 +473,7 @@ def consume_webhook_events(
                 original_symbol = event.get("symbol", "")
                 instrument_type = event.get("instrument_type", "")
                 
-                is_fo = bool(re.search(r'(FUT|CE|PE), str(original_symbol).upper())) or \
+                is_fo = bool(re.search(r'(FUT|CE|PE)$', str(original_symbol).upper())) or \
                         instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
                 
                 # Convert symbol if it's F&O and brokers are different
