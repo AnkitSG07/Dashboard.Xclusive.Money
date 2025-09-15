@@ -1,4 +1,4 @@
-# services/order_consumer.py - CORRECTED VERSION
+    # services/order_consumer.py - CORRECTED VERSION
 from __future__ import annotations
 
 """Asynchronous worker that consumes webhook events and places orders."""
@@ -267,9 +267,11 @@ def get_lot_size_from_symbol_map(symbol: str, broker: str, exchange: str = None)
             lot_size = mapping["lot_size"]
             if lot_size:
                 try:
-                    return int(lot_size)
-                except (ValueError, TypeError):
-                    pass
+                    return int(float(lot_size))
+                except (ValueError, TypeError) as exc:
+                    log.error(
+                        f"Invalid lot size '{lot_size}' for symbol {symbol}: {exc}"
+                    )
         
         log.warning(f"Could not find lot size for symbol {symbol} from symbol map")
         return None
@@ -445,6 +447,19 @@ def consume_webhook_events(
                     access_token=access_token,
                     **credentials,
                 )
+
+
+                # Detect broker names and convert symbol if needed
+                child_broker = str(broker_cfg.get("name", "")).lower()
+                master_broker = str(
+                    event.get("master_broker")
+                    or event.get("broker")
+                    or child_broker
+                ).lower()
+                converted_symbol = convert_symbol_between_brokers(
+                    event.get("symbol"), master_broker, child_broker
+                )
+
                 
                 # CRITICAL FIX: Build order parameters preserving ALL user choices
                 order_params = {
@@ -452,6 +467,7 @@ def consume_webhook_events(
                     "action": event.get("action"),
                     "qty": event.get("qty"),
                 }
+                order_params["symbol"] = converted_symbol
                 
                 # PRESERVE USER EXCHANGE CHOICE
                 exchange = event.get("exchange")
