@@ -8,6 +8,10 @@ from services.logging import publish_log_event
 from typing import List, Optional
 
 
+
+log = logging.getLogger(__name__)
+
+
 def current_user():
     """Return the logged in ``User`` instance or ``None``."""
     user_key = session.get("user")
@@ -49,7 +53,7 @@ def order_mappings_for_user(user):
     )
 
 
-def active_children_for_master(master, session=db.session):
+def active_children_for_master(master, session=db.session, logger: Optional[logging.Logger] = None):
     """Return active child accounts belonging to the same user as ``master``.
 
     Parameters
@@ -57,8 +61,11 @@ def active_children_for_master(master, session=db.session):
     master: Account
         Master account for which active children should be fetched.
     session: sqlalchemy.orm.Session
-        Database session to use for querying accounts. Defaults to ``db.session``.
+    logger: logging.Logger, optional
+        Logger used to record reasons for excluding child accounts. Defaults
+        to this module's logger.
     """
+    logger = logger or log
     # Get all child accounts linked to this master
     children = (
         session.query(Account)
@@ -74,20 +81,32 @@ def active_children_for_master(master, session=db.session):
     active_children = []
     for child in children:
         # Check copy status - only include children with copy_status 'On'
-        copy_status = getattr(child, 'copy_status', 'Off')
-        if str(copy_status).lower() != 'on':
+        copy_status = getattr(child, "copy_status", "Off")
+        if str(copy_status).lower() != "on":
+            logger.info(
+                "Excluding child %s: copy status is %s",
+                getattr(child, "client_id", "unknown"),
+                copy_status,
+            )
             continue
             
         # Check for system errors that would prevent copying
-        system_errors = getattr(child, 'system_errors', [])
+        system_errors = getattr(child, "system_errors", [])
         if system_errors:
-            # Skip children with system errors
+            logger.warning(
+                "Excluding child %s due to system errors: %s",
+                getattr(child, "client_id", "unknown"),
+                system_errors,
+            )
             continue
             
         # Check if child has valid credentials
-        credentials = getattr(child, 'credentials', {})
-        if not credentials or not credentials.get('access_token'):
-            # Skip children without valid credentials
+        credentials = getattr(child, "credentials", {})
+        if not credentials or not credentials.get("access_token"):
+            logger.info(
+                "Excluding child %s: missing credentials",
+                getattr(child, "client_id", "unknown"),
+            )
             continue
             
         active_children.append(child)
