@@ -100,15 +100,23 @@ def active_children_for_master(master, session=db.session, logger: Optional[logg
             )
             continue
             
-        # Check if child has valid credentials
-        credentials = getattr(child, "credentials", {})
-        if not credentials or not credentials.get("access_token"):
+        # Check if child has valid credentials. Brokers such as Alice Blue
+        # authenticate using an ``api_key`` instead of an ``access_token``.
+        # Determine which credential key is required based on the broker and
+        # ensure it exists.
+        credentials = getattr(child, "credentials", {}) or {}
+        broker = getattr(child, "broker", "")
+        required_key = "access_token"
+        if broker in {"aliceblue", "finvasia"}:
+            required_key = "api_key"
+        if not credentials.get(required_key):
             logger.info(
-                "Excluding child %s: missing credentials",
+                "Excluding child %s: missing credentials (%s)",
                 getattr(child, "client_id", "unknown"),
+                required_key,
             )
             continue
-            
+
         active_children.append(child)
     
     return active_children
