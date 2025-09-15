@@ -1,3 +1,4 @@
+# services/webhook_receiver.py - FIXED VERSION
 """Webhook receiver service - Enhanced symbol normalization for F&O.
 
 This module provides minimal validation and serialization of webhook
@@ -380,22 +381,22 @@ class WebhookEventSchema(Schema):
     symbol = fields.Str(required=True)
     action = fields.Str(required=True)
     qty = fields.Int(required=True)
-    exchange = fields.Str(load_default="NSE")
-    order_type = fields.Str(load_default=None)
-    alert_id = fields.Str(load_default=None)
+    exchange = fields.Str(allow_none=True)  # CHANGED: Don't force default
+    order_type = fields.Str(allow_none=True)  # CHANGED: Don't force default
+    alert_id = fields.Str(allow_none=True)
     # Broker specific fields
-    orderType = fields.Str(load_default=None)
-    orderValidity = fields.Str(load_default=None)
-    productType = fields.Str(load_default=None)
-    masterAccounts = fields.List(fields.Str(), load_default=None)
-    transactionType = fields.Str(load_default=None)
-    orderQty = fields.Int(load_default=None)
-    tradingSymbols = fields.List(fields.Str(), load_default=None)
-    instrument_type = fields.Str(load_default="EQ")
-    expiry = fields.Str(load_default=None)
-    strike = fields.Int(load_default=None)
-    option_type = fields.Str(load_default=None)
-    lot_size = fields.Int(load_default=None)
+    orderType = fields.Str(allow_none=True)
+    orderValidity = fields.Str(allow_none=True)
+    productType = fields.Str(allow_none=True)
+    masterAccounts = fields.List(fields.Str(), allow_none=True)
+    transactionType = fields.Str(allow_none=True)
+    orderQty = fields.Int(allow_none=True)
+    tradingSymbols = fields.List(fields.Str(), allow_none=True)
+    instrument_type = fields.Str(allow_none=True)  # CHANGED: Don't force default
+    expiry = fields.Str(allow_none=True)
+    strike = fields.Int(allow_none=True)
+    option_type = fields.Str(allow_none=True)
+    lot_size = fields.Int(allow_none=True)
 
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
@@ -438,10 +439,17 @@ class WebhookEventSchema(Schema):
         if "action" in data and isinstance(data["action"], str):
             data["action"] = data["action"].upper()
 
-        # Upper-case broker-specific fields
+        # Upper-case broker-specific fields (ONLY if they exist)
         for key in ["productType", "orderValidity", "order_type", "instrument_type", "option_type"]:
-            if key in data and isinstance(data[key], str):
+            if key in data and data[key] is not None and isinstance(data[key], str):
                 data[key] = data[key].upper()
+
+        # CRITICAL FIX: Preserve user's exchange selection
+        user_exchange = data.get("exchange")
+        if user_exchange and isinstance(user_exchange, str):
+            user_exchange = user_exchange.upper()
+            data["exchange"] = user_exchange
+            logger.info(f"User specified exchange: {user_exchange}")
 
         # Enhanced symbol normalization
         if "symbol" in data and isinstance(data["symbol"], str):
@@ -456,43 +464,55 @@ class WebhookEventSchema(Schema):
                 logger.info(f"Normalized symbol from '{raw_sym}' to '{normalized_symbol}'")
                 data["symbol"] = normalized_symbol
                 
-                # Apply metadata to the data
+                # Apply metadata to the data (BUT RESPECT USER CHOICES)
                 if metadata:
-                    # Set exchange based on instrument type
-                    if metadata.get('instrument_type') in ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']:
-                        data["exchange"] = "NFO"  # F&O trades on NFO
-                    elif metadata.get('instrument_type') == 'EQ':
-                        data["exchange"] = "NSE"  # Default equity exchange
+                    # CRITICAL FIX: Only set exchange if user didn't specify one
+                    if not data.get("exchange"):
+                        if metadata.get('instrument_type') in ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']:
+                            data["exchange"] = "NFO"  # F&O trades on NFO
+                        elif metadata.get('instrument_type') == 'EQ':
+                            data["exchange"] = "NSE"  # Default equity exchange
+                        logger.info(f"Auto-set exchange to {data.get('exchange')} based on instrument type")
+                    else:
+                        logger.info(f"Keeping user-specified exchange: {data.get('exchange')}")
                     
-                    # Set instrument type
-                    if "instrument_type" not in data or data["instrument_type"] == "EQ":
+                    # Set instrument type ONLY if not provided
+                    if not data.get("instrument_type"):
                         data["instrument_type"] = metadata.get('instrument_type', 'EQ')
                     
-                    # Set strike and option type for options
-                    if metadata.get('strike'):
+                    # Set strike and option type for options (if not provided)
+                    if metadata.get('strike') and not data.get('strike'):
                         data["strike"] = metadata['strike']
-                    if metadata.get('option_type'):
+                    if metadata.get('option_type') and not data.get('option_type'):
                         data["option_type"] = metadata['option_type']
                     
-                    # Set expiry information
-                    if metadata.get('expiry_month') and metadata.get('expiry_year'):
+                    # Set expiry information (if not provided)
+                    if not data.get('expiry') and metadata.get('expiry_month') and metadata.get('expiry_year'):
                         expiry_str = f"{metadata['expiry_month']}{metadata['expiry_year']}"
                         if metadata.get('expiry_day'):
                             expiry_str = f"{metadata['expiry_day']}{expiry_str}"
                         data["expiry"] = expiry_str
                     
-                    # CRITICAL: Set lot size from symbol map
-                    if metadata.get('lot_size'):
+                    # CRITICAL: Set lot size from symbol map (if not provided)
+                    if metadata.get('lot_size') and not data.get('lot_size'):
                         data["lot_size"] = metadata['lot_size']
                         logger.info(f"Set lot size to {metadata['lot_size']} for symbol {normalized_symbol}")
             else:
                 logger.info(f"Symbol already normalized or no normalization needed: {raw_sym}")
                 # Even if not normalized, try to get lot size for F&O symbols
-                if re.search(r'(FUT|CE|PE)$', raw_sym):
+                if re.search(r'(FUT|CE|PE)$', raw_sym) and not data.get('lot_size'):
                     lot_size = get_lot_size_from_symbol_map(raw_sym, data.get("exchange", "NFO"))
                     if lot_size:
                         data["lot_size"] = lot_size
                         logger.info(f"Found lot size {lot_size} for existing symbol {raw_sym}")
+                
+                # Set default exchange ONLY if not provided by user
+                if not data.get("exchange"):
+                    if re.search(r'(FUT|CE|PE)$', raw_sym):
+                        data["exchange"] = "NFO"
+                    else:
+                        data["exchange"] = "NSE"
+                    logger.info(f"Set default exchange to {data.get('exchange')}")
         
         return data
 
