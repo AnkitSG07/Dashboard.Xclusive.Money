@@ -97,9 +97,30 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             else int(order.get("qty", 0))
         )
 
+    # Convert symbol between brokers before building params
+    original_symbol = order.get("symbol")
+    converted_symbol = symbol_map.convert_symbol_between_brokers(
+        original_symbol, master.broker, child.broker
+    )
+    if converted_symbol != original_symbol:
+        log.info(
+            "Converted symbol for child %s: %s -> %s",
+            child.client_id,
+            original_symbol,
+            converted_symbol,
+        )
+    else:
+        log.warning(
+            "Symbol conversion returned original symbol for child %s (%s -> %s): %s",
+            child.client_id,
+            master.broker,
+            child.broker,
+            original_symbol,
+        )
+
     # CRITICAL FIX: Build parameters preserving all original order details
     params = {
-        "symbol": order.get("symbol"),
+        "symbol": converted_symbol,
         "action": order.get("action"),
         "qty": qty,
     }
@@ -176,42 +197,28 @@ async def _replicate_to_children(
     """Execute ``processor`` concurrently for all active children."""
 
     try:
-        children = active_children_for_master(master, db_session)
+        children = active_children_for_master(master, db_session, logger=log)
     except TypeError:
-        children = active_children_for_master(master)
+        try:
+            children = active_children_for_master(master, db_session)
+        except TypeError:
+            children = active_children_for_master(master)
 
     if not children:
         log.debug("No active children found for master %s", master.client_id)
         return
 
-    # Filter children based on their copy status and account health
-    active_children = []
-    for child in children:
-        # Check copy status
-        copy_status = getattr(child, 'copy_status', 'Off')
-        if copy_status != 'On':
-            log.debug("Skipping child %s - copy status is %s", child.client_id, copy_status)
-            continue
-            
-        # Check for system errors that would prevent copying
-        system_errors = getattr(child, 'system_errors', [])
-        if system_errors:
-            log.warning("Skipping child %s due to system errors: %s", child.client_id, system_errors)
-            continue
-            
-        active_children.append(child)
-    
-    if not active_children:
-        log.debug("No children with copy status 'On' for master %s", master.client_id)
-        return
-
-    log.info(f"Replicating trade to {len(active_children)} active children for master {master.client_id}")
+    log.info(
+        "Replicating trade to %d active children for master %s",
+        len(children),
+        master.client_id,
+    )
     log.info(f"Original order parameters: {order}")
 
     loop = asyncio.get_running_loop()
     own_executor = False
     if executor is None:
-        max_workers = max_workers or len(active_children) or 1
+        max_workers = max_workers or len(children) or 1
         executor = ThreadPoolExecutor(max_workers=max_workers)
         own_executor = True
 
@@ -249,7 +256,7 @@ async def _replicate_to_children(
     try:
         async_tasks = []
         timed_out: list[tuple[Account, asyncio.Future]] = []
-        for child in active_children:
+        for child in children:
             orig_fut = loop.run_in_executor(
                 executor, processor, master, child, order
             )
@@ -313,10 +320,10 @@ async def _replicate_to_children(
         for child, fut in timed_out:
             fut.add_done_callback(partial(_late_completion, child))
             
-        log.info(
-            "Trade copy completed for master %s: %d success, %d errors out of %d children",
-            master.client_id, success_count, error_count, len(active_children)
-        )
+            log.info(
+                "Trade copy completed for master %s: %d success, %d errors out of %d children",
+                master.client_id, success_count, error_count, len(children)
+            )
     finally:
         if own_executor:
             executor.shutdown(wait=False)
