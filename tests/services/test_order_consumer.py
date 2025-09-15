@@ -123,6 +123,7 @@ def test_consumer_places_order(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -363,6 +364,7 @@ def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "NIFTY24AUGFUT",
                 "action": "BUY",
                 "qty": 50,
@@ -445,7 +447,7 @@ def test_consumer_publishes_traded_status(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -473,7 +475,7 @@ def test_consumer_publishes_pending_status(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -525,7 +527,7 @@ def test_consumer_handles_api_key_and_client_id(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -573,7 +575,7 @@ def test_consumer_normalizes_camelcase_credentials(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -666,6 +668,7 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -713,7 +716,7 @@ def test_consumer_restricts_to_selected_master_accounts(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -784,7 +787,7 @@ def test_consumer_handles_json_encoded_master_accounts(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -877,7 +880,7 @@ def test_consumer_missing_order_type_uses_broker_default(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
@@ -997,6 +1000,7 @@ def test_consumer_places_orders_for_multiple_brokers(monkeypatch):
             "trade_events",
             {
                 "master_id": "c1",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -1006,6 +1010,7 @@ def test_consumer_places_orders_for_multiple_brokers(monkeypatch):
             "trade_events",
             {
                 "master_id": "c2",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
