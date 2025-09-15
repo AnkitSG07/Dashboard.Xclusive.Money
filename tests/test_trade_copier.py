@@ -259,3 +259,86 @@ def test_child_orders_mirror_master_params(monkeypatch):
         ("c1", expected_params),
         ("c2", expected_params),
     ]
+
+def test_manual_trade_events_replicate(monkeypatch):
+    """Manual trade events should replicate and ignore metadata fields."""
+
+    orders = []
+
+    # Broker that only supports a subset of parameters to ensure filtering works
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, symbol, action, qty, product_type="CNC"):
+            orders.append((self.client_id, symbol, action, qty, product_type))
+            return {"status": "ok"}
+
+    def fake_get_broker_client(name):
+        assert name == "stub"
+        return StubBroker
+
+    class Child:
+        def __init__(self, cid):
+            self.client_id = cid
+            self.broker = "stub"
+            self.credentials = {"access_token": "t"}
+            self.copy_qty = None
+
+    class Session:
+        def query(self, model):
+            return self
+
+        def filter_by(self, **kwargs):
+            self.kwargs = kwargs
+            return self
+
+        def filter(self, *args):
+            return self
+
+        def first(self):
+            if self.kwargs.get("role") == "master":
+                return type("Master", (), {"client_id": "m1", "user_id": 1})()
+            return None
+
+        def all(self):
+            return [Child("c1"), Child("c2")]
+
+        def rollback(self):
+            pass
+
+        def expire_all(self):
+            pass
+
+    event = {
+        b"master_id": b"m1",
+        b"symbol": b"AAPL",
+        b"action": b"BUY",
+        b"qty": b"1",
+        b"product_type": b"CNC",
+        b"source": b"manual_trade_monitor",
+        b"order_id": b"123",
+        b"order_time": b"2024-01-01T00:00:00Z",
+        b"exchange": b"NSE",
+    }
+    stub_redis = StubRedis([event])
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m: [Child("c1"), Child("c2")],
+    )
+
+    count = trade_copier.poll_and_copy_trades(
+        Session(),
+        processor=trade_copier.copy_order,
+        redis_client=stub_redis,
+        max_messages=1,
+    )
+
+    assert count == 1
+    assert orders == [
+        ("c1", "AAPL", "BUY", 1, "CNC"),
+        ("c2", "AAPL", "BUY", 1, "CNC"),
+    ]
