@@ -598,6 +598,7 @@ def consume_webhook_events(
                         
                     trade_event = {
                         "master_id": client_id,
+                        "order_id": order_id,
                         **{k: v for k, v in order_params.items() if k != "master_accounts"},
                     }
                     return trade_event
