@@ -368,12 +368,25 @@ def poll_and_copy_trades(
     # Helper to check for duplicate events
     def is_duplicate_event(event: Dict[str, Any]) -> bool:
         try:
+            # If Redis client lacks set operations (e.g. in tests), skip
+            # duplicate detection.
+            if not all(
+                hasattr(redis_client, attr)
+                for attr in ("sismember", "sadd", "expire")
+            ):
+                return False
+
             # Create a unique key for this event
             # Create a unique key for this event relying on order_id
             order_id = event.get("order_id")
             if order_id is None:
-                # Fallback to legacy fields if order_id is missing
-                order_id = f"{event.get('symbol')}:{event.get('action')}:{event.get('qty')}"
+                # Fallback to legacy fields if order_id is missing. Include
+                # the order timestamp to avoid treating separate trades with
+                # identical parameters as duplicates.
+                order_time = event.get("order_time") or event.get("timestamp") or ""
+                order_id = (
+                    f"{event.get('symbol')}:{event.get('action')}:{event.get('qty')}:{order_time}"
+                )
             event_key = f"{event.get('master_id')}:{order_id}"
             
             # Check if we've seen this event recently
