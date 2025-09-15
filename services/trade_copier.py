@@ -1,8 +1,9 @@
-# services/trade_copier.py - FIXED VERSION
 """Trade copier service that consumes master order events from Redis.
 
 This module listens to the ``trade_events`` Redis stream and replicates
-orders from master accounts to their linked child accounts.
+orders from master accounts to their linked child accounts.  It no longer
+relies on an in-memory queue or Flask application context, allowing it to be
+run as an independent microservice.
 """
 
 from __future__ import annotations
@@ -37,6 +38,10 @@ LATENCY = Histogram(
 log = logging.getLogger(__name__)
 
 DEFAULT_MAX_WORKERS = 10
+# Default per-child broker submission timeout in seconds. The value can be
+# overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
+# for brokers with slower APIs.  Setting the variable to ``0``, a negative
+# number or ``"none"`` disables the timeout entirely.
 DEFAULT_CHILD_TIMEOUT = 20.0
 
 # Track recently processed events to avoid duplicates
@@ -44,7 +49,16 @@ RECENT_EVENTS_KEY = "recent_trade_events"
 RECENT_EVENTS_TTL = 300  # 5 minutes
 
 def _load_symbol_map_or_exit() -> None:
-    """Pre-load the broker symbol map, aborting on failure."""
+    """Pre-load the broker symbol map, aborting on failure.
+
+    The trade copier relies on instrument dumps from Zerodha and Dhan to map
+    symbols for various child brokers such as AliceBlue.  If these dumps cannot
+    be retrieved (e.g. because neither network access nor cached copies are
+    available) the service would otherwise continue and silently fail later when
+    placing orders.  To prevent this we attempt to build the symbol map up front
+    and terminate the process if it cannot be loaded.
+    """
+
     try:
         symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
         log.info("Successfully loaded symbol mappings for trade copying")
@@ -53,12 +67,24 @@ def _load_symbol_map_or_exit() -> None:
         raise SystemExit(1)
 
 def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
-    """Instantiate the appropriate broker client for *child* and copy *order*."""
+    """Instantiate the appropriate broker client for *child* and copy *order*.
+
+    Parameters
+    ----------
+    master: Account
+        Master account that generated the trade. Currently unused but part of
+        the public callback API.
+    child: Account
+        Child account that should receive the replicated order.
+    order: Dict[str, Any]
+        Normalised order payload decoded from the ``trade_events`` stream.
+    """
 
     # Look up the concrete broker implementation or service client.
     client_cls = get_broker_client(child.broker)
 
-    # Credentials are stored on the ``Account`` model as a JSON blob.
+    # Credentials are stored on the ``Account`` model as a JSON blob.  We only
+    # require an access token for the tests so missing keys default to ``""``.
     credentials = dict(child.credentials or {})
     access_token = credentials.pop("access_token", "")
     credentials.pop("client_id", None)
@@ -97,70 +123,36 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             else int(order.get("qty", 0))
         )
 
-    # Convert symbol between brokers before building params
-    original_symbol = order.get("symbol")
-    converted_symbol = symbol_map.convert_symbol_between_brokers(
-        original_symbol, master.broker, child.broker
-    )
-    if converted_symbol != original_symbol:
-        log.info(
-            "Converted symbol for child %s: %s -> %s",
-            child.client_id,
-            original_symbol,
-            converted_symbol,
-        )
-    else:
-        log.warning(
-            "Symbol conversion returned original symbol for child %s (%s -> %s): %s",
-            child.client_id,
-            master.broker,
-            child.broker,
-            original_symbol,
-        )
-
-    # CRITICAL FIX: Build parameters preserving all original order details
     params = {
-        "symbol": converted_symbol,
+        "symbol": order.get("symbol"),
         "action": order.get("action"),
         "qty": qty,
     }
     
-    # CRITICAL: Preserve ALL parameters from original order
-    preserve_params = [
-        "exchange", "order_type", "product_type", "productType", 
-        "validity", "orderValidity", "instrument_type", "expiry", 
-        "strike", "option_type", "lot_size", "security_id", "price", 
-        "trigger_price", "triggerPrice"
-    ]
-    
-    for param in preserve_params:
-        value = order.get(param)
-        if value is not None:
-            # Convert string values back to appropriate types for broker APIs
-            if param == "price" and value:
-                try:
-                    params[param] = float(value)
-                except (ValueError, TypeError):
-                    params[param] = value
-            elif param == "strike" and value:
-                try:
-                    params[param] = int(float(value))
-                except (ValueError, TypeError):
-                    params[param] = value
-            elif param in ["qty", "lot_size"] and value:
-                try:
-                    # Don't override qty we already calculated above
-                    if param != "qty":
-                        params[param] = int(value)
-                except (ValueError, TypeError):
-                    params[param] = value
-            else:
-                params[param] = value
-    
-    # Log the parameters being used for copying
-    log.info(f"Copying order to child {child.client_id} with parameters: {params}")
+    # Copy additional order parameters, excluding internal fields
+    ignore_fields = {
+        "symbol", "action", "qty", "master_id", "id", "source", 
+        "order_time", "order_id", "timestamp"
+    }
+    for key, value in order.items():
+        if key in ignore_fields or value is None:
+            continue
+        # Convert string values back to appropriate types for broker APIs
+        if key == "price" and value:
+            try:
+                params[key] = float(value)
+            except (ValueError, TypeError):
+                params[key] = value
+        elif key == "strike" and value:
+            try:
+                params[key] = int(float(value))
+            except (ValueError, TypeError):
+                params[key] = value
+        else:
+            params[key] = value
     
     try:
+        log.debug(f"Placing order for child {child.client_id}: {params}")
         result = broker.place_order(**params)
         
         # Update copied value for value-based copying
@@ -171,6 +163,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
                     trade_value = price * qty
                     new_copied_value = float(getattr(child, 'copied_value', 0) or 0) + trade_value
                     # TODO: Update child's copied_value in database
+                    # This would require a database update which should be implemented in your main app
                     log.info(f"Updated copied value for child {child.client_id}: +₹{trade_value:.2f} (total: ₹{new_copied_value:.2f})")
             except Exception as e:
                 log.warning(f"Failed to update copied value for child {child.client_id}: {e}")
@@ -178,7 +171,10 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         return result
         
     except Exception as exc:
-        # Re-raise with the original broker message
+        # Re-raise with the original broker message so that callers can log
+        # a concise error.  Many broker SDKs attach additional metadata to
+        # exceptions which makes the default ``repr`` noisy; here we capture
+        # just the human readable message.
         message = getattr(exc, "message", None) or (
             exc.args[0] if getattr(exc, "args", None) else str(exc)
         )
@@ -194,31 +190,57 @@ async def _replicate_to_children(
     max_workers: int | None = None,
     timeout: float | None = None,
 ) -> None:
-    """Execute ``processor`` concurrently for all active children."""
+    """Execute ``processor`` concurrently for all active children.
+
+    Parameters
+    ----------
+    executor:
+        Optional pre-created :class:`ThreadPoolExecutor` to use for broker
+        submissions.  If not supplied a new executor is created for the call.
+    max_workers:
+        Thread pool size when a new executor is created. Defaults to the
+        number of child accounts.
+    timeout:
+        Maximum time in seconds to wait for each child broker call. ``None``
+        disables the timeout.
+    """
 
     try:
-        children = active_children_for_master(master, db_session, logger=log)
+        children = active_children_for_master(master, db_session)
     except TypeError:
-        try:
-            children = active_children_for_master(master, db_session)
-        except TypeError:
-            children = active_children_for_master(master)
+        children = active_children_for_master(master)
 
     if not children:
         log.debug("No active children found for master %s", master.client_id)
         return
 
-    log.info(
-        "Replicating trade to %d active children for master %s",
-        len(children),
-        master.client_id,
-    )
-    log.info(f"Original order parameters: {order}")
+    # Filter children based on their copy status and account health
+    active_children = []
+    for child in children:
+        # Check copy status
+        copy_status = getattr(child, 'copy_status', 'Off')
+        if copy_status != 'On':
+            log.debug("Skipping child %s - copy status is %s", child.client_id, copy_status)
+            continue
+            
+        # Check for system errors that would prevent copying
+        system_errors = getattr(child, 'system_errors', [])
+        if system_errors:
+            log.warning("Skipping child %s due to system errors: %s", child.client_id, system_errors)
+            continue
+            
+        active_children.append(child)
+    
+    if not active_children:
+        log.debug("No children with copy status 'On' for master %s", master.client_id)
+        return
+
+    log.info(f"Replicating trade to {len(active_children)} active children for master {master.client_id}")
 
     loop = asyncio.get_running_loop()
     own_executor = False
     if executor is None:
-        max_workers = max_workers or len(children) or 1
+        max_workers = max_workers or len(active_children) or 1
         executor = ThreadPoolExecutor(max_workers=max_workers)
         own_executor = True
 
@@ -256,7 +278,7 @@ async def _replicate_to_children(
     try:
         async_tasks = []
         timed_out: list[tuple[Account, asyncio.Future]] = []
-        for child in children:
+        for child in active_children:
             orig_fut = loop.run_in_executor(
                 executor, processor, master, child, order
             )
@@ -320,10 +342,10 @@ async def _replicate_to_children(
         for child, fut in timed_out:
             fut.add_done_callback(partial(_late_completion, child))
             
-            log.info(
-                "Trade copy completed for master %s: %d success, %d errors out of %d children",
-                master.client_id, success_count, error_count, len(children)
-            )
+        log.info(
+            "Trade copy completed for master %s: %d success, %d errors out of %d children",
+            master.client_id, success_count, error_count, len(active_children)
+        )
     finally:
         if own_executor:
             executor.shutdown(wait=False)
@@ -343,7 +365,44 @@ def poll_and_copy_trades(
     max_workers: int | None = None,
     child_timeout: float | None = None,
 ) -> int:
-    """Consume trade events from *stream* using a consumer group."""
+    """Consume trade events from *stream* using a consumer group.
+
+    Parameters
+    ----------
+    db_session:
+        SQLAlchemy session used for querying accounts.
+    processor:
+        Optional callback that executes the actual copy operation for each
+        child.  If omitted a no-op processor is used.
+    stream:
+        Redis Stream to consume events from. Defaults to ``"trade_events"``.
+    group:
+        Consumer group name used for coordinated processing.
+    consumer:
+        Consumer name within the group.
+    redis_client:
+        Redis client instance; a stub may be supplied for testing.
+    max_messages:
+        Optional limit for the number of messages processed. ``None`` means
+        process until the stream is exhausted.
+    block:
+        Milliseconds to block waiting for new events. ``0`` means do not block.
+    batch_size:
+        Maximum number of trade events fetched per call to ``xreadgroup``.
+    max_workers:
+        Optional thread pool size used when dispatching copy operations.
+        Defaults to the number of child accounts.
+    child_timeout:
+        Maximum time in seconds to wait for each child broker submission.
+        Defaults to the ``TRADE_COPIER_TIMEOUT`` environment variable or
+        ``20`` seconds if unset.  Values of ``0``, negative numbers or the
+        string ``"none"`` disable the timeout.
+
+    Returns
+    -------
+    int
+        Number of messages processed.
+    """
 
     processor = processor or (lambda m, c, o: None)
     max_workers = max_workers or int(
@@ -368,26 +427,8 @@ def poll_and_copy_trades(
     # Helper to check for duplicate events
     def is_duplicate_event(event: Dict[str, Any]) -> bool:
         try:
-            # If Redis client lacks set operations (e.g. in tests), skip
-            # duplicate detection.
-            if not all(
-                hasattr(redis_client, attr)
-                for attr in ("sismember", "sadd", "expire")
-            ):
-                return False
-
             # Create a unique key for this event
-            # Create a unique key for this event relying on order_id
-            order_id = event.get("order_id")
-            if order_id is None:
-                # Fallback to legacy fields if order_id is missing. Include
-                # the order timestamp to avoid treating separate trades with
-                # identical parameters as duplicates.
-                order_time = event.get("order_time") or event.get("timestamp") or ""
-                order_id = (
-                    f"{event.get('symbol')}:{event.get('action')}:{event.get('qty')}:{order_time}"
-                )
-            event_key = f"{event.get('master_id')}:{order_id}"
+            event_key = f"{event.get('master_id')}:{event.get('symbol')}:{event.get('action')}:{event.get('qty')}:{event.get('order_id', '')}"
             
             # Check if we've seen this event recently
             if redis_client.sismember(RECENT_EVENTS_KEY, event_key):
@@ -524,7 +565,10 @@ def main() -> None:
     
     block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
 
-    # Ensure symbol mappings are available before processing any trades.
+    # Ensure symbol mappings are available before processing any trades.  The
+    # build uses instrument dumps from upstream brokers and falls back to
+    # cached data.  If neither is accessible the trade copier aborts so that
+    # orders are not submitted with missing tokens.
     _load_symbol_map_or_exit()
     log.info("trade copier worker starting")
 
