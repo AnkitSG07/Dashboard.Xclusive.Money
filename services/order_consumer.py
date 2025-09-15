@@ -1,4 +1,3 @@
-    # services/order_consumer.py - CORRECTED VERSION
 from __future__ import annotations
 
 """Asynchronous worker that consumes webhook events and places orders."""
@@ -253,34 +252,6 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     return sym
 
 
-def get_lot_size_from_symbol_map(symbol: str, broker: str, exchange: str = None) -> int:
-    """Get lot size from symbol map for the given symbol and broker."""
-    try:
-        # Ensure symbol map is loaded
-        if not symbol_map.SYMBOL_MAP:
-            symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
-        
-        # Get the symbol mapping
-        mapping = symbol_map.get_symbol_for_broker(symbol, broker, exchange)
-        
-        if mapping and "lot_size" in mapping:
-            lot_size = mapping["lot_size"]
-            if lot_size:
-                try:
-                    return int(float(lot_size))
-                except (ValueError, TypeError) as exc:
-                    log.error(
-                        f"Invalid lot size '{lot_size}' for symbol {symbol}: {exc}"
-                    )
-        
-        log.warning(f"Could not find lot size for symbol {symbol} from symbol map")
-        return None
-        
-    except Exception as e:
-        log.error(f"Error fetching lot size from symbol map for {symbol}: {e}")
-        return None
-
-
 def get_default_lot_size(symbol: str) -> int:
     """Get default lot size for common F&O instruments."""
     symbol_upper = symbol.upper()
@@ -344,8 +315,32 @@ def consume_webhook_events(
             settings = get_user_settings(event["user_id"])
             brokers = settings.get("brokers", [])
 
-            # REMOVED: Symbol normalization that was overriding user input
-            # The webhook receiver already handles symbol normalization while preserving user choices
+            # Enhanced symbol normalization for derivatives
+            symbol = event.get("symbol", "")
+            instrument_type = event.get("instrument_type", "")
+            
+            # Check if it's a derivative
+            is_derivative = (
+                instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
+                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
+            )
+            
+            if is_derivative:
+                normalized_symbol = normalize_symbol_to_dhan_format(symbol)
+                if normalized_symbol != symbol:
+                    log.info(f"Normalized derivative symbol from '{symbol}' to '{normalized_symbol}'")
+                    event["symbol"] = normalized_symbol
+                    
+                    # Update instrument type based on normalized symbol
+                    if "-FUT" in normalized_symbol:
+                        event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
+                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
+                        event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
+                        # Extract and set strike price and option type
+                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
+                        if match:
+                            event["strike"] = int(match.group(1))
+                            event["option_type"] = match.group(2)
 
             # Handle allowed accounts
             allowed_accounts = event.get("masterAccounts") or []
@@ -447,63 +442,38 @@ def consume_webhook_events(
                     access_token=access_token,
                     **credentials,
                 )
-
-
-                # Detect broker names and convert symbol if needed
-                child_broker = str(broker_cfg.get("name", "")).lower()
-                master_broker = str(
-                    event.get("master_broker")
-                    or event.get("broker")
-                    or child_broker
-                ).lower()
-                converted_symbol = convert_symbol_between_brokers(
-                    event.get("symbol"), master_broker, child_broker
-                )
-
                 
-                # CRITICAL FIX: Build order parameters preserving ALL user choices
+                # Get original symbol and determine if it's F&O
+                original_symbol = event.get("symbol", "")
+                instrument_type = event.get("instrument_type", "")
+                
+                is_fo = bool(re.search(r'(FUT|CE|PE)$', str(original_symbol).upper())) or \
+                        instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
+                
+                # Convert symbol if it's F&O and brokers are different
+                converted_symbol = original_symbol
+                if is_fo and broker_cfg["name"].lower() != "dhan":  # Assuming event comes from Dhan format
+                    converted_symbol = convert_symbol_between_brokers(
+                        original_symbol, 
+                        "dhan",  # Source broker format
+                        broker_cfg["name"], 
+                        instrument_type
+                    )
+                    if converted_symbol and converted_symbol != original_symbol:
+                        log.info(f"Converted F&O symbol from {original_symbol} to {converted_symbol} for {broker_cfg['name']}")
+
                 order_params = {
-                    "symbol": event.get("symbol"),
-                    "action": event.get("action"),
-                    "qty": event.get("qty"),
+                    "symbol": converted_symbol,
+                    "action": event["action"],
+                    "qty": event["qty"],
                 }
-                order_params["symbol"] = converted_symbol
                 
-                # PRESERVE USER EXCHANGE CHOICE
+                # Set exchange
                 exchange = event.get("exchange")
-                if exchange:
+                if exchange is not None:
+                    if exchange in {"NSE", "BSE"} and is_fo:
+                        exchange = {"NSE": "NFO", "BSE": "BFO"}[exchange]
                     order_params["exchange"] = exchange
-                    log.info(f"Using user-specified exchange: {exchange}")
-                
-                # PRESERVE USER PRODUCT TYPE CHOICE  
-                product_type = event.get("productType") or event.get("product_type")
-                if product_type:
-                    order_params["product_type"] = product_type
-                    log.info(f"Using user-specified product type: {product_type}")
-                
-                # PRESERVE USER ORDER TYPE CHOICE
-                order_type = event.get("order_type") or event.get("orderType")
-                if order_type:
-                    order_params["order_type"] = order_type
-                    log.info(f"Using user-specified order type: {order_type}")
-                else:
-                    order_params["order_type"] = "MARKET"  # Default only if not specified
-                
-                # PRESERVE USER VALIDITY CHOICE
-                validity = event.get("orderValidity") or event.get("validity")
-                if validity:
-                    order_params["validity"] = validity
-                    log.info(f"Using user-specified validity: {validity}")
-                
-                # Handle price for limit orders
-                price = event.get("price")
-                if price is not None:
-                    order_params["price"] = price
-                
-                # Handle trigger price for stop loss orders
-                trigger_price = event.get("trigger_price") or event.get("triggerPrice")
-                if trigger_price is not None:
-                    order_params["trigger_price"] = trigger_price
                 
                 # Copy F&O specific parameters
                 fo_params = ["instrument_type", "expiry", "strike", "option_type", "lot_size", "security_id"]
@@ -511,25 +481,45 @@ def consume_webhook_events(
                     if event.get(param) is not None:
                         order_params[param] = event[param]
                 
-                # Check if it's F&O and handle lot size multiplication
-                is_fo = bool(re.search(r'(FUT|CE|PE)$', str(event.get("symbol", "")).upper())) or \
-                        event.get("instrument_type", "").upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
+                # Handle additional parameters
+                if event.get("order_type") is not None:
+                    order_params["order_type"] = event["order_type"]
+                    
+                optional_map = {
+                    "productType": "product_type",
+                    "orderValidity": "validity",
+                    "masterAccounts": "master_accounts",
+                    "securityId": "security_id",
+                }
+                for src, dest in optional_map.items():
+                    if event.get(src) is not None:
+                        order_params[dest] = event[src]
                 
+                # Enhanced lot size handling for F&O
+                lot_size = None
                 if is_fo:
                     lot_size = event.get("lot_size")
                     
-                    # Try to get lot size if not provided
-                    if not lot_size:
-                        lot_size = get_lot_size_from_symbol_map(
-                            event.get("symbol"), broker_cfg["name"], event.get("exchange")
-                        )
-                        if lot_size:
-                            log.info(f"Found lot size {lot_size} from symbol map")
+                    # Try to get from symbol map using converted symbol
+                    if lot_size is None:
+                        try:
+                            mapping = symbol_map.get_symbol_for_broker(
+                                converted_symbol, broker_cfg["name"], exchange
+                            )
+                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+                            
+                            if lot_size:
+                                log.info(f"Found lot size {lot_size} for {converted_symbol} from symbol map")
+                        except Exception as e:
+                            log.warning(
+                                "Could not retrieve lot size from symbol map for %s: %s",
+                                converted_symbol, str(e), extra={"event": event, "broker": broker_cfg}
+                            )
                     
-                    # Fallback to default lot sizes
+                    # Enhanced fallback lot sizes
                     if not lot_size:
-                        lot_size = get_default_lot_size(event.get("symbol"))
-                        log.warning(f"Using default lot size {lot_size}")
+                        lot_size = get_default_lot_size(converted_symbol)
+                        log.info(f"Using default lot size {lot_size} for {converted_symbol}")
                     
                     if lot_size:
                         try:
@@ -540,18 +530,7 @@ def consume_webhook_events(
                             log.info(f"F&O quantity adjustment: {original_qty} lots × {lot_size} = {calculated_qty}")
                         except (ValueError, TypeError):
                             log.error("Invalid lot size or quantity for F&O order")
-                            return {
-                                "status": "failure", 
-                                "error": f"Invalid lot size ({lot_size}) or quantity ({event['qty']}) for F&O order"
-                            }
-                    else:
-                        log.error(f"Could not determine lot size for F&O symbol {event.get('symbol')}")
-                        return {
-                            "status": "failure", 
-                            "error": f"Could not determine lot size for F&O symbol {event.get('symbol')}"
-                        }
-                
-                log.info(f"Placing order with preserved parameters: {order_params}")
+                            return None
                 
                 try:
                     result = client.place_order(**order_params)
@@ -598,7 +577,6 @@ def consume_webhook_events(
                         
                     trade_event = {
                         "master_id": client_id,
-                        "order_id": order_id,
                         **{k: v for k, v in order_params.items() if k != "master_accounts"},
                     }
                     return trade_event
@@ -703,7 +681,6 @@ __all__ = [
     "parse_fo_symbol",
     "format_fo_symbol",
     "get_default_lot_size",
-    "get_lot_size_from_symbol_map",
 ]
 
 
