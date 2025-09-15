@@ -523,11 +523,14 @@ def consume_webhook_events(
                     
                     if lot_size:
                         try:
-                            original_qty = int(event["qty"])
-                            calculated_qty = original_qty * int(lot_size)
+                            original_qty = int(float(event["qty"]))
+                            lot_size_int = int(float(lot_size))
+                            calculated_qty = original_qty * lot_size_int
                             order_params["qty"] = calculated_qty
-                            order_params["lot_size"] = lot_size
-                            log.info(f"F&O quantity adjustment: {original_qty} lots × {lot_size} = {calculated_qty}")
+                            order_params["lot_size"] = lot_size_int
+                            log.info(
+                                f"F&O quantity adjustment: {original_qty} lots × {lot_size_int} = {calculated_qty}"
+                            )
                         except (ValueError, TypeError):
                             log.error("Invalid lot size or quantity for F&O order")
                             return None
