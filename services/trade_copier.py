@@ -369,7 +369,12 @@ def poll_and_copy_trades(
     def is_duplicate_event(event: Dict[str, Any]) -> bool:
         try:
             # Create a unique key for this event
-            event_key = f"{event.get('master_id')}:{event.get('symbol')}:{event.get('action')}:{event.get('qty')}:{event.get('order_id', '')}"
+            # Create a unique key for this event relying on order_id
+            order_id = event.get("order_id")
+            if order_id is None:
+                # Fallback to legacy fields if order_id is missing
+                order_id = f"{event.get('symbol')}:{event.get('action')}:{event.get('qty')}"
+            event_key = f"{event.get('master_id')}:{order_id}"
             
             # Check if we've seen this event recently
             if redis_client.sismember(RECENT_EVENTS_KEY, event_key):
