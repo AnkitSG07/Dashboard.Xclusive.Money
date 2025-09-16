@@ -471,7 +471,7 @@ def test_pending_messages_processed_after_restart(monkeypatch):
     processed = []
 
     def processor(master, child, order):
-        processed.append((child.client_id, order["symbol"]))
+        processed.append((child["client_id"], order["symbol"]))
 
     count = trade_copier.poll_and_copy_trades(
         session,
