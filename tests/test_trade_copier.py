@@ -156,6 +156,26 @@ def test_poll_and_copy_trades_processes_event(monkeypatch):
     assert processed == ["AAPL", "AAPL"]
 
 
+def test_poll_skips_events_missing_master_id(monkeypatch):
+    """Events without a master identifier should be acknowledged and skipped."""
+
+    stub_redis = StubRedis([
+        {b"symbol": b"AAPL", b"action": b"BUY", b"qty": b"1"}
+    ])
+
+    session = DummySession()
+
+    count = trade_copier.poll_and_copy_trades(
+        session,
+        processor=lambda *args, **kwargs: None,
+        redis_client=stub_redis,
+        max_messages=1,
+    )
+
+    assert count == 1
+    assert stub_redis.pending == {}
+
+
 def test_child_orders_submitted(monkeypatch):
     """Verify that ``copy_order`` submits orders for each child account."""
 
