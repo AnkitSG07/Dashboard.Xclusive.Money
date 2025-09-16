@@ -29,6 +29,8 @@ class RedisStub:
 class SessionStub:
     def __init__(self, master, children):
         self.master = master
+        if not hasattr(self.master, "copy_status"):
+            self.master.copy_status = "On"
         self.children = children
         self.kwargs = None
 
@@ -112,7 +114,11 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
 
     monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
     
     # Publish manual orders
     master_trade_monitor.monitor_master_trades(
@@ -120,6 +126,68 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     )
 
     # Ensure trade copier processes the published order
+    processed = trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=1,
+    )
+
+    assert processed == 1
+    assert BrokerStub.placed == [
+        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
+    ]
+    assert redis.acks == [b"1"]
+
+
+def test_manual_orders_with_metadata_are_copied(monkeypatch):
+    BrokerStub.placed = []
+    order = {
+        "order_id": "abc123",
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "status": "COMPLETE",
+        "order_time": "2024-01-01T00:00:00Z",
+    }
+    master = SimpleNamespace(
+        client_id="m",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+        user_id=1,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="c1",
+        credentials={},
+        copy_qty=None,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    # Ensure the published event includes extra metadata that should be ignored by the copier
+    redis.stream[0][1].update(
+        {
+            "order_time": "2024-01-01T00:00:00Z",
+            "status_message": "Completed",
+            "message": "metadata",
+        }
+    )
+
     processed = trade_copier.poll_and_copy_trades(
         session,
         processor=trade_copier.copy_order,
@@ -162,7 +230,11 @@ def test_rejected_orders_not_copied(monkeypatch):
 
     monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
 
     master_trade_monitor.monitor_master_trades(
         session, redis_client=redis, max_iterations=1, poll_interval=0
@@ -223,7 +295,11 @@ def test_credentials_with_embedded_client_id(monkeypatch):
 
     monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
 
     master_trade_monitor.monitor_master_trades(
         session, redis_client=redis, max_iterations=1, poll_interval=0
@@ -271,25 +347,28 @@ def test_dhan_orders_are_published_and_copied(monkeypatch):
 
     monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
     monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
-    monkeypatch.setattr(trade_copier, "active_children_for_master", lambda m: [child])
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
 
     master_trade_monitor.monitor_master_trades(
         session, redis_client=redis, max_iterations=1, poll_interval=0
     )
 
-    assert redis.stream == [
-        (
-            b"1",
-            {
-                "master_id": "m",
-                "symbol": "AAPL",
-                "action": "BUY",
-                "qty": "1",
-                "exchange": "NSE",
-                "order_type": "LIMIT",
-            },
-        )
-    ]
+    assert len(redis.stream) == 1
+    msg = redis.stream[0][1]
+    assert msg == {
+        "master_id": "m",
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": "1",
+        "exchange": "NSE",
+        "order_type": "LIMIT",
+        "order_id": "1",
+        "source": "manual_trade_monitor",
+    }
 
     processed = trade_copier.poll_and_copy_trades(
         session,
@@ -435,12 +514,12 @@ def test_zerodha_manual_orders_published_once(monkeypatch):
 
     assert len(redis.stream) == 1
     event = redis.stream[0][1]
-    assert event == {
-        "master_id": "m",
-        "symbol": "AAPL",
-        "action": "BUY",
-        "qty": "1",
-    }
+    assert event["master_id"] == "m"
+    assert event["symbol"] == "AAPL"
+    assert event["action"] == "BUY"
+    assert event["qty"] == "1"
+    assert event.get("order_id") == "1"
+    assert event.get("source") == "manual_trade_monitor"
 
 @pytest.mark.parametrize(
     "status", ["FULL_EXECUTED", "FULLY_EXECUTED", "CONFIRMED", "SUCCESS", "2"]
@@ -470,14 +549,11 @@ def test_orders_with_new_completed_statuses_published(monkeypatch, status):
         session, redis_client=redis, max_iterations=1, poll_interval=0
     )
 
-    assert redis.stream == [
-        (
-            b"1",
-            {
-                "master_id": "m",
-                "symbol": "AAPL",
-                "action": "BUY",
-                "qty": "1",
-            },
-        )
-    ]
+    assert len(redis.stream) == 1
+    msg = redis.stream[0][1]
+    assert msg["master_id"] == "m"
+    assert msg["symbol"] == "AAPL"
+    assert msg["action"] == "BUY"
+    assert msg["qty"] == "1"
+    assert msg.get("order_id") == "1"
+    assert msg.get("source") == "manual_trade_monitor"
