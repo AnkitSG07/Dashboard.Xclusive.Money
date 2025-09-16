@@ -16,7 +16,7 @@ import logging
 import os
 import re
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from prometheus_client import Histogram
 from sqlalchemy.orm import Session
@@ -38,50 +38,12 @@ LATENCY = Histogram(
 
 log = logging.getLogger(__name__)
 
-# OPTIMIZED: Increased workers and reduced timeout for speed
-DEFAULT_MAX_WORKERS = 30  # Increased from 10
+DEFAULT_MAX_WORKERS = 10
 # Default per-child broker submission timeout in seconds. The value can be
 # overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
 # for brokers with slower APIs.  Setting the variable to ``0``, a negative
 # number or ``"none"`` disables the timeout entirely.
-DEFAULT_CHILD_TIMEOUT = 5.0  # Reduced from 20.0
-
-# ADDED: Cache for broker clients to avoid recreation and rate limits
-BROKER_CLIENT_CACHE = {}
-BROKER_CLIENT_CACHE_TTL = 300  # 5 minutes
-
-
-def _extract_master_id(event: Mapping[str, Any]) -> Optional[str]:
-    """Best effort extraction of the master account identifier from *event*.
-
-    Older or third-party producers may emit trade events that do not use the
-    canonical ``master_id`` key.  Without defensive handling the copier would
-    raise a :class:`KeyError` and continually retry the invalid event, blocking
-    the stream.  This helper inspects a selection of legacy key names and
-    returns the first non-empty identifier found.
-    """
-
-    candidate_keys = (
-        "master_id",
-        "master_client_id",
-        "masterId",
-        "masterClientId",
-        "master",
-        "client_id",
-    )
-
-    for key in candidate_keys:
-        if key not in event:
-            continue
-        value = event[key]
-        if isinstance(value, Mapping):
-            # Nested data structures cannot represent a client identifier.
-            continue
-        value_str = str(value).strip() if value is not None else ""
-        if value_str:
-            return value_str
-
-    return None
+DEFAULT_CHILD_TIMEOUT = 20.0
 
 def _load_symbol_map_or_exit() -> None:
     """Pre-load the broker symbol map, aborting on failure.
@@ -101,130 +63,70 @@ def _load_symbol_map_or_exit() -> None:
         log.error("failed to load instrument data: %s", exc)
         raise SystemExit(1)
 
-def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
-    """ADDED: Get or create cached broker client for faster access."""
-    cache_key = f"{broker}:{client_id}"
-
-
-    try:
-        client_cls = get_broker_client(broker)
-    except Exception as exc:  # pragma: no cover - exercised in tests
-        log.error("Failed to resolve broker client for %s: %s", client_id, exc)
-        raise
-
-    # Check cache
-    cached = BROKER_CLIENT_CACHE.get(cache_key)
-    if cached:
-        # If the cached client is expired or from a different class (e.g. a
-        # monkeypatched test stub), discard it so a fresh instance is created.
-        cached_cls = cached.get("cls")
-        cached_client = cached.get("client")
-        if (
-            cached.get("expires", 0) > time.time()
-            and cached_cls is client_cls
-            and cached_client
-            and isinstance(cached_client, client_cls)
-        ):
-            return cached_client
-        BROKER_CLIENT_CACHE.pop(cache_key, None)
-    
-    # Create new client
-    try:
-        access_token = credentials.get("access_token", "")
-        # Make a copy to avoid modifying original
-        creds_copy = dict(credentials)
-        creds_copy.pop("access_token", None)
-        creds_copy.pop("client_id", None)
-        
-        client = client_cls(
-            client_id=client_id,
-            access_token=access_token,
-            **creds_copy
-        )
-        
-        # Cache it
-        BROKER_CLIENT_CACHE[cache_key] = {
-            "client": client,
-            "expires": time.time() + BROKER_CLIENT_CACHE_TTL,
-            "cls": client_cls,
-        }
-        
-        return client
-    except Exception as e:
-        log.error(f"Failed to create broker client for {client_id}: {e}")
-        raise
-
-def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, Any]) -> Any:
+def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     """Instantiate the appropriate broker client for *child* and copy *order*.
 
     Parameters
     ----------
-    master: Dict[str, Any]
-        Plain data describing the master account that generated the trade.
-    child: Dict[str, Any]
-        Plain data describing the child account that should receive the order.
+    master: Account
+        Master account that generated the trade.
+    child: Account
+        Child account that should receive the replicated order.
     order: Dict[str, Any]
         Normalised order payload decoded from the ``trade_events`` stream.
     """
 
-    # OPTIMIZED: Use cached broker client instead of creating new one
-    credentials = dict(child.get("credentials") or {})
-    
-    try:
-        broker = get_cached_broker_client(
-            child["broker"],
-            child["client_id"],
-            credentials
-        )
-    except Exception as e:
-        # Fallback to original method if cache fails
-        client_cls = get_broker_client(child["broker"])
-        access_token = credentials.pop("access_token", "")
-        credentials.pop("client_id", None)
-        broker = client_cls(
-            client_id=child["client_id"], access_token=access_token, **credentials
-        )
+    # Look up the concrete broker implementation or service client.
+    client_cls = get_broker_client(child.broker)
+
+    # Credentials are stored on the ``Account`` model as a JSON blob.  We only
+    # require an access token for the tests so missing keys default to ``""``.
+    credentials = dict(child.credentials or {})
+    access_token = credentials.pop("access_token", "")
+    credentials.pop("client_id", None)
+
+    broker = client_cls(
+        client_id=child.client_id, access_token=access_token, **credentials
+    )
 
     # Get original symbol and metadata
     original_symbol = order.get("symbol", "")
     instrument_type = order.get("instrument_type", "")
     exchange = order.get("exchange", "")
-
+    
     # Check if it's an F&O symbol
     is_derivative = (
         (instrument_type and instrument_type.upper() in {
             "FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"
         }) or bool(re.search(r'(FUT|CE|PE)$', original_symbol.upper()))
     )
-
+    
     # Convert symbol if needed for different brokers
     converted_symbol = original_symbol
-    master_broker = master.get("broker")
-    child_broker = child["broker"]
-    if is_derivative and master_broker and child_broker and master_broker != child_broker:
+    if is_derivative and master.broker != child.broker:
         try:
             converted_symbol = convert_symbol_between_brokers(
                 original_symbol,
-                master_broker,
-                child_broker,
+                master.broker,
+                child.broker,
                 instrument_type
             )
             if converted_symbol != original_symbol:
                 log.info(
-                    f"Converted F&O symbol from {original_symbol} ({master_broker}) "
-                    f"to {converted_symbol} ({child_broker})"
+                    f"Converted F&O symbol from {original_symbol} ({master.broker}) "
+                    f"to {converted_symbol} ({child.broker})"
                 )
         except Exception as e:
             log.warning(f"Could not convert symbol {original_symbol}: {e}")
             converted_symbol = original_symbol
-
+    
     # Apply fixed quantity override for the child account if provided
     qty = (
-        int(child["copy_qty"])
-        if child.get("copy_qty") is not None
+        int(child.copy_qty)
+        if getattr(child, "copy_qty", None) is not None
         else int(order.get("qty", 0))
     )
-
+    
     # Handle lot size for F&O
     lot_size = order.get("lot_size")
     if is_derivative and lot_size:
@@ -243,11 +145,11 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
         "action": order.get("action"),
         "qty": qty,
     }
-
+    
     # Handle exchange - special handling for different brokers
     if exchange:
-        broker_lower = child_broker.lower()
-
+        broker_lower = child.broker.lower()
+        
         if broker_lower == "fyers":
             # Fyers specific exchange handling
             if exchange in {"NFO", "BFO"} and is_derivative:
@@ -264,15 +166,15 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
         else:
             # Other brokers use standard exchange codes
             params["exchange"] = exchange
-
+    
     # Handle product type with broker-specific mapping
     product_type = order.get("product_type") or order.get("productType")
     if product_type:
-        broker_lower = child_broker.lower()
-
+        broker_lower = child.broker.lower()
+        
         # Normalize product type first
         pt_upper = str(product_type).upper()
-
+        
         if broker_lower == "fyers":
             # Fyers specific mapping
             product_map = {
@@ -287,7 +189,7 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
                 "CO": "CO",
             }
             params["product_type"] = product_map.get(pt_upper, pt_upper)
-
+            
         elif broker_lower == "dhan":
             product_map = {
                 "MIS": "INTRADAY",
@@ -301,7 +203,7 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
                 "CO": "CO",
             }
             params["product_type"] = product_map.get(pt_upper, pt_upper)
-
+            
         elif broker_lower == "zerodha":
             # Zerodha uses standard names
             product_map = {
@@ -317,7 +219,7 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
                 "CO": "CO",
             }
             params["product_type"] = product_map.get(pt_upper, pt_upper)
-
+            
         elif broker_lower == "aliceblue":
             product_map = {
                 "INTRADAY": "MIS",
@@ -332,7 +234,7 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
                 "CO": "CO",
             }
             params["product_type"] = product_map.get(pt_upper, pt_upper)
-
+            
         elif broker_lower == "finvasia":
             product_map = {
                 "MIS": "M",
@@ -349,79 +251,38 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
             params["product_type"] = product_map.get(pt_upper, pt_upper)
         else:
             params["product_type"] = product_type
-
+    
     # Copy other parameters
-    metadata_fields = {
-        "master_id",
-        "id",
-        "source",
-        "order_id",
-        "orderId",
-        "order_time",
-        "orderTime",
-        "status",
-        "status_message",
-        "statusMessage",
-        "message",
-        "message_code",
-        "messageCode",
-        "error",
-        "error_code",
-        "errorCode",
-        "error_message",
-        "errorMessage",
-        "event_id",
-        "eventId",
-        "event_time",
-        "eventTime",
-        "timestamp",
-        "created_at",
-        "createdAt",
-        "updated_at",
-        "updatedAt",
-        "client_req_id",
-        "clientReqId",
-    }
     ignore_fields = {
-        "symbol",
-        "action",
-        "qty",
-        "exchange",
-        "product_type",
-        "productType",
-    } | metadata_fields
+        "symbol", "action", "qty", "master_id", "id", 
+        "exchange", "product_type", "productType", "source"
+    }
     for key, value in order.items():
         if key in ignore_fields or value is None:
             continue
         params[key] = value
-
+    
     try:
-        # OPTIMIZED: Add timing information
-        start_time = time.time()
-        
         log.info(
-            f"Placing order on {child_broker} for {child['client_id']}: "
+            f"Placing order on {child.broker} for {child.client_id}: "
             f"{params.get('action')} {params.get('qty')} {params.get('symbol')} "
             f"at {params.get('exchange', 'NSE')} with product {params.get('product_type', 'MIS')}"
         )
-
+        
         result = broker.place_order(**params)
         
-        elapsed = time.time() - start_time
-
         if isinstance(result, dict) and result.get("status") == "success":
             log.info(
-                f"Successfully copied order to {child_broker} account {child['client_id']} "
-                f"in {elapsed:.2f}s: Order ID: {result.get('order_id')}"
+                f"Successfully copied order to {child.broker} account {child.client_id}: "
+                f"Order ID: {result.get('order_id')}"
             )
         else:
             log.warning(
-                f"Order placed but status unclear for {child_broker} account {child['client_id']} "
-                f"(took {elapsed:.2f}s): {result}"
+                f"Order placed but status unclear for {child.broker} account {child.client_id}: {result}"
             )
-
+        
         return result
-
+        
     except Exception as exc:
         # Re-raise with the original broker message so that callers can log
         # a concise error.  Many broker SDKs attach additional metadata to
@@ -431,7 +292,7 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
             exc.args[0] if getattr(exc, "args", None) else str(exc)
         )
         log.error(
-            f"Failed to copy order to {child_broker} account {child['client_id']}: {message}"
+            f"Failed to copy order to {child.broker} account {child.client_id}: {message}"
         )
         raise RuntimeError(message) from exc
 
@@ -439,7 +300,7 @@ async def _replicate_to_children(
     db_session: Session,
     master: Account,
     order: Dict[str, Any],
-    processor: Callable[[Dict[str, Any], Dict[str, Any], Dict[str, Any]], Any],
+    processor: Callable[[Account, Account, Dict[str, Any]], Any],
     *,
     executor: ThreadPoolExecutor | None = None,
     max_workers: int | None = None,
@@ -466,87 +327,22 @@ async def _replicate_to_children(
         # Fallback for older version without logger parameter
         children = active_children_for_master(master, db_session)
 
-    def _account_to_data(account: Any) -> Dict[str, Any]:
-        if isinstance(account, Mapping):
-            data = dict(account)
-        elif isinstance(account, Account):
-            data = {col.name: getattr(account, col.name, None) for col in account.__table__.columns}
-        else:
-            keys = (
-                "id",
-                "client_id",
-                "broker",
-                "credentials",
-                "copy_qty",
-                "copy_status",
-                "linked_master_id",
-                "user_id",
-                "role",
-            )
-            data = {key: getattr(account, key, None) for key in keys}
-
-        for key in (
-            "id",
-            "client_id",
-            "broker",
-            "credentials",
-            "copy_qty",
-            "copy_status",
-            "linked_master_id",
-            "user_id",
-            "role",
-        ):
-            data.setdefault(key, None)
-
-        credentials = data.get("credentials")
-        if isinstance(credentials, dict):
-            data["credentials"] = dict(credentials)
-        elif credentials:
-            try:
-                data["credentials"] = dict(credentials)
-            except (TypeError, ValueError):
-                data["credentials"] = {}
-        else:
-            data["credentials"] = {}
-
-        return data
-
-    def _maybe_expunge(instance: Any) -> None:
-        if (
-            db_session is not None
-            and hasattr(db_session, "expunge")
-            and hasattr(instance, "_sa_instance_state")
-        ):
-            db_session.expunge(instance)
-
-    master_data = _account_to_data(master)
-    _maybe_expunge(master)
-
     if not children:
-        log.debug(
-            f"No active children found for master {master_data.get('client_id')}"
-        )
+        log.debug(f"No active children found for master {master.client_id}")
         return
 
-    children_data = []
-    for child in children:
-        child_data = _account_to_data(child)
-        children_data.append(child_data)
-        _maybe_expunge(child)
-
-    log.info(f"Copying order to {len(children_data)} active child accounts")
+    log.info(f"Copying order to {len(children)} active child accounts")
 
     loop = asyncio.get_running_loop()
     own_executor = False
     if executor is None:
-        # OPTIMIZED: Use more workers for parallel processing
-        max_workers = max_workers or max(len(children_data), DEFAULT_MAX_WORKERS)
+        max_workers = max_workers or len(children) or 1
         executor = ThreadPoolExecutor(max_workers=max_workers)
         own_executor = True
 
     def _late_completion(child, fut):
-        client_id = child.get("client_id")
-        broker_name = child.get("broker")
+        client_id = getattr(child, "client_id", None)
+        broker_name = getattr(child, "broker", None)
         try:
             fut.result()
             log.warning(
@@ -573,13 +369,13 @@ async def _replicate_to_children(
                 exc_info=exc,
                 extra={"child": client_id, "broker": broker_name, "error": msg},
             )
-
+    
     try:
         async_tasks = []
-        timed_out: list[tuple[Dict[str, Any], asyncio.Future]] = []
-        for child in children_data:
+        timed_out: list[tuple[Account, asyncio.Future]] = []
+        for child in children:
             orig_fut = loop.run_in_executor(
-                executor, processor, master_data, child, order
+                executor, processor, master, child, order
             )
             shielded = asyncio.shield(orig_fut)
             wrapped = asyncio.wait_for(shielded, timeout) if timeout is not None else shielded
@@ -593,9 +389,9 @@ async def _replicate_to_children(
         failure_count = 0
         
         for (child, _wrapped, orig_fut), result in zip(async_tasks, results):
-            client_id = child.get("client_id")
-            broker_name = child.get("broker")
-
+            client_id = getattr(child, "client_id", None)
+            broker_name = getattr(child, "broker", None)
+            
             if isinstance(result, (asyncio.TimeoutError, TimeoutError)):
                 if isinstance(result, asyncio.TimeoutError) and not orig_fut.done():
                     timed_out.append((child, orig_fut))
@@ -641,7 +437,7 @@ async def _replicate_to_children(
 
 def poll_and_copy_trades(
     db_session: Session,
-    processor: Optional[Callable[[Dict[str, Any], Dict[str, Any], Dict[str, Any]], Any]] = None,
+    processor: Optional[Callable[[Account, Account, Dict[str, Any]], Any]] = None,
     *,
     stream: str = "trade_events",
     group: str = "trade_copier",
@@ -719,71 +515,15 @@ def poll_and_copy_trades(
             if "BUSYGROUP" not in str(exc):
                 raise
 
-        def _reclaim_pending(limit: int) -> Iterable:
-            """Return pending messages claimed for *consumer* if available."""
-
-            if not limit:
-                return []
-
-            messages: Iterable = []
-
-            xautoclaim = getattr(redis_client, "xautoclaim", None)
-            if callable(xautoclaim):
-                try:
-                    result = xautoclaim(
-                        stream,
-                        group,
-                        consumer,
-                        0,
-                        start_id="0-0",
-                        count=limit,
-                    )
-                except (
-                    TypeError,
-                    AttributeError,
-                    ValueError,
-                    redis.exceptions.RedisError,
-                ):
-                    claimed = []
-                else:
-                    if isinstance(result, (list, tuple)):
-                        claimed = result[1] if len(result) >= 2 else []
-                    else:
-                        claimed = result
-                    if claimed:
-                        return [(stream, claimed)]
-
-            try:
-                return redis_client.xreadgroup(
-                    group,
-                    consumer,
-                    {stream: "0"},
-                    count=limit,
-                    block=0,
-                )
-            except TypeError:
-                return redis_client.xreadgroup(
-                    group,
-                    consumer,
-                    {stream: "0"},
-                    count=limit,
-                )
-            except redis.exceptions.RedisError:
-                return []
-
         async def _consume() -> int:
             processed = 0
             while max_messages is None or processed < max_messages:
                 count = batch_size
                 if max_messages is not None:
                     count = min(count, max_messages - processed)
-                pending_messages = _reclaim_pending(count)
-                if pending_messages:
-                    messages = pending_messages
-                else:
-                    messages = redis_client.xreadgroup(
-                        group, consumer, {stream: ">"}, count=count, block=block
-                    )
+                messages: Iterable = redis_client.xreadgroup(
+                    group, consumer, {stream: ">"}, count=count, block=block
+                )
                 if not messages:
                     break
 
@@ -795,34 +535,20 @@ def poll_and_copy_trades(
 
                         async def handle(msg_id=msg_id, event=event):
                             start = time.time()
-                            acked = False    
                             try:
                                 # Refresh database session to see latest data
                                 db_session.rollback()
-                                db_session.expire_all()
-                                master_id = _extract_master_id(event)
-                                if not master_id:
-                                    log.error(
-                                        "Trade event missing master identifier; skipping: %s",
-                                        event,
-                                    )
-                                    redis_client.xack(stream, group, msg_id)
-                                    acked = True
-                                    return
-
-                                event["master_id"] = master_id   
+                                db_session.expire_all()    
                                 master = (
                                     db_session.query(Account)
-                                    .filter_by(client_id=str(master_id), role="master")
+                                    .filter_by(client_id=str(event["master_id"]), role="master")
                                     .first()
                                 )
                                 if master:
                                     source = event.get("source", "unknown")
-                                    master_client_id = getattr(master, "client_id", None)
-                                    master_broker = getattr(master, "broker", "unknown")
                                     log.info(
-                                        f"Processing trade event from master {master_client_id} "
-                                        f"({master_broker}): {event.get('action')} "
+                                        f"Processing trade event from master {master.client_id} "
+                                        f"({master.broker}): {event.get('action')} "
                                         f"{event.get('qty')} {event.get('symbol')} "
                                         f"(source: {source})"
                                     )
@@ -837,9 +563,7 @@ def poll_and_copy_trades(
                                         timeout=child_timeout,
                                     )
                                 else:
-                                    log.warning(
-                                        "Master account %s not found", master_id
-                                    )
+                                    log.warning(f"Master account {event['master_id']} not found")
                             except Exception as exc:  # pragma: no cover - exercised in tests
                                 log.exception(
                                     "error processing trade event %s", msg_id, exc_info=exc
@@ -849,11 +573,9 @@ def poll_and_copy_trades(
                                     "database session rolled back after error processing trade event %s",
                                     msg_id,
                                 )
-                                if not acked:
-                                    raise
+                                raise
                             else:
-                                if not acked:
-                                    redis_client.xack(stream, group, msg_id)
+                                redis_client.xack(stream, group, msg_id)
                             finally:
                                 LATENCY.observe(time.time() - start)
 
@@ -882,15 +604,14 @@ def poll_and_copy_trades(
 def main() -> None:
     """Entry point for the trade copier service."""
     
-    # OPTIMIZED: Reduced blocking time for faster response
-    block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "100"))  # Reduced from 5000
+    block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
 
     # Ensure symbol mappings are available before processing any trades.  The
     # build uses instrument dumps from upstream brokers and falls back to
     # cached data.  If neither is accessible the trade copier aborts so that
     # orders are not submitted with missing tokens.
     _load_symbol_map_or_exit()
-    log.info("trade copier worker starting (100ms blocking, 30 workers)")
+    log.info("trade copier worker starting")
 
     while True:
         session = get_session()
