@@ -50,6 +50,39 @@ DEFAULT_CHILD_TIMEOUT = 5.0  # Reduced from 20.0
 BROKER_CLIENT_CACHE = {}
 BROKER_CLIENT_CACHE_TTL = 300  # 5 minutes
 
+
+def _extract_master_id(event: Mapping[str, Any]) -> Optional[str]:
+    """Best effort extraction of the master account identifier from *event*.
+
+    Older or third-party producers may emit trade events that do not use the
+    canonical ``master_id`` key.  Without defensive handling the copier would
+    raise a :class:`KeyError` and continually retry the invalid event, blocking
+    the stream.  This helper inspects a selection of legacy key names and
+    returns the first non-empty identifier found.
+    """
+
+    candidate_keys = (
+        "master_id",
+        "master_client_id",
+        "masterId",
+        "masterClientId",
+        "master",
+        "client_id",
+    )
+
+    for key in candidate_keys:
+        if key not in event:
+            continue
+        value = event[key]
+        if isinstance(value, Mapping):
+            # Nested data structures cannot represent a client identifier.
+            continue
+        value_str = str(value).strip() if value is not None else ""
+        if value_str:
+            return value_str
+
+    return None
+
 def _load_symbol_map_or_exit() -> None:
     """Pre-load the broker symbol map, aborting on failure.
 
@@ -74,8 +107,19 @@ def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
     
     # Check cache
     cached = BROKER_CLIENT_CACHE.get(cache_key)
-    if cached and cached['expires'] > time.time():
-        return cached['client']
+    if cached:
+        # If the cached client is expired or from a different class (e.g. a
+        # monkeypatched test stub), discard it so a fresh instance is created.
+        cached_cls = cached.get("cls")
+        cached_client = cached.get("client")
+        if (
+            cached.get("expires", 0) > time.time()
+            and cached_cls is client_cls
+            and cached_client
+            and isinstance(cached_client, client_cls)
+        ):
+            return cached_client
+        BROKER_CLIENT_CACHE.pop(cache_key, None)
     
     # Create new client
     try:
@@ -95,7 +139,8 @@ def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
         # Cache it
         BROKER_CLIENT_CACHE[cache_key] = {
             'client': client,
-            'expires': time.time() + BROKER_CLIENT_CACHE_TTL
+            'expires': time.time() + BROKER_CLIENT_CACHE_TTL,
+            'cls': client_cls,
         }
         
         return client
@@ -744,13 +789,25 @@ def poll_and_copy_trades(
 
                         async def handle(msg_id=msg_id, event=event):
                             start = time.time()
+                            acked = False    
                             try:
                                 # Refresh database session to see latest data
                                 db_session.rollback()
-                                db_session.expire_all()    
+                                db_session.expire_all()
+                                master_id = _extract_master_id(event)
+                                if not master_id:
+                                    log.error(
+                                        "Trade event missing master identifier; skipping: %s",
+                                        event,
+                                    )
+                                    redis_client.xack(stream, group, msg_id)
+                                    acked = True
+                                    return
+
+                                event.setdefault("master_id", master_id)   
                                 master = (
                                     db_session.query(Account)
-                                    .filter_by(client_id=str(event["master_id"]), role="master")
+                                    .filter_by(client_id=str(master_id), role="master")
                                     .first()
                                 )
                                 if master:
@@ -784,9 +841,11 @@ def poll_and_copy_trades(
                                     "database session rolled back after error processing trade event %s",
                                     msg_id,
                                 )
-                                raise
+                                if not acked:
+                                    raise
                             else:
-                                redis_client.xack(stream, group, msg_id)
+                                if not acked:
+                                    redis_client.xack(stream, group, msg_id)
                             finally:
                                 LATENCY.observe(time.time() - start)
 
