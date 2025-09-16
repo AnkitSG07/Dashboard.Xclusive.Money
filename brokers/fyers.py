@@ -1,534 +1,641 @@
-from .base import BrokerBase
-import hashlib
-import requests
-from urllib.parse import urlencode
+from flask import session
+from sqlalchemy import or_
+from models import User, OrderMapping, Account, db
+from datetime import datetime
+import json
 import logging
+from services.logging import publish_log_event
+from typing import List, Optional
 
-try:
-    from fyers_apiv3 import fyersModel
-except ImportError:
-    fyersModel = None
 
-logger = logging.getLogger(__name__)
 
-class FyersBroker(BrokerBase):
-    BROKER = "fyers"
+log = logging.getLogger(__name__)
+
+
+def current_user():
+    """Return the logged in ``User`` instance or ``None``."""
+    user_key = session.get("user")
+    if user_key is None:
+        return None
+
+    # ``session['user']`` historically stored the user email but some
+    # workflows may put the user id (as int or str).  Handle both cases
+    # gracefully to avoid type mismatch errors when querying.
+    if isinstance(user_key, int):
+        return db.session.get(User, user_key)
+
+    # When ``user_key`` is a digit string it might actually be the user id.
+    # Try id lookup first and fall back to email if no match.
+    if isinstance(user_key, str) and user_key.isdigit():
+        by_id = db.session.get(User, int(user_key))
+        if by_id:
+            return by_id
+
+    return User.query.filter_by(email=user_key).first()
+
+
+def user_account_ids(user):
+    return [acc.client_id for acc in user.accounts]
+
+
+def get_primary_account(user):
+    """Return the first account for a user, if any."""
+    if user.accounts:
+        return user.accounts[0]
+    return None
+
+
+def order_mappings_for_user(user):
+    ids = user_account_ids(user)
+    return OrderMapping.query.filter(
+        or_(OrderMapping.master_client_id.in_(ids),
+            OrderMapping.child_client_id.in_(ids))
+    )
+
+
+def active_children_for_master(master, session=db.session, logger: Optional[logging.Logger] = None):
+    """Return active child accounts belonging to the same user as ``master``.
+
+    Parameters
+    ----------
+    master: Account
+        Master account for which active children should be fetched.
+    session: sqlalchemy.orm.Session
+    logger: logging.Logger, optional
+        Logger used to record reasons for excluding child accounts. Defaults
+        to this module's logger.
+    """
+    logger = logger or log
+    # Get all child accounts linked to this master
+    children = (
+        session.query(Account)
+        .filter(
+            Account.role == "child",
+            db.func.lower(Account.linked_master_id) == str(master.client_id).lower(),
+            db.func.lower(Account.client_id) != str(master.client_id).lower(),
+        )
+        .all()
+    )
     
-    def _normalize_product_type(self, product_type):
-        """Normalize product type for Fyers API.
-        
-        Fyers expects: INTRADAY, CNC, MARGIN, BO, CO
-        """
-        if not product_type:
-            return "INTRADAY"  # Default to INTRADAY
+    # Filter children based on copy_status and account health
+    active_children = []
+    for child in children:
+        # Check copy status - only include children with copy_status 'On'
+        copy_status = getattr(child, "copy_status", "Off")
+        if str(copy_status).lower() != "on":
+            logger.info(
+                "Excluding child %s: copy status is %s",
+                getattr(child, "client_id", "unknown"),
+                copy_status,
+            )
+            continue
             
-        pt = str(product_type).upper()
-        
-        # Direct mappings for Fyers product types
-        if pt in {"INTRADAY", "CNC", "MARGIN", "BO", "CO"}:
-            return pt
+        # Check for system errors that would prevent copying
+        system_errors = getattr(child, "system_errors", [])
+        if system_errors:
+            logger.warning(
+                "Excluding child %s due to system errors: %s",
+                getattr(child, "client_id", "unknown"),
+                system_errors,
+            )
+            continue
             
-        # Map common product types to Fyers format
+        # Check if child has valid credentials. Brokers such as Alice Blue
+        # authenticate using an ``api_key`` instead of an ``access_token``.
+        # Determine which credential key is required based on the broker and
+        # ensure it exists.
+        credentials = getattr(child, "credentials", {}) or {}
+        broker = getattr(child, "broker", "")
+        required_key = "access_token"
+        if broker in {"aliceblue", "finvasia"}:
+            required_key = "api_key"
+        if not credentials.get(required_key):
+            logger.info(
+                "Excluding child %s: missing credentials (%s)",
+                getattr(child, "client_id", "unknown"),
+                required_key,
+            )
+            continue
+
+        active_children.append(child)
+    
+    return active_children
+
+
+def get_child_accounts_for_master(master_id: str, db_session=db.session) -> List[Account]:
+    """Get all child accounts for a specific master ID.
+    
+    Args:
+        master_id: Client ID of the master account
+        db_session: SQLAlchemy session for database queries
+        
+    Returns:
+        List of child Account objects linked to the master
+    """
+    return db_session.query(Account).filter_by(
+        linked_master_id=master_id,
+        role="child"
+    ).all()
+
+
+def is_account_active_for_copying(account: Account) -> bool:
+    """Check if an account is active and ready for trade copying.
+    
+    Args:
+        account: Account object to check
+        
+    Returns:
+        True if account is active for copying, False otherwise
+    """
+    # Check copy status
+    copy_status = getattr(account, 'copy_status', 'Off')
+    if str(copy_status).lower() != 'on':
+        return False
+        
+    # Check for system errors
+    system_errors = getattr(account, 'system_errors', [])
+    if system_errors:
+        return False
+        
+    # Check credentials
+    credentials = getattr(account, 'credentials', {})
+    if not credentials or not credentials.get('access_token'):
+        return False
+        
+    return True
+
+
+def update_account_copy_status(account_id: str, status: str, db_session=db.session) -> bool:
+    """Update the copy status for an account.
+    
+    Args:
+        account_id: Client ID of the account
+        status: New copy status ('On' or 'Off')
+        db_session: SQLAlchemy session for database operations
+        
+    Returns:
+        True if update was successful, False otherwise
+    """
+    try:
+        account = db_session.query(Account).filter_by(client_id=account_id).first()
+        if not account:
+            return False
+            
+        account.copy_status = status
+        db_session.commit()
+        return True
+    except Exception:
+        db_session.rollback()
+        return False
+
+
+def get_master_account_stats(master_id: str, db_session=db.session) -> dict:
+    """Get statistics for a master account and its children.
+    
+    Args:
+        master_id: Client ID of the master account
+        db_session: SQLAlchemy session for database queries
+        
+    Returns:
+        Dictionary with master account statistics
+    """
+    master = db_session.query(Account).filter_by(
+        client_id=master_id, 
+        role="master"
+    ).first()
+    
+    if not master:
+        return {}
+        
+    children = get_child_accounts_for_master(master_id, db_session)
+    active_children = [child for child in children if is_account_active_for_copying(child)]
+    
+    return {
+        "master_id": master_id,
+        "master_copy_status": getattr(master, 'copy_status', 'Off'),
+        "total_children": len(children),
+        "active_children": len(active_children),
+        "inactive_children": len(children) - len(active_children),
+        "children_details": [
+            {
+                "client_id": child.client_id,
+                "broker": child.broker,
+                "copy_status": getattr(child, 'copy_status', 'Off'),
+                "copy_qty": getattr(child, 'copy_qty', None),
+                "copy_value_limit": getattr(child, 'copy_value_limit', None),
+                "copied_value": getattr(child, 'copied_value', 0),
+                "has_errors": bool(getattr(child, 'system_errors', []))
+            }
+            for child in children
+        ]
+    }
+
+
+def log_connection_error(
+    account: Account,
+    message: str,
+    *,
+    disable_children: bool = False,
+    module: str = "broker",
+) -> None:
+    """Persist a connection/order error and mark accounts inactive.
+
+    Parameters
+    ----------
+    account : Account
+        The account experiencing the error.
+    message : str
+        Error message to store.
+    disable_children : bool, optional
+        Whether to also disable all child accounts when the failing account is a
+        master, by default ``False``.
+    module : str, optional
+        The source of the error for logging purposes. Defaults to ``"broker"``
+        so broker failures (e.g., order placement issues) are excluded from
+        system error badges. Pass ``"copy_trading"`` or ``"system"`` for
+        internal failures that should surface in the UI.
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        message_lower = (message or "").lower()
+        if (
+            (account.broker or "").lower() == "dhan"
+            and (
+                "invalid syntax" in message_lower
+                or "failed to load broker" in message_lower
+            )
+        ):
+            # Treat invalid Dhan broker imports as non-fatal
+            logger.warning(message)
+            account.status = "Connected"
+            if account.copy_status == "Off":
+                account.copy_status = "On"
+            db.session.commit()
+            publish_log_event(
+                {
+                    "level": "INFO",
+                    "message": "Cleared previous invalid syntax logs",
+                    "user_id": str(account.user_id),
+                    "module": "system",
+                    "details": {"client_id": account.client_id},
+                }
+            )
+            return
+
+        account.status = "Error"
+        account.copy_status = "Off"
+
+        if disable_children and account.role == "master":
+            children = Account.query.filter_by(
+                user_id=account.user_id,
+                role="child",
+                linked_master_id=account.client_id,
+            ).all()
+            for child in children:
+                child.copy_status = "Off"
+                child.status = "Error"
+
+        publish_log_event(
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "level": "ERROR",
+                "message": message,
+                "user_id": str(account.user_id),
+                "module": module,
+                "details": {
+                    "client_id": account.client_id,
+                    "broker": account.broker,
+                },
+            }
+        )
+        db.session.commit()
+    except Exception as e:  # pragma: no cover - logging failures shouldn't crash
+        db.session.rollback()
+        logger.error(f"Failed to log connection error: {e}")
+
+
+def clear_init_error_logs(account: Account, *, is_master: bool) -> None:
+    """Previous implementation removed initialization error logs.
+
+    With the external log service, logs are append-only so this now
+    simply records an informational event without modifying the store.
+    """
+    publish_log_event(
+        {
+            "level": "INFO",
+            "message": f"clear_init_error_logs called for {account.client_id}",
+            "user_id": str(account.user_id),
+            "module": "system",
+            "details": {"is_master": is_master},
+        }
+    )
+
+
+def clear_connection_error_logs(account: Account) -> None:
+    """Record a log indicating error logs would be cleared."""
+    publish_log_event(
+        {
+            "level": "INFO",
+            "message": f"clear_connection_error_logs called for {account.client_id}",
+            "user_id": str(account.user_id),
+            "module": "system",
+        }
+    )
+
+
+def extract_product_type(position: dict) -> str | None:
+    """Attempt to extract a product type from a raw position dict."""
+    lower = {k.lower(): v for k, v in position.items()}
+    for key in (
+        "producttype",
+        "product_type",
+        "product",
+        "pcode",
+        "prd",
+        "prdt",
+        "prctyp",
+    ):
+        if key in lower and lower[key] is not None:
+            prod = str(lower[key]).strip()
+            if not prod:
+                continue
+            if key in {"pcode", "prd", "prdt"} and len(prod) == 1:
+                mapping = {"c": "CNC", "m": "MIS", "h": "NRML"}
+                prod = mapping.get(prod.lower(), prod)
+            if key == "prctyp" and len(prod) == 1:
+                mapping = {"i": "MIS", "d": "CNC"}
+                prod = mapping.get(prod.lower(), prod)
+            return prod.upper()
+    return None
+
+
+def extract_order_type(order: dict) -> str | None:
+    """Attempt to extract an order type from a raw order dict."""
+    lower = {k.lower(): v for k, v in order.items()}
+    for key in (
+        "order_type",
+        "ordertype",
+        "type",
+        "pricetype",
+        "order_type_desc",
+        "order_type_str",
+    ):
+        if key in lower and lower[key] is not None:
+            otype = str(lower[key]).strip()
+            if otype:
+                return otype.upper()
+    return None
+
+
+def canonical_product_type(product: str | None) -> str | None:
+    """Return a normalized product string like ``MIS`` or ``CNC``."""
+    if not product:
+        return None
+    prod = str(product).strip().upper()
+    
+    # Map to canonical types
+    if prod in {"MIS", "INTRADAY", "INTRA", "I"}:
+        return "MIS"
+    if prod in {"CNC", "C", "LONG TERM", "LONGTERM", "LT", "DELIVERY", "DELIVER"}:
+        return "CNC"
+    if prod in {"NRML", "NORMAL", "MARGIN", "H"}:
+        return "NRML"
+    if prod in {"MTF"}:
+        return "MTF"
+    if prod in {"BO", "BRACKET"}:
+        return "BO"
+    if prod in {"CO", "COVER"}:
+        return "CO"
+    return prod
+
+
+def map_product_for_broker(product: str | None, broker: str) -> str | None:
+    """Return product string appropriate for the given broker."""
+    base = canonical_product_type(product)
+    if base is None:
+        return None
+    
+    b = (broker or "").lower()
+    
+    # Broker-specific mappings
+    if b == "dhan":
         mapping = {
             "MIS": "INTRADAY",
-            "INTRA": "INTRADAY",
-            "I": "INTRADAY",
+            "CNC": "CNC",
             "NRML": "MARGIN",
-            "NORMAL": "MARGIN",
-            "H": "MARGIN",
-            "DELIVERY": "CNC",
-            "C": "CNC",
-            "LONGTERM": "CNC",
-            "MTF": "MARGIN",  # MTF maps to MARGIN in Fyers
-            "BRACKET": "BO",
-            "COVER": "CO",
+            "MTF": "MTF",
+            "BO": "BO",
+            "CO": "CO",
         }
-        
-        mapped = mapping.get(pt, pt)  # Return original if no mapping found
-        logger.debug(f"Mapped product type {pt} to {mapped}")
-        return mapped
-
-    def _normalize_order_type(self, order_type):
-        if not order_type:
-            return "MARKET"
-            
-        ot = str(order_type).upper()
+        return mapping.get(base, base)
+    
+    elif b == "fyers":
         mapping = {
-            "MKT": "MARKET",
-            "MARKET": "MARKET",
-            "L": "LIMIT",
-            "LIMIT": "LIMIT",
-            "SL": "STOP",
-            "SL-M": "STOP_MARKET",
-            "STOP": "STOP",
-            "STOP_LIMIT": "STOP",
-            "STOP_MARKET": "STOP_MARKET",
+            "MIS": "INTRADAY",
+            "CNC": "CNC",
+            "NRML": "MARGIN",
+            "MTF": "MARGIN",  # Fyers doesn't have MTF, use MARGIN
+            "BO": "BO",
+            "CO": "CO",
         }
-        return mapping.get(ot, ot)
-
-    def __init__(self, client_id, access_token, **kwargs):
-        super().__init__(client_id, access_token, **kwargs)
-        if fyersModel is not None:
-            self.api = fyersModel.FyersModel(token=access_token, client_id=client_id)
-        else:
-            # Library not installed; minimal HTTP fallback
-            self.api = None
-            self.session = requests.Session()
-            self.session.headers.update({"Authorization": f"{client_id}:{access_token}"})
-
-    def _format_symbol_for_fyers(self, tradingsymbol, exchange):
-        """Format symbol according to Fyers requirements.
-        
-        Fyers expects format like:
-        - NSE:SBIN-EQ for NSE equity
-        - BSE:SBIN-EQ for BSE equity  
-        - NSE:NIFTY24DEC24000CE for F&O (no -EQ suffix)
-        - MCX:GOLD23NOVFUT for commodity derivatives
-        """
-        if not tradingsymbol:
-            return tradingsymbol
-            
-        # Clean the symbol
-        symbol = str(tradingsymbol).upper().strip()
-        
-        # Handle exchange
-        if not exchange:
-            exchange = "NSE"
-        exchange = str(exchange).upper()
-        
-        # Check if symbol already has exchange prefix
-        if ":" in symbol:
-            # Symbol already formatted, just ensure proper exchange mapping
-            parts = symbol.split(":", 1)
-            existing_exchange = parts[0]
-            symbol_part = parts[1]
-            
-            # Map NFO/BFO to NSE/BSE for Fyers
-            exchange_map = {
-                "NFO": "NSE",
-                "BFO": "BSE",
-                "CDS": "CDS",
-                "MCX": "MCX"
-            }
-            mapped_exchange = exchange_map.get(existing_exchange, existing_exchange)
-            return f"{mapped_exchange}:{symbol_part}"
-            
-        # Map derivative exchanges for Fyers
-        exchange_map = {
-            "NFO": "NSE",  # Fyers uses NSE for NFO
-            "BFO": "BSE",  # Fyers uses BSE for BFO
-            "CDS": "CDS",  # Currency derivatives
-            "MCX": "MCX"   # Commodity derivatives
+        return mapping.get(base, base)
+    
+    elif b == "zerodha":
+        mapping = {
+            "MIS": "MIS",
+            "CNC": "CNC",
+            "NRML": "NRML",
+            "MTF": "CNC",  # Zerodha doesn't have MTF, use CNC
+            "BO": "BO",
+            "CO": "CO",
         }
-        mapped_exchange = exchange_map.get(exchange, exchange)
-        
-        # Determine if it's an F&O symbol
-        is_fo = any(suffix in symbol for suffix in ["FUT", "CE", "PE"])
-        
-        # Remove existing -EQ suffix if present
-        if symbol.endswith("-EQ"):
-            symbol = symbol[:-3]
-        
-        if is_fo or exchange in {"NFO", "BFO", "CDS", "MCX"}:
-            # F&O or derivatives symbol - don't add -EQ
-            logger.debug(f"F&O/Derivative symbol detected: {symbol}, using exchange: {mapped_exchange}")
-            return f"{mapped_exchange}:{symbol}"
-        else:
-            # Equity symbol - add -EQ suffix
-            logger.debug(f"Equity symbol detected: {symbol}, adding -EQ suffix for exchange: {mapped_exchange}")
-            return f"{mapped_exchange}:{symbol}-EQ"
+        return mapping.get(base, base)
+    
+    elif b == "aliceblue":
+        mapping = {
+            "MIS": "MIS",
+            "CNC": "CNC",
+            "NRML": "NRML",
+            "MTF": "MTF",
+            "BO": "BO",
+            "CO": "CO",
+        }
+        return mapping.get(base, base)
+    
+    elif b == "finvasia":
+        mapping = {
+            "MIS": "M",  # Margin Intraday Square Off
+            "CNC": "C",  # Cash & Carry
+            "NRML": "H",  # Holding/Normal for F&O
+            "MTF": "C",  # Use Cash & Carry for MTF
+            "BO": "B",  # Bracket Order
+            "CO": "H",  # Cover Order as Holding
+        }
+        return mapping.get(base, base)
+    
+    elif b == "flattrade":
+        mapping = {
+            "MIS": "INTRADAY",
+            "CNC": "DELIVERY",
+            "NRML": "NORMAL",
+            "MTF": "DELIVERY",  # Flattrade uses DELIVERY for MTF
+        }
+        return mapping.get(base, base)
+    
+    # Default mapping for unknown brokers
+    return base
 
-    def place_order(
-        self,
-        tradingsymbol=None,
-        exchange=None,
-        transaction_type=None,
-        quantity=None,
-        order_type="MARKET",
-        product="INTRADAY",
-        price=None,
-        **kwargs,
+
+def normalize_position(position: dict, broker: str) -> dict | None:
+    """Return a standardized position dict for the front-end.
+
+    All keys are normalized to the style used by the copy trading page:
+    ``tradingSymbol``, ``buyQty``, ``sellQty``, ``netQty``, ``buyAvg``,
+    ``sellAvg``, ``ltp`` and ``profitAndLoss``.  If a position cannot be
+    interpreted or represents a closed position (net quantity zero) the
+    function returns ``None`` so callers can easily filter it out.
+    """
+
+    b = (broker or "").lower()
+    lower = {k.lower(): v for k, v in position.items()}
+
+    def f(keys, default=0.0):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    break
+        return default
+
+    def i(keys, default=0):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                try:
+                    return int(float(val))
+                except (TypeError, ValueError):
+                    break
+        return default
+
+    if b == "finvasia" and any(k in lower for k in ("buyqty", "sellqty", "netqty", "netQty")):
+        new = {
+            "tradingSymbol": lower.get("tsym"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("avgprc"),
+            "sellAvg": f("avgprc"),
+            "ltp": f(["ltp", "lp"]),
+            "profitAndLoss": f("urmtom"),
+        }
+        return new if new["netQty"] != 0 else None
+
+    if b == "aliceblue" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+        new = {
+            "tradingSymbol": lower.get("symbol"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("buyavgprc"),
+            "sellAvg": f("sellavgprc"),
+            "ltp": f("ltp"),
+            "profitAndLoss": f(["unrealisedprofit", "urpl"]),
+        }
+        return new if new["netQty"] != 0 else None
+
+    if b == "zerodha" and any(k in lower for k in ("quantity", "buy_quantity", "sell_quantity")):
+        net_qty = i("quantity")
+        avg_price = f("average_price")
+        new = {
+            "tradingSymbol": lower.get("tradingsymbol"),
+            "buyQty": i("buy_quantity"),
+            "sellQty": i("sell_quantity"),
+            "netQty": net_qty,
+            "buyAvg": avg_price if net_qty > 0 else 0.0,
+            "sellAvg": avg_price if net_qty < 0 else 0.0,
+            "ltp": f("last_price"),
+            "profitAndLoss": f("pnl"),
+        }
+        return new if new["netQty"] != 0 else None
+
+    if b == "fyers" and any(k in lower for k in ("netqty", "buyqty", "sellqty")):
+        new = {
+            "tradingSymbol": lower.get("symbol"),
+            "buyQty": i("buyqty"),
+            "sellQty": i("sellqty"),
+            "netQty": i("netqty"),
+            "buyAvg": f("buyavg"),
+            "sellAvg": f("sellavg"),
+            "ltp": f("ltp"),
+            "profitAndLoss": f("pl"),
+        }
+        return new if new["netQty"] != 0 else None
+
+    if b == "dhan" and any(k in lower for k in ("buyqty", "sellqty", "netqty")):
+        buy_qty = i("buyqty")
+        sell_qty = i("sellqty")
+        net_qty = i("netqty", buy_qty - sell_qty)
+        new = {
+            "tradingSymbol": lower.get("tradingsymbol") or lower.get("tradingSymbol"),
+            "buyQty": buy_qty,
+            "sellQty": sell_qty,
+            "netQty": net_qty,
+            "buyAvg": f("buyavg"),
+            "sellAvg": f("sellavg"),
+            "ltp": f(["lasttradedprice", "ltp"]),
+            "profitAndLoss": f("unrealizedprofit"),
+        }
+        return new if new["netQty"] != 0 else None
+    # Default path: attempt generic keys
+    new = {
+        "tradingSymbol": lower.get("tradingsymbol") or lower.get("symbol"),
+        "buyQty": i(["buyqty", "buy_quantity"]),
+        "sellQty": i(["sellqty", "sell_quantity"]),
+        "netQty": i(["netqty", "quantity", "net_quantity"]),
+        "buyAvg": f(["buyavg", "buyavgprc", "average_price"]),
+        "sellAvg": f(["sellavg", "sellavgprc"]),
+        "ltp": f(["ltp", "last_price"]),
+        "profitAndLoss": f(["pnl", "pl", "unrealizedprofit"]),
+    }
+    has_qty = any(k in lower for k in [
+        "netqty", "quantity", "net_quantity", "buyqty", "buy_quantity",
+        "sellqty", "sell_quantity"
+    ])
+    if not has_qty:
+        return position
+    return new if new["netQty"] != 0 else None
+
+
+def extract_exchange_from_order(order: dict) -> str | None:
+    """Extract exchange from an order dict with proper normalization."""
+    lower = {k.lower(): v for k, v in order.items()}
+    for key in (
+        "exchange",
+        "exch",
+        "exchange_segment",
+        "exchangesegment",
+        "segment",
     ):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
+        if key in lower and lower[key] is not None:
+            exchange = str(lower[key]).strip().upper()
             
-        try:
-            # Map generic order fields to Fyers-specific names
-            tradingsymbol = tradingsymbol or kwargs.pop("symbol", None)
-            transaction_type = transaction_type or kwargs.pop("action", None)
-            quantity = quantity or kwargs.pop("qty", None)
-            
-            # Handle product_type vs product
-            product = kwargs.pop("product_type", product) or product or "INTRADAY"
-            
-            exchange = exchange or kwargs.pop("exchange", None)
-
-            # Normalise common string fields
-            if isinstance(transaction_type, str):
-                transaction_type = transaction_type.upper()
-            if isinstance(order_type, str):
-                order_type = order_type.upper()
-            if isinstance(product, str):
-                product = product.upper()
-            if isinstance(exchange, str):
-                exchange = exchange.upper()
-
-            # Normalize product and order types
-            product = self._normalize_product_type(product)
-            order_type = self._normalize_order_type(order_type)
-            
-            # Map order type to Fyers type code
-            order_type_mapping = {
-                "MARKET": 2,
-                "LIMIT": 1,
-                "STOP": 3,
-                "STOP_MARKET": 4,
-            }
-            fy_type = order_type_mapping.get(order_type, 2)  # Default to MARKET
-
-            # Handle price based on order type
-            if fy_type in {1, 3}:  # LIMIT or STOP orders
-                if price is None:
-                    raise ValueError(f"price is required for {order_type} orders")
-                limit_price = float(price)
-            else:
-                limit_price = 0
-
-            # Format symbol for Fyers
-            symbol = self._format_symbol_for_fyers(tradingsymbol, exchange)
-            
-            # Log for debugging
-            logger.info(
-                f"Fyers order: symbol={symbol}, exchange={exchange}, "
-                f"product={product}, order_type={order_type}, "
-                f"action={transaction_type}, qty={quantity}, price={price}"
-            )
-
-            # Prepare order data
-            data = {
-                "symbol": symbol,
-                "qty": int(quantity),
-                "type": fy_type,
-                "side": 1 if transaction_type == "BUY" else -1,
-                "productType": product,
-                "limitPrice": limit_price,
-                "disclosedQty": 0,
-                "validity": "DAY",
-                "offlineOrder": False,
-                "stopPrice": 0,
+            # Normalize exchange names
+            exchange_map = {
+                "NSE_EQ": "NSE",
+                "BSE_EQ": "BSE",
+                "NSE_FNO": "NFO",
+                "BSE_FNO": "BFO",
+                "NSE_FO": "NFO",
+                "BSE_FO": "BFO",
+                "NSE_FUT": "NFO",
+                "BSE_FUT": "BFO",
             }
             
-            # Handle stop orders
-            if order_type in {"STOP", "STOP_MARKET"}:
-                trigger_price = kwargs.get("trigger_price") or kwargs.get("stopPrice") or price
-                if trigger_price:
-                    data["stopPrice"] = float(trigger_price)
-            
-            result = self.api.place_order(data=data)
-            
-            # Check result
-            if result and result.get("s") == "ok":
-                return {
-                    "status": "success",
-                    "order_id": result.get("id"),
-                    "message": result.get("message", "Order placed successfully")
-                }
-            else:
-                error_msg = result.get("message", "Order placement failed") if result else "No response"
-                logger.error(f"Fyers order failed: {error_msg}, result: {result}")
-                return {
-                    "status": "failure",
-                    "error": error_msg,
-                    "details": result
-                }
-                
-        except Exception as e:
-            logger.error(f"Exception in Fyers place_order: {str(e)}", exc_info=True)
-            return {"status": "failure", "error": str(e)}
-
-    def get_order_list(self):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
-
-        try:
-            if hasattr(self.api, "orderbook"):
-                orders = self.api.orderbook()
-            else:
-                return {"status": "failure", "error": "No order book method"}
-
-            if not isinstance(orders, dict):
-                return {"status": "failure", "error": "Unexpected response"}
-
-            if str(orders.get("s")).lower() == "error":
-                return {
-                    "status": "failure",
-                    "error": orders.get("message") or "Unknown error",
-                    "data": [],
-                }
-            
-            # Get order data
-            data = (
-                orders.get("orderBook")
-                or orders.get("data")
-                or orders.get("orders")
-                or []
-            )
-
-            if isinstance(data, dict):
-                data = (
-                    data.get("orderBook")
-                    or data.get("orders")
-                    or []
-                )
-
-            # If no orders in orderbook, try tradebook
-            if not data and hasattr(self.api, "tradebook"):
-                trades = self.api.tradebook()
-                if isinstance(trades, dict) and str(trades.get("s")).lower() != "error":
-                    data = (
-                        trades.get("tradeBook")
-                        or trades.get("data")
-                        or trades.get("trades")
-                        or []
-                    )
-                    if isinstance(data, dict):
-                        data = (
-                            data.get("tradeBook")
-                            or data.get("trades")
-                            or []
-                        )
-
-            if not isinstance(data, list):
-                data = []
-
-            # Normalize orders
-            normalized_orders = []
-            for o in data:
-                # Extract exchange and symbol
-                full_symbol = o.get("symbol", "")
-                if ":" in full_symbol:
-                    exchange, symbol = full_symbol.split(":", 1)
-                else:
-                    exchange = "NSE"
-                    symbol = full_symbol
-                
-                # Remove -EQ suffix for display
-                if symbol.endswith("-EQ"):
-                    symbol = symbol[:-3]
-                
-                # Map Fyers product types back to standard
-                product_type = o.get("productType", "")
-                product_map = {
-                    "INTRADAY": "MIS",
-                    "CNC": "CNC",
-                    "MARGIN": "NRML",
-                    "BO": "BO",
-                    "CO": "CO"
-                }
-                
-                normalized_order = {
-                    "action": "BUY" if o.get("side") == 1 else "SELL",
-                    "order_type": self._get_order_type_from_code(o.get("type", 2)),
-                    "exchange": exchange,
-                    "symbol": symbol,
-                    "qty": o.get("qty", 0),
-                    "price": o.get("limitPrice", 0),
-                    "status": o.get("status", ""),
-                    "order_id": o.get("id"),
-                    "product_type": product_map.get(product_type, product_type),
-                }
-                normalized_orders.append(normalized_order)
-
-            return {"status": "success", "data": normalized_orders}
-
-        except Exception as e:
-            logger.error(f"Exception in get_order_list: {str(e)}", exc_info=True)
-            return {"status": "failure", "error": str(e), "data": []}
-
-    def _get_order_type_from_code(self, type_code):
-        """Convert Fyers type code back to order type string."""
-        type_map = {
-            1: "LIMIT",
-            2: "MARKET",
-            3: "STOP",
-            4: "STOP_MARKET"
-        }
-        return type_map.get(type_code, "MARKET")
-
-    def list_orders(self, **kwargs):
-        """Return a list of orders with canonical field names."""
-        resp = self.get_order_list(**kwargs)
-        if isinstance(resp, dict):
-            if resp.get("status") != "success":
-                raise RuntimeError(resp.get("error") or "failed to fetch order list")
-            orders = resp.get("data", [])
-        else:
-            orders = resp
-
-        normalized = []
-        for o in orders:
-            if not isinstance(o, dict):
-                continue
-            order = dict(o)
-
-            symbol = order.get("symbol") or order.get("tsym")
-            if symbol is not None:
-                order["symbol"] = str(symbol)
-
-            action = order.get("action") or order.get("trantype")
-            if action is not None:
-                order["action"] = str(action).upper()
-
-            qty = order.get("qty") or order.get("quantity")
-            try:
-                order["qty"] = int(qty)
-            except (TypeError, ValueError):
-                pass
-
-            exchange = order.get("exchange")
-            if exchange is not None:
-                order["exchange"] = str(exchange).upper()
-
-            order_type = order.get("order_type") or order.get("prctyp") or order.get("type")
-            if order_type is not None:
-                order["order_type"] = str(order_type).upper()
-
-            status = order.get("status")
-            if status is not None:
-                order["status"] = str(status).upper()
-
-            order_id = order.get("order_id") or order.get("id") or order.get("orderNumber")
-            if order_id is not None:
-                order["order_id"] = str(order_id)
-
-            # Ensure product_type is included
-            product_type = order.get("product_type") or order.get("productType")
-            if product_type is not None:
-                order["product_type"] = str(product_type).upper()
-
-            normalized.append(order)
-
-        return normalized
-
-    def get_positions(self):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
-        try:
-            positions = self.api.positions()
-            return {"status": "success", "data": positions.get("netPositions", [])}
-        except Exception as e:
-            return {"status": "failure", "error": str(e), "data": []}
-
-    def cancel_order(self, order_id):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
-        try:
-            result = self.api.cancel_order({"id": order_id})
-            if result and result.get("s") == "ok":
-                return {"status": "success", "order_id": order_id}
-            else:
-                return {"status": "failure", "error": result.get("message", "Cancel failed")}
-        except Exception as e:
-            return {"status": "failure", "error": str(e)}
-
-    def get_profile(self):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
-        try:
-            profile = self.api.get_profile()
-            return {"status": "success", "data": profile}
-        except Exception as e:
-            return {"status": "failure", "error": str(e), "data": None}
-
-    def check_token_valid(self):
-        if self.api is None:
-            return False
-        try:
-            resp = self.api.get_profile()
-            if isinstance(resp, dict):
-                if str(resp.get("s")).lower() == "ok":
-                    code = resp.get("code")
-                    if code is None or int(code) >= 0:
-                        return True
-            return False
-        except Exception:
-            return False
-
-    def get_opening_balance(self):
-        if self.api is None:
-            raise RuntimeError("fyers-apiv3 not installed")
-        try:
-            funds = self.api.funds()
-            data = funds.get("fund_limit", funds.get("data", funds))
-            
-            # Try multiple keys for balance
-            for key in ["equityAmount", "cash", "available_balance", "availableCash", "netCash"]:
-                if key in data:
-                    try:
-                        return float(data[key])
-                    except (TypeError, ValueError):
-                        continue
-
-            # Check in nested structures
-            items = funds.get("fund_limit") or funds.get("data") or []
-            if isinstance(items, dict):
-                items = [items]
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                title = str(item.get("title", "")).strip().lower()
-                if title in {"available balance", "clear balance", "cash balance"}:
-                    for key in ["equityAmount", "cash", "balance"]:
-                        if key in item:
-                            try:
-                                return float(item[key])
-                            except (TypeError, ValueError):
-                                continue
-            return None
-        except Exception:
-            return None
-            
-    # ----- Authentication Helpers -----
-    @classmethod
-    def login_url(cls, client_id, redirect_uri, state="state123"):
-        """Return the Fyers OAuth login URL."""
-        params = {
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "response_type": "code",
-            "state": state,
-        }
-        return f"https://api-t1.fyers.in/api/v3/generate-authcode?{urlencode(params)}"
-
-    @classmethod
-    def exchange_code_for_token(cls, client_id, secret_key, auth_code):
-        """Exchange auth code for access and refresh tokens."""
-        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
-        payload = {
-            "grant_type": "authorization_code",
-            "appIdHash": app_hash,
-            "code": auth_code,
-        }
-        resp = requests.post(
-            "https://api-t1.fyers.in/api/v3/validate-authcode",
-            json=payload,
-            timeout=10,
-        )
-        return resp.json()
-
-    @classmethod
-    def refresh_access_token(cls, client_id, secret_key, refresh_token, pin):
-        """Refresh the access token using refresh token and pin."""
-        app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
-        payload = {
-            "grant_type": "refresh_token",
-            "appIdHash": app_hash,
-            "refresh_token": refresh_token,
-            "pin": str(pin),
-        }
-        resp = requests.post(
-            "https://api-t1.fyers.in/api/v3/validate-refresh-token",
-            json=payload,
-            timeout=10,
-        )
-        return resp.json()
+            return exchange_map.get(exchange, exchange)
+    return None
