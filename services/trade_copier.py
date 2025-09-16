@@ -104,7 +104,14 @@ def _load_symbol_map_or_exit() -> None:
 def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
     """ADDED: Get or create cached broker client for faster access."""
     cache_key = f"{broker}:{client_id}"
-    
+
+
+    try:
+        client_cls = get_broker_client(broker)
+    except Exception as exc:  # pragma: no cover - exercised in tests
+        log.error("Failed to resolve broker client for %s: %s", client_id, exc)
+        raise
+
     # Check cache
     cached = BROKER_CLIENT_CACHE.get(cache_key)
     if cached:
@@ -123,7 +130,6 @@ def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
     
     # Create new client
     try:
-        client_cls = get_broker_client(broker)
         access_token = credentials.get("access_token", "")
         # Make a copy to avoid modifying original
         creds_copy = dict(credentials)
@@ -138,9 +144,9 @@ def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
         
         # Cache it
         BROKER_CLIENT_CACHE[cache_key] = {
-            'client': client,
-            'expires': time.time() + BROKER_CLIENT_CACHE_TTL,
-            'cls': client_cls,
+            "client": client,
+            "expires": time.time() + BROKER_CLIENT_CACHE_TTL,
+            "cls": client_cls,
         }
         
         return client
@@ -804,7 +810,7 @@ def poll_and_copy_trades(
                                     acked = True
                                     return
 
-                                event.setdefault("master_id", master_id)   
+                                event["master_id"] = master_id   
                                 master = (
                                     db_session.query(Account)
                                     .filter_by(client_id=str(master_id), role="master")
@@ -831,7 +837,9 @@ def poll_and_copy_trades(
                                         timeout=child_timeout,
                                     )
                                 else:
-                                    log.warning(f"Master account {event['master_id']} not found")
+                                    log.warning(
+                                        "Master account %s not found", master_id
+                                    )
                             except Exception as exc:  # pragma: no cover - exercised in tests
                                 log.exception(
                                     "error processing trade event %s", msg_id, exc_info=exc
