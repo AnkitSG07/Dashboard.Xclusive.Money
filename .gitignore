@@ -5,3 +5,5 @@ __pycache__/
 data/
 *.db
 node_modules/
+brokers/_cache/
+*.log

@@ -107,13 +107,13 @@ def test_copy_order_with_extra_credentials(monkeypatch):
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
 
-    child = {
-        "broker": "stub",
-        "client_id": "c1",
-        "credentials": {"client_id": "dup", "access_token": "t", "api_key": "k"},
-        "copy_qty": None,
-    }
-    master = {"client_id": "m", "broker": "stub"}
+    child = SimpleNamespace(
+        broker="stub",
+        client_id="c1",
+        credentials={"client_id": "dup", "access_token": "t", "api_key": "k"},
+        copy_qty=None,
+    )
+    master = SimpleNamespace(client_id="m", broker="stub")
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
 
     trade_copier.copy_order(master, child, order)
@@ -138,13 +138,13 @@ def test_copy_qty_overrides_master_quantity(monkeypatch):
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
 
-    child = {
-        "broker": "stub",
-        "client_id": "c1",
-        "credentials": {"access_token": "t"},
-        "copy_qty": 2,
-    }
-    master = {"client_id": "m", "broker": "stub"}
+    child = SimpleNamespace(
+        broker="stub",
+        client_id="c1",
+        credentials={"access_token": "t"},
+        copy_qty=2,
+    )
+    master = SimpleNamespace(client_id="m", broker="stub")
     order = {"symbol": "AAPL", "action": "BUY", "qty": 10}
 
     trade_copier.copy_order(master, child, order)
@@ -178,13 +178,13 @@ def test_copy_from_dhan_to_aliceblue(monkeypatch):
         "get_symbol_for_broker",
         lambda symbol, broker: {"symbol_id": "1", "trading_symbol": symbol, "exch": "NSE"},
     )
-    master = {"broker": "dhan", "client_id": "m"}
-    child = {
-        "broker": "aliceblue",
-        "client_id": "c1",
-        "credentials": {},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="dhan", client_id="m")
+    child = SimpleNamespace(
+        broker="aliceblue",
+        client_id="c1",
+        credentials={},
+        copy_qty=None,
+    )
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "INTRADAY", "order_type": "MARKET"}
 
     resp = trade_copier.copy_order(master, child, order)
@@ -216,13 +216,13 @@ def test_copy_from_dhan_to_zerodha(monkeypatch):
             return func(*args, **kwargs)
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyZerodha)
-    master = {"broker": "dhan", "client_id": "m"}
-    child = {
-        "broker": "zerodha",
-        "client_id": "c1",
-        "credentials": {"api_key": "k"},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="dhan", client_id="m")
+    child = SimpleNamespace(
+        broker="zerodha",
+        client_id="c1",
+        credentials={"api_key": "k"},
+        copy_qty=None,
+    )
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "INTRADAY", "order_type": "MARKET"}
 
     resp = trade_copier.copy_order(master, child, order)
@@ -248,13 +248,13 @@ def test_copy_from_aliceblue_to_dhan(monkeypatch):
             return Resp()
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyDhan)
-    master = {"broker": "aliceblue", "client_id": "m"}
-    child = {
-        "broker": "dhan",
-        "client_id": "c1",
-        "credentials": {},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="aliceblue", client_id="m")
+    child = SimpleNamespace(
+        broker="dhan",
+        client_id="c1",
+        credentials={},
+        copy_qty=None,
+    )
     order = {
         "symbol": "AAPL",
         "action": "BUY",
@@ -288,13 +288,13 @@ def test_copy_from_zerodha_to_dhan(monkeypatch):
             return Resp()
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyDhan)
-    master = {"broker": "zerodha", "client_id": "m"}
-    child = {
-        "broker": "dhan",
-        "client_id": "c1",
-        "credentials": {},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="zerodha", client_id="m")
+    child = SimpleNamespace(
+        broker="dhan",
+        client_id="c1",
+        credentials={},
+        copy_qty=None,
+    )
     order = {
         "symbol": "AAPL",
         "action": "BUY",
@@ -333,13 +333,13 @@ def test_copy_from_aliceblue_to_zerodha(monkeypatch):
             return func(*args, **kwargs)
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: DummyZerodha)
-    master = {"broker": "aliceblue", "client_id": "m"}
-    child = {
-        "broker": "zerodha",
-        "client_id": "c1",
-        "credentials": {"api_key": "k"},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="aliceblue", client_id="m")
+    child = SimpleNamespace(
+        broker="zerodha",
+        client_id="c1",
+        credentials={"api_key": "k"},
+        copy_qty=None,
+    )
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MIS", "order_type": "MKT"}
 
     resp = trade_copier.copy_order(master, child, order)
@@ -374,13 +374,13 @@ def test_copy_from_zerodha_to_aliceblue(monkeypatch):
         "get_symbol_for_broker",
         lambda symbol, broker: {"symbol_id": "1", "trading_symbol": symbol, "exch": "NSE"},
     )
-    master = {"broker": "zerodha", "client_id": "m"}
-    child = {
-        "broker": "aliceblue",
-        "client_id": "c1",
-        "credentials": {},
-        "copy_qty": None,
-    }
+    master = SimpleNamespace(broker="zerodha", client_id="m")
+    child = SimpleNamespace(
+        broker="aliceblue",
+        client_id="c1",
+        credentials={},
+        copy_qty=None,
+    )
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MIS", "order_type": "MARKET"}
 
     resp = trade_copier.copy_order(master, child, order)
@@ -399,8 +399,8 @@ def test_copy_order_logs_broker_error(monkeypatch, caplog):
 
     monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
 
-    master = {"client_id": "m", "broker": "stub"}
-    child = {"broker": "stub", "client_id": "c1", "credentials": {}, "copy_qty": None}
+    master = SimpleNamespace(client_id="m", broker="stub")
+    child = SimpleNamespace(broker="stub", client_id="c1", credentials={}, copy_qty=None)
     order = {"symbol": "AAPL", "action": "BUY", "qty": 1}
 
     monkeypatch.setattr(
@@ -544,9 +544,9 @@ def test_replicate_to_children_isolates_child_errors(monkeypatch, caplog):
     executed = []
 
     def processor(master, child, order):
-        if child["client_id"] == "c1":
+        if child.client_id == "c1":
             raise RuntimeError("fail")
-        executed.append(child["client_id"])
+        executed.append(child.client_id)
 
     with caplog.at_level("WARNING"):
         asyncio.run(
@@ -582,7 +582,7 @@ def test_replicate_to_children_enforces_timeout(monkeypatch, caplog):
     )
 
     def processor(master, child, order):
-        if child["client_id"] == "slow":
+        if child.client_id == "slow":
             time.sleep(0.2)
         else:
             time.sleep(0.01)
@@ -620,7 +620,7 @@ def test_replicate_to_children_logs_warning_for_timeout(monkeypatch, caplog):
     )
 
     def processor(master, child, order):
-        if child["client_id"] == "to":
+        if child.client_id == "to":
             raise TimeoutError("boom")
         raise RuntimeError("fail")
 
@@ -685,7 +685,7 @@ def test_replicate_to_children_handles_case_insensitive_status(monkeypatch):
     processed = []
 
     def processor(master, child, order):
-        processed.append(child["client_id"])
+        processed.append(child.client_id)
 
     asyncio.run(_replicate_to_children(None, master, order, processor))
 
@@ -827,9 +827,9 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
     processed = []
 
     def processor(master, child, order):
-        if child["client_id"] == "bad":
+        if child.client_id == "bad":
             raise RuntimeError("boom")
-        processed.append(child["client_id"])
+        processed.append(child.client_id)
 
     monkeypatch.setattr(
         trade_copier, "active_children_for_master", lambda m, s: children
@@ -1043,7 +1043,7 @@ def test_poll_and_copy_trades_refreshes_child_credentials(monkeypatch):
     tokens = []
 
     def processor(master, child, order):
-        tokens.append(child["credentials"].get("access_token"))
+        tokens.append(child.credentials.get("access_token"))
 
     processed = trade_copier.poll_and_copy_trades(
         session, processor=processor, max_messages=2, redis_client=redis

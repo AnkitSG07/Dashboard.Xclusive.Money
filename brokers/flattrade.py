@@ -1,7 +1,8 @@
 import requests
 import time
+from .base import BrokerBase
 
-class FlattradeBroker:
+class FlattradeBroker(BrokerBase):
     BASE_URL = "https://apigw.flattrade.in/trade"
     CLIENT_CODE = None
     ACCESS_TOKEN = None
@@ -11,6 +12,7 @@ class FlattradeBroker:
         """
         Initialize the Flattrade broker adapter.
         """
+        super().__init__(client_id, access_token, **kwargs)
         self.client_id = client_id
         self.api_key = api_key
         self.api_secret = api_secret
@@ -68,7 +70,9 @@ class FlattradeBroker:
         resp = requests.get(url, headers=self._headers())
         resp.raise_for_status()
         data = resp.json()
-        return {"data": data.get("result", [])}
+        if data.get("status") == "Success":
+            return {"status": "success", "data": data.get("result", [])}
+        return {"status": "failure", "error": data.get("emsg") or data.get("result")}
 
     def place_order(
         self,
@@ -180,6 +184,7 @@ class FlattradeBroker:
 # Required for your broker factory logic
 def Flattrade(client_id, access_token=None, **kwargs):
     return FlattradeBroker(client_id, access_token=access_token, **kwargs)
+
 def get_opening_balance(self):
     """Return cash balance using limits API if available."""
     self._check_session()
@@ -198,4 +203,3 @@ def get_opening_balance(self):
         return None
     except Exception:
         return None
-

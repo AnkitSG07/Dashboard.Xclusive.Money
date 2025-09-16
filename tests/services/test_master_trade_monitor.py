@@ -77,13 +77,13 @@ class BrokerStub:
     def list_orders(self):
         return self.orders
 
-    def place_order(self, symbol, action, qty, exchange=None, order_type=None):
+    def place_order(self, **kwargs):
         BrokerStub.placed.append(
             {
                 "client_id": self.client_id,
-                "symbol": symbol,
-                "action": action,
-                "qty": qty,
+                "symbol": kwargs.get("symbol"),
+                "action": kwargs.get("action"),
+                "qty": kwargs.get("qty"),
             }
         )
 

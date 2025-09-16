@@ -639,3 +639,67 @@ def extract_exchange_from_order(order: dict) -> str | None:
             
             return exchange_map.get(exchange, exchange)
     return None
+
+
+def normalize_order(order: dict, broker: str) -> dict | None:
+    """Return a standardized order dict.
+
+    All keys are normalized to a common format: ``order_id``, ``symbol``,
+    ``action``, ``qty``, ``status``, ``exchange``, and ``order_type``.
+    If an order cannot be interpreted, it is returned as is.
+    """
+    if not isinstance(order, dict):
+        return order
+
+    lower = {k.lower(): v for k, v in order.items()}
+
+    def s(keys, default=None):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                return str(val)
+        return default
+
+    def i(keys, default=0):
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys:
+            val = lower.get(key.lower())
+            if val is not None:
+                try:
+                    return int(float(val))
+                except (TypeError, ValueError):
+                    break
+        return default
+
+    normalized = {
+        "order_id": s(["order_id", "id", "orderid", "orderId", "norenordno", "NOrdNo", "nestOrderNumber", "orderNumber", "request_id"]),
+        "symbol": s(["symbol", "tradingsymbol", "tradingSymbol", "tsym", "instrument"]),
+        "action": s(["action", "transaction_type", "transactionType", "trantype", "side", "buyOrSell"]),
+        "qty": i(["qty", "quantity", "orderQty", "filled_qty", "filled_quantity", "filledQuantity", "filledQty"]),
+        "status": s(["status", "order_status", "orderStatus"]),
+        "exchange": s(["exchange", "exchange_segment", "exchangeSegment", "exch"]),
+        "order_type": s(["order_type", "orderType", "type", "prctyp"]),
+        "instrument_type": s(["instrument_type", "instrumentType", "productType", "product_type"]),
+        "price": s(["price", "avg_price", "average_price", "averagePrice", "avgPrice", "last_price", "lastPrice"]),
+    }
+
+    # Post-processing for action and status
+    if normalized["action"]:
+        action_upper = normalized["action"].upper()
+        if action_upper in ["B", "BUY", "1"]:
+            normalized["action"] = "BUY"
+        elif action_upper in ["S", "SELL", "-1", "2"]:
+            normalized["action"] = "SELL"
+
+    if normalized["status"]:
+        normalized["status"] = normalized["status"].upper()
+
+    # Add any other fields from the original order that are not in the normalized dict
+    for key, value in order.items():
+        if key not in normalized:
+            normalized[key] = value
+
+    return normalized

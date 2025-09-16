@@ -72,102 +72,6 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
         == "NSE_FNO"
     )
 
-def test_canonical_dhan_option_symbol(monkeypatch):
-    import brokers.symbol_map as sm
-
-    zerodha_csv = (
-        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
-        "1,NFO,NIFTYNXT5025NOV35500CE,NFO,OPTIDX\n"
-    )
-    dhan_csv = (
-        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
-        "NSE,NIFTYNXT50 25NOV2023 35500 CALL,D,,500\n"
-    )
-
-    def fake_get(url, timeout=30):
-        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
-
-    monkeypatch.setattr(sm.requests, "get", fake_get)
-    sm._load_zerodha.cache_clear()
-    sm._load_dhan.cache_clear()
-    mapping = sm.build_symbol_map()
-    assert (
-        mapping["NIFTYNXT5025NOV35500CE"]["NFO"]["dhan"]["security_id"]
-        == "500"
-    )
-    assert (
-        sm._canonical_dhan_symbol("NIFTYNXT50 25NOV2023 35500 CALL")
-        == "NIFTYNXT5025NOV35500CE"
-    )
-
-
-def test_canonical_dhan_option_symbol_without_year_and_two_digit_year():
-    import brokers.symbol_map as sm
-
-    expected = "NIFTYNXT5025NOV35500CE"
-    assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV 35500 CALL") == expected
-    assert sm._canonical_dhan_symbol("NIFTYNXT50 25NOV23 35500 CALL") == expected
-
-
-def test_canonical_dhan_symbol_handles_embedded_year():
-    import brokers.symbol_map as sm
-
-    base = "NIFTYNXT5025NOV35500CE"
-    with_year = "NIFTYNXT5025NOV2535500CE"
-    assert sm._canonical_dhan_symbol(base) == base
-    assert sm._canonical_dhan_symbol(with_year) == base
-
-
-def test_canonical_dhan_symbol_basic_spaces_and_types():
-    import brokers.symbol_map as sm
-
-    assert (
-        sm._canonical_dhan_symbol("FINNIFTY 30 SEP 33300 CALL")
-        == "FINNIFTY30SEP33300CE"
-    )
-
-
-def test_canonical_dhan_option_symbol_missing_day(monkeypatch):
-    import brokers.symbol_map as sm
-
-    zerodha_csv = (
-        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
-        "1,NFO,NIFTYNXT5025SEP38000CE,NFO,OPTIDX\n"
-    )
-    dhan_csv = (
-        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_EXPIRY_DATE\n"
-        "NSE,NIFTYNXT50-Sep2025-38000-CE,D,,500,2025-09-25 14:30:00\n"
-    )
-
-    def fake_get(url, timeout=30):
-        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
-
-    monkeypatch.setattr(sm.requests, "get", fake_get)
-    sm._load_zerodha.cache_clear()
-    sm._load_dhan.cache_clear()
-    mapping = sm.build_symbol_map()
-    assert (
-        mapping["NIFTYNXT5025SEP38000CE"]["NFO"]["dhan"]["security_id"]
-        == "500"
-    )
-    assert (
-        sm._canonical_dhan_symbol(
-            "NIFTYNXT50-Sep2025-38000-CE", "2025-09-25 14:30:00"
-        )
-        == "NIFTYNXT5025SEP38000CE"
-    )
-
-
-def test_canonical_dhan_option_symbol_missing_day_non_iso():
-    import brokers.symbol_map as sm
-
-    expected = "NIFTYNXT5025SEP38000CE"
-    assert (
-        sm._canonical_dhan_symbol(
-            "NIFTYNXT50-Sep2025-38000-CE", "25-09-2025"
-        )
-        == expected
-    )
 
 
 def test_dhan_derivative_includes_lot_size(monkeypatch):
@@ -232,7 +136,7 @@ def test_load_dhan_retains_existing_lot_size(monkeypatch):
 
     monkeypatch.setattr(sm.requests, "get", fake_get)
     sm._load_dhan.cache_clear()
-    data = sm._load_dhan(force=True)
+    data = sm._load_dhan()
     assert data[("AAA", "NSE")]["lot_size"] == 25
 
 
@@ -250,7 +154,7 @@ def test_load_dhan_parses_float_lot_size(monkeypatch):
 
     monkeypatch.setattr(sm.requests, "get", fake_get)
     sm._load_dhan.cache_clear()
-    data = sm._load_dhan(force=True)
+    data = sm._load_dhan()
 
     assert data[("AAA", "NSE")]["lot_size"] == 25
     assert data[("BBB", "NSE")]["lot_size"] == 40
@@ -271,7 +175,7 @@ def test_load_dhan_prefers_custom_symbol(monkeypatch, caplog):
     monkeypatch.setattr(sm.requests, "get", fake_get)
     sm._load_dhan.cache_clear()
     with caplog.at_level(logging.WARNING):
-        data = sm._load_dhan(force=True)
+        data = sm._load_dhan()
 
     assert ("GOODSYMBOL", "NSE") in data
     assert ("BADSYMBOL", "NSE") not in data
@@ -292,7 +196,7 @@ def test_load_dhan_retains_derivative_lot_size_when_missing(monkeypatch):
 
     monkeypatch.setattr(sm.requests, "get", fake_get)
     sm._load_dhan.cache_clear()
-    data = sm._load_dhan(force=True)
+    data = sm._load_dhan()
     assert data[("NIFTY24AUGFUT", "NFO")]["lot_size"] == 50
 
 

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from .webhook_receiver import get_redis_client
 from .db import get_session
+from helpers import normalize_order
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ log = logging.getLogger(__name__)
 # broker-specific values such as Dhan's ``TRADED`` status.
 COMPLETED_STATUSES = {
     "COMPLETE",
-    "COMPLETED", 
+    "COMPLETED",
     "FILLED",
     "EXECUTED",
     "TRADED",
@@ -41,6 +42,13 @@ COMPLETED_STATUSES = {
     "OK",
     "FULLY_FILLED",
     "PARTIAL_FILLED",  # Also include partial fills for progressive copying
+    "PARTIALLY FILLED",
+    "PARTIALLY_FILLED",
+    "REPLACED",
+    "NEW",
+    "ACCEPTED",
+    "OPEN",
+    "TRIGGERED",
 }
 
 # Keep track of processed orders to avoid duplicates across restarts
@@ -179,121 +187,44 @@ def monitor_master_trades(
                 seen = seen_order_ids[master.client_id]
                 new_orders_found = 0
                 
-                for order in orders:
-                    status = str(order.get("status") or "").upper()
+                for raw_order in orders:
+                    order = normalize_order(raw_order, master.broker)
+                    status = order.get("status")
                     if status and status not in COMPLETED_STATUSES:
                         continue
 
-                    # Try multiple possible order ID fields
-                    order_id = (
-                        order.get("id")
-                        or order.get("order_id")
-                        or order.get("orderId")
-                        or order.get("norenordno")  # Finvasia
-                        or order.get("NOrdNo")      # AliceBlue
-                        or order.get("nestOrderNumber")  # AliceBlue
-                        or order.get("orderNumber") # Fyers
-                        or order.get("orderid")     # Flattrade
-                        or order.get("order_time")  # Fallback to timestamp
-                    )
-                    
+                    order_id = order.get("order_id")
+                    if order_id is None:
+                        order_id = order.get("order_time")
+
                     # Skip orders that were already published
                     if order_id is not None and str(order_id) in seen:
                         continue
 
-                    # Extract order details with multiple field name attempts
-                    symbol = (
-                        order.get("symbol") 
-                        or order.get("tradingSymbol") 
-                        or order.get("tradingsymbol")
-                        or order.get("tsym")
-                    )
-                    
-                    action = (
-                        order.get("action") 
-                        or order.get("transactionType")
-                        or order.get("transaction_type") 
-                        or order.get("trantype")
-                        or order.get("side")
-                    )
-                    
-                    qty = (
-                        order.get("qty") 
-                        or order.get("orderQty")
-                        or order.get("quantity")
-                        or order.get("filled_qty")  # Use filled quantity for partial fills
-                        or order.get("filledQty")
-                    )
-                    
-                    exchange = (
-                        order.get("exchange") 
-                        or order.get("exchangeSegment")
-                        or order.get("exch")
-                    )
-                    
-                    order_type = (
-                        order.get("order_type") 
-                        or order.get("orderType")
-                        or order.get("prctyp")
-                        or order.get("type")
-                    )
-                    
-                    instrument_type = (
-                        order.get("instrument_type")
-                        or order.get("instrumentType")
-                        or order.get("productType")
-                        or order.get("product_type")
-                    )
-                    
-                    # Additional fields for derivatives
-                    expiry = order.get("expiry") or order.get("expiryDate")
-                    strike = order.get("strike") or order.get("strikePrice")
-                    option_type = (
-                        order.get("option_type") 
-                        or order.get("optionType") 
-                        or order.get("right")
-                    )
-                    lot_size = order.get("lot_size") or order.get("lotSize")
-                    
-                    # Price information
-                    price = (
-                        order.get("price")
-                        or order.get("avg_price")
-                        or order.get("average_price")
-                        or order.get("avgPrice")
-                        or order.get("last_price")
-                    )
-
                     # Skip orders missing essential information
-                    if not symbol or not action or not qty:
+                    if not order.get("symbol") or not order.get("action") or not order.get("qty"):
                         log.warning(
-                            "Skipping manual order with missing essential data: symbol=%s, action=%s, qty=%s, order_id=%s",
-                            symbol, action, qty, order_id
+                            "Skipping manual order with missing essential data: %s",
+                            order
                         )
                         continue
 
-                    # Normalize action to standard format
-                    if str(action).upper() in ["B", "BUY", "1"]:
-                        action = "BUY"
-                    elif str(action).upper() in ["S", "SELL", "-1", "2"]:
-                        action = "SELL"
-
                     raw_event = {
                         "master_id": master.client_id,
-                        "symbol": symbol,
-                        "action": action,
-                        "qty": qty,
-                        "exchange": exchange,
-                        "order_type": order_type,
-                        "instrument_type": instrument_type,
-                        "expiry": expiry,
-                        "strike": strike,
-                        "option_type": option_type,
-                        "lot_size": lot_size,
-                        "price": price,
+                        "symbol": order.get("symbol"),
+                        "action": order.get("action"),
+                        "qty": order.get("qty"),
+                        "exchange": order.get("exchange"),
+                        "order_type": order.get("order_type"),
+                        "instrument_type": order.get("instrument_type"),
+                        "expiry": order.get("expiry"),
+                        "strike": order.get("strike"),
+                        "option_type": order.get("option_type"),
+                        "lot_size": order.get("lot_size"),
+                        "price": order.get("price"),
                         "order_id": order_id,
-                        "order_time": order.get("order_time") or order.get("orderTime"),
-                        "source": "manual_trade_monitor"  # Mark as manual trade
+                        "order_time": order.get("order_time"),
+                        "source": "manual_trade_monitor",  # Mark as manual trade
                     }
                     
                     # Filter out ``None`` values and convert the rest to strings so
@@ -305,7 +236,7 @@ def monitor_master_trades(
                         redis_client.xadd("trade_events", event)
                         log.info(
                             "Published manual trade event for master %s: %s %s %s at %s",
-                            master.client_id, action, qty, symbol, exchange
+                            master.client_id, order.get("action"), order.get("qty"), order.get("symbol"), order.get("exchange")
                         )
                         new_orders_found += 1
                     except redis.exceptions.RedisError:

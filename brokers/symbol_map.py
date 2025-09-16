@@ -399,6 +399,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         
         # Extract root symbol for indexing
         root_symbol = extract_root_symbol(symbol)
+        log.info(f"Adding {symbol} to map with root {root_symbol} for exchange {exchange}")
         mapping.setdefault(root_symbol, {})[exchange] = entry
     
     # Add Dhan-only symbols (not in Zerodha)
