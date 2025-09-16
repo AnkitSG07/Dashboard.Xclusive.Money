@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Monitor master broker accounts for manually placed trades.
 
-This service periodically queries each master account's broker API for newly
+This service periodically queries each master account's broker API for new
 executed orders and publishes matching events to the ``trade_events`` Redis
 stream so that the trade copier can replicate them to child accounts.
 """
