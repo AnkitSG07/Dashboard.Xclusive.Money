@@ -858,6 +858,74 @@ def test_poll_and_copy_trades_ack_on_child_error(monkeypatch, caplog):
     )
 
 
+def test_poll_and_copy_trades_skips_events_without_master(monkeypatch, caplog):
+    master = SimpleNamespace(client_id="m")
+    session = DummySession(master)
+
+    class MissingMasterRedis(StubRedis):
+        def xreadgroup(self, group, consumer, streams, count, block):
+            if self.calls == 0:
+                self.calls += 1
+                return [("trade_events", [(b"1", {b"symbol": b"SBIN"})])]
+            return []
+
+    redis = MissingMasterRedis()
+    seen = []
+
+    async def fake_rep(
+        db_session,
+        master,
+        event,
+        processor,
+        *,
+        executor=None,
+        timeout=None,
+    ):
+        seen.append(event)
+
+    caplog.set_level("ERROR")
+    monkeypatch.setattr(trade_copier, "_replicate_to_children", fake_rep)
+
+    trade_copier.poll_and_copy_trades(session, max_messages=1, redis_client=redis)
+
+    assert redis.acks == [b"1"]
+    assert seen == []
+    assert "missing master identifier" in caplog.text.lower()
+
+
+def test_poll_and_copy_trades_supports_legacy_master_key(monkeypatch):
+    master = SimpleNamespace(client_id="m")
+    session = DummySession(master)
+
+    class LegacyKeyRedis(StubRedis):
+        def xreadgroup(self, group, consumer, streams, count, block):
+            if self.calls == 0:
+                self.calls += 1
+                return [("trade_events", [(b"1", {b"master_client_id": b"m"})])]
+            return []
+
+    redis = LegacyKeyRedis()
+    seen_master_ids = []
+
+    async def fake_rep(
+        db_session,
+        master,
+        event,
+        processor,
+        *,
+        executor=None,
+        timeout=None,
+    ):
+        seen_master_ids.append(event["master_id"])
+
+    monkeypatch.setattr(trade_copier, "_replicate_to_children", fake_rep)
+
+    trade_copier.poll_and_copy_trades(session, max_messages=1, redis_client=redis)
+
+    assert redis.acks == [b"1"]
+    assert seen_master_ids == ["m"]
+
+
 def test_poll_and_copy_trades_logs_task_errors(monkeypatch, caplog):
     master = SimpleNamespace(client_id="m")
     session = DummySession(master)
