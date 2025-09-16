@@ -561,7 +561,7 @@ def poll_and_copy_trades(
             xautoclaim = getattr(redis_client, "xautoclaim", None)
             if callable(xautoclaim):
                 try:
-                    _, claimed = xautoclaim(
+                    result = xautoclaim(
                         stream,
                         group,
                         consumer,
@@ -569,9 +569,18 @@ def poll_and_copy_trades(
                         start_id="0-0",
                         count=limit,
                     )
-                except (TypeError, AttributeError, redis.exceptions.RedisError):
+                except (
+                    TypeError,
+                    AttributeError,
+                    ValueError,
+                    redis.exceptions.RedisError,
+                ):
                     claimed = []
                 else:
+                    if isinstance(result, (list, tuple)):
+                        claimed = result[1] if len(result) >= 2 else []
+                    else:
+                        claimed = result
                     if claimed:
                         return [(stream, claimed)]
 
