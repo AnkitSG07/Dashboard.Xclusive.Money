@@ -381,6 +381,7 @@ class WebhookEventSchema(Schema):
     symbol = fields.Str(required=True)
     action = fields.Str(required=True)
     qty = fields.Int(required=True)
+    master_id = fields.Str(required=True)
     exchange = fields.Str(allow_none=True)  # CHANGED: Don't force default
     order_type = fields.Str(allow_none=True)  # CHANGED: Don't force default
     alert_id = fields.Str(allow_none=True)
@@ -401,6 +402,56 @@ class WebhookEventSchema(Schema):
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
         """Normalise alternate field names before validation."""
+
+        # Normalise master identifier fields to the canonical ``master_id`` key
+        master_id_aliases = (
+            "master_id",
+            "masterId",
+            "master_client_id",
+            "masterClientId",
+            "master",
+        )
+        master_id = None
+        for key in master_id_aliases:
+            if key not in data:
+                continue
+            value = data.get(key)
+            if isinstance(value, (list, tuple, set, dict)):
+                continue
+            if value is None:
+                continue
+            value_str = str(value).strip()
+            if value_str:
+                master_id = value_str
+                break
+
+        if not master_id:
+            accounts = data.get("masterAccounts")
+            if isinstance(accounts, str):
+                try:
+                    decoded = json.loads(accounts)
+                except (TypeError, ValueError):
+                    decoded = [accounts]
+            elif isinstance(accounts, (list, tuple, set)):
+                decoded = accounts
+            else:
+                decoded = []
+
+            for entry in decoded:
+                if isinstance(entry, (list, tuple, set, dict)):
+                    continue
+                if entry is None:
+                    continue
+                value_str = str(entry).strip()
+                if value_str:
+                    master_id = value_str
+                    break
+
+        if master_id:
+            data["master_id"] = master_id
+
+        for alias in master_id_aliases[1:]:
+            data.pop(alias, None)
 
         # Accept either ``ticker`` or ``symbol`` as the symbol field
         if "symbol" not in data and "ticker" in data:
