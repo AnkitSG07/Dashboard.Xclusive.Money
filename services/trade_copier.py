@@ -253,10 +253,45 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             params["product_type"] = product_type
     
     # Copy other parameters
-    ignore_fields = {
-        "symbol", "action", "qty", "master_id", "id", 
-        "exchange", "product_type", "productType", "source"
+    metadata_fields = {
+        "master_id",
+        "id",
+        "source",
+        "order_id",
+        "orderId",
+        "order_time",
+        "orderTime",
+        "status",
+        "status_message",
+        "statusMessage",
+        "message",
+        "message_code",
+        "messageCode",
+        "error",
+        "error_code",
+        "errorCode",
+        "error_message",
+        "errorMessage",
+        "event_id",
+        "eventId",
+        "event_time",
+        "eventTime",
+        "timestamp",
+        "created_at",
+        "createdAt",
+        "updated_at",
+        "updatedAt",
+        "client_req_id",
+        "clientReqId",
     }
+    ignore_fields = {
+        "symbol",
+        "action",
+        "qty",
+        "exchange",
+        "product_type",
+        "productType",
+    } | metadata_fields
     for key, value in order.items():
         if key in ignore_fields or value is None:
             continue
@@ -515,15 +550,62 @@ def poll_and_copy_trades(
             if "BUSYGROUP" not in str(exc):
                 raise
 
+        def _reclaim_pending(limit: int) -> Iterable:
+            """Return pending messages claimed for *consumer* if available."""
+
+            if not limit:
+                return []
+
+            messages: Iterable = []
+
+            xautoclaim = getattr(redis_client, "xautoclaim", None)
+            if callable(xautoclaim):
+                try:
+                    _, claimed = xautoclaim(
+                        stream,
+                        group,
+                        consumer,
+                        0,
+                        start_id="0-0",
+                        count=limit,
+                    )
+                except (TypeError, AttributeError, redis.exceptions.RedisError):
+                    claimed = []
+                else:
+                    if claimed:
+                        return [(stream, claimed)]
+
+            try:
+                return redis_client.xreadgroup(
+                    group,
+                    consumer,
+                    {stream: "0"},
+                    count=limit,
+                    block=0,
+                )
+            except TypeError:
+                return redis_client.xreadgroup(
+                    group,
+                    consumer,
+                    {stream: "0"},
+                    count=limit,
+                )
+            except redis.exceptions.RedisError:
+                return []
+
         async def _consume() -> int:
             processed = 0
             while max_messages is None or processed < max_messages:
                 count = batch_size
                 if max_messages is not None:
                     count = min(count, max_messages - processed)
-                messages: Iterable = redis_client.xreadgroup(
-                    group, consumer, {stream: ">"}, count=count, block=block
-                )
+                pending_messages = _reclaim_pending(count)
+                if pending_messages:
+                    messages = pending_messages
+                else:
+                    messages = redis_client.xreadgroup(
+                        group, consumer, {stream: ">"}, count=count, block=block
+                    )
                 if not messages:
                     break
 
