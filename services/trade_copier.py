@@ -38,12 +38,17 @@ LATENCY = Histogram(
 
 log = logging.getLogger(__name__)
 
-DEFAULT_MAX_WORKERS = 10
+# OPTIMIZED: Increased workers and reduced timeout for speed
+DEFAULT_MAX_WORKERS = 30  # Increased from 10
 # Default per-child broker submission timeout in seconds. The value can be
 # overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
 # for brokers with slower APIs.  Setting the variable to ``0``, a negative
 # number or ``"none"`` disables the timeout entirely.
-DEFAULT_CHILD_TIMEOUT = 20.0
+DEFAULT_CHILD_TIMEOUT = 5.0  # Reduced from 20.0
+
+# ADDED: Cache for broker clients to avoid recreation and rate limits
+BROKER_CLIENT_CACHE = {}
+BROKER_CLIENT_CACHE_TTL = 300  # 5 minutes
 
 def _load_symbol_map_or_exit() -> None:
     """Pre-load the broker symbol map, aborting on failure.
@@ -63,6 +68,41 @@ def _load_symbol_map_or_exit() -> None:
         log.error("failed to load instrument data: %s", exc)
         raise SystemExit(1)
 
+def get_cached_broker_client(broker: str, client_id: str, credentials: dict):
+    """ADDED: Get or create cached broker client for faster access."""
+    cache_key = f"{broker}:{client_id}"
+    
+    # Check cache
+    cached = BROKER_CLIENT_CACHE.get(cache_key)
+    if cached and cached['expires'] > time.time():
+        return cached['client']
+    
+    # Create new client
+    try:
+        client_cls = get_broker_client(broker)
+        access_token = credentials.get("access_token", "")
+        # Make a copy to avoid modifying original
+        creds_copy = dict(credentials)
+        creds_copy.pop("access_token", None)
+        creds_copy.pop("client_id", None)
+        
+        client = client_cls(
+            client_id=client_id,
+            access_token=access_token,
+            **creds_copy
+        )
+        
+        # Cache it
+        BROKER_CLIENT_CACHE[cache_key] = {
+            'client': client,
+            'expires': time.time() + BROKER_CLIENT_CACHE_TTL
+        }
+        
+        return client
+    except Exception as e:
+        log.error(f"Failed to create broker client for {client_id}: {e}")
+        raise
+
 def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, Any]) -> Any:
     """Instantiate the appropriate broker client for *child* and copy *order*.
 
@@ -76,18 +116,23 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
         Normalised order payload decoded from the ``trade_events`` stream.
     """
 
-    # Look up the concrete broker implementation or service client.
-    client_cls = get_broker_client(child["broker"])
-
-    # Credentials are stored on the ``Account`` model as a JSON blob.  We only
-    # require an access token for the tests so missing keys default to ``""``.
+    # OPTIMIZED: Use cached broker client instead of creating new one
     credentials = dict(child.get("credentials") or {})
-    access_token = credentials.pop("access_token", "")
-    credentials.pop("client_id", None)
-
-    broker = client_cls(
-        client_id=child["client_id"], access_token=access_token, **credentials
-    )
+    
+    try:
+        broker = get_cached_broker_client(
+            child["broker"],
+            child["client_id"],
+            credentials
+        )
+    except Exception as e:
+        # Fallback to original method if cache fails
+        client_cls = get_broker_client(child["broker"])
+        access_token = credentials.pop("access_token", "")
+        credentials.pop("client_id", None)
+        broker = client_cls(
+            client_id=child["client_id"], access_token=access_token, **credentials
+        )
 
     # Get original symbol and metadata
     original_symbol = order.get("symbol", "")
@@ -300,6 +345,9 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
         params[key] = value
 
     try:
+        # OPTIMIZED: Add timing information
+        start_time = time.time()
+        
         log.info(
             f"Placing order on {child_broker} for {child['client_id']}: "
             f"{params.get('action')} {params.get('qty')} {params.get('symbol')} "
@@ -307,15 +355,18 @@ def copy_order(master: Dict[str, Any], child: Dict[str, Any], order: Dict[str, A
         )
 
         result = broker.place_order(**params)
+        
+        elapsed = time.time() - start_time
 
         if isinstance(result, dict) and result.get("status") == "success":
             log.info(
-                f"Successfully copied order to {child_broker} account {child['client_id']}: "
-                f"Order ID: {result.get('order_id')}"
+                f"Successfully copied order to {child_broker} account {child['client_id']} "
+                f"in {elapsed:.2f}s: Order ID: {result.get('order_id')}"
             )
         else:
             log.warning(
-                f"Order placed but status unclear for {child_broker} account {child['client_id']}: {result}"
+                f"Order placed but status unclear for {child_broker} account {child['client_id']} "
+                f"(took {elapsed:.2f}s): {result}"
             )
 
         return result
@@ -437,7 +488,8 @@ async def _replicate_to_children(
     loop = asyncio.get_running_loop()
     own_executor = False
     if executor is None:
-        max_workers = max_workers or len(children_data) or 1
+        # OPTIMIZED: Use more workers for parallel processing
+        max_workers = max_workers or max(len(children_data), DEFAULT_MAX_WORKERS)
         executor = ThreadPoolExecutor(max_workers=max_workers)
         own_executor = True
 
@@ -763,14 +815,15 @@ def poll_and_copy_trades(
 def main() -> None:
     """Entry point for the trade copier service."""
     
-    block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
+    # OPTIMIZED: Reduced blocking time for faster response
+    block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "100"))  # Reduced from 5000
 
     # Ensure symbol mappings are available before processing any trades.  The
     # build uses instrument dumps from upstream brokers and falls back to
     # cached data.  If neither is accessible the trade copier aborts so that
     # orders are not submitted with missing tokens.
     _load_symbol_map_or_exit()
-    log.info("trade copier worker starting")
+    log.info("trade copier worker starting (100ms blocking, 30 workers)")
 
     while True:
         session = get_session()
