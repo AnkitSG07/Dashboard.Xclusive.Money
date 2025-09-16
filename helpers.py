@@ -392,16 +392,20 @@ def canonical_product_type(product: str | None) -> str | None:
     if not product:
         return None
     prod = str(product).strip().upper()
+    
+    # Map to canonical types
     if prod in {"MIS", "INTRADAY", "INTRA", "I"}:
         return "MIS"
-    if prod in {"CNC", "C", "LONG TERM", "LONGTERM", "LT"}:
+    if prod in {"CNC", "C", "LONG TERM", "LONGTERM", "LT", "DELIVERY", "DELIVER"}:
         return "CNC"
-    if prod in {"DELIVERY", "DELIVER"}:
-        return "DELIVERY"
     if prod in {"NRML", "NORMAL", "MARGIN", "H"}:
         return "NRML"
     if prod in {"MTF"}:
         return "MTF"
+    if prod in {"BO", "BRACKET"}:
+        return "BO"
+    if prod in {"CO", "COVER"}:
+        return "CO"
     return prod
 
 
@@ -410,12 +414,75 @@ def map_product_for_broker(product: str | None, broker: str) -> str | None:
     base = canonical_product_type(product)
     if base is None:
         return None
+    
     b = (broker or "").lower()
+    
+    # Broker-specific mappings
     if b == "dhan":
-        if base == "MIS":
-            return "INTRADAY"
-        if base in {"CNC", "DELIVERY"}:
-            return "CNC"
+        mapping = {
+            "MIS": "INTRADAY",
+            "CNC": "CNC",
+            "NRML": "MARGIN",
+            "MTF": "MTF",
+            "BO": "BO",
+            "CO": "CO",
+        }
+        return mapping.get(base, base)
+    
+    elif b == "fyers":
+        mapping = {
+            "MIS": "INTRADAY",
+            "CNC": "CNC",
+            "NRML": "MARGIN",
+            "MTF": "MARGIN",  # Fyers doesn't have MTF, use MARGIN
+            "BO": "BO",
+            "CO": "CO",
+        }
+        return mapping.get(base, base)
+    
+    elif b == "zerodha":
+        mapping = {
+            "MIS": "MIS",
+            "CNC": "CNC",
+            "NRML": "NRML",
+            "MTF": "CNC",  # Zerodha doesn't have MTF, use CNC
+            "BO": "BO",
+            "CO": "CO",
+        }
+        return mapping.get(base, base)
+    
+    elif b == "aliceblue":
+        mapping = {
+            "MIS": "MIS",
+            "CNC": "CNC",
+            "NRML": "NRML",
+            "MTF": "MTF",
+            "BO": "BO",
+            "CO": "CO",
+        }
+        return mapping.get(base, base)
+    
+    elif b == "finvasia":
+        mapping = {
+            "MIS": "M",  # Margin Intraday Square Off
+            "CNC": "C",  # Cash & Carry
+            "NRML": "H",  # Holding/Normal for F&O
+            "MTF": "C",  # Use Cash & Carry for MTF
+            "BO": "B",  # Bracket Order
+            "CO": "H",  # Cover Order as Holding
+        }
+        return mapping.get(base, base)
+    
+    elif b == "flattrade":
+        mapping = {
+            "MIS": "INTRADAY",
+            "CNC": "DELIVERY",
+            "NRML": "NORMAL",
+            "MTF": "DELIVERY",  # Flattrade uses DELIVERY for MTF
+        }
+        return mapping.get(base, base)
+    
+    # Default mapping for unknown brokers
     return base
 
 
@@ -543,3 +610,32 @@ def normalize_position(position: dict, broker: str) -> dict | None:
     if not has_qty:
         return position
     return new if new["netQty"] != 0 else None
+
+
+def extract_exchange_from_order(order: dict) -> str | None:
+    """Extract exchange from an order dict with proper normalization."""
+    lower = {k.lower(): v for k, v in order.items()}
+    for key in (
+        "exchange",
+        "exch",
+        "exchange_segment",
+        "exchangesegment",
+        "segment",
+    ):
+        if key in lower and lower[key] is not None:
+            exchange = str(lower[key]).strip().upper()
+            
+            # Normalize exchange names
+            exchange_map = {
+                "NSE_EQ": "NSE",
+                "BSE_EQ": "BSE",
+                "NSE_FNO": "NFO",
+                "BSE_FNO": "BFO",
+                "NSE_FO": "NFO",
+                "BSE_FO": "BFO",
+                "NSE_FUT": "NFO",
+                "BSE_FUT": "BFO",
+            }
+            
+            return exchange_map.get(exchange, exchange)
+    return None
