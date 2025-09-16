@@ -1,10 +1,10 @@
-# services/master_trade_monitor.py - FIXED VERSION
 from __future__ import annotations
 
-"""Monitor master broker accounts for manually placed trades - OPTIMIZED FOR SPEED.
+"""Monitor master broker accounts for manually placed trades.
 
-This service polls master accounts every 2 seconds and immediately publishes
-trade events for instant copying to child accounts.
+This service periodically queries each master account's broker API for newly
+executed orders and publishes matching events to the ``trade_events`` Redis
+stream so that the trade copier can replicate them to child accounts.
 """
 
 import asyncio
@@ -24,225 +24,28 @@ from .db import get_session
 
 log = logging.getLogger(__name__)
 
-# Order statuses that indicate a completed or filled order
+# Order statuses that indicate a completed or filled order.  Orders in any
+# other state (e.g. ``REJECTED`` or ``PENDING``) are ignored.  Include
+# broker-specific values such as Dhan's ``TRADED`` status.
 COMPLETED_STATUSES = {
-    "COMPLETE", "COMPLETED", "FILLED", "EXECUTED", "TRADED",
-    "FULL_EXECUTED", "FULLY_EXECUTED", "2", "CONFIRMED",
-    "SUCCESS", "OK", "FULLY_FILLED", "PARTIAL_FILLED",
-    "COMPLETE", "AMO REQ RECEIVED"  # Added AMO status
+    "COMPLETE",
+    "COMPLETED", 
+    "FILLED",
+    "EXECUTED",
+    "TRADED",
+    "FULL_EXECUTED",
+    "FULLY_EXECUTED",
+    "2",
+    "CONFIRMED",
+    "SUCCESS",
+    "OK",
+    "FULLY_FILLED",
+    "PARTIAL_FILLED",  # Also include partial fills for progressive copying
 }
 
-# Keep track of processed orders to avoid duplicates
+# Keep track of processed orders to avoid duplicates across restarts
 PROCESSED_ORDERS_KEY = "processed_manual_orders:{master_id}"
 PROCESSED_ORDERS_TTL = 86400 * 7  # 7 days
-
-# Cache broker clients to avoid recreation
-BROKER_CLIENT_CACHE = {}
-BROKER_CLIENT_CACHE_TTL = 300  # 5 minutes
-
-def get_cached_broker_client(master: Account):
-    """Get or create cached broker client for faster access."""
-    cache_key = f"{master.broker}:{master.client_id}"
-    cached = BROKER_CLIENT_CACHE.get(cache_key)
-    
-    if cached and cached['expires'] > time.time():
-        return cached['client']
-    
-    credentials = dict(master.credentials or {})
-    access_token = credentials.pop("access_token", "")
-    credentials.pop("client_id", None)
-    
-    try:
-        client_cls = get_broker_client(master.broker)
-        client = client_cls(
-            master.client_id, 
-            access_token=access_token, 
-            **credentials
-        )
-        
-        BROKER_CLIENT_CACHE[cache_key] = {
-            'client': client,
-            'expires': time.time() + BROKER_CLIENT_CACHE_TTL
-        }
-        return client
-    except Exception as e:
-        log.error(f"Failed to create broker client for {master.client_id}: {e}")
-        return None
-
-def extract_order_details(order: Dict, broker: str) -> Dict[str, Any]:
-    """Enhanced order detail extraction with better fallbacks."""
-    
-    broker_lower = broker.lower()
-    
-    # Extract order ID with comprehensive fallbacks
-    order_id = (
-        order.get("id") or
-        order.get("order_id") or
-        order.get("orderId") or
-        order.get("orderID") or
-        order.get("norenordno") or  # Finvasia
-        order.get("NOrdNo") or  # AliceBlue
-        order.get("nestOrderNumber") or  # AliceBlue
-        order.get("orderNumber") or  # Fyers
-        order.get("orderid") or  # Flattrade
-        order.get("order_no") or
-        order.get("orderNo") or
-        order.get("exchordid") or  # Exchange order ID
-        order.get("ExchOrdID")
-    )
-    
-    # Extract symbol with broker-specific logic
-    symbol = None
-    if broker_lower == "dhan":
-        symbol = (
-            order.get("tradingSymbol") or 
-            order.get("tradingsymbol") or
-            order.get("trading_symbol") or
-            order.get("symbol")
-        )
-        # Dhan may provide security_id without symbol
-        if not symbol and order.get("securityId"):
-            # You might need to map security_id to symbol
-            log.warning(f"Dhan order missing symbol, has securityId: {order.get('securityId')}")
-            
-    elif broker_lower == "zerodha":
-        symbol = (
-            order.get("tradingsymbol") or
-            order.get("tradingSymbol") or
-            order.get("symbol")
-        )
-        
-    elif broker_lower == "fyers":
-        symbol = order.get("symbol") or order.get("tradingSymbol")
-        # Fyers format: NSE:SBIN-EQ, extract just the symbol
-        if symbol and ":" in symbol:
-            parts = symbol.split(":")
-            if len(parts) == 2:
-                symbol = parts[1]  # Take part after colon
-                
-    elif broker_lower in ["aliceblue", "finvasia"]:
-        symbol = (
-            order.get("symbol") or
-            order.get("tsym") or
-            order.get("trading_symbol") or
-            order.get("tradingSymbol")
-        )
-        
-    else:
-        # Generic extraction
-        symbol = (
-            order.get("symbol") or
-            order.get("tradingSymbol") or
-            order.get("tradingsymbol") or
-            order.get("trading_symbol") or
-            order.get("tsym")
-        )
-    
-    # Extract action/transaction type
-    action = (
-        order.get("action") or
-        order.get("transactionType") or
-        order.get("transaction_type") or
-        order.get("trantype") or
-        order.get("side") or
-        order.get("buysell") or
-        order.get("buyOrSell") or
-        order.get("buy_or_sell")
-    )
-    
-    # Normalize action
-    if action:
-        action_upper = str(action).upper()
-        if action_upper in ["B", "BUY", "1"]:
-            action = "BUY"
-        elif action_upper in ["S", "SELL", "-1", "2"]:
-            action = "SELL"
-    
-    # Extract quantity with fallbacks
-    qty = (
-        order.get("qty") or
-        order.get("quantity") or
-        order.get("orderQty") or
-        order.get("filled_qty") or
-        order.get("filledQty") or
-        order.get("fillshares") or
-        order.get("Fillshares") or
-        order.get("executed_qty") or
-        order.get("executedQty") or
-        order.get("tradedQty") or
-        order.get("traded_qty")
-    )
-    
-    # Try to convert qty to int
-    if qty is not None:
-        try:
-            qty = int(float(qty))
-        except (ValueError, TypeError):
-            qty = None
-    
-    # Extract exchange
-    exchange = (
-        order.get("exchange") or
-        order.get("exchangeSegment") or
-        order.get("exch") or
-        order.get("Exchange") or
-        order.get("segment")
-    )
-    
-    # Normalize exchange
-    if exchange:
-        exchange = str(exchange).upper()
-        # Map segment codes to standard exchange names
-        exchange_map = {
-            "NSE_EQ": "NSE",
-            "BSE_EQ": "BSE", 
-            "NSE_FNO": "NFO",
-            "BSE_FNO": "BFO",
-            "NSE_FO": "NFO",
-            "BSE_FO": "BFO"
-        }
-        exchange = exchange_map.get(exchange, exchange)
-    
-    # Extract order type
-    order_type = (
-        order.get("order_type") or
-        order.get("orderType") or
-        order.get("prctyp") or
-        order.get("priceType") or
-        order.get("type")
-    )
-    
-    # Extract product type
-    product_type = (
-        order.get("product") or
-        order.get("productType") or
-        order.get("product_type") or
-        order.get("pCode") or
-        order.get("prd")
-    )
-    
-    # Extract price
-    price = (
-        order.get("price") or
-        order.get("avg_price") or
-        order.get("average_price") or
-        order.get("avgPrice") or
-        order.get("limitPrice") or
-        order.get("limit_price")
-    )
-    
-    return {
-        "order_id": order_id,
-        "symbol": symbol,
-        "action": action,
-        "qty": qty,
-        "exchange": exchange,
-        "order_type": order_type,
-        "product_type": product_type,
-        "price": price,
-        "status": order.get("status") or order.get("orderStatus"),
-        "order_time": order.get("order_time") or order.get("orderTime") or order.get("order_timestamp")
-    }
 
 def monitor_master_trades(
     db_session: Session,
@@ -251,27 +54,42 @@ def monitor_master_trades(
     poll_interval: float | None = None,
     max_iterations: int | None = None,
 ) -> None:
-    """Poll master accounts for new orders with MINIMAL DELAY.
+    """Poll master accounts for new orders and publish to ``trade_events``.
 
-    Parameters:
-        db_session: SQLAlchemy session
-        redis_client: Redis client for publishing events
-        poll_interval: Seconds between polls (default 2 seconds for speed)
-        max_iterations: Max polling cycles (None = infinite)
+    Parameters
+    ----------
+    db_session:
+        SQLAlchemy session used to look up master accounts.
+    redis_client:
+        Redis client instance used for publishing trade events. If ``None`` the
+        client is created from :func:`services.webhook_receiver.get_redis_client`.
+    poll_interval:
+        Seconds to wait between polling iterations. If ``None`` the value of
+        the ``ORDER_MONITOR_INTERVAL`` environment variable is used (default
+        ``10`` seconds).
+    max_iterations:
+        Optional number of polling cycles to run.  ``None`` means run
+        indefinitely.  Primarily intended for tests.
     """
 
     if poll_interval is None:
-        # REDUCED FROM 10 TO 2 SECONDS FOR FASTER DETECTION
-        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "2"))
+        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "10"))
 
     if redis_client is None:
         redis_client = get_redis_client()
 
     async def _monitor() -> None:
         iterations = 0
+        # Track order IDs we've already published for each master to avoid
+        # emitting duplicate trade events when polling repeatedly.
         seen_order_ids: Dict[str, Set[str]] = defaultdict(set)
+        # Remember masters that have invalid/expired credentials so we don't
+        # spam the logs on every iteration.  The value is the last access token
+        # seen for that master.  If the token changes we will attempt to fetch
+        # orders again.
         invalid_creds: Dict[str, str] = {}
         
+        # Load previously processed orders from Redis to handle service restarts
         def load_processed_orders(master_id: str) -> Set[str]:
             try:
                 key = PROCESSED_ORDERS_KEY.format(master_id=master_id)
@@ -289,155 +107,238 @@ def monitor_master_trades(
                 pass
 
         while max_iterations is None or iterations < max_iterations:
-            start_time = time.time()
-            
-            # Refresh database session for latest data
+            # Ensure we see any credential updates made by other processes.
+            # Without ending the previous transaction the session may return
+            # stale Account objects, causing the monitor to keep using an
+            # expired access token even after it has been refreshed in the
+            # database.
             db_session.rollback()
             db_session.expire_all()
-            
             masters: Iterable[Account] = (
-                db_session.query(Account)
-                .filter_by(role="master", copy_status="On")  # Only active masters
-                .all()
+                db_session.query(Account).filter_by(role="master").all()
             )
             
-            # Process all masters in parallel for speed
-            tasks = []
-            
             for master in masters:
-                # Skip if invalid credentials
-                access_token = (master.credentials or {}).get("access_token", "")
+                # Skip masters that are not active for copy trading
+                if getattr(master, 'copy_status', None) != 'On':
+                    continue
+                    
+                credentials: Dict[str, Any] = dict(master.credentials or {})
+                access_token = credentials.pop("access_token", "")
+                # Some accounts may persist ``client_id`` within the credentials
+                # blob.  Passing it alongside the explicit ``master.client_id``
+                # argument would result in ``TypeError: multiple values for
+                # client_id`` when instantiating the broker client, so drop it
+                # here.
+                credentials.pop("client_id", None)
+                
+                # Skip masters whose credentials are known to be invalid unless
+                # the access token has changed since the last failure.
                 cached_token = invalid_creds.get(master.client_id)
                 if cached_token and cached_token == access_token:
                     continue
 
-                # Get or create broker client (cached for speed)
-                client = get_cached_broker_client(master)
-                if not client:
+                client_cls = get_broker_client(master.broker)
+                # Pass the access token as a keyword argument so that broker
+                # clients which expect other positional parameters (like
+                # ``api_key`` for AliceBlue) don't receive the token as a
+                # second positional value.  Any additional credentials are
+                # expanded as keyword arguments as well.
+                try:
+                    client = client_cls(
+                        master.client_id, access_token=access_token, **credentials
+                    )
+                    orders = client.list_orders()
+                    # If we successfully fetched orders, clear any cached
+                    # invalid credential flag for this master.
+                    invalid_creds.pop(master.client_id, None)
+                except Exception as exc:  # pragma: no cover - defensive
+                    msg = str(exc)
+                    if any(keyword in msg.lower() for keyword in ["invalid", "token", "expired", "unauthorized"]):
+                        # Log once per token and remember the failing token so
+                        # future iterations skip this master until the token
+                        # changes.
+                        if cached_token != access_token:
+                            log.error(
+                                "failed to fetch manual orders for %s: %s",
+                                master.client_id,
+                                msg,
+                            )
+                        invalid_creds[master.client_id] = access_token
+                    else:
+                        log.exception(
+                            "failed to fetch manual orders",
+                            extra={"master": master.client_id},
+                        )
                     continue
 
-                # Create async task for this master
-                async def process_master(master=master, client=client):
-                    try:
-                        # Fetch orders with timeout
-                        orders = await asyncio.wait_for(
-                            asyncio.to_thread(client.list_orders),
-                            timeout=3.0  # 3 second timeout per broker
-                        )
-                        
-                        # Load previously processed orders
-                        if master.client_id not in seen_order_ids:
-                            seen_order_ids[master.client_id] = load_processed_orders(master.client_id)
-                        
-                        seen = seen_order_ids[master.client_id]
-                        new_orders = []
-                        
-                        for order in orders:
-                            # Extract order details with enhanced logic
-                            details = extract_order_details(order, master.broker)
-                            
-                            order_id = details["order_id"]
-                            status = str(details.get("status") or "").upper()
-                            
-                            # Skip if not completed or already processed
-                            if status and status not in COMPLETED_STATUSES:
-                                continue
-                            if order_id and str(order_id) in seen:
-                                continue
-                            
-                            # Validate essential fields
-                            if not details["symbol"] or not details["action"] or not details["qty"]:
-                                log.warning(
-                                    f"Skipping order with missing data from {master.client_id}: "
-                                    f"symbol={details['symbol']}, action={details['action']}, "
-                                    f"qty={details['qty']}, order_id={order_id}"
-                                )
-                                continue
-                            
-                            # Build event for publishing
-                            event = {
-                                "master_id": master.client_id,
-                                "symbol": details["symbol"],
-                                "action": details["action"],
-                                "qty": details["qty"],
-                                "source": "manual_trade_monitor"
-                            }
-                            
-                            # Add optional fields
-                            for field in ["exchange", "order_type", "product_type", "price", "order_time"]:
-                                if details.get(field):
-                                    event[field] = details[field]
-                            
-                            # Add order_id for tracking
-                            if order_id:
-                                event["order_id"] = str(order_id)
-                            
-                            new_orders.append((order_id, event))
-                        
-                        # Publish new orders immediately
-                        for order_id, event in new_orders:
-                            try:
-                                # Filter None values
-                                event = {k: str(v) for k, v in event.items() if v is not None}
-                                
-                                # PUBLISH IMMEDIATELY FOR INSTANT COPYING
-                                redis_client.xadd("trade_events", event)
-                                
-                                log.info(
-                                    f"Published trade from {master.client_id} ({master.broker}): "
-                                    f"{event.get('action')} {event.get('qty')} {event.get('symbol')}"
-                                )
-                                
-                                # Mark as processed
-                                if order_id:
-                                    seen.add(str(order_id))
-                                    mark_order_processed(master.client_id, str(order_id))
-                                    
-                            except Exception as e:
-                                log.error(f"Failed to publish trade event: {e}")
-                        
-                        if new_orders:
-                            log.info(f"Found {len(new_orders)} new orders from master {master.client_id}")
-                        
-                        # Clear invalid creds on success
-                        invalid_creds.pop(master.client_id, None)
-                        
-                    except asyncio.TimeoutError:
-                        log.warning(f"Timeout fetching orders from {master.client_id}")
-                    except Exception as e:
-                        msg = str(e).lower()
-                        if any(x in msg for x in ["invalid", "token", "expired", "unauthorized"]):
-                            invalid_creds[master.client_id] = access_token
-                            log.error(f"Invalid credentials for {master.client_id}: {e}")
-                        else:
-                            log.error(f"Error fetching orders from {master.client_id}: {e}")
+                # Load previously processed orders for this master
+                if master.client_id not in seen_order_ids:
+                    seen_order_ids[master.client_id] = load_processed_orders(master.client_id)
+
+                seen = seen_order_ids[master.client_id]
+                new_orders_found = 0
                 
-                tasks.append(process_master())
-            
-            # Process all masters concurrently
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Calculate time taken and sleep if needed
-            elapsed = time.time() - start_time
-            if elapsed < poll_interval:
-                await asyncio.sleep(poll_interval - elapsed)
-            
+                for order in orders:
+                    status = str(order.get("status") or "").upper()
+                    if status and status not in COMPLETED_STATUSES:
+                        continue
+
+                    # Try multiple possible order ID fields
+                    order_id = (
+                        order.get("id")
+                        or order.get("order_id")
+                        or order.get("orderId")
+                        or order.get("norenordno")  # Finvasia
+                        or order.get("NOrdNo")      # AliceBlue
+                        or order.get("nestOrderNumber")  # AliceBlue
+                        or order.get("orderNumber") # Fyers
+                        or order.get("orderid")     # Flattrade
+                        or order.get("order_time")  # Fallback to timestamp
+                    )
+                    
+                    # Skip orders that were already published
+                    if order_id is not None and str(order_id) in seen:
+                        continue
+
+                    # Extract order details with multiple field name attempts
+                    symbol = (
+                        order.get("symbol") 
+                        or order.get("tradingSymbol") 
+                        or order.get("tradingsymbol")
+                        or order.get("tsym")
+                    )
+                    
+                    action = (
+                        order.get("action") 
+                        or order.get("transactionType")
+                        or order.get("transaction_type") 
+                        or order.get("trantype")
+                        or order.get("side")
+                    )
+                    
+                    qty = (
+                        order.get("qty") 
+                        or order.get("orderQty")
+                        or order.get("quantity")
+                        or order.get("filled_qty")  # Use filled quantity for partial fills
+                        or order.get("filledQty")
+                    )
+                    
+                    exchange = (
+                        order.get("exchange") 
+                        or order.get("exchangeSegment")
+                        or order.get("exch")
+                    )
+                    
+                    order_type = (
+                        order.get("order_type") 
+                        or order.get("orderType")
+                        or order.get("prctyp")
+                        or order.get("type")
+                    )
+                    
+                    instrument_type = (
+                        order.get("instrument_type")
+                        or order.get("instrumentType")
+                        or order.get("productType")
+                        or order.get("product_type")
+                    )
+                    
+                    # Additional fields for derivatives
+                    expiry = order.get("expiry") or order.get("expiryDate")
+                    strike = order.get("strike") or order.get("strikePrice")
+                    option_type = (
+                        order.get("option_type") 
+                        or order.get("optionType") 
+                        or order.get("right")
+                    )
+                    lot_size = order.get("lot_size") or order.get("lotSize")
+                    
+                    # Price information
+                    price = (
+                        order.get("price")
+                        or order.get("avg_price")
+                        or order.get("average_price")
+                        or order.get("avgPrice")
+                        or order.get("last_price")
+                    )
+
+                    # Skip orders missing essential information
+                    if not symbol or not action or not qty:
+                        log.warning(
+                            "Skipping manual order with missing essential data: symbol=%s, action=%s, qty=%s, order_id=%s",
+                            symbol, action, qty, order_id
+                        )
+                        continue
+
+                    # Normalize action to standard format
+                    if str(action).upper() in ["B", "BUY", "1"]:
+                        action = "BUY"
+                    elif str(action).upper() in ["S", "SELL", "-1", "2"]:
+                        action = "SELL"
+
+                    raw_event = {
+                        "master_id": master.client_id,
+                        "symbol": symbol,
+                        "action": action,
+                        "qty": qty,
+                        "exchange": exchange,
+                        "order_type": order_type,
+                        "instrument_type": instrument_type,
+                        "expiry": expiry,
+                        "strike": strike,
+                        "option_type": option_type,
+                        "lot_size": lot_size,
+                        "price": price,
+                        "order_id": order_id,
+                        "order_time": order.get("order_time") or order.get("orderTime"),
+                        "source": "manual_trade_monitor"  # Mark as manual trade
+                    }
+                    
+                    # Filter out ``None`` values and convert the rest to strings so
+                    # the Redis client never receives ``None``.
+                    event = {k: str(v) for k, v in raw_event.items() if v is not None}
+                    
+                    try:
+                        # Publish to trade_events stream for copying to children
+                        redis_client.xadd("trade_events", event)
+                        log.info(
+                            "Published manual trade event for master %s: %s %s %s at %s",
+                            master.client_id, action, qty, symbol, exchange
+                        )
+                        new_orders_found += 1
+                    except redis.exceptions.RedisError:
+                        log.exception("failed to publish manual trade event")
+                        continue
+
+                    # Mark order as processed
+                    if order_id is not None:
+                        seen.add(str(order_id))
+                        mark_order_processed(master.client_id, str(order_id))
+
+                if new_orders_found > 0:
+                    log.info(
+                        "Found %d new manual orders for master %s", 
+                        new_orders_found, master.client_id
+                    )
+
             iterations += 1
             if max_iterations is not None and iterations >= max_iterations:
                 break
+            await asyncio.sleep(poll_interval)
 
     asyncio.run(_monitor())
 
 
 def main() -> None:
-    """Run the optimized master trade monitor service."""
+    """Run the master trade monitor service."""
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO"),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    log.info("Starting FAST master trade monitor service (2 second polling)...")
+    log.info("Starting master trade monitor service...")
     
     session = get_session()
     try:
@@ -449,7 +350,7 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover - interactive use
         log.info("Master trade monitor service stopped by user")
         pass
 
