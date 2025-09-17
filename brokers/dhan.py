@@ -453,7 +453,7 @@ class DhanBroker(BrokerBase):
                 }
         return {"status": "success", "data": all_orders}
 
-   def get_trade_book(self):
+    def get_trade_book(self):
         """Fetch the trade book for the day and normalize it."""
         try:
             r = self._request(
@@ -482,9 +482,16 @@ class DhanBroker(BrokerBase):
             
             trades = r.json()
             if not isinstance(trades, list):
-                if isinstance(trades, dict) and 'errorCode' in trades:
-                     return {"status": "failure", "error": trades.get("errorMessage", "Unknown error")}
-                logger.warning(f"Expected a list of trades, but got {type(trades)}. Response: {trades}")
+                if isinstance(trades, dict) and "errorCode" in trades:
+                    return {
+                        "status": "failure",
+                        "error": trades.get("errorMessage", "Unknown error"),
+                    }
+                logger.warning(
+                    "Expected a list of trades, but got %s. Response: %r",
+                    type(trades),
+                    trades,
+                )
                 return {"status": "success", "trades": []}
 
             # Normalize fields to what master_trade_monitor expects
