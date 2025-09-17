@@ -496,6 +496,10 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     lookup_symbol = lookup_symbol.strip()
     upper_symbol = lookup_symbol.upper()
 
+    # Determine whether the lookup is for a derivative instrument so we can
+    # prefer the corresponding F&O exchange segments when available.
+    is_derivative = bool(re.search(r"(FUT|CE|PE)$", upper_symbol))
+
     # Extract root symbol for lookup
     root_symbol = extract_root_symbol(lookup_symbol)
 
