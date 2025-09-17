@@ -104,8 +104,17 @@ class BrokerServiceClient:
     def get_positions(self) -> Dict[str, Any]:
         return self._post("/positions")
 
+    def get_order_list(self) -> Any:
+        return self._post("/order_list")
+
+    def list_orders(self) -> Any:
+        return self._post("/list_orders")
+
     def get_ltp(self, symbol: str) -> Dict[str, Any]:
         return self._post("/ltp", {"symbol": symbol})
+
+    def get_trade_book(self) -> Any:
+        return self._post("/trade_book")
 
 
 __all__ = ["BrokerServiceClient"]
