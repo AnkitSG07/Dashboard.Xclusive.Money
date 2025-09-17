@@ -190,14 +190,33 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     if not symbol:
         return symbol
     
-    sym = symbol.upper().strip()
+    original_symbol = symbol.strip()
+    sym = original_symbol.upper()
     log.debug(f"Normalizing symbol: {sym}")
-    
+
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
-        log.debug(f"Symbol already in correct format: {sym}")
-        return sym
-    
+        pattern = re.compile(
+            r'^(?P<root>.+?)-(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            re.IGNORECASE,
+        )
+        match = pattern.match(original_symbol)
+        if match:
+            month = match.group('month').upper().title()
+            normalized = f"{match.group('root')}-{month}{match.group('year')}{match.group('suffix')}"
+            log.debug(
+                "Symbol already in correct format, preserving casing: %s -> %s",
+                original_symbol,
+                normalized,
+            )
+            return normalized
+
+        log.debug(
+            "Symbol already in correct format, returning original: %s",
+            original_symbol,
+        )
+        return original_symbol
+        
     # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
     fut_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
