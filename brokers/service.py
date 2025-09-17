@@ -51,6 +51,24 @@ def create_broker_service(broker_name: str) -> Flask:
         result = broker.get_positions()
         return jsonify(result)
 
+    @app.post("/order_list")
+    def get_order_list():
+        data = request.get_json(force=True) or {}
+        broker = _build_broker(data)
+        if not hasattr(broker, "get_order_list"):
+            return jsonify({"status": "failure", "error": "get_order_list not available"}), 501
+        result = broker.get_order_list()
+        return jsonify(result)
+
+    @app.post("/list_orders")
+    def list_orders():
+        data = request.get_json(force=True) or {}
+        broker = _build_broker(data)
+        if not hasattr(broker, "list_orders"):
+            return jsonify({"status": "failure", "error": "list_orders not available"}), 501
+        result = broker.list_orders()
+        return jsonify(result)
+
     @app.post("/ltp")
     def get_ltp():
         data = request.get_json(force=True) or {}
@@ -59,6 +77,15 @@ def create_broker_service(broker_name: str) -> Flask:
         if not symbol or not hasattr(broker, "get_ltp"):
             return jsonify({"status": "failure", "error": "get_ltp not available"}), 501
         result = broker.get_ltp(symbol)
+        return jsonify(result)
+
+    @app.post("/trade_book")
+    def get_trade_book():
+        data = request.get_json(force=True) or {}
+        broker = _build_broker(data)
+        if not hasattr(broker, "get_trade_book"):
+            return jsonify({"status": "failure", "error": "get_trade_book not available"}), 501
+        result = broker.get_trade_book()
         return jsonify(result)
 
     return app
