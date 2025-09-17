@@ -68,7 +68,7 @@ def _fetch_csv(url: str, cache_name: str) -> str:
     raise requests.RequestException(f"failed to fetch {url}")
 
 Key = Tuple[str, str]
-
+SYMBOLS_KEY = "_symbols"
 
 def extract_root_symbol(symbol: str) -> str:
     """Extract root symbol from derivative symbols.
@@ -399,7 +399,10 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         
         # Extract root symbol for indexing
         root_symbol = extract_root_symbol(symbol)
-        mapping.setdefault(root_symbol, {})[exchange] = entry
+        root_entry = mapping.setdefault(root_symbol, {})
+        root_entry[exchange] = entry
+        symbols = root_entry.setdefault(SYMBOLS_KEY, {})
+        symbols.setdefault(exchange, {})[symbol] = entry
     
     # Add Dhan-only symbols (not in Zerodha)
     for (symbol, exchange), dhan_info in dhan_data.items():
@@ -424,7 +427,10 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "trading_symbol": symbol  # Store original Dhan symbol
             }
         }
-        mapping.setdefault(root_symbol, {})[exchange] = entry
+        root_entry = mapping.setdefault(root_symbol, {})
+        root_entry[exchange] = entry
+        symbols = root_entry.setdefault(SYMBOLS_KEY, {})
+        symbols.setdefault(exchange, {})[symbol] = entry
     
     return mapping
 
@@ -491,22 +497,50 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
         return {}
     
     # Select the appropriate exchange
+    exchange_map = None
+    exchange_name = None
     if exchange_hint and exchange_hint in mapping:
+        exchange_name = exchange_hint    
         exchange_map = mapping[exchange_hint]
         log.debug(f"Using specified exchange: {exchange_hint}")
     else:
-        # Prefer NFO for derivatives, NSE for equities
-        if symbol.endswith(("FUT", "CE", "PE")) and "NFO" in mapping:
-            exchange_map = mapping["NFO"]
-            log.debug("Using NFO for derivative symbol")
-        elif "NSE" in mapping:
-            exchange_map = mapping["NSE"]
-            log.debug("Using NSE exchange")
-        else:
-            exchange_map = next(iter(mapping.values()))
-            log.debug(f"Using first available exchange: {list(mapping.keys())[0]}")
-    
-    broker_data = exchange_map.get(broker, {}) if exchange_map else {}
+        if symbol.endswith(("FUT", "CE", "PE")):
+            if "NFO" in mapping:
+                exchange_name = "NFO"
+                exchange_map = mapping["NFO"]
+                log.debug("Using NFO for derivative symbol")
+            elif "BFO" in mapping:
+                exchange_name = "BFO"
+                exchange_map = mapping["BFO"]
+                log.debug("Using BFO for derivative symbol")
+
+        if exchange_map is None:
+            if "NSE" in mapping:
+                exchange_name = "NSE"
+                exchange_map = mapping["NSE"]
+                log.debug("Using NSE exchange")
+            elif "BSE" in mapping:
+                exchange_name = "BSE"
+                exchange_map = mapping["BSE"]
+                log.debug("Using BSE exchange")
+            else:
+                for key in mapping:
+                    if key == SYMBOLS_KEY:
+                        continue
+                    exchange_name = key
+                    exchange_map = mapping[key]
+                    log.debug(f"Using first available exchange: {key}")
+                    break
+
+    entry = None
+    if exchange_name:
+        symbols = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {})
+        entry = symbols.get(symbol)
+
+    if entry is None:
+        entry = exchange_map
+
+    broker_data = entry.get(broker, {}) if entry else {}
     
     # Log lot size for debugging
     if broker_data and "lot_size" in broker_data:
@@ -561,15 +595,30 @@ def get_symbol_for_broker(
         if mapping:
             # Select appropriate exchange
             if exchange_hint and exchange_hint in mapping:
+                exchange_name = exchange_hint
                 exchange_map = mapping[exchange_hint]
             elif "NFO" in mapping:
+                exchange_name = "NFO"
                 exchange_map = mapping["NFO"]
             elif "NSE" in mapping:
+                exchange_name = "NSE"
                 exchange_map = mapping["NSE"]
             else:
-                exchange_map = next(iter(mapping.values()))
-            
-            broker_data = exchange_map.get(broker, {}) if exchange_map else {}
+                exchange_name = None
+                for key in mapping:
+                    if key == SYMBOLS_KEY:
+                        continue
+                    exchange_name = key
+                    break
+                exchange_map = mapping.get(exchange_name) if exchange_name else None
+
+            entry = None
+            if exchange_name:
+                entry = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {}).get(symbol)
+            if entry is None and exchange_map is not None:
+                entry = exchange_map
+
+            broker_data = entry.get(broker, {}) if entry else {}
             if broker_data and "lot_size" in broker_data:
                 # Try to convert the symbol to the broker's format
                 if broker == 'dhan' and 'trading_symbol' in broker_data:
@@ -593,8 +642,17 @@ def get_symbol_by_token(token: str, broker: str) -> str | None:
     
     symbol_map = _ensure_symbol_map()
     for sym, exchanges in symbol_map.items():
-        for exchange_map in exchanges.values():
-            broker_map = exchange_map.get(broker)
+        per_symbol = exchanges.get(SYMBOLS_KEY, {})
+        for symbol_entries in per_symbol.values():
+            for entry in symbol_entries.values():
+                broker_map = entry.get(broker)
+                if broker_map and str(broker_map.get("token")) == token:
+                    return sym
+
+        for exchange, entry in exchanges.items():
+            if exchange == SYMBOLS_KEY:
+                continue
+            broker_map = entry.get(broker)
             if broker_map and str(broker_map.get("token")) == token:
                 return sym
     return None
@@ -638,14 +696,26 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
     for variant in base_variants:
         if variant in symbol_map:
             result["found_mapping"] = True
-            result["available_exchanges"] = list(symbol_map[variant].keys())
+            variant_map = symbol_map[variant]
+            exchanges = [key for key in variant_map.keys() if key != SYMBOLS_KEY]
+            result["available_exchanges"] = exchanges
             
             # Check available brokers and lot sizes
-            for exch, exch_data in symbol_map[variant].items():
+            for exch, exch_data in variant_map.items():
+                if exch == SYMBOLS_KEY:
+                    for symbol_entries in exch_data.values():
+                        for broker_name, broker_info in symbol_entries.items():
+                            if broker_name not in result["available_brokers"]:
+                                result["available_brokers"].append(broker_name)
+                            if broker_name == broker and "lot_size" in broker_info:
+                                result["debug_info"].append(
+                                    f"Lot size for {broker} on {exch}: {broker_info['lot_size']}"
+                                )
+                    continue
+
                 for broker_name, broker_info in exch_data.items():
                     if broker_name not in result["available_brokers"]:
                         result["available_brokers"].append(broker_name)
-                    # Log lot size info
                     if broker_name == broker and "lot_size" in broker_info:
                         result["debug_info"].append(
                             f"Lot size for {broker} on {exch}: {broker_info['lot_size']}"
@@ -654,22 +724,42 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
             result["debug_info"].append(f"Found variant '{variant}' in symbol map")
             
             # Get broker data
-            if exchange and exchange.upper() in symbol_map[variant]:
-                exchange_map = symbol_map[variant][exchange.upper()]
-            elif "NFO" in symbol_map[variant] and symbol.endswith(("FUT", "CE", "PE")):
-                exchange_map = symbol_map[variant]["NFO"]
+            exchange_map = None
+            if exchange and exchange.upper() in variant_map:
+                exchange_name = exchange.upper()
+                exchange_map = variant_map[exchange_name]
+            elif "NFO" in variant_map and symbol.endswith(("FUT", "CE", "PE")):
+                exchange_name = "NFO"
+                exchange_map = variant_map[exchange_name]
                 result["debug_info"].append("Selected NFO for derivative")
-            elif "NSE" in symbol_map[variant]:
-                exchange_map = symbol_map[variant]["NSE"]
+            elif "NSE" in variant_map:
+                exchange_name = "NSE"
+                exchange_map = variant_map[exchange_name]
                 result["debug_info"].append("Selected NSE as default")
             else:
-                exchange_map = next(iter(symbol_map[variant].values()))
-                result["debug_info"].append(f"Selected first available exchange: {list(symbol_map[variant].keys())[0]}")
-            
-            result["broker_data"] = exchange_map.get(broker, {})
+                exchange_name = exchanges[0] if exchanges else None
+                exchange_map = (
+                    variant_map[exchange_name]
+                    if exchange_name
+                    else None
+                )
+                if exchange_name:
+                    result["debug_info"].append(
+                        f"Selected first available exchange: {exchange_name}"
+                    )
+
+            entry = None
+            if exchange_name:
+                entry = variant_map.get(SYMBOLS_KEY, {}).get(exchange_name, {}).get(symbol)
+            if entry is None and exchange_map is not None:
+                entry = exchange_map
+
+            result["broker_data"] = entry.get(broker, {}) if entry else {}
             if result["broker_data"]:
                 result["lot_size"] = result["broker_data"].get("lot_size")
-                result["debug_info"].append(f"Found broker data for {broker}, lot_size: {result['lot_size']}")
+                result["debug_info"].append(
+                    f"Found broker data for {broker}, lot_size: {result['lot_size']}"
+                )
             else:
                 result["debug_info"].append(f"No broker data found for {broker}")
             
