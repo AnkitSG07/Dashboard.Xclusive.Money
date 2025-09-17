@@ -1386,13 +1386,26 @@ def save_account_to_user(owner: str, account: dict):
 
     if acc:
         # Update existing account
+        previous_role = acc.role
+        new_role = account.get("role", acc.role)
+        copy_status_supplied = "copy_status" in account
+        requested_copy_status = account.get("copy_status")
         acc.broker = account.get("broker", acc.broker)
         acc.username = account.get("username", acc.username)
         acc.token_expiry = account.get("token_expiry", acc.token_expiry)
         acc.status = account.get("status", acc.status)
-        acc.role = account.get("role", acc.role)
+        acc.role = new_role
         acc.linked_master_id = account.get("linked_master_id", acc.linked_master_id)
-        acc.copy_status = account.get("copy_status", acc.copy_status)
+        if copy_status_supplied:
+            if (requested_copy_status is None or str(requested_copy_status).strip() == "") and new_role == "master":
+                acc.copy_status = "On"
+            elif requested_copy_status is not None:
+                acc.copy_status = requested_copy_status
+        else:
+            if new_role == "master" and (
+                previous_role != "master" or not str(acc.copy_status or "").strip()
+            ):
+                acc.copy_status = "On"
         acc.copy_qty = account.get("copy_qty", acc.copy_qty)
         acc.copy_value_limit = account.get("copy_value_limit", acc.copy_value_limit)
         acc.copied_value = account.get("copied_value", acc.copied_value)
@@ -1409,6 +1422,13 @@ def save_account_to_user(owner: str, account: dict):
                 last_login = None
             acc.last_login_time = last_login or acc.last_login_time
     else:
+        requested_role = account.get("role")
+        requested_copy_status = account.get("copy_status")
+        if requested_copy_status is None or str(requested_copy_status).strip() == "":
+            default_copy_status = "On" if requested_role == "master" else "Off"
+        else:
+            default_copy_status = requested_copy_status
+
         acc = Account(
             user_id=user.id,
             broker=account.get("broker"),
@@ -1416,9 +1436,9 @@ def save_account_to_user(owner: str, account: dict):
             username=account.get("username"),
             token_expiry=account.get("token_expiry"),
             status=account.get("status", "active"),
-            role=account.get("role"),
+            role=requested_role,
             linked_master_id=account.get("linked_master_id"),
-            copy_status=account.get("copy_status", "Off"),
+            copy_status=default_copy_status,
             copy_qty=account.get("copy_qty"),
             copy_value_limit=account.get("copy_value_limit"),
             copied_value=account.get("copied_value", 0.0),
