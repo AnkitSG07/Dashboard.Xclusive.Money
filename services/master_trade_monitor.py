@@ -123,8 +123,15 @@ def monitor_master_trades(
             )
             
             for master in masters:
-                # Skip masters that are not active for copy trading
-                if getattr(master, 'copy_status', None) != 'On':
+                # Skip masters that are explicitly disabled for copy trading.  Treat
+                # missing/empty values as active so masters without a stored
+                # ``copy_status`` are monitored by default.
+                raw_status = getattr(master, "copy_status", None)
+                normalized_status = ""
+                if raw_status is not None:
+                    normalized_status = str(raw_status).strip().lower()
+
+                if normalized_status in {"off", "disabled", "false", "0", "inactive", "stopped"}:
                     continue
                     
                 credentials: Dict[str, Any] = dict(master.credentials or {})
