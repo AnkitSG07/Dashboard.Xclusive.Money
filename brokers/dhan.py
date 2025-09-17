@@ -453,6 +453,83 @@ class DhanBroker(BrokerBase):
                 }
         return {"status": "success", "data": all_orders}
 
+   def get_trade_book(self):
+        """Fetch the trade book for the day and normalize it."""
+        try:
+            r = self._request(
+                "get",
+                "{}/trades".format(self.api_base),
+                headers=self.headers,
+                timeout=self.timeout,
+            )
+            status = getattr(r, "status_code", 200)
+            if status >= 400:
+                try:
+                    data = r.json()
+                except Exception:
+                    data = {}
+                logger.error(
+                    "Error response from Dhan API while fetching trade book: %r",
+                    data or r.text,
+                )
+                return {
+                    "status": "failure",
+                    "error": data.get("errorMessage")
+                    or data.get("message")
+                    or "Failed to fetch trade book from Dhan API.",
+                    "source": "broker",
+                }
+            
+            trades = r.json()
+            if not isinstance(trades, list):
+                if isinstance(trades, dict) and 'errorCode' in trades:
+                     return {"status": "failure", "error": trades.get("errorMessage", "Unknown error")}
+                logger.warning(f"Expected a list of trades, but got {type(trades)}. Response: {trades}")
+                return {"status": "success", "trades": []}
+
+            # Normalize fields to what master_trade_monitor expects
+            normalized_trades = []
+            for trade in trades:
+                normalized_trades.append({
+                    "order_id": trade.get("orderId"),
+                    "symbol": trade.get("tradingSymbol"),
+                    "action": trade.get("transactionType"),
+                    "quantity": trade.get("tradedQuantity"),
+                    "exchange": trade.get("exchangeSegment"),
+                    "order_type": trade.get("orderType"),
+                    "price": trade.get("tradedPrice"),
+                    "product_type": trade.get("productType"),
+                    "order_time": trade.get("exchangeTime"),
+                    "trade_id": trade.get("exchangeTradeId"),
+                })
+            
+            return {"status": "success", "trades": normalized_trades}
+
+        except requests.exceptions.Timeout:
+            return {
+                "status": "failure",
+                "error": "Request to Dhan API timed out while fetching trade book.",
+                "source": "broker",
+            }
+        except requests.exceptions.RequestException as e:
+            return {
+                "status": "failure",
+                "error": "Failed to fetch trade book from Dhan API: {}".format(str(e)),
+                "source": "broker",
+            }
+        except json.JSONDecodeError:
+            return {
+                "status": "failure",
+                "error": "Invalid JSON response from Dhan API while fetching trade book: {}".format(r.text),
+                "source": "broker",
+            }
+        except Exception as e:
+            return {
+                "status": "failure",
+                "error": "An unexpected error occurred while fetching trade book: {}".format(str(e)),
+                "source": "broker",
+            }
+
     def list_orders(self, **kwargs):
         """Return a list of orders with canonical field names."""
         resp = self.get_order_list(**kwargs)
