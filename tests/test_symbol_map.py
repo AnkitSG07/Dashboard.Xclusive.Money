@@ -72,6 +72,39 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
         == "NSE_FNO"
     )
 
+
+def test_derivative_variants_map_to_distinct_ids(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NFO,NIFTY24SEP24000CE,NFO,OPTIDX\n"
+        "2,NFO,NIFTY24SEP24500CE,NFO,OPTIDX\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "NSE,NIFTY24SEP24000CE,D,,1000\n"
+        "NSE,NIFTY24SEP24500CE,D,,2000\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        first = get_symbol_for_broker("NIFTY24SEP24000CE", "dhan")
+        second = get_symbol_for_broker("NIFTY24SEP24500CE", "dhan")
+        assert first["security_id"] == "1000"
+        assert second["security_id"] == "2000"
+    finally:
+        sm.SYMBOL_MAP = original_map
+
 def test_canonical_dhan_option_symbol(monkeypatch):
     import brokers.symbol_map as sm
 
