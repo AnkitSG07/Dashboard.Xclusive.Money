@@ -18,15 +18,14 @@ from typing import Any, Dict, Iterable, Set
 from brokers.factory import get_broker_client
 from models import Account
 from sqlalchemy.orm import Session
+from services.fo_symbol_utils import normalize_symbol_to_dhan_format
 
 from .webhook_receiver import get_redis_client
 from .db import get_session
 
 log = logging.getLogger(__name__)
 
-# Order statuses that indicate a completed or filled order.  Orders in any
-# other state (e.g. ``REJECTED`` or ``PENDING``) are ignored.  Include
-# broker-specific values such as Dhan's ``TRADED`` status.
+# Order statuses that indicate a completed or filled order - EXPANDED LIST
 COMPLETED_STATUSES = {
     "COMPLETE",
     "COMPLETED", 
@@ -35,12 +34,17 @@ COMPLETED_STATUSES = {
     "TRADED",
     "FULL_EXECUTED",
     "FULLY_EXECUTED",
+    "PARTIAL_FILLED",
+    "PARTIALLY_FILLED",
+    "PARTIAL",
     "2",
     "CONFIRMED",
     "SUCCESS",
     "OK",
     "FULLY_FILLED",
-    "PARTIAL_FILLED",  # Also include partial fills for progressive copying
+    "OPEN",  # Some brokers show open orders that are actually filled
+    "TRANSIT",  # Orders in transit might be filled
+    "TRIGGER_PENDING",  # For stop loss orders that got triggered
 }
 
 # Keep track of processed orders to avoid duplicates across restarts
@@ -66,14 +70,14 @@ def monitor_master_trades(
     poll_interval:
         Seconds to wait between polling iterations. If ``None`` the value of
         the ``ORDER_MONITOR_INTERVAL`` environment variable is used (default
-        ``10`` seconds).
+        ``3`` seconds for faster detection).
     max_iterations:
         Optional number of polling cycles to run.  ``None`` means run
         indefinitely.  Primarily intended for tests.
     """
 
     if poll_interval is None:
-        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "10"))
+        poll_interval = float(os.getenv("ORDER_MONITOR_INTERVAL", "3"))  # Reduced from 10 to 3 seconds
 
     if redis_client is None:
         redis_client = get_redis_client()
@@ -148,7 +152,47 @@ def monitor_master_trades(
                     client = client_cls(
                         master.client_id, access_token=access_token, **credentials
                     )
-                    orders = client.list_orders()
+                    
+                    # Try to get recent orders first, then fall back to all orders
+                    try:
+                        if hasattr(client, 'get_order_list'):
+                            # Get orders with a recent filter if supported
+                            orders = client.get_order_list()
+                        elif hasattr(client, 'list_orders'):
+                            orders = client.list_orders()
+                        else:
+                            log.warning(f"Broker {master.broker} doesn't support order listing")
+                            continue
+                            
+                        # Also try to get trade book for more recent trades
+                        if hasattr(client, 'get_trade_book'):
+                            try:
+                                trade_resp = client.get_trade_book()
+                                if isinstance(trade_resp, dict) and trade_resp.get("status") == "success":
+                                    trades = trade_resp.get("trades", [])
+                                    # Convert trades to order format and add to orders
+                                    for trade in trades:
+                                        # Convert trade to order-like format
+                                        trade_order = {
+                                            "order_id": trade.get("NOrdNo") or trade.get("nestOrderNumber") or trade.get("order_id"),
+                                            "symbol": trade.get("trading_symbol") or trade.get("symbol"),
+                                            "action": trade.get("transtype") or trade.get("action"),
+                                            "qty": trade.get("qty") or trade.get("quantity"),
+                                            "exchange": trade.get("exch") or trade.get("exchange"),
+                                            "order_type": trade.get("prctyp") or trade.get("order_type"),
+                                            "status": "EXECUTED",  # Trades are always executed
+                                            "order_time": trade.get("order_time") or trade.get("trade_time"),
+                                            "price": trade.get("avg_price") or trade.get("price"),
+                                            "product_type": trade.get("product_type") or trade.get("pCode"),
+                                        }
+                                        orders.append(trade_order)
+                            except Exception as e:
+                                log.debug(f"Could not fetch trade book for {master.client_id}: {e}")
+                                
+                    except Exception as e:
+                        log.error(f"Failed to fetch orders for master {master.client_id}: {e}")
+                        continue
+                    
                     # If we successfully fetched orders, clear any cached
                     # invalid credential flag for this master.
                     invalid_creds.pop(master.client_id, None)
@@ -180,9 +224,16 @@ def monitor_master_trades(
                 new_orders_found = 0
                 
                 for order in orders:
+                    # More flexible status checking
                     status = str(order.get("status") or "").upper()
                     if status and status not in COMPLETED_STATUSES:
-                        continue
+                        # For some brokers, check if filled quantity > 0 even if status is not "completed"
+                        filled_qty = order.get("filled_qty") or order.get("filledQty") or order.get("Fillshares") or 0
+                        try:
+                            if float(filled_qty) <= 0:
+                                continue
+                        except (ValueError, TypeError):
+                            continue
 
                     # Try multiple possible order ID fields
                     order_id = (
@@ -206,6 +257,7 @@ def monitor_master_trades(
                         order.get("symbol") 
                         or order.get("tradingSymbol") 
                         or order.get("tradingsymbol")
+                        or order.get("trading_symbol")
                         or order.get("tsym")
                     )
                     
@@ -214,6 +266,7 @@ def monitor_master_trades(
                         or order.get("transactionType")
                         or order.get("transaction_type") 
                         or order.get("trantype")
+                        or order.get("transtype")
                         or order.get("side")
                     )
                     
@@ -223,6 +276,7 @@ def monitor_master_trades(
                         or order.get("quantity")
                         or order.get("filled_qty")  # Use filled quantity for partial fills
                         or order.get("filledQty")
+                        or order.get("Fillshares")
                     )
                     
                     exchange = (
@@ -243,6 +297,7 @@ def monitor_master_trades(
                         or order.get("instrumentType")
                         or order.get("productType")
                         or order.get("product_type")
+                        or order.get("pCode")
                     )
                     
                     # Additional fields for derivatives
@@ -262,6 +317,7 @@ def monitor_master_trades(
                         or order.get("average_price")
                         or order.get("avgPrice")
                         or order.get("last_price")
+                        or order.get("ltp")
                     )
 
                     # Skip orders missing essential information
@@ -273,10 +329,39 @@ def monitor_master_trades(
                         continue
 
                     # Normalize action to standard format
-                    if str(action).upper() in ["B", "BUY", "1"]:
+                    action_upper = str(action).upper()
+                    if action_upper in ["B", "BUY", "1"]:
                         action = "BUY"
-                    elif str(action).upper() in ["S", "SELL", "-1", "2"]:
+                    elif action_upper in ["S", "SELL", "-1", "2"]:
                         action = "SELL"
+                    else:
+                        action = action_upper
+
+                    # Normalize symbol format for consistency
+                    try:
+                        normalized_symbol = normalize_symbol_to_dhan_format(symbol)
+                        if normalized_symbol != symbol:
+                            log.info(f"Normalized manual trade symbol from {symbol} to {normalized_symbol}")
+                            symbol = normalized_symbol
+                    except Exception as e:
+                        log.warning(f"Could not normalize symbol {symbol}: {e}")
+
+                    # Determine instrument type from symbol if not provided
+                    if not instrument_type and symbol:
+                        sym_upper = symbol.upper()
+                        if sym_upper.endswith('FUT') or '-FUT' in sym_upper:
+                            instrument_type = 'FUTIDX' if 'NIFTY' in sym_upper else 'FUTSTK'
+                        elif sym_upper.endswith(('CE', 'PE')) or any(x in sym_upper for x in ['-CE', '-PE']):
+                            instrument_type = 'OPTIDX' if 'NIFTY' in sym_upper else 'OPTSTK'
+                        elif sym_upper.endswith('-EQ') or (not any(x in sym_upper for x in ['FUT', 'CE', 'PE'])):
+                            instrument_type = 'EQ'
+
+                    # Set default exchange based on instrument type if not provided
+                    if not exchange:
+                        if instrument_type in ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']:
+                            exchange = 'NFO'
+                        else:
+                            exchange = 'NSE'
 
                     raw_event = {
                         "master_id": master.client_id,
@@ -292,8 +377,9 @@ def monitor_master_trades(
                         "lot_size": lot_size,
                         "price": price,
                         "order_id": order_id,
-                        "order_time": order.get("order_time") or order.get("orderTime"),
-                        "source": "manual_trade_monitor"  # Mark as manual trade
+                        "order_time": order.get("order_time") or order.get("orderTime") or order.get("trade_time"),
+                        "source": "manual_trade_monitor",  # Mark as manual trade
+                        "broker": master.broker,  # Add broker info for debugging
                     }
                     
                     # Filter out ``None`` values and convert the rest to strings so
@@ -304,8 +390,8 @@ def monitor_master_trades(
                         # Publish to trade_events stream for copying to children
                         redis_client.xadd("trade_events", event)
                         log.info(
-                            "Published manual trade event for master %s: %s %s %s at %s",
-                            master.client_id, action, qty, symbol, exchange
+                            "Published manual trade event for master %s (%s): %s %s %s at %s [Order ID: %s]",
+                            master.client_id, master.broker, action, qty, symbol, exchange, order_id
                         )
                         new_orders_found += 1
                     except redis.exceptions.RedisError:
@@ -319,9 +405,11 @@ def monitor_master_trades(
 
                 if new_orders_found > 0:
                     log.info(
-                        "Found %d new manual orders for master %s", 
-                        new_orders_found, master.client_id
+                        "Found %d new manual orders for master %s (%s)", 
+                        new_orders_found, master.client_id, master.broker
                     )
+                elif iterations % 20 == 0:  # Log every 20 iterations (every minute if 3s interval)
+                    log.debug(f"No new manual orders for master {master.client_id} ({master.broker})")
 
             iterations += 1
             if max_iterations is not None and iterations >= max_iterations:
@@ -339,6 +427,7 @@ def main() -> None:
     )
     
     log.info("Starting master trade monitor service...")
+    log.info(f"Polling interval: {os.getenv('ORDER_MONITOR_INTERVAL', '3')} seconds")
     
     session = get_session()
     try:
