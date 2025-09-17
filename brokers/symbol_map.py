@@ -542,6 +542,7 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
                     break
 
     entry = None
+    symbols = {}
     if exchange_name:
         symbols = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {})
         entry = symbols.get(lookup_symbol)
@@ -549,7 +550,13 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
             entry = symbols.get(upper_symbol)
 
     if entry is None:
-        entry = exchange_map
+        if is_derivative:
+            if symbols:
+                return {}
+            if exchange_map is not None:
+                entry = exchange_map
+        elif exchange_map is not None:
+            entry = exchange_map
 
     broker_data = entry.get(broker, {}) if entry else {}
     
@@ -644,13 +651,17 @@ def get_symbol_for_broker(
                 exchange_map = mapping.get(exchange_name) if exchange_name else None
 
             entry = None
+            symbols = {}
             if exchange_name:
                 symbols = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {})
                 entry = symbols.get(original_symbol)
                 if entry is None and original_symbol != upper_symbol:
                     entry = symbols.get(upper_symbol)
-            if entry is None and exchange_map is not None:
-                entry = exchange_map
+            if entry is None:
+                if symbols:
+                    return {}
+                if exchange_map is not None:
+                    entry = exchange_map
 
             broker_data = entry.get(broker, {}) if entry else {}
             if broker_data and "lot_size" in broker_data:
