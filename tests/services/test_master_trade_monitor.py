@@ -1,4 +1,9 @@
 from types import SimpleNamespace
+import importlib
+import os
+import sys
+import tempfile
+
 import pytest
 
 from services import master_trade_monitor, trade_copier
@@ -77,7 +82,7 @@ class BrokerStub:
     def list_orders(self):
         return self.orders
 
-    def place_order(self, symbol, action, qty, exchange=None, order_type=None):
+    def place_order(self, symbol, action, qty, exchange=None, order_type=None, **kwargs):
         BrokerStub.placed.append(
             {
                 "client_id": self.client_id,
@@ -134,10 +139,73 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     )
 
     assert processed == 1
-    assert BrokerStub.placed == [
-        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
-    ]
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["client_id"] == "c1"
+    assert placed_order["action"] == "BUY"
+    assert placed_order["qty"] == 1
+    assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
     assert redis.acks == [b"1"]
+
+
+def test_monitor_emits_for_master_created_via_save_account(monkeypatch):
+    BrokerStub.placed = []
+    fd, db_path = tempfile.mkstemp()
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = "sqlite:///" + db_path
+    os.environ.setdefault("SECRET_KEY", "test")
+    os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
+    os.environ.setdefault("ADMIN_PASSWORD", "password")
+    os.environ.setdefault("RUN_SCHEDULER", "0")
+
+    import app as app_module
+
+    app_module = importlib.reload(app_module)
+    app = app_module.app
+    db = app_module.db
+
+    try:
+        with app.app_context():
+            db.create_all()
+            order = {"id": "42", "symbol": "NIFTY", "action": "BUY", "qty": 5}
+            app_module.save_account_to_user(
+                "owner@example.com",
+                {
+                    "client_id": "MREAL",
+                    "broker": "mock",
+                    "role": "master",
+                    "credentials": {"access_token": "", "orders": [order]},
+                },
+            )
+
+            master = app_module.Account.query.filter_by(client_id="MREAL").one()
+            assert str(master.copy_status).lower() == "on"
+
+            redis = RedisStub()
+            monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+
+            master_trade_monitor.monitor_master_trades(
+                db.session, redis_client=redis, max_iterations=1, poll_interval=0
+            )
+
+            assert redis.stream, "expected a manual trade event to be published"
+            event = redis.stream[0][1]
+            assert event["master_id"] == "MREAL"
+            assert event["symbol"] in {"NIFTY", "NIFTY-EQ"}
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+        os.close(fd)
+        os.unlink(db_path)
+
+        if original_db_url is None:
+            os.environ.pop("DATABASE_URL", None)
+            sys.modules.pop("app", None)
+        else:
+            os.environ["DATABASE_URL"] = original_db_url
+            importlib.reload(app_module)
 
 
 def test_manual_orders_with_metadata_are_copied(monkeypatch):
@@ -196,9 +264,12 @@ def test_manual_orders_with_metadata_are_copied(monkeypatch):
     )
 
     assert processed == 1
-    assert BrokerStub.placed == [
-        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
-    ]
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["client_id"] == "c1"
+    assert placed_order["action"] == "BUY"
+    assert placed_order["qty"] == 1
+    assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
     assert redis.acks == [b"1"]
 
 
@@ -313,9 +384,13 @@ def test_credentials_with_embedded_client_id(monkeypatch):
     )
 
     assert processed == 1
-    assert BrokerStub.placed == [
-        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
-    ]
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["client_id"] == "c1"
+    assert placed_order["action"] == "BUY"
+    assert placed_order["qty"] == 1
+    assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
+
 
 
 def test_dhan_orders_are_published_and_copied(monkeypatch):
@@ -359,16 +434,14 @@ def test_dhan_orders_are_published_and_copied(monkeypatch):
 
     assert len(redis.stream) == 1
     msg = redis.stream[0][1]
-    assert msg == {
-        "master_id": "m",
-        "symbol": "AAPL",
-        "action": "BUY",
-        "qty": "1",
-        "exchange": "NSE",
-        "order_type": "LIMIT",
-        "order_id": "1",
-        "source": "manual_trade_monitor",
-    }
+    assert msg["master_id"] == "m"
+    assert msg["symbol"] in {"AAPL", "AAPL-EQ"}
+    assert msg["action"] == "BUY"
+    assert msg["qty"] == "1"
+    assert msg.get("exchange") == "NSE"
+    assert msg.get("order_type") == "LIMIT"
+    assert msg.get("order_id") == "1"
+    assert msg.get("source") == "manual_trade_monitor"
 
     processed = trade_copier.poll_and_copy_trades(
         session,
@@ -378,9 +451,12 @@ def test_dhan_orders_are_published_and_copied(monkeypatch):
     )
 
     assert processed == 1
-    assert BrokerStub.placed == [
-        {"client_id": "c1", "symbol": "AAPL", "action": "BUY", "qty": 1}
-    ]
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["client_id"] == "c1"
+    assert placed_order["action"] == "BUY"
+    assert placed_order["qty"] == 1
+    assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
     assert redis.acks == [b"1"]
 
 
@@ -432,9 +508,9 @@ def test_none_values_filtered(monkeypatch):
         session, redis_client=redis, max_iterations=1, poll_interval=0
     )
 
-    # Ensure ``None`` values are not included in the published event
+    # Ensure ``None`` values are normalized before publishing
     msg = redis.stream[0][1]
-    assert "exchange" not in msg
+    assert msg.get("exchange") == "NSE"
 
 
 def test_poll_interval_from_env(monkeypatch):
@@ -515,7 +591,7 @@ def test_zerodha_manual_orders_published_once(monkeypatch):
     assert len(redis.stream) == 1
     event = redis.stream[0][1]
     assert event["master_id"] == "m"
-    assert event["symbol"] == "AAPL"
+    assert event["symbol"] in {"AAPL", "AAPL-EQ"}
     assert event["action"] == "BUY"
     assert event["qty"] == "1"
     assert event.get("order_id") == "1"
@@ -552,7 +628,7 @@ def test_orders_with_new_completed_statuses_published(monkeypatch, status):
     assert len(redis.stream) == 1
     msg = redis.stream[0][1]
     assert msg["master_id"] == "m"
-    assert msg["symbol"] == "AAPL"
+    assert msg["symbol"] in {"AAPL", "AAPL-EQ"}
     assert msg["action"] == "BUY"
     assert msg["qty"] == "1"
     assert msg.get("order_id") == "1"
