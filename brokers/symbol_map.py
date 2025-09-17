@@ -478,18 +478,27 @@ def refresh_symbol_map(force: bool = False) -> None:
 
 def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None) -> Dict[str, str]:
     """Direct symbol lookup without conversion."""
-    symbol = symbol.upper()
+    if symbol is None:
+        symbol = ""
+
     broker = broker.lower()
+
+    # Preserve the original symbol for dictionary lookup while using an
+    # uppercased variant for canonical comparisons.
+    lookup_symbol = symbol.strip()
     
     exchange_hint = None
     if exchange:
         exchange_hint = exchange.upper()
-    elif ":" in symbol:
-        exchange_hint, symbol = symbol.split(":", 1)
-    
+    elif ":" in lookup_symbol:
+        exchange_hint, lookup_symbol = lookup_symbol.split(":", 1)
+
+    lookup_symbol = lookup_symbol.strip()
+    upper_symbol = lookup_symbol.upper()
+
     # Extract root symbol for lookup
-    root_symbol = extract_root_symbol(symbol)
-    
+    root_symbol = extract_root_symbol(lookup_symbol)
+
     symbol_map = _ensure_symbol_map()
     mapping = symbol_map.get(root_symbol)
     
@@ -504,7 +513,7 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
         exchange_map = mapping[exchange_hint]
         log.debug(f"Using specified exchange: {exchange_hint}")
     else:
-        if symbol.endswith(("FUT", "CE", "PE")):
+        if upper_symbol.endswith(("FUT", "CE", "PE")):
             if "NFO" in mapping:
                 exchange_name = "NFO"
                 exchange_map = mapping["NFO"]
@@ -535,7 +544,9 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     entry = None
     if exchange_name:
         symbols = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {})
-        entry = symbols.get(symbol)
+        entry = symbols.get(lookup_symbol)
+        if entry is None and lookup_symbol != upper_symbol:
+            entry = symbols.get(upper_symbol)
 
     if entry is None:
         entry = exchange_map
@@ -544,7 +555,12 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     
     # Log lot size for debugging
     if broker_data and "lot_size" in broker_data:
-        log.debug(f"Found lot size {broker_data['lot_size']} for {symbol} on {broker}")
+        log.debug(
+            "Found lot size %s for %s on %s",
+            broker_data["lot_size"],
+            lookup_symbol,
+            broker,
+        )
     
     return broker_data
 
@@ -553,45 +569,60 @@ def get_symbol_for_broker(
     symbol: str, broker: str, exchange: str | None = None
 ) -> Dict[str, str]:
     """Return the mapping for *symbol* for the given *broker* including lot size.
-    
+
     Enhanced to handle F&O symbol conversion between different broker formats.
     """
-    symbol = symbol.upper()
+    if symbol is None:
+        symbol = ""
+
+    original_symbol = symbol.strip()
     broker = broker.lower()
-    
+
     exchange_hint = None
     if exchange:
         exchange_hint = exchange.upper()
-    elif ":" in symbol:
-        exchange_hint, symbol = symbol.split(":", 1)
-    
+    elif ":" in original_symbol:
+        exchange_hint, original_symbol = original_symbol.split(":", 1)
+
+    original_symbol = original_symbol.strip()
+    upper_symbol = original_symbol.upper()
+
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE)$', symbol):
+    if re.search(r'(FUT|CE|PE)$', upper_symbol):
         # Try direct lookup first
-        result = _direct_symbol_lookup(symbol, broker, exchange_hint)
+        result = _direct_symbol_lookup(original_symbol, broker, exchange_hint)
         if result and "lot_size" in result:
-            log.debug(f"Direct lookup found lot size {result['lot_size']} for {symbol}")
+            log.debug(
+                "Direct lookup found lot size %s for %s",
+                result["lot_size"],
+                original_symbol,
+            )
             return result
-            
+
         # Try parsing and converting from different broker formats
         for source_broker in ['dhan', 'zerodha', 'aliceblue', 'fyers', 'finvasia']:
             if source_broker == broker:
                 continue
-                
-            components = parse_fo_symbol(symbol, source_broker)
+
+            components = parse_fo_symbol(original_symbol, source_broker)
             if components:
                 converted_symbol = format_fo_symbol(components, broker)
                 if converted_symbol:
                     result = _direct_symbol_lookup(converted_symbol, broker, exchange_hint)
                     if result and "lot_size" in result:
-                        log.info(f"Found F&O mapping via conversion: {symbol} -> {converted_symbol}, lot size: {result['lot_size']}")
+                        log.info(
+                            "Found F&O mapping via conversion: %s -> %s, lot size: %s",
+                            original_symbol,
+                            converted_symbol,
+                            result["lot_size"],
+                        )
                         return result
-        
+
         # Try with root symbol lookup for F&O
-        root_symbol = extract_root_symbol(symbol)
+        root_symbol = extract_root_symbol(original_symbol)
         symbol_map = _ensure_symbol_map()
         mapping = symbol_map.get(root_symbol)
-        
+
         if mapping:
             # Select appropriate exchange
             if exchange_hint and exchange_hint in mapping:
@@ -614,7 +645,10 @@ def get_symbol_for_broker(
 
             entry = None
             if exchange_name:
-                entry = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {}).get(symbol)
+                symbols = mapping.get(SYMBOLS_KEY, {}).get(exchange_name, {})
+                entry = symbols.get(original_symbol)
+                if entry is None and original_symbol != upper_symbol:
+                    entry = symbols.get(upper_symbol)
             if entry is None and exchange_map is not None:
                 entry = exchange_map
 
@@ -623,16 +657,21 @@ def get_symbol_for_broker(
                 # Try to convert the symbol to the broker's format
                 if broker == 'dhan' and 'trading_symbol' in broker_data:
                     # Convert from other format to Dhan format
-                    dhan_symbol = broker_data.get('trading_symbol', symbol)
-                    if dhan_symbol != symbol:
-                        log.info(f"Using Dhan symbol mapping: {symbol} -> {dhan_symbol}, lot size: {broker_data['lot_size']}")
+                    dhan_symbol = broker_data.get('trading_symbol', original_symbol)
+                    if dhan_symbol != original_symbol:
+                        log.info(
+                            "Using Dhan symbol mapping: %s -> %s, lot size: %s",
+                            original_symbol,
+                            dhan_symbol,
+                            broker_data['lot_size'],
+                        )
                         broker_data = dict(broker_data)
                         broker_data['symbol'] = dhan_symbol
                         broker_data['trading_symbol'] = dhan_symbol
                 return broker_data
-    
+
     # Fall back to original logic for equity and unmatched F&O
-    return _direct_symbol_lookup(symbol, broker, exchange_hint)
+    return _direct_symbol_lookup(original_symbol, broker, exchange_hint)
 
 
 def get_symbol_by_token(token: str, broker: str) -> str | None:
