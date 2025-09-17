@@ -113,7 +113,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             )
             if converted_symbol != original_symbol:
                 log.info(
-                    f"Converted F&O symbol from {original_symbol} ({master.broker}) "
+                    f"🔄 Converted F&O symbol from {original_symbol} ({master.broker}) "
                     f"to {converted_symbol} ({child.broker})"
                 )
         except Exception as e:
@@ -264,7 +264,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     
     try:
         log.info(
-            f"Placing order on {child.broker} for {child.client_id}: "
+            f"📤 Placing order on {child.broker} for {child.client_id}: "
             f"{params.get('action')} {params.get('qty')} {params.get('symbol')} "
             f"at {params.get('exchange', 'NSE')} with product {params.get('product_type', 'MIS')}"
         )
@@ -273,12 +273,12 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         
         if isinstance(result, dict) and result.get("status") == "success":
             log.info(
-                f"Successfully copied order to {child.broker} account {child.client_id}: "
+                f"✅ Successfully copied order to {child.broker} account {child.client_id}: "
                 f"Order ID: {result.get('order_id')}"
             )
         else:
             log.warning(
-                f"Order placed but status unclear for {child.broker} account {child.client_id}: {result}"
+                f"⚠️ Order placed but status unclear for {child.broker} account {child.client_id}: {result}"
             )
         
         return result
@@ -292,7 +292,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             exc.args[0] if getattr(exc, "args", None) else str(exc)
         )
         log.error(
-            f"Failed to copy order to {child.broker} account {child.client_id}: {message}"
+            f"❌ Failed to copy order to {child.broker} account {child.client_id}: {message}"
         )
         raise RuntimeError(message) from exc
 
@@ -331,7 +331,7 @@ async def _replicate_to_children(
         log.debug(f"No active children found for master {master.client_id}")
         return
 
-    log.info(f"Copying order to {len(children)} active child accounts")
+    log.info(f"📊 Copying order to {len(children)} active child accounts")
 
     loop = asyncio.get_running_loop()
     own_executor = False
@@ -346,14 +346,14 @@ async def _replicate_to_children(
         try:
             fut.result()
             log.warning(
-                "child %s (%s) copy completed after timeout",
+                "⏰ child %s (%s) copy completed after timeout",
                 client_id,
                 broker_name,
                 extra={"child": client_id, "broker": broker_name},
             )
         except asyncio.CancelledError:
             log.warning(
-                "child %s (%s) copy cancelled after timeout",
+                "🚫 child %s (%s) copy cancelled after timeout",
                 client_id,
                 broker_name,
                 extra={"child": client_id, "broker": broker_name},
@@ -362,7 +362,7 @@ async def _replicate_to_children(
         except Exception as exc:
             msg = str(exc)
             log.warning(
-                "child %s (%s) copy failed after timeout: %s",
+                "❌ child %s (%s) copy failed after timeout: %s",
                 client_id,
                 broker_name,
                 msg,
@@ -396,7 +396,7 @@ async def _replicate_to_children(
                 if isinstance(result, asyncio.TimeoutError) and not orig_fut.done():
                     timed_out.append((child, orig_fut))
                 log.warning(
-                    "child %s (%s) copy timed out; order may still have executed",
+                    "⏰ child %s (%s) copy timed out; order may still have executed",
                     client_id,
                     broker_name,
                     extra={"child": client_id, "broker": broker_name, "error": "TimeoutError"},
@@ -405,7 +405,7 @@ async def _replicate_to_children(
             elif isinstance(result, Exception):
                 msg = str(result)
                 log.error(
-                    "child %s (%s) copy failed: %s",
+                    "❌ child %s (%s) copy failed: %s",
                     client_id,
                     broker_name,
                     msg,
@@ -419,13 +419,13 @@ async def _replicate_to_children(
                 failure_count += 1
             else:
                 log.debug(
-                    f"Successfully copied order to child {client_id} ({broker_name})"
+                    f"✅ Successfully copied order to child {client_id} ({broker_name})"
                 )
                 success_count += 1
 
         if success_count > 0 or failure_count > 0:
             log.info(
-                f"Order copy results: {success_count} successful, {failure_count} failed"
+                f"📈 Order copy results: {success_count} successful, {failure_count} failed"
             )
 
         for child, fut in timed_out:
@@ -547,10 +547,10 @@ def poll_and_copy_trades(
                                 if master:
                                     source = event.get("source", "unknown")
                                     log.info(
-                                        f"Processing trade event from master {master.client_id} "
+                                        f"📥 Processing trade event from master {master.client_id} "
                                         f"({master.broker}): {event.get('action')} "
                                         f"{event.get('qty')} {event.get('symbol')} "
-                                        f"(source: {source})"
+                                        f"(source: {source}) [Event ID: {msg_id}]"
                                     )
                                     db_session.rollback()
                                     db_session.expire_all()
@@ -563,14 +563,14 @@ def poll_and_copy_trades(
                                         timeout=child_timeout,
                                     )
                                 else:
-                                    log.warning(f"Master account {event['master_id']} not found")
+                                    log.warning(f"⚠️ Master account {event['master_id']} not found")
                             except Exception as exc:  # pragma: no cover - exercised in tests
                                 log.exception(
-                                    "error processing trade event %s", msg_id, exc_info=exc
+                                    "❌ error processing trade event %s", msg_id, exc_info=exc
                                 )
                                 db_session.rollback()
                                 log.debug(
-                                    "database session rolled back after error processing trade event %s",
+                                    "🔄 database session rolled back after error processing trade event %s",
                                     msg_id,
                                 )
                                 raise
@@ -589,7 +589,7 @@ def poll_and_copy_trades(
                     for (msg_id, _), result in zip(tasks, results):
                         if isinstance(result, Exception):
                             log.exception(
-                                "error processing trade event %s", msg_id, exc_info=result
+                                "❌ error processing trade event %s", msg_id, exc_info=result
                             )
                 processed += count
                 if max_messages is not None and processed >= max_messages:
@@ -604,6 +604,12 @@ def poll_and_copy_trades(
 def main() -> None:
     """Entry point for the trade copier service."""
     
+    # Set up detailed logging
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO"),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
     block = int(os.getenv("TRADE_COPIER_BLOCK_MS", "5000"))
 
     # Ensure symbol mappings are available before processing any trades.  The
@@ -611,7 +617,8 @@ def main() -> None:
     # cached data.  If neither is accessible the trade copier aborts so that
     # orders are not submitted with missing tokens.
     _load_symbol_map_or_exit()
-    log.info("trade copier worker starting")
+    log.info("🚀 Trade copier worker starting")
+    log.info(f"📊 Block time: {block}ms")
 
     while True:
         session = get_session()
@@ -624,12 +631,12 @@ def main() -> None:
                 block=block,
             )
             if processed > 0:
-                log.info("processed %d trade event(s)", processed)
-        except redis.exceptions.RedisError:
-            log.exception("redis error while copying trades")
+                log.info(f"✅ Processed {processed} trade event(s)")
+        except redis.exceptions.RedisError as e:
+            log.exception(f"❌ Redis error while copying trades: {e}")
             time.sleep(5)  # Wait before retry
         except Exception as e:
-            log.exception(f"unexpected error in trade copier: {e}")
+            log.exception(f"❌ Unexpected error in trade copier: {e}")
             time.sleep(5)  # Wait before retry
         finally:
             session.close()
@@ -654,5 +661,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        log.info("Trade copier stopped by user")
+        log.info("👋 Trade copier stopped by user")
         pass
