@@ -509,11 +509,22 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     exchange_map = None
     exchange_name = None
     if exchange_hint and exchange_hint in mapping:
-        exchange_name = exchange_hint    
+        exchange_name = exchange_hint
         exchange_map = mapping[exchange_hint]
         log.debug(f"Using specified exchange: {exchange_hint}")
+
+        # Some callers still provide the cash market exchange (NSE/BSE) even
+        # for derivatives. In those cases prefer the corresponding F&O
+        # exchange if it is available to avoid incorrect fallbacks.
+        if is_derivative and exchange_name in {"NSE", "BSE"}:
+            fo_exchange = "NFO" if exchange_name == "NSE" else "BFO"
+            if fo_exchange in mapping:
+                exchange_name = fo_exchange
+                exchange_map = mapping[fo_exchange]
+                log.debug("Promoted derivative lookup to %s", fo_exchange)
     else:
-        if upper_symbol.endswith(("FUT", "CE", "PE")):
+        if is_derivative:
+            
             if "NFO" in mapping:
                 exchange_name = "NFO"
                 exchange_map = mapping["NFO"]
