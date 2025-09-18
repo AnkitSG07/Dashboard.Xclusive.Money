@@ -166,6 +166,7 @@ class DhanBroker(BrokerBase):
 
         # Look up instrument details only when necessary.
         mapping = {}
+        explicit_exchange = exchange_base is not None
         if security_id is None or exchange_segment is None:
             mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
         if security_id is None:
@@ -180,9 +181,21 @@ class DhanBroker(BrokerBase):
                     security_id = mapping["security_id"]
                 except KeyError:
                     security_id = None
-            if not security_id and tradingsymbol and self.symbol_map:
+            if (
+                not security_id
+                and tradingsymbol
+                and self.symbol_map
+                and not explicit_exchange
+            ):
                 security_id = self.symbol_map.get(tradingsymbol.upper())
         if not security_id:
+            if explicit_exchange and not mapping:
+                raise ValueError(
+                    (
+                        "DhanBroker: symbol {} is not available on {}. "
+                        "Please choose a different exchange or instrument."
+                    ).format(tradingsymbol, exchange_base)
+                )
             raise ValueError(
                 (
                     "DhanBroker: 'security_id' for symbol {} not found. "
