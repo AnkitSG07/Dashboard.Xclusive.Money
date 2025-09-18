@@ -26,7 +26,11 @@ from .utils import _decode_event
 from .db import get_session
 from models import Strategy, Account
 from .master_trade_monitor import COMPLETED_STATUSES
-from .fo_symbol_utils import is_fo_symbol
+from .fo_symbol_utils import (
+    is_fo_symbol,
+    format_dhan_option_symbol,
+    format_dhan_future_symbol,
+)
 from services.product_support import map_product_type, is_mtf_supported, _cache_mtf_support
 
 log = logging.getLogger(__name__)
@@ -201,13 +205,16 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
         pattern = re.compile(
-            r'^(?P<root>.+?)-(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
             re.IGNORECASE,
         )
         match = pattern.match(original_symbol)
         if match:
             month = match.group('month').upper().title()
-            normalized = f"{match.group('root')}-{month}{match.group('year')}{match.group('suffix')}"
+            day = match.group('day')
+            suffix = match.group('suffix')
+            date_part = f"{int(day):02d}{month}{match.group('year')}" if day else f"{month}{match.group('year')}"
+            normalized = f"{match.group('root')}-{date_part}{suffix}"
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
@@ -239,7 +246,14 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         full_year = f"20{year}"
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+            day=day,
+        )
         log.info(f"Normalized from day-first format '{sym}' to '{normalized}'")
         return normalized
     
@@ -255,7 +269,12 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         
         year = get_expiry_year(month, day)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=day,
+        )
         log.info(f"Normalized futures with day from '{sym}' to '{normalized}'")
         return normalized
     
@@ -269,7 +288,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.title()}{full_year}-FUT"
+            normalized = format_dhan_future_symbol(root, month, full_year)
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -282,7 +301,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        normalized = format_dhan_future_symbol(root, month, full_year)
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
@@ -296,7 +315,13 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+            normalized = format_dhan_option_symbol(
+                root,
+                month,
+                full_year,
+                strike,
+                opt_type,
+            )
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -309,7 +334,13 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month, strike, opt_type = opt_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_type,
+        )
         log.info(f"Normalized options without year from '{sym}' to '{normalized}'")
         return normalized
     
@@ -590,9 +621,9 @@ def consume_webhook_events(
                     order_params["product_type"] = product_type_mapped
                 
                 # Enhanced lot size handling for F&O
-                lot_size = None
+                lot_size_value = event.get("lot_size")
                 if is_fo:
-                    lot_size = event.get("lot_size")
+                    lot_size = lot_size_value
                     
                     # Try to get from symbol map using converted symbol
                     if lot_size is None:
@@ -628,6 +659,30 @@ def consume_webhook_events(
                         except (ValueError, TypeError):
                             log.error("Invalid lot size or quantity for F&O order")
                             return None
+
+                elif lot_size_value is not None:
+                    try:
+                        lot_size_int = int(float(lot_size_value))
+                    except (ValueError, TypeError):
+                        log.error("Invalid lot size provided for cash order")
+                        return None
+
+                    if lot_size_int > 1:
+                        try:
+                            original_qty = int(float(event["qty"]))
+                        except (ValueError, TypeError):
+                            log.error("Invalid quantity for cash order")
+                            return None
+
+                        calculated_qty = original_qty * lot_size_int
+                        order_params["qty"] = calculated_qty
+                        order_params["lot_size"] = lot_size_int
+                        log.info(
+                            "Cash quantity adjustment: %s lots × %s = %s",
+                            original_qty,
+                            lot_size_int,
+                            calculated_qty,
+                        )
                 
                 try:
                     result = client.place_order(**order_params)
