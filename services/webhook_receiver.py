@@ -21,6 +21,7 @@ import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
 
 from .alert_guard import check_duplicate_and_risk
+from .fo_symbol_utils import is_fo_symbol
 from brokers import symbol_map
 
 logger = logging.getLogger(__name__)
@@ -400,7 +401,7 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
     # - It doesn't end with FUT, CE, PE, CALL, PUT
     # - It doesn't contain month patterns
     # - It's either all letters or letters with trailing numbers (like IDEA4G)
-    if (not re.search(r'(FUT|CE|PE|CALL|PUT)$', sym) and 
+    if (not is_fo_symbol(sym) and
         not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym) and
         not sym.endswith('-EQ')):
         # Check if it looks like an equity symbol (all letters or letters+numbers)
@@ -421,7 +422,7 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             return normalized, metadata
     
     # Return original if no pattern matches, but if it looks like equity, add -EQ
-    if not re.search(r'(FUT|CE|PE|CALL|PUT|-EQ)$', sym) and re.match(r'^[A-Z]+\d*$', sym):
+    if not is_fo_symbol(sym) and not sym.endswith('-EQ') and re.match(r'^[A-Z]+\d*$', sym):
         normalized = f"{sym}-EQ"
         metadata = {
             'underlying': sym,
