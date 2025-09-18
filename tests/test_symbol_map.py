@@ -105,6 +105,45 @@ def test_derivative_variants_map_to_distinct_ids(monkeypatch):
     finally:
         sm.SYMBOL_MAP = original_map
 
+def test_dhan_equity_suffix_maps_to_nse_security(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,NSE,RELIANCE,NSE,EQ\n"
+        "2,BSE,RELIANCE,BSE,EQ\n"
+    )
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "NSE,RELIANCE-EQ,E,EQ,100,1\n"
+        "BSE,RELIANCE,E,EQ,200,1\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        result = get_symbol_for_broker("RELIANCE-EQ", "dhan", "NSE")
+        assert result["security_id"] == "100"
+        assert result["exchange_segment"] == "NSE_EQ"
+        assert result["security_id"] != "200"
+    finally:
+        sm.SYMBOL_MAP = original_map
+
+    nse_symbols = mapping["RELIANCE"][sm.SYMBOLS_KEY]["NSE"]
+    assert "RELIANCE" in nse_symbols
+    assert "RELIANCE-EQ" in nse_symbols
+
+
 def test_canonical_dhan_option_symbol(monkeypatch):
     import brokers.symbol_map as sm
 
