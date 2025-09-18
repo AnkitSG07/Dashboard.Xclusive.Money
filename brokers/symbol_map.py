@@ -256,7 +256,8 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
     for row in reader:
         exch = row["SEM_EXM_EXCH_ID"].upper()
         segment = row["SEM_SEGMENT"].upper()
-        symbol = row["SEM_TRADING_SYMBOL"]
+        symbol = row["SEM_TRADING_SYMBOL"].strip()
+        series = row.get("SEM_SERIES", "").upper()
         
         # Get lot size from SEM_LOT_UNITS column
         lot_size = row.get("SEM_LOT_UNITS", "1")
@@ -264,19 +265,27 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
             lot_size = "1"
         
         if exch in {"NSE", "BSE"} and segment == "E":
-            key = (symbol, exch)
+            keys = {(symbol, exch)}
+            if symbol.upper().endswith("-EQ"):
+                stripped = symbol[:-3].strip()
+                if stripped:
+                    keys.add((stripped, exch))
+
             # Prefer EQ series when available
-            if key not in data or row["SEM_SERIES"] == "EQ":
-                data[key] = {
-                    "security_id": row["SEM_SMST_SECURITY_ID"],
-                    "lot_size": lot_size
-                }
+            for key in keys:
+                if key not in data or series == "EQ":
+                    data[key] = {
+                        "security_id": row["SEM_SMST_SECURITY_ID"],
+                        "lot_size": lot_size,
+                        "trading_symbol": symbol
+                    }
         elif exch in {"NSE", "BSE"} and segment == "D":
             # Derivatives segment
             key = (symbol, "NFO" if exch == "NSE" else "BFO")
             data[key] = {
                 "security_id": row["SEM_SMST_SECURITY_ID"],
-                "lot_size": lot_size
+                "lot_size": lot_size,
+                "trading_symbol": symbol
             }
     
     return data
@@ -372,6 +381,12 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         
         # Add Dhan data if available
         dhan_info = dhan_data.get((symbol, exchange))
+        if (
+            dhan_info is None
+            and is_equity
+            and exchange == "NSE"
+        ):
+            dhan_info = dhan_data.get((f"{symbol}-EQ", exchange))
         if dhan_info:
             if exchange in {"NSE", "BSE"}:
                 exch_segment = f"{exchange}_EQ"
@@ -387,7 +402,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
                 "lot_size": dhan_lot_size,
-                "trading_symbol": symbol
+                "trading_symbol": dhan_info.get("trading_symbol", symbol)
             }
             
             # Update all other brokers with Dhan's lot size if it's different and valid
@@ -402,7 +417,15 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         root_entry = mapping.setdefault(root_symbol, {})
         root_entry[exchange] = entry
         symbols = root_entry.setdefault(SYMBOLS_KEY, {})
-        symbols.setdefault(exchange, {})[symbol] = entry
+        exchange_symbols = symbols.setdefault(exchange, {})
+
+        if is_equity and exchange == "NSE":
+            aliases = {symbol, f"{symbol}-EQ"}
+        else:
+            aliases = {symbol}
+
+        for alias in aliases:
+            exchange_symbols[alias] = entry
     
     # Add Dhan-only symbols (not in Zerodha)
     for (symbol, exchange), dhan_info in dhan_data.items():
@@ -424,13 +447,27 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
                 "lot_size": lot_size,
-                "trading_symbol": symbol  # Store original Dhan symbol
+                "trading_symbol": dhan_info.get("trading_symbol", symbol)
             }
         }
         root_entry = mapping.setdefault(root_symbol, {})
         root_entry[exchange] = entry
         symbols = root_entry.setdefault(SYMBOLS_KEY, {})
-        symbols.setdefault(exchange, {})[symbol] = entry
+        exchange_symbols = symbols.setdefault(exchange, {})
+
+        if exchange == "NSE":
+            aliases = {symbol}
+            if symbol.upper().endswith("-EQ"):
+                stripped = symbol[:-3].strip()
+                if stripped:
+                    aliases.add(stripped)
+            else:
+                aliases.add(f"{symbol}-EQ")
+        else:
+            aliases = {symbol}
+
+        for alias in aliases:
+            exchange_symbols[alias] = entry
     
     return mapping
 
@@ -512,6 +549,7 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     # Select the appropriate exchange
     exchange_map = None
     exchange_name = None
+    exchange_hint_provided = exchange_hint is not None
     if exchange_hint and exchange_hint in mapping:
         exchange_name = exchange_hint
         exchange_map = mapping[exchange_hint]
@@ -526,6 +564,11 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
                 exchange_name = fo_exchange
                 exchange_map = mapping[fo_exchange]
                 log.debug("Promoted derivative lookup to %s", fo_exchange)
+    elif exchange_hint_provided:
+        log.debug(
+            "Exchange %s not available for symbol %s", exchange_hint, lookup_symbol
+        )
+        return {}
     else:
         if is_derivative:
             
@@ -574,7 +617,17 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
             entry = exchange_map
 
     broker_data = entry.get(broker, {}) if entry else {}
-    
+
+
+    if exchange_hint_provided and not broker_data:
+        log.debug(
+            "No data for broker %s on exchange %s for symbol %s",
+            broker,
+            exchange_hint,
+            lookup_symbol,
+        )
+        return {}
+        
     # Log lot size for debugging
     if broker_data and "lot_size" in broker_data:
         log.debug(
