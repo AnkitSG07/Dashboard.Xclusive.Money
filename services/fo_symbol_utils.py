@@ -80,7 +80,39 @@ def _has_derivative_suffix(symbol: str) -> bool:
         if _DERIVATIVE_SUFFIX_TRIGGER.search(prefix):
             return True
 
-@@ -78,117 +116,143 @@ def get_expiry_year(month: str, day: int = None) -> str:
+    return False
+
+
+def get_expiry_year(month: str, day: int = None) -> str:
+    """Determine the correct expiry year for a given month and day.
+    
+    Args:
+        month: Three-letter month code (JAN, FEB, etc.)
+        day: Optional day of month for more accurate year determination
+        
+    Returns:
+        Two-digit year string
+    """
+    current_date = date.today()
+    current_year = current_date.year
+    current_month = current_date.month
+    current_day = current_date.day
+    
+    month_map = {
+        'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+        'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+    }
+    
+    month_num = month_map[month]
+    
+    if day:
+        if month_num < current_month:
+            year = current_year + 1
+        elif month_num == current_month and day < current_day:
+            year = current_year + 1
+        else:
+            year = current_year
+    else:
         if month_num < current_month:
             year = current_year + 1
         else:
@@ -120,6 +152,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
                 'option_type': opt_match.group('option').upper(),
                 'instrument': 'OPT'
             }
+        
             day = opt_match.group('day')
             if day:
                 data['day'] = int(day)
@@ -224,7 +257,17 @@ def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str
     """
     if not symbol or from_broker.lower() == to_broker.lower():
         return symbol
-@@ -206,121 +270,177 @@ def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str
+    
+    # First, parse the symbol to extract components
+    components = parse_fo_symbol(symbol, from_broker)
+    
+    if not components:
+        log.debug(f"Could not parse F&O symbol: {symbol} for broker: {from_broker}")
+        return symbol  # Return original if can't parse
+    
+    # Convert to target broker format
+    converted = format_fo_symbol(components, to_broker)
+    
     if converted:
         log.info(f"Converted F&O symbol from {symbol} ({from_broker}) to {converted} ({to_broker})")
         return converted
@@ -327,7 +370,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             normalized = format_dhan_future_symbol(root, month, full_year)
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
-
+    
     # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
     fut_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
@@ -340,7 +383,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         normalized = format_dhan_future_symbol(root, month, full_year)
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
-
+    
     # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
@@ -360,7 +403,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             )
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
-
+    
     # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
