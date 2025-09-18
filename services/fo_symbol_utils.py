@@ -14,6 +14,37 @@ from typing import Dict, Optional
 log = logging.getLogger(__name__)
 
 
+_DERIVATIVE_SUFFIX_TRIGGER = re.compile(r"(?:\d|-|CALL|PUT)\s*$")
+
+
+def _has_derivative_suffix(symbol: str) -> bool:
+    """Return ``True`` if the symbol ends with an F&O style suffix.
+
+    The check is intentionally strict so that plain equity tickers such as
+    ``RELIANCECE`` or ``SBVCLPE`` are not mistaken for options contracts. A
+    trailing ``CE``/``PE`` only qualifies as derivative when it is preceded by
+    a strike (digits), a hyphen, or explicit option keywords like ``CALL`` or
+    ``PUT``.
+    """
+
+    if not symbol:
+        return False
+
+    stripped = symbol.rstrip().upper()
+
+    if stripped.endswith("FUT") or stripped.endswith("CALL") or stripped.endswith("PUT"):
+        return True
+
+    if stripped.endswith("CE") or stripped.endswith("PE"):
+        prefix = stripped[:-2].rstrip()
+        if not prefix:
+            return False
+        if _DERIVATIVE_SUFFIX_TRIGGER.search(prefix):
+            return True
+
+    return False
+
+
 def get_expiry_year(month: str, day: int = None) -> str:
     """Determine the correct expiry year for a given month and day.
     
@@ -312,28 +343,17 @@ def get_default_lot_size(symbol: str) -> int:
 
 
 def is_fo_symbol(symbol: str, instrument_type: str = None) -> bool:
-    """Check if a symbol is a futures or options symbol.
-    
-    Args:
-        symbol: The symbol to check
-        instrument_type: Optional instrument type hint
-        
-    Returns:
-        True if it's an F&O symbol
-    """
+    """Return ``True`` when the provided symbol represents an F&O contract."""
     if not symbol:
         return False
-    
-    symbol_upper = symbol.upper()
-    
-    # Check by instrument type
+        
+    # Instrument type hint takes precedence.
     if instrument_type:
         inst_upper = instrument_type.upper()
         if inst_upper in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}:
             return True
     
-    # Check by symbol pattern
-    return bool(re.search(r'(FUT|CE|PE)$', symbol_upper))
+    return _has_derivative_suffix(symbol)
 
 
 def extract_underlying_symbol(symbol: str) -> str:
