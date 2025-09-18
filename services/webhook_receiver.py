@@ -21,7 +21,11 @@ import redis
 from marshmallow import Schema, fields, ValidationError, pre_load
 
 from .alert_guard import check_duplicate_and_risk
-from .fo_symbol_utils import is_fo_symbol
+from .fo_symbol_utils import (
+    is_fo_symbol,
+    format_dhan_option_symbol,
+    format_dhan_future_symbol,
+)
 from brokers import symbol_map
 
 logger = logging.getLogger(__name__)
@@ -83,9 +87,11 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
         # Ensure symbol map is loaded
         if not symbol_map.SYMBOL_MAP:
             symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
-        
+
+        exchange_hint = exchange.upper() if exchange else "NSE"
+
         # Get the symbol mapping
-        mapping = symbol_map.get_symbol_for_broker(symbol, "dhan", exchange)
+        mapping = symbol_map.get_symbol_for_broker(symbol, "dhan", exchange_hint)
         
         if mapping and "lot_size" in mapping:
             lot_size = mapping["lot_size"]
@@ -103,7 +109,7 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
         return None
 
 
-def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
+def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, dict]:
     """Normalize F&O symbol to standardized format and extract metadata.
     
     Returns:
@@ -171,7 +177,14 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         full_year = f"20{year}"
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+            day=day,
+        )
         metadata = {
             'underlying': root,
             'expiry_month': month,
@@ -201,7 +214,12 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         
         year = get_expiry_year(month, day)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=day,
+        )
         metadata = {
             'underlying': root,
             'expiry_month': month,
@@ -245,7 +263,14 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+            day=day,
+        )
         metadata = {
             'underlying': root,
             'expiry_month': month,
@@ -397,6 +422,8 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         return normalized, metadata
 
     # Pattern 9: Equity symbols - Check for plain equity symbols
+    exchange_hint = exchange.upper() if isinstance(exchange, str) else None
+
     # A symbol is likely equity if:
     # - It doesn't end with FUT, CE, PE, CALL, PUT
     # - It doesn't contain month patterns
@@ -412,7 +439,7 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
                 'instrument_type': 'EQ'
             }
             # Get lot size from symbol map (usually 1 for equity)
-            lot_size = get_lot_size_from_symbol_map(normalized, "NSE")
+            lot_size = get_lot_size_from_symbol_map(normalized, exchange_hint)
             if lot_size:
                 metadata['lot_size'] = lot_size
             else:
@@ -521,7 +548,7 @@ class WebhookEventSchema(Schema):
             logger.info(f"Processing symbol: {raw_sym}")
             
             # Normalize F&O symbol and extract metadata
-            normalized_symbol, metadata = normalize_fo_symbol(raw_sym)
+            normalized_symbol, metadata = normalize_fo_symbol(raw_sym, data.get("exchange"))
             
             if normalized_symbol != raw_sym:
                 logger.info(f"Normalized symbol from '{raw_sym}' to '{normalized_symbol}'")
