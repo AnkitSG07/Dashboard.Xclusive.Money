@@ -197,8 +197,9 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         )
         match = pattern.match(original_symbol)
         if match:
-            month = match.group('month').upper()
-            normalized = f"{match.group('root')}-{month}{match.group('year')}{match.group('suffix')}"
+            month = match.group('month')
+            month_formatted = month.capitalize()
+            normalized = f"{match.group('root')}-{month_formatted}{match.group('year')}{match.group('suffix')}"
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
@@ -230,7 +231,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         full_year = f"20{year}"
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.upper()}{full_year}-{strike}-{opt_code}"
+        month_formatted = month.capitalize()
+        normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_code}"
         log.info(f"Normalized from day-first format '{sym}' to '{normalized}'")
         return normalized
     
@@ -246,7 +248,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         
         year = get_expiry_year(month, day)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.upper()}{full_year}-FUT"
+        month_formatted = month.capitalize()
+        normalized = f"{root}-{month_formatted}{full_year}-FUT"
         log.info(f"Normalized futures with day from '{sym}' to '{normalized}'")
         return normalized
     
@@ -260,7 +263,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.upper()}{full_year}-FUT"
+            month_formatted = month.capitalize()
+            normalized = f"{root}-{month_formatted}{full_year}-FUT"
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -273,7 +277,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.upper()}{full_year}-FUT"
+        month_formatted = month.capitalize()
+        normalized = f"{root}-{month_formatted}{full_year}-FUT"
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
@@ -287,7 +292,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.upper()}{full_year}-{strike}-{opt_type}"
+            month_formatted = month.capitalize()
+            normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_type}"
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -300,7 +306,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month, strike, opt_type = opt_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.upper()}{full_year}-{strike}-{opt_type}"
+        month_formatted = month.capitalize()
+        normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_type}"
         log.info(f"Normalized options without year from '{sym}' to '{normalized}'")
         return normalized
     
