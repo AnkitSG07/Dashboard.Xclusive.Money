@@ -180,8 +180,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     Examples:
         NIFTYNXT50SEPFUT -> NIFTYNXT50-Sep2025-FUT
         FINNIFTY25SEP33300CE -> FINNIFTY-Sep2025-33300-CE
-        NIFTY 23 SEP 25500 CALL -> NIFTY-Sep2025-25500-CE
-        RELIANCE -> RELIANCE-EQ
+        RELIANCE -> RELIANCE (no change for equity)
     """
     if not symbol:
         return symbol
@@ -189,6 +188,13 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     original_symbol = symbol.strip()
     sym = original_symbol.upper()
     log.debug(f"Normalizing symbol: {sym}")
+    
+    # CRITICAL: Don't modify plain equity symbols
+    if not any(x in sym for x in ['FUT', 'CE', 'PE', 'CALL', 'PUT', '-']) and \
+       not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym):
+        # It's a simple equity symbol, return as-is
+        log.debug(f"Identified as equity symbol, no normalization needed: {sym}")
+        return original_symbol
 
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
