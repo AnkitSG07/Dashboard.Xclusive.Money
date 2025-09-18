@@ -85,19 +85,23 @@ def extract_root_symbol(symbol: str) -> str:
     cleaned = symbol.upper()
     
     # Handle Dhan format with hyphens
-    if '-' in cleaned:
-        parts = cleaned.split('-')
+    if "-" in cleaned:
+        parts = cleaned.split("-")
         return parts[0]  # First part is always the root
     
-    # Handle compact format without hyphens
-    # Remove trailing FUT, CE, PE
-    for suffix in ['FUT', 'CE', 'PE']:
-        if cleaned.endswith(suffix):
-            cleaned = cleaned[:-len(suffix)]
-            break
-    
+    # Remove trailing FUT when explicitly present
+    if cleaned.endswith("FUT"):
+        cleaned = cleaned[:-3]
+
+    # Remove trailing CE/PE only when it looks like an option contract
+    if cleaned.endswith(("CE", "PE")):
+        base = cleaned[:-2]
+        # Require obvious derivative markers (digits or explicit separators)
+        if re.search(r"\d", base) or "-" in base:
+            cleaned = base
+            
     # Remove -EQ suffix
-    if cleaned.endswith('EQ'):
+    if cleaned.endswith("EQ"):
         cleaned = cleaned[:-2]
     
     # Remove month and year patterns
