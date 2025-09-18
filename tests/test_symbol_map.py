@@ -33,10 +33,10 @@ def test_build_symbol_map_preserves_multiple_exchanges(monkeypatch):
         "BSE,AAA,E,EQ,20\n"
     )
 
-    def fake_get(url, timeout=30):
-        return _make_response(zerodha_csv if "kite" in url else dhan_csv)
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
 
-    monkeypatch.setattr(sm.requests, "get", fake_get)
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
     sm._load_zerodha.cache_clear()
     sm._load_dhan.cache_clear()
     mapping = sm.build_symbol_map()
@@ -44,6 +44,36 @@ def test_build_symbol_map_preserves_multiple_exchanges(monkeypatch):
     assert "BSE" in mapping["AAA"]
     assert mapping["AAA"]["NSE"]["zerodha"]["token"] == "1"
     assert mapping["AAA"]["BSE"]["zerodha"]["token"] == "2"
+
+
+def test_explicit_exchange_missing_returns_empty(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "1,BSE,BBB,BSE,EQ\n"
+    )
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID\n"
+        "BSE,BBB,E,EQ,500100\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        assert sm.get_symbol_for_broker("BBB", "dhan", "NSE") == {}
+        bse_data = sm.get_symbol_for_broker("BBB", "dhan", "BSE")
+        assert bse_data["security_id"] == "500100"
+    finally:
+        sm.SYMBOL_MAP = original_map
 
 
 def test_build_symbol_map_includes_derivatives(monkeypatch):
@@ -132,16 +162,21 @@ def test_dhan_equity_suffix_maps_to_nse_security(monkeypatch):
     original_map = sm.SYMBOL_MAP
     sm.SYMBOL_MAP = mapping
     try:
+        # Both the EQ suffix and the bare equity symbol should resolve for Dhan NSE
         result = get_symbol_for_broker("RELIANCE-EQ", "dhan", "NSE")
         assert result["security_id"] == "100"
         assert result["exchange_segment"] == "NSE_EQ"
         assert result["security_id"] != "200"
+        bare = get_symbol_for_broker("RELIANCE", "dhan", "NSE")
+        assert bare["security_id"] == "100"
+        assert bare["exchange_segment"] == "NSE_EQ"
     finally:
         sm.SYMBOL_MAP = original_map
 
     nse_symbols = mapping["RELIANCE"][sm.SYMBOLS_KEY]["NSE"]
     assert "RELIANCE" in nse_symbols
     assert "RELIANCE-EQ" in nse_symbols
+    assert mapping["RELIANCE"]["NSE"]["dhan"]["security_id"] == "100"
 
 
 def test_canonical_dhan_option_symbol(monkeypatch):
