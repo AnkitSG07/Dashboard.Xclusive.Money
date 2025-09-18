@@ -394,10 +394,17 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
         
         logger.info(f"Normalized compact futures without year from '{sym}' to '{normalized}'")
         return normalized, metadata
-    
-    # Pattern 9: Equity symbols
-    if not re.search(r'(FUT|CE|PE|CALL|PUT)$', sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
+
+    # Pattern 9: Equity symbols - Check for plain equity symbols
+    # A symbol is likely equity if:
+    # - It doesn't end with FUT, CE, PE, CALL, PUT
+    # - It doesn't contain month patterns
+    # - It's either all letters or letters with trailing numbers (like IDEA4G)
+    if (not re.search(r'(FUT|CE|PE|CALL|PUT)$', sym) and 
+        not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym) and
+        not sym.endswith('-EQ')):
+        # Check if it looks like an equity symbol (all letters or letters+numbers)
+        if re.match(r'^[A-Z]+\d*$', sym):
             normalized = f"{sym}-EQ"
             metadata = {
                 'underlying': sym,
@@ -413,7 +420,17 @@ def normalize_fo_symbol(symbol: str) -> tuple[str, dict]:
             logger.info(f"Normalized equity symbol from '{sym}' to '{normalized}'")
             return normalized, metadata
     
-    # Return original if no pattern matches
+    # Return original if no pattern matches, but if it looks like equity, add -EQ
+    if not re.search(r'(FUT|CE|PE|CALL|PUT|-EQ)$', sym) and re.match(r'^[A-Z]+\d*$', sym):
+        normalized = f"{sym}-EQ"
+        metadata = {
+            'underlying': sym,
+            'instrument_type': 'EQ'
+        }
+        metadata['lot_size'] = 1  # Default for equity
+        logger.info(f"Defaulting to equity normalization: '{sym}' to '{normalized}'")
+        return normalized, metadata
+    
     logger.warning(f"Could not normalize symbol: {sym}")
     return sym, metadata
 
