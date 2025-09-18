@@ -132,6 +132,159 @@ def test_consumer_places_order(monkeypatch):
     ]
 
 
+def test_consumer_mtf_or_cnc_success(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "productType": "mtf_or_cnc",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(order_consumer, "is_mtf_supported", lambda symbol, broker: None)
+    cached = []
+
+    def record_cache(symbol, broker, supported):
+        cached.append((symbol, broker, supported))
+
+    monkeypatch.setattr(order_consumer, "_cache_mtf_support", record_cache)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MTF"}
+    ]
+    assert cached == [("AAPL", "mock", True)]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "product_type": "MTF",
+            },
+        )
+    ]
+
+
+def test_consumer_mtf_or_cnc_falls_back_on_failure(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "productType": "mtf_or_cnc",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(order_consumer, "is_mtf_supported", lambda symbol, broker: None)
+    cached = []
+
+    def record_cache(symbol, broker, supported):
+        cached.append((symbol, broker, supported))
+
+    monkeypatch.setattr(order_consumer, "_cache_mtf_support", record_cache)
+
+    call_count = {"value": 0}
+
+    def failing_place_order(self, **order):
+        call_count["value"] += 1
+        MockBroker.orders.append(order)
+        if call_count["value"] == 1:
+            return {"status": "failure", "order_id": None}
+        return {"status": "success", "order_id": "2"}
+
+    monkeypatch.setattr(MockBroker, "place_order", failing_place_order)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MTF"},
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "CNC"},
+    ]
+    assert cached == [("AAPL", "mock", False)]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "product_type": "CNC",
+            },
+        )
+    ]
+
+
+def test_consumer_mtf_or_cnc_skips_when_cached_false(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "productType": "mtf_or_cnc",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(order_consumer, "is_mtf_supported", lambda symbol, broker: False)
+    cached = []
+
+    def record_cache(symbol, broker, supported):
+        cached.append((symbol, broker, supported))
+
+    monkeypatch.setattr(order_consumer, "_cache_mtf_support", record_cache)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "CNC"}
+    ]
+    assert cached == [("AAPL", "mock", False)]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "product_type": "CNC",
+            },
+        )
+    ]
+
+
 def test_consumer_places_derivative_order(monkeypatch):
     event = {
         "user_id": 1,
