@@ -17,6 +17,44 @@ log = logging.getLogger(__name__)
 _DERIVATIVE_SUFFIX_TRIGGER = re.compile(r"(?:\d|-|CALL|PUT)\s*$")
 
 
+def format_dhan_option_symbol(
+    underlying: str,
+    month: str,
+    year: str,
+    strike: str | int,
+    option_type: str,
+    *,
+    day: int | None = None,
+) -> str:
+    """Return a Dhan formatted option symbol including weekly expiry day when available."""
+
+    strike_str = str(strike)
+    opt_code = option_type.upper()
+    month_part = month.title()
+    if day is not None:
+        date_part = f"{int(day):02d}{month_part}{year}"
+    else:
+        date_part = f"{month_part}{year}"
+    return f"{underlying}-{date_part}-{strike_str}-{opt_code}"
+
+
+def format_dhan_future_symbol(
+    underlying: str,
+    month: str,
+    year: str,
+    *,
+    day: int | None = None,
+) -> str:
+    """Return a Dhan formatted future symbol including weekly expiry day when available."""
+
+    month_part = month.title()
+    if day is not None:
+        date_part = f"{int(day):02d}{month_part}{year}"
+    else:
+        date_part = f"{month_part}{year}"
+    return f"{underlying}-{date_part}-FUT"
+
+
 def _has_derivative_suffix(symbol: str) -> bool:
     """Return ``True`` if the symbol ends with an F&O style suffix.
 
@@ -42,39 +80,7 @@ def _has_derivative_suffix(symbol: str) -> bool:
         if _DERIVATIVE_SUFFIX_TRIGGER.search(prefix):
             return True
 
-    return False
-
-
-def get_expiry_year(month: str, day: int = None) -> str:
-    """Determine the correct expiry year for a given month and day.
-    
-    Args:
-        month: Three-letter month code (JAN, FEB, etc.)
-        day: Optional day of month for more accurate year determination
-        
-    Returns:
-        Two-digit year string
-    """
-    current_date = date.today()
-    current_year = current_date.year
-    current_month = current_date.month
-    current_day = current_date.day
-    
-    month_map = {
-        'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
-        'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
-    }
-    
-    month_num = month_map[month]
-    
-    if day:
-        if month_num < current_month:
-            year = current_year + 1
-        elif month_num == current_month and day < current_day:
-            year = current_year + 1
-        else:
-            year = current_year
-    else:
+@@ -78,117 +116,143 @@ def get_expiry_year(month: str, day: int = None) -> str:
         if month_num < current_month:
             year = current_year + 1
         else:
@@ -100,26 +106,40 @@ def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
     broker = broker.lower()
     
     if broker == 'dhan':
-        # NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT format
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
+        # NIFTY-23Sep2024-24000-CE or NIFTY-Sep2024-24000-CE format
+        opt_match = re.match(
+            r'^(?P<underlying>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})-(?P<strike>\d+)-(?P<option>CE|PE)$',
+            symbol,
+        )
         if opt_match:
-            return {
-                'underlying': opt_match.group(1),
-                'month': opt_match.group(2),
-                'year': opt_match.group(3),
-                'strike': opt_match.group(4),
-                'option_type': opt_match.group(5),
+            data = {
+                'underlying': opt_match.group('underlying'),
+                'month': opt_match.group('month'),
+                'year': opt_match.group('year'),
+                'strike': opt_match.group('strike'),
+                'option_type': opt_match.group('option').upper(),
                 'instrument': 'OPT'
             }
-        
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
+            day = opt_match.group('day')
+            if day:
+                data['day'] = int(day)
+            return data
+
+        fut_match = re.match(
+            r'^(?P<underlying>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})-FUT$',
+            symbol,
+        )
         if fut_match:
-            return {
-                'underlying': fut_match.group(1),
-                'month': fut_match.group(2),
-                'year': fut_match.group(3),
+            data = {
+                'underlying': fut_match.group('underlying'),
+                'month': fut_match.group('month'),
+                'year': fut_match.group('year'),
                 'instrument': 'FUT'
             }
+            day = fut_match.group('day')
+            if day:
+                data['day'] = int(day)
+            return data
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia', 'flattrade']:
         # NIFTY24DEC24000CE format
@@ -164,9 +184,21 @@ def format_fo_symbol(components: Dict[str, str], to_broker: str) -> Optional[str
     
     if to_broker == 'dhan':
         if components['instrument'] == 'OPT':
-            return f"{components['underlying']}-{components['month']}{components['year']}-{components['strike']}-{components['option_type']}"
+            return format_dhan_option_symbol(
+                components['underlying'],
+                components['month'],
+                components['year'],
+                components['strike'],
+                components['option_type'],
+                day=components.get('day'),
+            )
         elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}-{components['month']}{components['year']}-FUT"
+            return format_dhan_future_symbol(
+                components['underlying'],
+                components['month'],
+                components['year'],
+                day=components.get('day'),
+            )
     
     elif to_broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia', 'flattrade']:
         year_short = components['year'][-2:]  # Get last 2 digits
@@ -192,17 +224,7 @@ def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str
     """
     if not symbol or from_broker.lower() == to_broker.lower():
         return symbol
-    
-    # First, parse the symbol to extract components
-    components = parse_fo_symbol(symbol, from_broker)
-    
-    if not components:
-        log.debug(f"Could not parse F&O symbol: {symbol} for broker: {from_broker}")
-        return symbol  # Return original if can't parse
-    
-    # Convert to target broker format
-    converted = format_fo_symbol(components, to_broker)
-    
+@@ -206,121 +270,177 @@ def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str
     if converted:
         log.info(f"Converted F&O symbol from {symbol} ({from_broker}) to {converted} ({to_broker})")
         return converted
@@ -228,13 +250,16 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
         pattern = re.compile(
-            r'^(?P<root>.+?)-(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
             re.IGNORECASE,
         )
         match = pattern.match(original_symbol)
         if match:
             month = match.group('month').upper().title()
-            normalized = f"{match.group('root')}-{month}{match.group('year')}{match.group('suffix')}"
+            day = match.group('day')
+            suffix = match.group('suffix')
+            date_part = f"{int(day):02d}{month}{match.group('year')}" if day else f"{month}{match.group('year')}"
+            normalized = f"{match.group('root')}-{date_part}{suffix}"
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
@@ -247,58 +272,111 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             original_symbol,
         )
         return original_symbol
-        
+
+    # Explicit day-first option format: "NIFTY 23 SEP 25500 CALL"
+    day_first_option = re.match(
+        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        sym,
+    )
+    if day_first_option:
+        root, day_str, month, strike, opt_type = day_first_option.groups()
+        day = int(day_str)
+        year = get_expiry_year(month, day)
+        full_year = f"20{year}"
+        opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+            day=day,
+        )
+        log.info(f"Normalized from day-first format '{sym}' to '{normalized}'")
+        return normalized
+
+    # Futures with explicit day: "NIFTY 23 SEP FUT"
+    fut_with_day = re.match(
+        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym,
+    )
+    if fut_with_day:
+        root, day_str, month = fut_with_day.groups()
+        day = int(day_str)
+        year = get_expiry_year(month, day)
+        full_year = f"20{year}"
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=day,
+        )
+        log.info(f"Normalized futures with day from '{sym}' to '{normalized}'")
+        return normalized
+
     # Pattern 1: Compact futures format with explicit year: FINNIFTY25SEPFUT
     fut_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
-        sym
+        sym,
     )
     if fut_with_year:
         root, year, month = fut_with_year.groups()
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.title()}{full_year}-FUT"
+            normalized = format_dhan_future_symbol(root, month, full_year)
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
-    
+
     # Pattern 2: Compact futures format without explicit year: NIFTYNXT50SEPFUT
     fut_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
-        sym
+        sym,
     )
     if fut_no_year:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-FUT"
+        normalized = format_dhan_future_symbol(root, month, full_year)
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
-    
+
     # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
-        sym
+        sym,
     )
     if opt_with_year:
         root, year, month, strike, opt_type = opt_with_year.groups()
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+            normalized = format_dhan_option_symbol(
+                root,
+                month,
+                full_year,
+                strike,
+                opt_type,
+            )
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
-    
+
     # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
-        sym
+        sym,
     )
     if opt_no_year:
         root, month, strike, opt_type = opt_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_type,
+        )
         log.info(f"Normalized options without year from '{sym}' to '{normalized}'")
         return normalized
     
