@@ -198,23 +198,8 @@ from cache import cache_get, cache_set
 # Seconds to keep a cached balance before refreshing
 CACHE_TTL = 300
 
-# Cache for MTF eligibility per broker:symbol with TTL
-MTF_CACHE_TTL = 3600  # one hour
-
 # Seconds to retain webhook identifiers before expiring them
 WEBHOOK_ID_TTL = 60
-
-def is_mtf_supported(symbol: str, broker: str):
-    """Return cached MTF support for a symbol/broker if present."""
-    key = f"mtf_support:{broker}:{symbol}".lower()
-    return cache_get(key)
-
-
-def _cache_mtf_support(symbol: str, broker: str, supported: bool) -> None:
-    """Update the MTF support cache for ``symbol``/``broker``."""
-    key = f"mtf_support:{broker}:{symbol}".lower()
-    cache_set(key, bool(supported), ttl=MTF_CACHE_TTL)
-
 
 def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed_symbols=None) -> None:
     """Persist broker info for *user_id* to the alert guard service.
