@@ -26,6 +26,8 @@ from .utils import _decode_event
 from .db import get_session
 from models import Strategy, Account
 from .master_trade_monitor import COMPLETED_STATUSES
+from .fo_symbol_utils import is_fo_symbol
+from services.product_support import map_product_type, is_mtf_supported, _cache_mtf_support
 
 log = logging.getLogger(__name__)
 
@@ -190,8 +192,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     log.debug(f"Normalizing symbol: {sym}")
     
     # CRITICAL: Don't modify plain equity symbols
-    if not any(x in sym for x in ['FUT', 'CE', 'PE', 'CALL', 'PUT', '-']) and \
-       not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym):
+    if (not is_fo_symbol(sym) and '-' not in sym and
+            not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym)):
         # It's a simple equity symbol, return as-is
         log.debug(f"Identified as equity symbol, no normalization needed: {sym}")
         return original_symbol
@@ -398,10 +400,7 @@ def consume_webhook_events(
             instrument_type = event.get("instrument_type", "")
             
             # Check if it's a derivative
-            is_derivative = (
-                instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"} or
-                bool(re.search(r'(FUT|CE|PE)$', symbol.upper()))
-            )
+            is_derivative = is_fo_symbol(symbol, instrument_type)
             
             if is_derivative:
                 normalized_symbol = normalize_symbol_to_dhan_format(symbol)
@@ -487,7 +486,8 @@ def consume_webhook_events(
                 return normalized
 
             def submit(broker_cfg: Dict[str, Any]) -> Dict[str, Any]:
-                client_cls = get_broker_client(broker_cfg["name"])
+                broker_name = broker_cfg["name"]
+                client_cls = get_broker_client(broker_name)
                 credentials = _normalize_keys(dict(broker_cfg))
                 access_token = credentials.pop("access_token", "")
                 client_id = credentials.pop("client_id", None)
@@ -525,20 +525,34 @@ def consume_webhook_events(
                 original_symbol = event.get("symbol", "")
                 instrument_type = event.get("instrument_type", "")
                 
-                is_fo = bool(re.search(r'(FUT|CE|PE)$', str(original_symbol).upper())) or \
-                        instrument_type.upper() in {"FUT", "FUTSTK", "FUTIDX", "OPT", "OPTSTK", "OPTIDX", "CE", "PE"}
+                is_fo = is_fo_symbol(original_symbol, instrument_type)
                 
                 # Convert symbol if it's F&O and brokers are different
                 converted_symbol = original_symbol
-                if is_fo and broker_cfg["name"].lower() != "dhan":  # Assuming event comes from Dhan format
+                if is_fo and broker_name.lower() != "dhan":  # Assuming event comes from Dhan format
                     converted_symbol = convert_symbol_between_brokers(
-                        original_symbol, 
+                        original_symbol,
                         "dhan",  # Source broker format
-                        broker_cfg["name"], 
+                        broker_name, 
                         instrument_type
                     )
                     if converted_symbol and converted_symbol != original_symbol:
-                        log.info(f"Converted F&O symbol from {original_symbol} to {converted_symbol} for {broker_cfg['name']}")
+                        log.info(f"Converted F&O symbol from {original_symbol} to {converted_symbol} for {broker_name}")
+
+                raw_product_type = event.get("productType")
+                requested_product_type = str(raw_product_type or "").strip().lower()
+                mtf_status = None
+                mtf_requested = requested_product_type == "mtf_or_cnc"
+                attempt_mtf = False
+                product_type_for_build = raw_product_type
+                if mtf_requested:
+                    mtf_status = is_mtf_supported(original_symbol, broker_name)
+                    attempt_mtf = mtf_status is not False
+                    product_type_for_build = "mtf" if attempt_mtf else "cnc"
+
+                product_type_mapped = None
+                if raw_product_type is not None:
+                    product_type_mapped = map_product_type(product_type_for_build, broker_name)
 
                 order_params = {
                     "symbol": converted_symbol,
@@ -564,7 +578,6 @@ def consume_webhook_events(
                     order_params["order_type"] = event["order_type"]
                     
                 optional_map = {
-                    "productType": "product_type",
                     "orderValidity": "validity",
                     "masterAccounts": "master_accounts",
                     "securityId": "security_id",
@@ -572,6 +585,9 @@ def consume_webhook_events(
                 for src, dest in optional_map.items():
                     if event.get(src) is not None:
                         order_params[dest] = event[src]
+
+                if product_type_mapped is not None:
+                    order_params["product_type"] = product_type_mapped
                 
                 # Enhanced lot size handling for F&O
                 lot_size = None
@@ -582,7 +598,7 @@ def consume_webhook_events(
                     if lot_size is None:
                         try:
                             mapping = symbol_map.get_symbol_for_broker(
-                                converted_symbol, broker_cfg["name"], exchange
+                                converted_symbol, broker_name, exchange
                             )
                             lot_size = mapping.get("lot_size") or mapping.get("lotSize")
                             
@@ -615,6 +631,16 @@ def consume_webhook_events(
                 
                 try:
                     result = client.place_order(**order_params)
+                    if mtf_requested:
+                        if attempt_mtf:
+                            if isinstance(result, dict) and result.get("status") == "failure":
+                                _cache_mtf_support(original_symbol, broker_name, False)
+                                order_params["product_type"] = map_product_type("cnc", broker_name)
+                                result = client.place_order(**order_params)
+                            else:
+                                _cache_mtf_support(original_symbol, broker_name, True)
+                        else:
+                            _cache_mtf_support(original_symbol, broker_name, False)
                     order_id = None
                     if isinstance(result, dict):
                         order_id = (
