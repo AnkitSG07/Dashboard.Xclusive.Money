@@ -86,6 +86,28 @@ def test_symbol_preserves_existing_suffix(monkeypatch):
     assert event["symbol"] == "IDEA-EQ"
     assert event["exchange"] == "BSE"
 
+
+def test_bse_equity_lot_size(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    captured = {}
+
+    def fake_get_symbol_for_broker(symbol, broker, exchange=None):
+        captured["call"] = (symbol, broker, exchange)
+        return {"lot_size": "600"}
+
+    monkeypatch.setattr(wr.symbol_map, "SYMBOL_MAP", {"SBVCL-EQ": {}})
+    monkeypatch.setattr(wr.symbol_map, "get_symbol_for_broker", fake_get_symbol_for_broker)
+
+    payload = {"symbol": "SBVCL", "action": "buy", "qty": 1, "exchange": "BSE"}
+    event = wr.enqueue_webhook(1, None, payload)
+
+    assert captured["call"] == ("SBVCL-EQ", "dhan", "BSE")
+    assert event["symbol"] == "SBVCL-EQ"
+    assert event["lot_size"] == 600
+
 def test_parses_human_readable_futures_symbol(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
