@@ -178,9 +178,10 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     """Convert various symbol formats to Dhan's expected format.
     
     Examples:
-        NIFTYNXT50SEPFUT -> NIFTYNXT50-SEP2025-FUT
-        FINNIFTY25SEP33300CE -> FINNIFTY-SEP2025-33300-CE
-        NIFTY 23 SEP 25500 CALL -> NIFTY-SEP2025-25500-CE
+        NIFTYNXT50SEPFUT -> NIFTYNXT50-Sep2025-FUT
+        FINNIFTY25SEP33300CE -> FINNIFTY-Sep2025-33300-CE
+        NIFTY 23 SEP 25500 CALL -> NIFTY-Sep2025-25500-CE
+        RELIANCE -> RELIANCE-EQ
     """
     if not symbol:
         return symbol
@@ -197,9 +198,8 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         )
         match = pattern.match(original_symbol)
         if match:
-            month = match.group('month')
-            month_formatted = month.capitalize()
-            normalized = f"{match.group('root')}-{month_formatted}{match.group('year')}{match.group('suffix')}"
+            month = match.group('month').upper().title()
+            normalized = f"{match.group('root')}-{month}{match.group('year')}{match.group('suffix')}"
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
@@ -212,7 +212,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             original_symbol,
         )
         return original_symbol
-    
+        
     # CRITICAL FIX: Handle day-month format "UNDERLYING DD MON STRIKE TYPE"
     # Pattern 1: Format with day first: "NIFTY 23 SEP 25500 CALL"
     day_first_pattern = re.match(
@@ -231,8 +231,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         full_year = f"20{year}"
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        month_formatted = month.capitalize()
-        normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_code}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
         log.info(f"Normalized from day-first format '{sym}' to '{normalized}'")
         return normalized
     
@@ -248,8 +247,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         
         year = get_expiry_year(month, day)
         full_year = f"20{year}"
-        month_formatted = month.capitalize()
-        normalized = f"{root}-{month_formatted}{full_year}-FUT"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
         log.info(f"Normalized futures with day from '{sym}' to '{normalized}'")
         return normalized
     
@@ -263,8 +261,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            month_formatted = month.capitalize()
-            normalized = f"{root}-{month_formatted}{full_year}-FUT"
+            normalized = f"{root}-{month.title()}{full_year}-FUT"
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -277,8 +274,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        month_formatted = month.capitalize()
-        normalized = f"{root}-{month_formatted}{full_year}-FUT"
+        normalized = f"{root}-{month.title()}{full_year}-FUT"
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
@@ -292,8 +288,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         year_num = int(year)
         if 24 <= year_num <= 30:
             full_year = f"20{year}"
-            month_formatted = month.capitalize()
-            normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_type}"
+            normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
     
@@ -306,17 +301,24 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month, strike, opt_type = opt_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        month_formatted = month.capitalize()
-        normalized = f"{root}-{month_formatted}{full_year}-{strike}-{opt_type}"
+        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_type}"
         log.info(f"Normalized options without year from '{sym}' to '{normalized}'")
         return normalized
     
-    # Pattern 7: Handle equity symbols
-    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
-            normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
-            log.info(f"Normalized equity symbol: {normalized}")
-            return normalized
+    # Pattern 7: Handle equity symbols - IMPROVED LOGIC
+    # Check if it's NOT a derivative and looks like an equity symbol
+    if (not re.search(r'(FUT|CE|PE|CALL|PUT)$', sym) and 
+        not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym) and
+        not sym.endswith('-EQ')):
+        # It's likely an equity symbol - add -EQ suffix
+        normalized = f"{sym}-EQ"
+        log.info(f"Normalized equity symbol from '{sym}' to '{normalized}'")
+        return normalized
+    
+    # If already has -EQ suffix, keep it
+    if sym.endswith('-EQ'):
+        log.debug(f"Symbol already has -EQ suffix: {sym}")
+        return sym
     
     log.debug(f"No normalization pattern matched for: {sym}")
     return sym
