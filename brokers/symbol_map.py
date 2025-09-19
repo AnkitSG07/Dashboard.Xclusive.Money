@@ -10,15 +10,20 @@ from __future__ import annotations
 import csv
 import os
 import time
+from datetime import datetime
 from functools import lru_cache
 from io import StringIO
 from pathlib import Path
 from typing import Dict, Tuple
 import logging
 import threading
-import time
 import requests
 import re
+
+from services.fo_symbol_utils import (
+    format_dhan_future_symbol,
+    format_dhan_option_symbol,
+)
 
 log = logging.getLogger(__name__)
 
@@ -285,12 +290,124 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
                     }
         elif exch in {"NSE", "BSE"} and segment == "D":
             # Derivatives segment
-            key = (symbol, "NFO" if exch == "NSE" else "BFO")
-            data[key] = {
+            exchange_segment = "NFO" if exch == "NSE" else "BFO"
+            expiry_flag = row.get("SEM_EXPIRY_FLAG", "").strip().upper()
+            expiry_date_str = row.get("SEM_EXPIRY_DATE", "").strip()
+            custom_symbol = row.get("SEM_CUSTOM_SYMBOL", "").strip()
+
+            expiry_dt: datetime | None = None
+            if expiry_date_str:
+                cleaned_expiry = expiry_date_str.replace("Z", "").strip()
+                try:
+                    expiry_dt = datetime.fromisoformat(cleaned_expiry)
+                except ValueError:
+                    for fmt in (
+                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%d",
+                        "%d-%b-%Y %H:%M:%S",
+                        "%d-%b-%Y",
+                    ):
+                        try:
+                            expiry_dt = datetime.strptime(cleaned_expiry, fmt)
+                            break
+                        except ValueError:
+                            continue
+
+            alias_symbol = None
+            alias_day: int | None = None
+            if expiry_dt:
+                alias_day = expiry_dt.day
+                alias_month = expiry_dt.strftime("%b")
+                alias_year = expiry_dt.strftime("%Y")
+
+                parts = symbol.split("-")
+                if len(parts) >= 3:
+                    underlying = parts[0]
+                    if len(parts) == 3 and parts[2].upper() == "FUT":
+                        alias_symbol = format_dhan_future_symbol(
+                            underlying,
+                            alias_month,
+                            alias_year,
+                            day=alias_day,
+                        )
+                    elif len(parts) >= 4:
+                        strike = parts[-2]
+                        opt_type = parts[-1].upper()
+                        alias_symbol = format_dhan_option_symbol(
+                            underlying,
+                            alias_month,
+                            alias_year,
+                            strike,
+                            opt_type,
+                            day=alias_day,
+                        )
+
+            if (
+                alias_symbol is None
+                and custom_symbol
+                and expiry_flag
+                and expiry_flag != "M"
+            ):
+                # Fallback for unexpected trading symbol formats using the
+                # custom symbol field (e.g. "NIFTY 12 SEP 25500 CALL").
+                custom_match = re.match(
+                    r"^(?P<underlying>.+?)\s+(?P<day>\d{1,2})\s+(?P<month>[A-Z]{3})\s+(?P<strike>[\d.]+)\s+(?P<option>CALL|PUT|CE|PE|FUT)$",
+                    custom_symbol.upper(),
+                )
+                if custom_match:
+                    alias_day = int(custom_match.group("day"))
+                    alias_month = custom_match.group("month").title()
+                    alias_year = expiry_dt.strftime("%Y") if expiry_dt else row.get("SEM_EXPIRY_DATE", "")[:4]
+                    underlying = symbol.split("-")[0] or custom_match.group("underlying")
+                    option = custom_match.group("option")
+                    strike = custom_match.group("strike")
+                    if option == "FUT":
+                        alias_symbol = format_dhan_future_symbol(
+                            underlying,
+                            alias_month,
+                            alias_year,
+                            day=alias_day,
+                        )
+                    else:
+                        opt_code = "CE" if option in {"CALL", "CE"} else "PE"
+                        alias_symbol = format_dhan_option_symbol(
+                            underlying,
+                            alias_month,
+                            alias_year,
+                            strike,
+                            opt_code,
+                            day=alias_day,
+                        )
+
+            entry = {
                 "security_id": row["SEM_SMST_SECURITY_ID"],
                 "lot_size": lot_size,
-                "trading_symbol": symbol
+                "trading_symbol": symbol,
             }
+
+            if expiry_flag:
+                entry["expiry_flag"] = expiry_flag
+            if expiry_dt:
+                entry["expiry_date"] = expiry_dt.strftime("%Y-%m-%d")
+                entry["expiry_day"] = expiry_dt.day
+
+            if (
+                alias_symbol
+                and expiry_flag
+                and expiry_flag != "M"
+                and alias_symbol != symbol
+            ):
+                aliases = entry.setdefault("aliases", [])
+                if alias_symbol not in aliases:
+                    aliases.append(alias_symbol)
+
+            key = (symbol, exchange_segment)
+            if key not in data or expiry_flag == "M":
+                data[key] = entry
+
+            if entry.get("aliases"):
+                for alias in entry["aliases"]:
+                    data[(alias, exchange_segment)] = entry
     
     return data
 
@@ -384,6 +501,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         }
         
         # Add Dhan data if available
+        dhan_aliases: list[str] = []
         dhan_info = dhan_data.get((symbol, exchange))
         if (
             dhan_info is None
@@ -392,23 +510,39 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         ):
             dhan_info = dhan_data.get((f"{symbol}-EQ", exchange))
         if dhan_info:
+            raw_aliases = dhan_info.get("aliases")
+            if raw_aliases:
+                if isinstance(raw_aliases, str):
+                    dhan_aliases = [raw_aliases]
+                else:
+                    dhan_aliases = list(raw_aliases)
+
             if exchange in {"NSE", "BSE"}:
                 exch_segment = f"{exchange}_EQ"
             elif exchange in {"NFO", "BFO"}:
                 exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
             else:
                 exch_segment = exchange
-            
+
             # Use Dhan's lot size if available, otherwise fallback to Zerodha
             dhan_lot_size = dhan_info.get("lot_size", lot_size)
-            
-            entry["dhan"] = {
+
+            dhan_entry = {
                 "security_id": dhan_info["security_id"],
                 "exchange_segment": exch_segment,
                 "lot_size": dhan_lot_size,
                 "trading_symbol": dhan_info.get("trading_symbol", symbol)
             }
-            
+
+            if dhan_aliases:
+                dhan_entry["aliases"] = dhan_aliases
+
+            for optional_key in ("expiry_flag", "expiry_day", "expiry_date"):
+                if optional_key in dhan_info:
+                    dhan_entry[optional_key] = dhan_info[optional_key]
+
+            entry["dhan"] = dhan_entry
+
             # Update all other brokers with Dhan's lot size if it's different and valid
             if dhan_lot_size and dhan_lot_size != lot_size and dhan_lot_size != "1":
                 log.debug(f"Using Dhan lot size {dhan_lot_size} over Zerodha {lot_size} for {symbol}")
@@ -428,24 +562,34 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         else:
             aliases = {symbol}
 
+        if dhan_aliases:
+            aliases.update(dhan_aliases)
+
         for alias in aliases:
             exchange_symbols[alias] = entry
     
     # Add Dhan-only symbols (not in Zerodha)
     for (symbol, exchange), dhan_info in dhan_data.items():
         root_symbol = extract_root_symbol(symbol)
-        if root_symbol in mapping and exchange in mapping[root_symbol]:
-            continue
-        
+
         if exchange in {"NSE", "BSE"}:
             exch_segment = f"{exchange}_EQ"
         elif exchange in {"NFO", "BFO"}:
             exch_segment = f"{'NSE' if exchange == 'NFO' else 'BSE'}_FNO"
         else:
             exch_segment = exchange
-        
+
         lot_size = dhan_info.get("lot_size", "1")
-        
+
+        raw_aliases = dhan_info.get("aliases")
+        if raw_aliases:
+            if isinstance(raw_aliases, str):
+                dhan_aliases = [raw_aliases]
+            else:
+                dhan_aliases = list(raw_aliases)
+        else:
+            dhan_aliases = []
+
         entry = {
             "dhan": {
                 "security_id": dhan_info["security_id"],
@@ -454,8 +598,20 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
                 "trading_symbol": dhan_info.get("trading_symbol", symbol)
             }
         }
+
+        if dhan_aliases:
+            entry["dhan"]["aliases"] = dhan_aliases
+
+        for optional_key in ("expiry_flag", "expiry_day", "expiry_date"):
+            if optional_key in dhan_info:
+                entry["dhan"][optional_key] = dhan_info[optional_key]
+
         root_entry = mapping.setdefault(root_symbol, {})
-        root_entry[exchange] = entry
+        if (
+            exchange not in root_entry
+            or dhan_info.get("expiry_flag", "").upper() == "M"
+        ):
+            root_entry[exchange] = entry
         symbols = root_entry.setdefault(SYMBOLS_KEY, {})
         exchange_symbols = symbols.setdefault(exchange, {})
 
@@ -470,7 +626,16 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         else:
             aliases = {symbol}
 
+        if dhan_aliases:
+            aliases.update(dhan_aliases)
+
         for alias in aliases:
+            if (
+                alias == symbol
+                and alias in exchange_symbols
+                and dhan_info.get("expiry_flag", "").upper() != "M"
+            ):
+                continue
             exchange_symbols[alias] = entry
     
     return mapping
