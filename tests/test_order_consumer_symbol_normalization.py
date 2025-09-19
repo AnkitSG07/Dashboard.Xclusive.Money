@@ -3,6 +3,7 @@ import pytest
 import services.order_consumer as order_consumer
 import services.webhook_receiver as webhook_receiver
 from services.fo_symbol_utils import is_fo_symbol
+from brokers import symbol_map
 
 
 @pytest.mark.parametrize(
@@ -103,3 +104,53 @@ def test_weekly_symbol_lookup_prefers_weekly_contract(monkeypatch):
     assert normalized == weekly_key
     assert mapping["security_id"] == "WEEKLY123"
     assert monthly_key not in calls
+
+
+def test_symbol_map_retains_weekly_alias(monkeypatch):
+    """Weekly expiries from Dhan should retain their own security id alias."""
+
+    weekly_alias = "NIFTYNXT50-25Nov2025-35500-CE"
+    monthly_symbol = "NIFTYNXT50-Nov2025-35500-CE"
+
+    monkeypatch.setattr(order_consumer, "get_expiry_year", lambda month, day=None: "25")
+
+    monthly_entry = {
+        "security_id": "MONTHLY123",
+        "lot_size": "25",
+        "trading_symbol": monthly_symbol,
+        "expiry_flag": "M",
+    }
+    weekly_entry = {
+        "security_id": "WEEKLY456",
+        "lot_size": "25",
+        "trading_symbol": monthly_symbol,
+        "expiry_flag": "W",
+        "expiry_day": 25,
+        "expiry_date": "2025-11-25",
+        "aliases": [weekly_alias],
+    }
+
+    dhan_stub = {
+        (monthly_symbol, "NFO"): monthly_entry,
+        (weekly_alias, "NFO"): weekly_entry,
+    }
+
+    monkeypatch.setattr(symbol_map, "_load_zerodha", lambda: {})
+    monkeypatch.setattr(symbol_map, "_load_dhan", lambda: dhan_stub)
+    monkeypatch.setattr(symbol_map, "SYMBOL_MAP", {})
+    monkeypatch.setattr(symbol_map, "_LAST_REFRESH", 0)
+
+    mapping = symbol_map.build_symbol_map()
+    symbol_map.SYMBOL_MAP = mapping
+
+    normalized = order_consumer.normalize_symbol_to_dhan_format(
+        "NIFTYNXT50 25 NOV 35500 CALL"
+    )
+
+    assert normalized == weekly_alias
+
+    weekly_data = symbol_map.get_symbol_for_broker(weekly_alias, "dhan", "NFO")
+    monthly_data = symbol_map.get_symbol_for_broker(monthly_symbol, "dhan", "NFO")
+
+    assert weekly_data["security_id"] == "WEEKLY456"
+    assert monthly_data["security_id"] == "MONTHLY123"
