@@ -95,12 +95,24 @@ class FyersBroker(BrokerBase):
         if not exchange:
             exchange = "NSE"
         exchange = str(exchange).upper()
+
+        exchange_aliases = {
+            "NSE_EQ": "NSE",
+            "BSE_EQ": "BSE",
+            "NSE_FNO": "NFO",
+            "BSE_FNO": "BFO",
+            "NSE_FO": "NFO",
+            "BSE_FO": "BFO",
+            "NSE_FUT": "NFO",
+            "BSE_FUT": "BFO",
+        }
+        exchange = exchange_aliases.get(exchange, exchange)
         
         # Check if symbol already has exchange prefix
         if ":" in symbol:
             # Symbol already formatted, just ensure proper exchange mapping
             parts = symbol.split(":", 1)
-            existing_exchange = parts[0]
+            existing_exchange = exchange_aliases.get(parts[0], parts[0])
             symbol_part = parts[1]
             
             # Map NFO/BFO to NSE/BSE for Fyers
