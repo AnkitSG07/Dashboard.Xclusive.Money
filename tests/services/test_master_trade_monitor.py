@@ -208,6 +208,70 @@ def test_monitor_emits_for_master_created_via_save_account(monkeypatch):
             importlib.reload(app_module)
 
 
+def test_promoting_account_via_route_keeps_copy_status_on():
+    fd, db_path = tempfile.mkstemp()
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = "sqlite:///" + db_path
+    os.environ.setdefault("SECRET_KEY", "test")
+    os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
+    os.environ.setdefault("ADMIN_PASSWORD", "password")
+    os.environ.setdefault("RUN_SCHEDULER", "0")
+
+    import app as app_module
+
+    app_module = importlib.reload(app_module)
+    app = app_module.app
+    app.config["WTF_CSRF_ENABLED"] = False
+    db = app_module.db
+    Account = app_module.Account
+    User = app_module.User
+
+    try:
+        with app.app_context():
+            db.create_all()
+            user = User(email="owner@example.com")
+            db.session.add(user)
+            db.session.commit()
+
+            account = Account(
+                user_id=user.id,
+                client_id="PROMO",
+                role="child",
+                linked_master_id="SOME_MASTER",
+                copy_status="Off",
+            )
+            db.session.add(account)
+            db.session.commit()
+
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess["user"] = "owner@example.com"
+
+            response = client.post("/api/set-master", json={"client_id": "PROMO"})
+
+        assert response.status_code == 200, response.get_data(as_text=True)
+
+        with app.app_context():
+            updated = Account.query.filter_by(client_id="PROMO").one()
+            assert updated.role == "master"
+            assert str(updated.copy_status).lower() == "on"
+
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+        os.close(fd)
+        os.unlink(db_path)
+
+        if original_db_url is None:
+            os.environ.pop("DATABASE_URL", None)
+            sys.modules.pop("app", None)
+        else:
+            os.environ["DATABASE_URL"] = original_db_url
+            importlib.reload(app_module)
+
+
 def test_manual_orders_with_metadata_are_copied(monkeypatch):
     BrokerStub.placed = []
     order = {
