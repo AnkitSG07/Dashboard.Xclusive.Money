@@ -629,7 +629,13 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         if dhan_aliases:
             aliases.update(dhan_aliases)
 
+        dhan_entry = entry["dhan"]
         for alias in aliases:
+            existing = exchange_symbols.get(alias)
+            if existing is not None:
+                existing["dhan"] = dhan_entry
+                continue
+
             if (
                 alias == symbol
                 and alias in exchange_symbols
