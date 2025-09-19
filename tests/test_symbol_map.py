@@ -179,6 +179,46 @@ def test_dhan_equity_suffix_maps_to_nse_security(monkeypatch):
     assert mapping["RELIANCE"]["NSE"]["dhan"]["security_id"] == "100"
 
 
+def test_bse_equity_generates_plain_and_eq_aliases(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "1,BSE,SBVCL,BSE,EQ,1\n"
+    )
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "BSE,SBVCL-EQ,E,EQ,504000,15\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        eq_alias = get_symbol_for_broker("SBVCL-EQ", "dhan", "BSE")
+        assert eq_alias["security_id"] == "504000"
+        assert eq_alias["lot_size"] == "15"
+
+        plain_alias = get_symbol_for_broker("SBVCL", "dhan", "BSE")
+        assert plain_alias["security_id"] == "504000"
+        assert plain_alias["lot_size"] == "15"
+    finally:
+        sm.SYMBOL_MAP = original_map
+
+    bse_symbols = mapping["SBVCL"][sm.SYMBOLS_KEY]["BSE"]
+    assert "SBVCL" in bse_symbols
+    assert "SBVCL-EQ" in bse_symbols
+
+
 def test_canonical_dhan_option_symbol(monkeypatch):
     import brokers.symbol_map as sm
 
