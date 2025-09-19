@@ -17,6 +17,8 @@ import os
 import re
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, Optional
+from collections.abc import Mapping
+from types import SimpleNamespace
 
 from prometheus_client import Histogram
 from sqlalchemy.orm import Session
@@ -25,11 +27,12 @@ from models import Account
 from brokers.factory import get_broker_client
 from brokers import symbol_map
 from brokers.symbol_map import convert_symbol_between_brokers
+from brokers.base import DEFAULT_TIMEOUT as BROKER_DEFAULT_TIMEOUT
 import requests
 from .webhook_receiver import redis_client, get_redis_client
 from .db import get_session
 from .utils import _decode_event
-from helpers import active_children_for_master
+from helpers import active_children_for_master, extract_exchange_from_order
 import redis
 
 LATENCY = Histogram(
@@ -42,8 +45,32 @@ DEFAULT_MAX_WORKERS = 10
 # Default per-child broker submission timeout in seconds. The value can be
 # overridden at runtime via the ``TRADE_COPIER_TIMEOUT`` environment variable
 # for brokers with slower APIs.  Setting the variable to ``0``, a negative
-# number or ``"none"`` disables the timeout entirely.
-DEFAULT_CHILD_TIMEOUT = 20.0
+# number or ``"none"`` disables the timeout entirely.  We guarantee this
+# timeout is never lower than the broker HTTP timeout so that child operations
+# are not cancelled before the underlying network request finishes.
+BROKER_HTTP_TIMEOUT = float(BROKER_DEFAULT_TIMEOUT)
+DEFAULT_CHILD_TIMEOUT = max(20.0, BROKER_HTTP_TIMEOUT)
+
+
+def _get_account_field(account: Any, field: str) -> Any:
+    if hasattr(account, field):
+        return getattr(account, field)
+    if isinstance(account, Mapping):
+        return account.get(field)
+    return None
+
+
+def _snapshot_account(account: Any) -> Any:
+    if isinstance(account, Mapping):
+        return dict(account)
+    if hasattr(account, "__dict__"):
+        return {
+            key: value
+            for key, value in vars(account).items()
+            if not key.startswith("_")
+        }
+    return account
+
 
 def _load_symbol_map_or_exit() -> None:
     """Pre-load the broker symbol map, aborting on failure.
@@ -76,6 +103,11 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         Normalised order payload decoded from the ``trade_events`` stream.
     """
 
+    if isinstance(master, Mapping):
+        master = SimpleNamespace(**master)
+    if isinstance(child, Mapping):
+        child = SimpleNamespace(**child)
+
     # Look up the concrete broker implementation or service client.
     client_cls = get_broker_client(child.broker)
 
@@ -92,8 +124,12 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     # Get original symbol and metadata
     original_symbol = order.get("symbol", "")
     instrument_type = order.get("instrument_type", "")
-    exchange = order.get("exchange", "")
+    exchange = extract_exchange_from_order(order) or ""
     
+    if exchange:
+        normalized_exchange = extract_exchange_from_order({"exchange": exchange})
+        exchange = normalized_exchange or str(exchange).strip().upper()
+        
     # Check if it's an F&O symbol
     is_derivative = (
         (instrument_type and instrument_type.upper() in {
@@ -322,6 +358,7 @@ async def _replicate_to_children(
     """
 
     try:
+        master_payload = _snapshot_account(master)
         children = active_children_for_master(master, db_session, logger=log)
     except TypeError:
         # Fallback for older version without logger parameter
@@ -341,8 +378,8 @@ async def _replicate_to_children(
         own_executor = True
 
     def _late_completion(child, fut):
-        client_id = getattr(child, "client_id", None)
-        broker_name = getattr(child, "broker", None)
+        client_id = _get_account_field(child, "client_id")
+        broker_name = _get_account_field(child, "broker")
         try:
             fut.result()
             log.warning(
@@ -374,12 +411,13 @@ async def _replicate_to_children(
         async_tasks = []
         timed_out: list[tuple[Account, asyncio.Future]] = []
         for child in children:
+            child_payload = _snapshot_account(child)
             orig_fut = loop.run_in_executor(
-                executor, processor, master, child, order
+                executor, processor, master_payload, child_payload, order
             )
             shielded = asyncio.shield(orig_fut)
             wrapped = asyncio.wait_for(shielded, timeout) if timeout is not None else shielded
-            async_tasks.append((child, wrapped, orig_fut))
+            async_tasks.append((child_payload, wrapped, orig_fut))
 
         results = await asyncio.gather(
             *(f for _c, f, _of in async_tasks), return_exceptions=True
@@ -389,8 +427,8 @@ async def _replicate_to_children(
         failure_count = 0
         
         for (child, _wrapped, orig_fut), result in zip(async_tasks, results):
-            client_id = getattr(child, "client_id", None)
-            broker_name = getattr(child, "broker", None)
+            client_id = _get_account_field(child, "client_id")
+            broker_name = _get_account_field(child, "broker")
             
             if isinstance(result, (asyncio.TimeoutError, TimeoutError)):
                 if isinstance(result, asyncio.TimeoutError) and not orig_fut.done():
@@ -493,16 +531,19 @@ def poll_and_copy_trades(
         os.getenv("TRADE_COPIER_MAX_WORKERS", str(DEFAULT_MAX_WORKERS))
     )
     if child_timeout is None:
-        env_timeout = os.getenv("TRADE_COPIER_TIMEOUT", str(DEFAULT_CHILD_TIMEOUT))
-        env_timeout = env_timeout.strip().lower()
+        env_timeout_raw = os.getenv("TRADE_COPIER_TIMEOUT", str(DEFAULT_CHILD_TIMEOUT))
+        env_timeout = env_timeout_raw.strip().lower()
         if env_timeout in {"none", ""}:
             child_timeout = None
         else:
             try:
-                parsed = float(env_timeout)
+                parsed = float(env_timeout_raw)
             except ValueError:
                 parsed = DEFAULT_CHILD_TIMEOUT
-            child_timeout = None if parsed <= 0 else parsed
+            if parsed <= 0:
+                child_timeout = None
+            else:
+                child_timeout = max(parsed, DEFAULT_CHILD_TIMEOUT)
     elif child_timeout <= 0:
         child_timeout = None
 
@@ -538,17 +579,32 @@ def poll_and_copy_trades(
                             try:
                                 # Refresh database session to see latest data
                                 db_session.rollback()
-                                db_session.expire_all()    
+                                db_session.expire_all()
+                                master_id = event.get("master_id")
+                                if not master_id:
+                                    legacy_master = event.get("master_client_id")
+                                    if legacy_master:
+                                        master_id = legacy_master
+                                        event["master_id"] = legacy_master
+                                    else:
+                                        log.error(
+                                            "⚠️ Trade event %s missing master identifier", msg_id
+                                        )
+                                        redis_client.xack(stream, group, msg_id)
+                                        return   
                                 master = (
                                     db_session.query(Account)
-                                    .filter_by(client_id=str(event["master_id"]), role="master")
+                                    .filter_by(client_id=str(master_id), role="master")
                                     .first()
                                 )
                                 if master:
+                                    master_payload = _snapshot_account(master)
+                                    master_id = _get_account_field(master_payload, "client_id")
+                                    master_broker = _get_account_field(master_payload, "broker")
                                     source = event.get("source", "unknown")
                                     log.info(
-                                        f"📥 Processing trade event from master {master.client_id} "
-                                        f"({master.broker}): {event.get('action')} "
+                                        f"📥 Processing trade event from master {master_id} "
+                                        f"({master_broker or 'unknown'}): {event.get('action')} "
                                         f"{event.get('qty')} {event.get('symbol')} "
                                         f"(source: {source}) [Event ID: {msg_id}]"
                                     )
