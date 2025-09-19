@@ -557,7 +557,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         symbols = root_entry.setdefault(SYMBOLS_KEY, {})
         exchange_symbols = symbols.setdefault(exchange, {})
 
-        if is_equity and exchange == "NSE":
+        if is_equity and exchange in {"NSE", "BSE"}:
             aliases = {symbol, f"{symbol}-EQ"}
         else:
             aliases = {symbol}
@@ -615,7 +615,7 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         symbols = root_entry.setdefault(SYMBOLS_KEY, {})
         exchange_symbols = symbols.setdefault(exchange, {})
 
-        if exchange == "NSE":
+        if exchange in {"NSE", "BSE"}:
             aliases = {symbol}
             if symbol.upper().endswith("-EQ"):
                 stripped = symbol[:-3].strip()
