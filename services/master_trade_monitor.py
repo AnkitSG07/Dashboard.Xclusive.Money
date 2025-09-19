@@ -18,6 +18,7 @@ from typing import Any, Dict, Iterable, Set
 from brokers.factory import get_broker_client
 from models import Account
 from sqlalchemy.orm import Session
+from helpers import extract_exchange_from_order
 
 from .webhook_receiver import get_redis_client
 from .db import get_session
@@ -296,11 +297,13 @@ def monitor_master_trades(
                         or order.get("Fillshares")
                     )
                     
-                    exchange = (
-                        order.get("exchange") 
-                        or order.get("exchangeSegment")
-                        or order.get("exch")
-                    )
+                    exchange = extract_exchange_from_order(order)
+                    if not exchange:
+                        exchange = (
+                            order.get("exchange")
+                            or order.get("exchangeSegment")
+                            or order.get("exch")
+                        )
                     
                     order_type = (
                         order.get("order_type") 
@@ -380,6 +383,13 @@ def monitor_master_trades(
                             exchange = 'NFO'
                         else:
                             exchange = 'NSE'
+
+                    if exchange:
+                        normalized_exchange = extract_exchange_from_order({"exchange": exchange})
+                        if normalized_exchange:
+                            exchange = normalized_exchange
+                        else:
+                            exchange = str(exchange).strip().upper()
 
                     raw_event = {
                         "master_id": master.client_id,
