@@ -5702,16 +5702,23 @@ def set_master():
             return jsonify({"error": "User not found"}), 404
 
         account = Account.query.filter_by(
-            user_id=user.id, 
+            user_id=user.id,
             client_id=client_id
         ).first()
         
         if not account:
             return jsonify({"error": "Account not found"}), 404
 
+        previous_role = account.role
+        previous_status = account.copy_status
+
         account.role = "master"
         account.linked_master_id = None
-        account.copy_status = "Off"
+
+        if previous_role != "master":
+            account.copy_status = "On"
+        elif not str(previous_status or "").strip():
+            account.copy_status = "On"
         account.multiplier = 1.0
         try:
             db.session.commit()
