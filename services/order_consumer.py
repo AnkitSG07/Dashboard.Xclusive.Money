@@ -363,28 +363,6 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     return sym
 
 
-def get_default_lot_size(symbol: str) -> int:
-    """Get default lot size for common F&O instruments."""
-    symbol_upper = symbol.upper()
-    
-    lot_size_map = {
-        'NIFTY': 50,
-        'BANKNIFTY': 25, 
-        'FINNIFTY': 40,
-        'NIFTYNXT': 50,
-        'MIDCPNIFTY': 75,
-        'SENSEX': 10,
-        'BANKEX': 15,
-    }
-    
-    for underlying, size in lot_size_map.items():
-        if underlying in symbol_upper:
-            return size
-    
-    # Default for stock F&O
-    return 1
-
-
 def consume_webhook_events(
     *,
     stream: str = "webhook_events",
@@ -624,41 +602,77 @@ def consume_webhook_events(
                 lot_size_value = event.get("lot_size")
                 if is_fo:
                     lot_size = lot_size_value
-                    
-                    # Try to get from symbol map using converted symbol
-                    if lot_size is None:
+
+                    def _normalize_lot_size(raw_value):
+                        try:
+                            value = float(raw_value)
+                        except (TypeError, ValueError):
+                            return None
+                        if value <= 0:
+                            return None
+                        return int(value)
+
+                    def _lookup_lot_size_from_symbol_map():
                         try:
                             mapping = symbol_map.get_symbol_for_broker(
                                 converted_symbol, broker_name, exchange
                             )
-                            lot_size = mapping.get("lot_size") or mapping.get("lotSize")
-                            
-                            if lot_size:
-                                log.info(f"Found lot size {lot_size} for {converted_symbol} from symbol map")
-                        except Exception as e:
+                        except Exception as exc:
                             log.warning(
                                 "Could not retrieve lot size from symbol map for %s: %s",
-                                converted_symbol, str(e), extra={"event": event, "broker": broker_cfg}
+                                converted_symbol,
+                                str(exc),
+                                extra={"event": event, "broker": broker_cfg},
                             )
                     
-                    # Enhanced fallback lot sizes
-                    if not lot_size:
-                        lot_size = get_default_lot_size(converted_symbol)
-                        log.info(f"Using default lot size {lot_size} for {converted_symbol}")
-                    
-                    if lot_size:
-                        try:
-                            original_qty = int(float(event["qty"]))
-                            lot_size_int = int(float(lot_size))
-                            calculated_qty = original_qty * lot_size_int
-                            order_params["qty"] = calculated_qty
-                            order_params["lot_size"] = lot_size_int
-                            log.info(
-                                f"F&O quantity adjustment: {original_qty} lots × {lot_size_int} = {calculated_qty}"
-                            )
-                        except (ValueError, TypeError):
-                            log.error("Invalid lot size or quantity for F&O order")
                             return None
+
+                        return mapping.get("lot_size") or mapping.get("lotSize")
+
+                    normalized_lot_size = _normalize_lot_size(lot_size)
+                    looked_up_lot_size = False
+
+                    if normalized_lot_size is None:
+                        looked_up_lot_size = True
+                        lot_size = _lookup_lot_size_from_symbol_map()
+                        normalized_lot_size = _normalize_lot_size(lot_size)
+
+                        if normalized_lot_size is None:
+                            symbol_map.refresh_symbol_map(force=True)
+                            lot_size = _lookup_lot_size_from_symbol_map()
+                            normalized_lot_size = _normalize_lot_size(lot_size)
+
+                        if normalized_lot_size is not None:
+                            log.info(
+                                "Found lot size %s for %s from symbol map",
+                                normalized_lot_size,
+                                converted_symbol,
+                            )
+                    if normalized_lot_size is None:
+                        message = "Invalid lot size or quantity for F&O order"
+                        if looked_up_lot_size:
+                            message = (
+                                "Unable to determine lot size for F&O symbol %s; aborting order"
+                                % converted_symbol
+                            )
+                        log.error(message, extra={"event": event, "broker": broker_cfg})
+                        return None
+
+                    try:
+                        original_qty = int(float(event["qty"]))
+                    except (ValueError, TypeError):
+                        log.error("Invalid lot size or quantity for F&O order")
+                        return None
+
+                    calculated_qty = original_qty * normalized_lot_size
+                    order_params["qty"] = calculated_qty
+                    order_params["lot_size"] = normalized_lot_size
+                    log.info(
+                        "F&O quantity adjustment: %s lots × %s = %s",
+                        original_qty,
+                        normalized_lot_size,
+                        calculated_qty,
+                    )
 
                 elif lot_size_value is not None:
                     try:
@@ -842,7 +856,6 @@ __all__ = [
     "convert_symbol_between_brokers",
     "parse_fo_symbol",
     "format_fo_symbol",
-    "get_default_lot_size",
 ]
 
 
