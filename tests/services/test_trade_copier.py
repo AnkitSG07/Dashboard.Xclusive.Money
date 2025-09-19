@@ -161,6 +161,31 @@ def test_copy_order_normalizes_exchange(monkeypatch):
     assert result == {"status": "ok"}
     assert captured_params["exchange"] == "NSE"
 
+def test_copy_order_normalises_exchange_codes(monkeypatch):
+    captured = {}
+
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            captured.update(params)
+            return {"status": "ok"}
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    master = SimpleNamespace(broker="dhan", client_id="m")
+    child = SimpleNamespace(
+        broker="mock", client_id="c1", credentials={"access_token": "t"}, copy_qty=None
+    )
+    order = {"symbol": "SBIN", "action": "BUY", "qty": 1, "exchange": "BSE_EQ"}
+
+    result = trade_copier.copy_order(master, child, order)
+
+    assert result == {"status": "ok"}
+    assert captured["exchange"] == "BSE"
+
+
 
 def test_copy_qty_overrides_master_quantity(monkeypatch):
     orders = []
