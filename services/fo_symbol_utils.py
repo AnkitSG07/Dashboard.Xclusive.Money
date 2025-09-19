@@ -434,35 +434,6 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     return sym
 
 
-def get_default_lot_size(symbol: str) -> int:
-    """Get default lot size for common F&O instruments.
-    
-    Args:
-        symbol: The F&O symbol
-        
-    Returns:
-        Default lot size
-    """
-    symbol_upper = symbol.upper()
-    
-    lot_size_map = {
-        'NIFTY': 50,
-        'BANKNIFTY': 25, 
-        'FINNIFTY': 40,
-        'NIFTYNXT': 50,
-        'MIDCPNIFTY': 75,
-        'SENSEX': 10,
-        'BANKEX': 15,
-    }
-    
-    for underlying, size in lot_size_map.items():
-        if underlying in symbol_upper:
-            return size
-    
-    # Default for stock F&O
-    return 1
-
-
 def is_fo_symbol(symbol: str, instrument_type: str = None) -> bool:
     """Return ``True`` when the provided symbol represents an F&O contract."""
     if not symbol:
@@ -517,7 +488,6 @@ __all__ = [
     "format_fo_symbol",
     "convert_symbol_between_brokers",
     "normalize_symbol_to_dhan_format",
-    "get_default_lot_size",
     "is_fo_symbol",
     "extract_underlying_symbol",
 ]
