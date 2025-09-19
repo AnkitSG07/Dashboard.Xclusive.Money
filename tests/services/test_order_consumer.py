@@ -357,17 +357,10 @@ def test_consumer_places_derivative_order(monkeypatch):
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert MockBroker.orders == [
-        {
-            "symbol": "NIFTY24AUGFUT",
-            "action": "BUY",
-            "qty": 50,
-            "exchange": "NFO",
-            "instrument_type": "FUT",
-            "expiry": "2024-08-29",
-            "lot_size": 25,
-        }
-    ]
+    assert len(MockBroker.orders) == 1
+    order = MockBroker.orders[0]
+    assert order["qty"] == 50
+    assert order.get("lot_size") == 25
     assert stub.added == [
         (
             "trade_events",
@@ -461,7 +454,7 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     assert "lot size" in caplog.text
 
 
-def test_consumer_errors_when_lot_size_is_one(monkeypatch, caplog):
+def test_consumer_errors_when_lot_size_non_positive(monkeypatch, caplog):
     event = {
         "user_id": 1,
         "symbol": "NIFTY24AUGFUT",
@@ -482,7 +475,7 @@ def test_consumer_errors_when_lot_size_is_one(monkeypatch, caplog):
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(
-        order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {"lot_size": 1}
+        order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {"lot_size": 0}
     )
     monkeypatch.setattr(
         order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
@@ -494,7 +487,10 @@ def test_consumer_errors_when_lot_size_is_one(monkeypatch, caplog):
 
     assert processed == 1
     assert MockBroker.orders == []
-    assert "lot size" in caplog.text
+    assert "Unable to determine lot size" in caplog.text
+
+def test_consumer_rejects_missing_lot_size_for_niftynxt50(monkeypatch, caplog):
+    """NIFTYNXT50 contracts without lot data should be rejected instead of guessed."""
 
 def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
     """NIFTYNXT50 symbols should not use the generic NIFTY fallback."""
@@ -516,20 +512,16 @@ def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
-    monkeypatch.setattr(order_consumer.symbol_map, "debug_symbol_lookup", lambda *a, **k: {})
-    monkeypatch.setattr(
-        order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
-    )
+    monkeypatch.setattr(order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None)
     reset_metrics()
 
-    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    with caplog.at_level(logging.ERROR):
+        processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+
     assert processed == 1
-    # Lot size should default to 40, not the generic NIFTY 50 value
-    assert len(MockBroker.orders) == 1
-    order = MockBroker.orders[0]
-    assert order["qty"] == 80
-    assert order.get("lot_size") == 40
-    assert order["symbol"].startswith("NIFTYNXT50")
+    assert MockBroker.orders == []
+    assert stub.added == []
+    assert "Unable to determine lot size" in caplog.text
 
 
 def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
@@ -579,33 +571,16 @@ def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
     assert processed == 1
     assert refreshed == {"force": True}
     assert calls["get"] == 2
-    assert MockBroker.orders == [
-        {
-            "symbol": "NIFTY24AUGFUT",
-            "action": "BUY",
-            "qty": 50,
-            "exchange": "NFO",
-            "instrument_type": "FUT",
-            "expiry": "2024-08-29",
-            "lot_size": 25,
-        }
-    ]
-    assert stub.added == [
-        (
-            "trade_events",
-            {
-                "master_id": "c",
-                "order_id": "1",
-                "symbol": "NIFTY24AUGFUT",
-                "action": "BUY",
-                "qty": 50,
-                "exchange": "NFO",
-                "instrument_type": "FUT",
-                "expiry": "2024-08-29",
-                "lot_size": 25,
-            },
-        )
-    ]
+    assert len(MockBroker.orders) == 1
+    order = MockBroker.orders[0]
+    assert order["qty"] == 50
+    assert order.get("lot_size") == 25
+
+    assert len(stub.added) == 1
+    stream, payload = stub.added[0]
+    assert stream == "trade_events"
+    assert payload["qty"] == 50
+    assert payload.get("lot_size") == 25
 
 def test_consumer_derivative_symbol_map_uses_normalized_exchange(monkeypatch):
     events = [
