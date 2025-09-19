@@ -219,6 +219,41 @@ def test_bse_equity_generates_plain_and_eq_aliases(monkeypatch):
     assert "SBVCL-EQ" in bse_symbols
 
 
+def test_dhan_alias_merges_with_existing_equity(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "1,BSE,SBVCL,BSE,EQ,1\n"
+    )
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "BSE,SBVCL-EQ,E,EQ,504000,15\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        zerodha_equity = get_symbol_for_broker("SBVCL", "zerodha", "BSE")
+        dhan_equity = get_symbol_for_broker("SBVCL-EQ", "dhan", "BSE")
+    finally:
+        sm.SYMBOL_MAP = original_map
+
+    assert zerodha_equity["lot_size"] == "15"
+    assert dhan_equity["security_id"] == "504000"
+    assert dhan_equity["lot_size"] == zerodha_equity["lot_size"]
+
+
 def test_canonical_dhan_option_symbol(monkeypatch):
     import brokers.symbol_map as sm
 
