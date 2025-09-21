@@ -100,6 +100,7 @@ def test_bse_equity_lot_size(monkeypatch):
 
     monkeypatch.setattr(wr.symbol_map, "SYMBOL_MAP", {"SBVCL-EQ": {}})
     monkeypatch.setattr(wr.symbol_map, "get_symbol_for_broker", fake_get_symbol_for_broker)
+    monkeypatch.setattr(wr.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol_for_broker)
 
     payload = {"symbol": "SBVCL", "action": "buy", "qty": 1, "exchange": "BSE"}
     event = wr.enqueue_webhook(1, None, payload)
