@@ -22,7 +22,13 @@ class DummyKite:
 def test_place_order_accepts_generic_params(monkeypatch):
     # Patch KiteConnect and symbol map lookup
     monkeypatch.setattr("brokers.zerodha.KiteConnect", DummyKite)
-    monkeypatch.setattr("brokers.zerodha.get_symbol_for_broker", lambda symbol, broker: {"trading_symbol": symbol, "exchange": "NSE"})
+    monkeypatch.setattr(
+        "brokers.zerodha.get_symbol_for_broker_lazy",
+        lambda symbol, broker, exchange=None: {
+            "trading_symbol": symbol,
+            "exchange": "NSE",
+        },
+    )
 
     br = ZerodhaBroker("C1", access_token="token", api_key="key")
     result = br.place_order(symbol="TCS", action="buy", qty=1)
