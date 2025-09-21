@@ -40,6 +40,76 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
+@lru_cache(maxsize=1)
+def _zerodha_token_index() -> Dict[str, str]:
+    """Return mapping of Zerodha instrument tokens to base symbols."""
+
+    cache_file = _ensure_cached_csv(ZERODHA_URL, "zerodha_instruments.csv")
+    index: Dict[str, str] = {}
+
+    with cache_file.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            token = (row.get("instrument_token") or "").strip()
+            trading_symbol = (row.get("tradingsymbol") or "").strip()
+            if not token or not trading_symbol:
+                continue
+            base_symbol = extract_root_symbol(trading_symbol)
+            if not base_symbol:
+                continue
+            index[token] = base_symbol
+
+    return index
+
+
+@lru_cache(maxsize=1)
+def _dhan_token_index() -> Dict[str, str]:
+    """Return mapping of Dhan security ids to base symbols."""
+
+    cache_file = _ensure_cached_csv(DHAN_URL, "dhan_scrip_master.csv")
+    index: Dict[str, str] = {}
+
+    with cache_file.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            security_id = (row.get("SEM_SMST_SECURITY_ID") or "").strip()
+            if not security_id:
+                continue
+
+            trading_symbol = (row.get("SEM_TRADING_SYMBOL") or "").strip()
+            if not trading_symbol:
+                trading_symbol = (row.get("SEM_CUSTOM_SYMBOL") or "").strip()
+
+            if not trading_symbol:
+                continue
+
+            base_symbol = extract_root_symbol(trading_symbol)
+            if not base_symbol:
+                continue
+
+            index[security_id] = base_symbol
+
+    return index
+
+
+def _lookup_symbol_by_token_cached_csv(token: str, broker: str) -> str | None:
+    """Return base symbol by scanning cached CSV data for *broker*."""
+
+    broker = broker.lower()
+    if broker == "zerodha":
+        return _zerodha_token_index().get(token)
+    if broker == "dhan":
+        return _dhan_token_index().get(token)
+    return None
+
+
+@lru_cache(maxsize=256)
+def _cached_token_lookup(token: str, broker: str) -> str | None:
+    """LRU cached token lookup to avoid repeatedly scanning CSV files."""
+
+    return _lookup_symbol_by_token_cached_csv(token, broker)
+
+
 def _ensure_cached_csv(url: str, cache_name: str) -> Path:
     """Ensure a cached copy of *url* exists and return the path."""
     cache_file = CACHE_DIR / cache_name
@@ -709,6 +779,9 @@ def ensure_symbol_slice(
 
     _load_zerodha.cache_clear()
     _load_dhan.cache_clear()
+    _zerodha_token_index.cache_clear()
+    _dhan_token_index.cache_clear()
+    _cached_token_lookup.cache_clear()
     return target
 
 
@@ -1021,6 +1094,9 @@ def refresh_symbol_map(force: bool = False) -> None:
         try:
             _load_zerodha.cache_clear()
             _load_dhan.cache_clear()
+            _zerodha_token_index.cache_clear()
+            _dhan_token_index.cache_clear()
+            _cached_token_lookup.cache_clear()
             new_map = build_symbol_map()
         except requests.RequestException as exc:
             log.warning("Failed to refresh symbol map: %s", exc)
@@ -1273,10 +1349,18 @@ def get_symbol_for_broker(
 def get_symbol_by_token(token: str, broker: str) -> str | None:
     """Return the base symbol for a broker given its token/instrument id."""
     broker = broker.lower()
-    token = str(token)
-    
-    symbol_map = _ensure_symbol_map()
-    for sym, exchanges in symbol_map.items():
+    token = str(token).strip()
+    if not token:
+        return None
+
+    cached_symbol = _cached_token_lookup(token, broker)
+    if cached_symbol is not None:
+        return cached_symbol
+
+    if not SYMBOL_MAP:
+        return None
+
+    for sym, exchanges in SYMBOL_MAP.items():
         per_symbol = exchanges.get(SYMBOLS_KEY, {})
         for symbol_entries in per_symbol.values():
             for entry in symbol_entries.values():
