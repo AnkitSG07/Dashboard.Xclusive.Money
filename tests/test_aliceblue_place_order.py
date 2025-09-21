@@ -26,10 +26,10 @@ def test_place_order_accepts_generic_params(monkeypatch):
 
     monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
 
-    def fake_mapper(symbol, broker):
+    def fake_mapper(symbol, broker, exchange=None):
         return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
 
-    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker_lazy", fake_mapper)
 
     br = AliceBlueBroker("C1", "token")
     result = br.place_order(symbol="AAPL", action="BUY", qty=5)
@@ -53,10 +53,10 @@ def test_place_order_handles_nordno(monkeypatch):
 
     monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
 
-    def fake_mapper(symbol, broker):
+    def fake_mapper(symbol, broker, exchange=None):
         return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
 
-    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker_lazy", fake_mapper)
 
     br = AliceBlueBroker("C1", "token")
     result = br.place_order(symbol="AAPL", action="BUY", qty=1)
@@ -77,10 +77,10 @@ def test_place_order_handles_nordno(monkeypatch):
 
     monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
 
-    def fake_mapper(symbol, broker):
+    def fake_mapper(symbol, broker, exchange=None):
         return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
 
-    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker_lazy", fake_mapper)
 
     br = AliceBlueBroker("C1", "token")
     result = br.place_order(symbol="AAPL", action="BUY", qty=1)
@@ -102,10 +102,10 @@ def test_place_order_handles_status_whitespace(monkeypatch):
 
     monkeypatch.setattr(AliceBlueBroker, "_request", fake_request, raising=False)
 
-    def fake_mapper(symbol, broker):
+    def fake_mapper(symbol, broker, exchange=None):
         return {"symbol_id": "123", "trading_symbol": "AAPL", "exch": "NSE"}
 
-    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr("brokers.aliceblue.get_symbol_for_broker_lazy", fake_mapper)
 
     br = AliceBlueBroker("C1", "token")
     result = br.place_order(symbol="AAPL", action="BUY", qty=1)
