@@ -97,6 +97,7 @@ def test_weekly_symbol_lookup_prefers_weekly_contract(monkeypatch):
         return {}
 
     monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol)
+    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol)
 
     normalized = order_consumer.normalize_symbol_to_dhan_format("NIFTY 23 SEP 25500 CALL")
     mapping = order_consumer.symbol_map.get_symbol_for_broker(normalized, "dhan", "NFO")
