@@ -4,7 +4,7 @@ import re
 import json
 import logging
 from .base import BrokerBase
-from .symbol_map import get_symbol_for_broker
+from .symbol_map import get_symbol_for_broker_lazy
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class AliceBlueBroker(BrokerBase):
 
         product = product_type or kwargs.get("product") or "MIS"
         product = self._normalize_product_type(product)
-        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
+        mapping = get_symbol_for_broker_lazy(tradingsymbol or "", self.BROKER, exchange)
         if not symbol_id:
             symbol_id = mapping.get("symbol_id")
         tradingsymbol = mapping.get("trading_symbol", tradingsymbol)
