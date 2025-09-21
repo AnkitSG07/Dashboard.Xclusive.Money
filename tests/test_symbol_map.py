@@ -1,4 +1,7 @@
-from brokers.symbol_map import get_symbol_for_broker, refresh_symbol_map
+from brokers.symbol_map import (
+    get_symbol_for_broker,
+    refresh_symbol_map,
+)
 
 
 def _make_response(text: str):
@@ -810,6 +813,30 @@ def _prepare_sparse_symbol_map(monkeypatch, tmp_path):
     return sm, cleanup
 
 
+def test_refresh_symbol_slice_only_updates_target_root(monkeypatch, tmp_path):
+    sm, cleanup = _prepare_sparse_symbol_map(monkeypatch, tmp_path)
+
+    try:
+        initial = sm.ensure_symbol_slice("RELIANCE", "NSE")
+        assert initial["NSE"]["dhan"]["security_id"] == "5001"
+
+        sm.SYMBOL_MAP["OTHER"] = {"placeholder": {}}
+
+        dhan_csv = tmp_path / "dhan_scrip_master.csv"
+        dhan_csv.write_text(
+            "SEM_SMST_SECURITY_ID,SEM_EXM_EXCH_ID,SEM_SEGMENT,SEM_TRADING_SYMBOL,SEM_SERIES,SEM_LOT_UNITS\n"
+            "6001,NSE,E,RELIANCE-EQ,EQ,5\n"
+        )
+
+        updated = sm.refresh_symbol_slice("RELIANCE", "NSE")
+
+        assert set(sm.SYMBOL_MAP.keys()) == {"OTHER", "RELIANCE"}
+        assert updated["NSE"]["dhan"]["security_id"] == "6001"
+        assert updated["NSE"]["dhan"]["lot_size"] == "5"
+    finally:
+        cleanup()
+
+
 def test_dhan_broker_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_path):
     sm, cleanup = _prepare_sparse_symbol_map(monkeypatch, tmp_path)
 
@@ -871,6 +898,29 @@ def test_order_consumer_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_pat
     from services import order_consumer
 
     try:
+        original_lazy = sm.get_symbol_for_broker_lazy
+        lazy_calls: list[tuple[str, str | None]] = []
+
+        def fake_lazy(symbol, broker, exchange=None):
+            lazy_calls.append((symbol, exchange))
+            if len(lazy_calls) == 1:
+                return {}
+            return original_lazy(symbol, broker, exchange)
+
+        refresh_calls: list[tuple[str, str | None]] = []
+
+        def fake_refresh(symbol, exchange=None):
+            refresh_calls.append((symbol, exchange))
+            sm.SYMBOL_MAP.pop(sm.extract_root_symbol(symbol), None)
+            return sm.ensure_symbol_slice(symbol, exchange)
+
+        monkeypatch.setattr(
+            order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_lazy
+        )
+        monkeypatch.setattr(
+            order_consumer.symbol_map, "refresh_symbol_slice", fake_refresh
+        )
+
         lot_size = order_consumer._lookup_lot_size_from_symbol_map(
             "RELIANCE",
             "dhan",
@@ -880,6 +930,9 @@ def test_order_consumer_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_pat
         )
 
         assert lot_size == "1"
+        assert len(refresh_calls) == 1
+        assert refresh_calls[0] == ("RELIANCE", "NSE")
+        assert len(lazy_calls) == 2
         assert set(sm.SYMBOL_MAP.keys()) == {"RELIANCE"}
     finally:
         cleanup()
