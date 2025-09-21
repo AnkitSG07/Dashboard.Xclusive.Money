@@ -35,6 +35,28 @@ from services.product_support import map_product_type, is_mtf_supported, _cache_
 
 log = logging.getLogger(__name__)
 
+def _lookup_lot_size_from_symbol_map(
+    symbol: str,
+    broker_name: str,
+    exchange: str | None,
+    event: Dict[str, Any] | None = None,
+    broker_cfg: Dict[str, Any] | None = None,
+) -> Any:
+    """Return lot size from the symbol map without materialising the full dataset."""
+
+    try:
+        mapping = symbol_map.get_symbol_for_broker_lazy(symbol, broker_name, exchange)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        log.warning(
+            "Could not retrieve lot size from symbol map for %s: %s",
+            symbol,
+            str(exc),
+            extra={"event": event, "broker": broker_cfg},
+        )
+        return None
+
+    return mapping.get("lot_size") or mapping.get("lotSize")
+
 orders_success = Counter(
     "order_consumer_success_total",
     "Number of webhook events processed successfully",
@@ -612,34 +634,29 @@ def consume_webhook_events(
                             return None
                         return int(value)
 
-                    def _lookup_lot_size_from_symbol_map():
-                        try:
-                            mapping = symbol_map.get_symbol_for_broker(
-                                converted_symbol, broker_name, exchange
-                            )
-                        except Exception as exc:
-                            log.warning(
-                                "Could not retrieve lot size from symbol map for %s: %s",
-                                converted_symbol,
-                                str(exc),
-                                extra={"event": event, "broker": broker_cfg},
-                            )
-                    
-                            return None
-
-                        return mapping.get("lot_size") or mapping.get("lotSize")
-
                     normalized_lot_size = _normalize_lot_size(lot_size)
                     looked_up_lot_size = False
 
                     if normalized_lot_size is None:
                         looked_up_lot_size = True
-                        lot_size = _lookup_lot_size_from_symbol_map()
+                        lot_size = _lookup_lot_size_from_symbol_map(
+                            converted_symbol,
+                            broker_name,
+                            exchange,
+                            event,
+                            broker_cfg,
+                        )
                         normalized_lot_size = _normalize_lot_size(lot_size)
 
                         if normalized_lot_size is None:
                             symbol_map.refresh_symbol_map(force=True)
-                            lot_size = _lookup_lot_size_from_symbol_map()
+                            lot_size = _lookup_lot_size_from_symbol_map(
+                                converted_symbol,
+                                broker_name,
+                                exchange,
+                                event,
+                                broker_cfg,
+                            )
                             normalized_lot_size = _normalize_lot_size(lot_size)
 
                         if normalized_lot_size is not None:
