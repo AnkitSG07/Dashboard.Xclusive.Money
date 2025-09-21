@@ -1,6 +1,6 @@
 import requests
 from .base import BrokerBase
-from .symbol_map import get_symbol_for_broker, refresh_symbol_map
+from .symbol_map import get_symbol_for_broker_lazy, refresh_symbol_map
 import json
 import logging
 import re
@@ -168,13 +168,15 @@ class DhanBroker(BrokerBase):
         mapping = {}
         explicit_exchange = exchange_base is not None
         if security_id is None or exchange_segment is None:
-            mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER, exchange_base)
+            mapping = get_symbol_for_broker_lazy(
+                tradingsymbol or "", self.BROKER, exchange_base
+            )
         if security_id is None:
             try:
                 security_id = mapping["security_id"]
             except KeyError:
                 refresh_symbol_map()
-                mapping = get_symbol_for_broker(
+                mapping = get_symbol_for_broker_lazy(
                     tradingsymbol or "", self.BROKER, exchange_base
                 )
                 try:
