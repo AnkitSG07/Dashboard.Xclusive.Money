@@ -18,7 +18,7 @@ def test_place_order_accepts_generic_params(monkeypatch):
 
     def fake_mapper(symbol, broker, exchange=None):
         return {"security_id": "XYZ123", "exchange_segment": "NSE_EQ"}
-    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     br = DhanBroker('C1', 'token')
     result = br.place_order(symbol='AAPL', action='BUY', qty=5)
@@ -41,7 +41,7 @@ def test_symbol_map_injection_does_not_override_exchange(monkeypatch):
         assert exchange == 'BSE'
         return {"security_id": "500325", "exchange_segment": "BSE_EQ"}
 
-    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     # Inject a symbol map that only knows the NSE security id
     br = DhanBroker('C1', 'token', symbol_map={'RELIANCE': '2885'})
@@ -66,7 +66,7 @@ def test_derivative_exchange_adjustment(monkeypatch):
         assert exchange == 'NFO'
         return {"security_id": "12345", "exchange_segment": "NSE_FNO"}
 
-    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     br = DhanBroker('C1', 'token')
     result = br.place_order(symbol='BANKNIFTY50DECFUT', action='BUY', qty=25, exchange='NSE')
@@ -85,7 +85,7 @@ def test_rejects_expired_contract(monkeypatch):
     def fake_mapper(symbol, broker, exchange=None):  # Should not be called
         raise AssertionError("symbol lookup should not be performed")
 
-    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker', fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     br = DhanBroker('C1', 'token')
     # Use a clearly expired symbol (Aug 2020)
@@ -105,7 +105,7 @@ def test_missing_security_id_triggers_refresh(monkeypatch):
         calls["mapper"] += 1
         return {}
 
-    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     br = DhanBroker("C1", "token")
     with pytest.raises(ValueError) as exc:
@@ -129,7 +129,7 @@ def test_explicit_exchange_mismatch_raises_clear_error(monkeypatch):
         assert exchange == "NSE"
         return {}
 
-    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
 
     def fake_request(*args, **kwargs):  # Should not be called
         raise AssertionError("request should not be made when exchange is invalid")
