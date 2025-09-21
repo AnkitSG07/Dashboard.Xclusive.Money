@@ -39,17 +39,16 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
-def _fetch_csv(url: str, cache_name: str) -> str:
-    """Return CSV content from *url* using a small on-disk cache."""
+def _ensure_cached_csv(url: str, cache_name: str) -> Path:
+    """Ensure a cached copy of *url* exists and return the path."""
     cache_file = CACHE_DIR / cache_name
     
     # Try to use cache if it's fresh
     if cache_file.exists():
         age = time.time() - cache_file.stat().st_mtime
         if age < CACHE_MAX_AGE:
-            return cache_file.read_text()
-    
-    # Download fresh data
+            return cache_file
+
     for attempt in range(3):
         try:
             resp = requests.get(url, timeout=30)
@@ -64,13 +63,20 @@ def _fetch_csv(url: str, cache_name: str) -> str:
                 cache_file.write_text(text)
             except Exception:
                 pass
-            return text
+            return cache_file
         except requests.RequestException:
             if cache_file.exists():
-                return cache_file.read_text()
+                return cache_file
             time.sleep(2 ** attempt)
             continue
     raise requests.RequestException(f"failed to fetch {url}")
+
+
+def _fetch_csv(url: str, cache_name: str) -> str:
+    """Return CSV content from *url* using a small on-disk cache."""
+    cache_file = _ensure_cached_csv(url, cache_name)
+    return cache_file.read_text()
+
 
 Key = Tuple[str, str]
 SYMBOLS_KEY = "_symbols"
@@ -412,11 +418,313 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
     return data
 
 
-def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
-    """Construct the complete symbol map with lot size information."""
-    zerodha_data = _load_zerodha()
-    dhan_data = _load_dhan()
-    
+def _load_zerodha_slice(
+    symbol: str, exchange: str | None = None
+) -> Dict[Key, Dict[str, str]]:
+    """Return Zerodha entries for a specific *symbol*."""
+
+    cache_file = _ensure_cached_csv(ZERODHA_URL, "zerodha_instruments.csv")
+    data: Dict[Key, Dict[str, str]] = {}
+    root_symbol = extract_root_symbol(symbol)
+    exchange_hint = exchange.upper() if exchange else None
+
+    with cache_file.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            tradingsymbol = row.get("tradingsymbol", "").strip()
+            if not tradingsymbol:
+                continue
+
+            candidate_root = extract_root_symbol(tradingsymbol)
+            if candidate_root != root_symbol:
+                continue
+
+            segment = row.get("segment", "").upper()
+            inst_type = row.get("instrument_type", "").upper()
+
+            if segment in {"NSE", "BSE"} and inst_type == "EQ":
+                exch = row.get("exchange", "").upper()
+                if exchange_hint and exch != exchange_hint:
+                    continue
+                key = (tradingsymbol, exch)
+            elif segment in {"NFO", "BFO"} and inst_type in {
+                "FUT",
+                "FUTSTK",
+                "FUTIDX",
+                "OPT",
+                "OPTSTK",
+                "OPTIDX",
+                "CE",
+                "PE",
+            }:
+                if exchange_hint and segment != exchange_hint:
+                    continue
+                key = (tradingsymbol, segment)
+            else:
+                continue
+
+            lot_size = row.get("lot_size", "1")
+            if not lot_size or lot_size in {"", "0"}:
+                lot_size = "1"
+
+            data[key] = {
+                "instrument_token": row.get("instrument_token", ""),
+                "lot_size": lot_size,
+            }
+
+    return data
+
+
+def _load_dhan_slice(
+    symbol: str, exchange: str | None = None
+) -> Dict[Key, Dict[str, str]]:
+    """Return Dhan entries for a specific *symbol*."""
+
+    cache_file = _ensure_cached_csv(DHAN_URL, "dhan_scrip_master.csv")
+    data: Dict[Key, Dict[str, str]] = {}
+    root_symbol = extract_root_symbol(symbol)
+    exchange_hint = exchange.upper() if exchange else None
+
+    with cache_file.open(newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            exch = row.get("SEM_EXM_EXCH_ID", "").upper()
+            segment = row.get("SEM_SEGMENT", "").upper()
+            trading_symbol = row.get("SEM_TRADING_SYMBOL", "").strip()
+            if not trading_symbol:
+                continue
+
+            candidate_root = extract_root_symbol(trading_symbol)
+            if candidate_root != root_symbol:
+                continue
+
+            if exchange_hint:
+                if segment == "D":
+                    derived_exchange = "NFO" if exch == "NSE" else "BFO"
+                else:
+                    derived_exchange = exch
+                if derived_exchange != exchange_hint:
+                    continue
+
+            lot_size = row.get("SEM_LOT_UNITS", "1")
+            if not lot_size or lot_size in {"", "0"}:
+                lot_size = "1"
+
+            if exch in {"NSE", "BSE"} and segment == "E":
+                keys = {(trading_symbol, exch)}
+                if trading_symbol.upper().endswith("-EQ"):
+                    stripped = trading_symbol[:-3].strip()
+                    if stripped:
+                        keys.add((stripped, exch))
+
+                for key in keys:
+                    if key not in data or row.get("SEM_SERIES", "").upper() == "EQ":
+                        data[key] = {
+                            "security_id": row.get("SEM_SMST_SECURITY_ID", ""),
+                            "lot_size": lot_size,
+                            "trading_symbol": trading_symbol,
+                        }
+            elif exch in {"NSE", "BSE"} and segment == "D":
+                exchange_segment = "NFO" if exch == "NSE" else "BFO"
+                expiry_flag = row.get("SEM_EXPIRY_FLAG", "").strip().upper()
+                expiry_date_str = row.get("SEM_EXPIRY_DATE", "").strip()
+                custom_symbol = row.get("SEM_CUSTOM_SYMBOL", "").strip()
+
+                expiry_dt: datetime | None = None
+                if expiry_date_str:
+                    cleaned_expiry = expiry_date_str.replace("Z", "").strip()
+                    try:
+                        expiry_dt = datetime.fromisoformat(cleaned_expiry)
+                    except ValueError:
+                        for fmt in (
+                            "%Y-%m-%d %H:%M:%S",
+                            "%Y-%m-%d",
+                            "%d-%b-%Y %H:%M:%S",
+                            "%d-%b-%Y",
+                        ):
+                            try:
+                                expiry_dt = datetime.strptime(cleaned_expiry, fmt)
+                                break
+                            except ValueError:
+                                continue
+
+                alias_symbol = None
+                alias_day: int | None = None
+                if expiry_dt:
+                    alias_day = expiry_dt.day
+                    alias_month = expiry_dt.strftime("%b")
+                    alias_year = expiry_dt.strftime("%Y")
+
+                    parts = trading_symbol.split("-")
+                    if len(parts) >= 3:
+                        underlying = parts[0]
+                        if len(parts) == 3 and parts[2].upper() == "FUT":
+                            alias_symbol = format_dhan_future_symbol(
+                                underlying,
+                                alias_month,
+                                alias_year,
+                                day=alias_day,
+                            )
+                        elif len(parts) >= 4:
+                            strike = parts[-2]
+                            opt_type = parts[-1].upper()
+                            alias_symbol = format_dhan_option_symbol(
+                                underlying,
+                                alias_month,
+                                alias_year,
+                                strike,
+                                opt_type,
+                                day=alias_day,
+                            )
+
+                if (
+                    alias_symbol is None
+                    and custom_symbol
+                    and expiry_flag
+                    and expiry_flag != "M"
+                ):
+                    custom_match = re.match(
+                        r"^(?P<underlying>.+?)\s+(?P<day>\d{1,2})\s+(?P<month>[A-Z]{3})\s+(?P<strike>[\d.]+)\s+(?P<option>CALL|PUT|CE|PE|FUT)$",
+                        custom_symbol.upper(),
+                    )
+                    if custom_match:
+                        alias_day = int(custom_match.group("day"))
+                        alias_month = custom_match.group("month").title()
+                        alias_year = (
+                            expiry_dt.strftime("%Y")
+                            if expiry_dt
+                            else row.get("SEM_EXPIRY_DATE", "")[:4]
+                        )
+                        underlying = (
+                            trading_symbol.split("-")[0]
+                            or custom_match.group("underlying")
+                        )
+                        option = custom_match.group("option")
+                        strike = custom_match.group("strike")
+                        if option == "FUT":
+                            alias_symbol = format_dhan_future_symbol(
+                                underlying,
+                                alias_month,
+                                alias_year,
+                                day=alias_day,
+                            )
+                        else:
+                            opt_code = "CE" if option in {"CALL", "CE"} else "PE"
+                            alias_symbol = format_dhan_option_symbol(
+                                underlying,
+                                alias_month,
+                                alias_year,
+                                strike,
+                                opt_code,
+                                day=alias_day,
+                            )
+
+                entry: Dict[str, str] = {
+                    "security_id": row.get("SEM_SMST_SECURITY_ID", ""),
+                    "lot_size": lot_size,
+                    "trading_symbol": trading_symbol,
+                }
+
+                if expiry_flag:
+                    entry["expiry_flag"] = expiry_flag
+                if expiry_dt:
+                    entry["expiry_date"] = expiry_dt.strftime("%Y-%m-%d")
+                    entry["expiry_day"] = expiry_dt.day
+
+                if (
+                    alias_symbol
+                    and expiry_flag
+                    and expiry_flag != "M"
+                    and alias_symbol != trading_symbol
+                ):
+                    aliases = entry.setdefault("aliases", [])
+                    if alias_symbol not in aliases:
+                        aliases.append(alias_symbol)
+
+                key = (trading_symbol, exchange_segment)
+                if key not in data or expiry_flag == "M":
+                    data[key] = entry
+
+                if entry.get("aliases"):
+                    for alias in entry["aliases"]:
+                        data[(alias, exchange_segment)] = entry
+
+    return data
+
+
+def load_symbol_slice(
+    symbol: str, exchange: str | None = None
+) -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Load a minimal mapping for *symbol* using cached instrument data."""
+
+    root_symbol = extract_root_symbol(symbol)
+    if not root_symbol:
+        return {}
+
+    zerodha_slice = _load_zerodha_slice(symbol, exchange)
+    dhan_slice = _load_dhan_slice(symbol, exchange)
+    slice_map = _assemble_symbol_map(zerodha_slice, dhan_slice)
+    return slice_map.get(root_symbol, {})
+
+
+def ensure_symbol_cache() -> None:
+    """Ensure cached copies of instrument data exist."""
+
+    _ensure_cached_csv(ZERODHA_URL, "zerodha_instruments.csv")
+    _ensure_cached_csv(DHAN_URL, "dhan_scrip_master.csv")
+
+
+def ensure_symbol_slice(
+    symbol: str, exchange: str | None = None
+) -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Ensure *symbol* is present in ``SYMBOL_MAP`` using cached slices."""
+
+    root_symbol = extract_root_symbol(symbol)
+    if not root_symbol:
+        return {}
+
+    existing = SYMBOL_MAP.get(root_symbol)
+    exchange_hint = exchange.upper() if exchange else None
+    if existing:
+        if not exchange_hint:
+            return existing
+        per_exchange = existing.get(SYMBOLS_KEY, {})
+        if exchange_hint in existing or exchange_hint in per_exchange:
+            return existing
+
+    slice_entry = load_symbol_slice(symbol, exchange)
+    if not slice_entry:
+        return {}
+
+    target = SYMBOL_MAP.setdefault(root_symbol, {})
+    for key, value in slice_entry.items():
+        if key == SYMBOLS_KEY:
+            symbols_map = target.setdefault(SYMBOLS_KEY, {})
+            for exch_name, aliases in value.items():
+                exchange_map = symbols_map.setdefault(exch_name, {})
+                exchange_map.update(aliases)
+        else:
+            target[key] = value
+
+    _load_zerodha.cache_clear()
+    _load_dhan.cache_clear()
+    return target
+
+
+def get_symbol_for_broker_lazy(
+    symbol: str, broker: str, exchange: str | None = None
+) -> Dict[str, str]:
+    """Lookup symbol data using cached slices without building the full map."""
+
+    ensure_symbol_slice(symbol, exchange)
+    return get_symbol_for_broker(symbol, broker, exchange)
+
+
+def _assemble_symbol_map(
+    zerodha_data: Dict[Key, Dict[str, str]],
+    dhan_data: Dict[Key, Dict[str, str]],
+) -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Assemble the nested mapping used for lookups."""
     mapping: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = {}
     
     # Build map with Zerodha as base
@@ -645,6 +953,13 @@ def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
             exchange_symbols[alias] = entry
     
     return mapping
+
+def build_symbol_map() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Construct the complete symbol map with lot size information."""
+    zerodha_data = _load_zerodha()
+    dhan_data = _load_dhan()
+
+    return _assemble_symbol_map(zerodha_data, dhan_data)
 
 
 # Public symbol map
