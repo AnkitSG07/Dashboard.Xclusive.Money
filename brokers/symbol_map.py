@@ -40,40 +40,40 @@ CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
 
-@lru_cache(maxsize=1)
-def _zerodha_token_index() -> Dict[str, str]:
-    """Return mapping of Zerodha instrument tokens to base symbols."""
+def _find_symbol_in_zerodha_csv(token: str) -> str | None:
+    """Return the base symbol for *token* by scanning the Zerodha CSV."""
 
     cache_file = _ensure_cached_csv(ZERODHA_URL, "zerodha_instruments.csv")
-    index: Dict[str, str] = {}
 
     with cache_file.open(newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            token = (row.get("instrument_token") or "").strip()
+            row_token = (row.get("instrument_token") or "").strip()
+            if row_token != token:
+                continue
+
             trading_symbol = (row.get("tradingsymbol") or "").strip()
-            if not token or not trading_symbol:
-                continue
+            if not trading_symbol:
+                return None
+
             base_symbol = extract_root_symbol(trading_symbol)
-            if not base_symbol:
-                continue
-            index[token] = base_symbol
+            if base_symbol:
+                return base_symbol
+            return None
 
-    return index
+    return None
 
 
-@lru_cache(maxsize=1)
-def _dhan_token_index() -> Dict[str, str]:
-    """Return mapping of Dhan security ids to base symbols."""
+def _find_symbol_in_dhan_csv(security_id: str) -> str | None:
+    """Return the base symbol for *security_id* by scanning the Dhan CSV."""
 
     cache_file = _ensure_cached_csv(DHAN_URL, "dhan_scrip_master.csv")
-    index: Dict[str, str] = {}
 
     with cache_file.open(newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            security_id = (row.get("SEM_SMST_SECURITY_ID") or "").strip()
-            if not security_id:
+            row_id = (row.get("SEM_SMST_SECURITY_ID") or "").strip()
+            if row_id != security_id:
                 continue
 
             trading_symbol = (row.get("SEM_TRADING_SYMBOL") or "").strip()
@@ -81,15 +81,14 @@ def _dhan_token_index() -> Dict[str, str]:
                 trading_symbol = (row.get("SEM_CUSTOM_SYMBOL") or "").strip()
 
             if not trading_symbol:
-                continue
+                return None
 
             base_symbol = extract_root_symbol(trading_symbol)
-            if not base_symbol:
-                continue
+            if base_symbol:
+                return base_symbol
+            return None
 
-            index[security_id] = base_symbol
-
-    return index
+    return None
 
 
 def _lookup_symbol_by_token_cached_csv(token: str, broker: str) -> str | None:
@@ -97,9 +96,9 @@ def _lookup_symbol_by_token_cached_csv(token: str, broker: str) -> str | None:
 
     broker = broker.lower()
     if broker == "zerodha":
-        return _zerodha_token_index().get(token)
+        return _find_symbol_in_zerodha_csv(token)
     if broker == "dhan":
-        return _dhan_token_index().get(token)
+        return _find_symbol_in_dhan_csv(token)
     return None
 
 
@@ -779,8 +778,6 @@ def ensure_symbol_slice(
 
     _load_zerodha.cache_clear()
     _load_dhan.cache_clear()
-    _zerodha_token_index.cache_clear()
-    _dhan_token_index.cache_clear()
     _cached_token_lookup.cache_clear()
     return target
 
@@ -1094,8 +1091,6 @@ def refresh_symbol_map(force: bool = False) -> None:
         try:
             _load_zerodha.cache_clear()
             _load_dhan.cache_clear()
-            _zerodha_token_index.cache_clear()
-            _dhan_token_index.cache_clear()
             _cached_token_lookup.cache_clear()
             new_map = build_symbol_map()
         except requests.RequestException as exc:
