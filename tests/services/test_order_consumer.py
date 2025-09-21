@@ -400,7 +400,7 @@ def test_consumer_handles_decimal_lot_size(monkeypatch):
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(
         order_consumer.symbol_map,
-        "get_symbol_for_broker",
+        "get_symbol_for_broker_lazy",
         lambda *a, **k: {"lot_size": "30.0"},
     )
     monkeypatch.setattr(
@@ -437,7 +437,7 @@ def test_consumer_errors_when_lot_size_not_found(monkeypatch, caplog):
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(
         order_consumer.symbol_map,
-        "get_symbol_for_broker",
+        "get_symbol_for_broker_lazy",
         lambda symbol, broker, exchange=None: {},
     )
     monkeypatch.setattr(
@@ -475,7 +475,7 @@ def test_consumer_errors_when_lot_size_non_positive(monkeypatch, caplog):
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
     monkeypatch.setattr(
-        order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {"lot_size": 0}
+        order_consumer.symbol_map, "get_symbol_for_broker_lazy", lambda *a, **k: {"lot_size": 0}
     )
     monkeypatch.setattr(
         order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None
@@ -511,7 +511,7 @@ def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
         return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
-    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
+    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker_lazy", lambda *a, **k: {})
     monkeypatch.setattr(order_consumer.symbol_map, "refresh_symbol_map", lambda force=False: None)
     reset_metrics()
 
@@ -554,7 +554,7 @@ def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
         return {"lot_size": 25}
 
     monkeypatch.setattr(
-        order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol
+        order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol
     )
 
     refreshed = {}
@@ -622,7 +622,7 @@ def test_consumer_derivative_symbol_map_uses_normalized_exchange(monkeypatch):
         return {"lot_size": 25}
 
     monkeypatch.setattr(
-        order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol
+        order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol
     )
     reset_metrics()
 
