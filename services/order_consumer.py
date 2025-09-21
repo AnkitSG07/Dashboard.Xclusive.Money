@@ -667,17 +667,6 @@ def consume_webhook_events(
                         )
                         normalized_lot_size = _normalize_lot_size(lot_size)
 
-                        if normalized_lot_size is None:
-                            symbol_map.refresh_symbol_map(force=True)
-                            lot_size = _lookup_lot_size_from_symbol_map(
-                                converted_symbol,
-                                broker_name,
-                                exchange,
-                                event,
-                                broker_cfg,
-                            )
-                            normalized_lot_size = _normalize_lot_size(lot_size)
-
                         if normalized_lot_size is not None:
                             log.info(
                                 "Found lot size %s for %s from symbol map",
