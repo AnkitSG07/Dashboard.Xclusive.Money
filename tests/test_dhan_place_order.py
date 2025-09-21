@@ -1,5 +1,6 @@
 from brokers.dhan import DhanBroker
 import pytest
+import tests.test_symbol_map
 
 class Resp:
     def __init__(self, data, payload=None):
@@ -93,36 +94,59 @@ def test_rejects_expired_contract(monkeypatch):
     assert result['status'] == 'failure'
     assert 'expired' in result['error'].lower()
     
-def test_missing_security_id_triggers_refresh(monkeypatch):
-    calls = {"refresh": 0, "mapper": 0}
+def test_missing_security_id_triggers_slice_refresh(monkeypatch, tmp_path):
+    import brokers.symbol_map as sm
 
-    def fake_refresh():
-        calls["refresh"] += 1
+    sm, cleanup = tests.test_symbol_map._prepare_sparse_symbol_map(monkeypatch, tmp_path)
 
-    monkeypatch.setattr("brokers.dhan.refresh_symbol_map", fake_refresh)
+    class DummyResponse:
+        def json(self):
+            return {"orderId": "1"}
 
-    def fake_mapper(symbol, broker, exchange=None):
-        calls["mapper"] += 1
-        return {}
+    monkeypatch.setattr(
+        DhanBroker,
+        "_request",
+        lambda self, method, url, json=None, headers=None, timeout=None: DummyResponse(),
+        raising=False,
+    )
 
-    monkeypatch.setattr('brokers.dhan.get_symbol_for_broker_lazy', fake_mapper)
+    lazy_calls: list[tuple[str, str | None]] = []
 
-    br = DhanBroker("C1", "token")
-    with pytest.raises(ValueError) as exc:
-        br.place_order(symbol="MISSING", action="BUY", qty=1)
+    def fake_lazy(symbol, broker, exchange=None):
+        lazy_calls.append((symbol, exchange))
+        if len(lazy_calls) == 1:
+            return {}
+        return sm.get_symbol_for_broker_lazy(symbol, broker, exchange)
 
-    assert "expired" in str(exc.value)
-    assert calls["refresh"] == 1
-    assert calls["mapper"] == 2
+    refresh_calls: list[tuple[str, str | None]] = []
+
+    def fake_refresh(symbol, exchange=None):
+        refresh_calls.append((symbol, exchange))
+        sm.SYMBOL_MAP.pop(sm.extract_root_symbol(symbol), None)
+        return sm.ensure_symbol_slice(symbol, exchange)
+
+    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker_lazy", fake_lazy)
+    monkeypatch.setattr("brokers.dhan.refresh_symbol_slice", fake_refresh)
+
+    try:
+        broker = DhanBroker("CID", "TOKEN")
+        result = broker.place_order(symbol="RELIANCE", action="BUY", qty=1)
+        assert result["status"] == "success"
+        assert len(refresh_calls) == 1
+        assert lazy_calls[-1] == ("RELIANCE", None)
+        assert len(lazy_calls) == 2
+        assert set(sm.SYMBOL_MAP.keys()) == {"RELIANCE"}
+    finally:
+        cleanup()
 
 
 def test_explicit_exchange_mismatch_raises_clear_error(monkeypatch):
     calls = {"refresh": 0, "mapper": 0}
 
-    def fake_refresh():
+    def fake_refresh(symbol, exchange=None):
         calls["refresh"] += 1
 
-    monkeypatch.setattr("brokers.dhan.refresh_symbol_map", fake_refresh)
+    monkeypatch.setattr("brokers.dhan.refresh_symbol_slice", fake_refresh)
 
     def fake_mapper(symbol, broker, exchange=None):
         calls["mapper"] += 1
