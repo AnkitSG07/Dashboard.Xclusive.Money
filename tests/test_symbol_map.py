@@ -1,4 +1,5 @@
 from brokers.symbol_map import (
+    get_symbol_by_token,
     get_symbol_for_broker,
     refresh_symbol_map,
 )
@@ -21,6 +22,66 @@ def test_symbol_map_includes_bse_x_series():
     )
     assert mapping.get("security_id")
     assert mapping.get("exchange_segment") == "BSE_EQ"
+
+
+def test_get_symbol_by_token_zerodha_uses_cached_csv(tmp_path, monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type\n"
+        "111,NSE,RELIANCE,NSE,EQ\n"
+    )
+    cache_file = tmp_path / "zerodha.csv"
+    cache_file.write_text(zerodha_csv)
+
+    def fake_ensure_cached_csv(url: str, cache_name: str):
+        assert "kite" in url
+        return cache_file
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
+    sm._zerodha_token_index.cache_clear()
+    sm._cached_token_lookup.cache_clear()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        symbol = get_symbol_by_token("111", "zerodha")
+        assert symbol == "RELIANCE"
+        assert sm.SYMBOL_MAP == {}
+    finally:
+        sm.SYMBOL_MAP = original_map
+        sm._zerodha_token_index.cache_clear()
+        sm._cached_token_lookup.cache_clear()
+
+
+def test_get_symbol_by_token_dhan_uses_cached_csv(tmp_path, monkeypatch):
+    import brokers.symbol_map as sm
+
+    dhan_csv = (
+        "SEM_SMST_SECURITY_ID,SEM_TRADING_SYMBOL,SEM_CUSTOM_SYMBOL,SEM_EXM_EXCH_ID,SEM_SEGMENT\n"
+        "321,RELIANCE-EQ,,NSE,E\n"
+    )
+    cache_file = tmp_path / "dhan.csv"
+    cache_file.write_text(dhan_csv)
+
+    def fake_ensure_cached_csv(url: str, cache_name: str):
+        assert "dhan" in url
+        return cache_file
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
+    sm._dhan_token_index.cache_clear()
+    sm._cached_token_lookup.cache_clear()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        symbol = get_symbol_by_token("321", "dhan")
+        assert symbol == "RELIANCE"
+        assert sm.SYMBOL_MAP == {}
+    finally:
+        sm.SYMBOL_MAP = original_map
+        sm._dhan_token_index.cache_clear()
+        sm._cached_token_lookup.cache_clear()
 
 def test_direct_lookup_populates_only_requested_root(monkeypatch):
     import brokers.symbol_map as sm
