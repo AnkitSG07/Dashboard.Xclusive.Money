@@ -1,4 +1,5 @@
 from services import order_consumer
+from brokers import symbol_map as broker_symbol_map
 from marshmallow import ValidationError
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
@@ -524,7 +525,7 @@ def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
     assert "Unable to determine lot size" in caplog.text
 
 
-def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
+def test_consumer_refreshes_symbol_slice_on_missing_lot_size(monkeypatch):
     event = {
         "user_id": 1,
         "symbol": "NIFTY24AUGFUT",
@@ -546,31 +547,48 @@ def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
 
     calls = {"get": 0}
-
+    refresh_slice_calls = []
+    refresh_map_called = {"called": False}
+    root_symbol = broker_symbol_map.extract_root_symbol(event["symbol"])
+    
     def fake_get_symbol(symbol, broker, exchange=None):
         calls["get"] += 1
         if calls["get"] == 1:
             return {}
         return {"lot_size": 25}
 
+    def fake_refresh_slice(symbol, exchange=None):
+        refresh_slice_calls.append((symbol, exchange))
+        broker_symbol_map.SYMBOL_MAP.clear()
+        target_root = broker_symbol_map.extract_root_symbol(symbol)
+        broker_symbol_map.SYMBOL_MAP[target_root] = {"mock": {"lot_size": 25}}
+        return broker_symbol_map.SYMBOL_MAP[target_root]
+
+    def fake_refresh_map(force=False):
+        refresh_map_called["called"] = True
+
     monkeypatch.setattr(
         order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol
     )
 
-    refreshed = {}
-
-    def fake_refresh(force=False):
-        refreshed["force"] = force
-
     monkeypatch.setattr(
-        order_consumer.symbol_map, "refresh_symbol_map", fake_refresh
+       order_consumer.symbol_map, "refresh_symbol_slice", fake_refresh_slice
     )
+    monkeypatch.setattr(order_consumer.symbol_map, "refresh_symbol_map", fake_refresh_map)
+    monkeypatch.setattr(order_consumer.symbol_map, "SYMBOL_MAP", {})
     reset_metrics()
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert refreshed == {"force": True}
     assert calls["get"] == 2
+    assert len(refresh_slice_calls) == 1
+    called_symbol, called_exchange = refresh_slice_calls[0]
+    expected_exchange = event["exchange"]
+    if expected_exchange in {"NSE", "BSE"}:
+        expected_exchange = {"NSE": "NFO", "BSE": "BFO"}[expected_exchange]
+    assert called_exchange == expected_exchange
+    assert broker_symbol_map.extract_root_symbol(called_symbol) == root_symbol
+    assert refresh_map_called == {"called": False}
     assert len(MockBroker.orders) == 1
     order = MockBroker.orders[0]
     assert order["qty"] == 50
@@ -581,6 +599,7 @@ def test_consumer_refreshes_symbol_map_on_missing_lot_size(monkeypatch):
     assert stream == "trade_events"
     assert payload["qty"] == 50
     assert payload.get("lot_size") == 25
+    assert set(broker_symbol_map.SYMBOL_MAP) == {root_symbol}
 
 def test_consumer_derivative_symbol_map_uses_normalized_exchange(monkeypatch):
     events = [
