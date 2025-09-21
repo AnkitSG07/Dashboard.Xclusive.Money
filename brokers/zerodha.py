@@ -10,7 +10,7 @@ import time
 from urllib.parse import urlparse, parse_qs
 
 from .base import BrokerBase
-from .symbol_map import get_symbol_for_broker
+from .symbol_map import get_symbol_for_broker_lazy
 
 try:
     from kiteconnect import KiteConnect
@@ -225,7 +225,9 @@ class ZerodhaBroker(BrokerBase):
         order_type = self._normalize_order_type(order_type)
         exchange = exchange or extra.pop("exchange", None)
 
-        mapping = get_symbol_for_broker(tradingsymbol or "", self.BROKER)
+        mapping = get_symbol_for_broker_lazy(
+            tradingsymbol or "", self.BROKER, exchange
+        )
         tradingsymbol = mapping.get("trading_symbol", tradingsymbol)
         exchange = exchange or mapping.get("exchange", "NSE")
 
