@@ -35,7 +35,7 @@ def test_option_symbol_pipeline(monkeypatch):
         assert exchange == "NFO"
         return {"security_id": "XYZ123", "exchange_segment": "NSE_FNO"}
 
-    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker", fake_mapper)
+    monkeypatch.setattr("brokers.dhan.get_symbol_for_broker_lazy", fake_mapper)
 
     br = DhanBroker("C1", "token")
     result = br.place_order(
