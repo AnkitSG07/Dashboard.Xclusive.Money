@@ -1030,8 +1030,8 @@ def _direct_symbol_lookup(symbol: str, broker: str, exchange: str | None = None)
     # Extract root symbol for lookup
     root_symbol = extract_root_symbol(lookup_symbol)
 
-    symbol_map = _ensure_symbol_map()
-    mapping = symbol_map.get(root_symbol)
+    ensure_symbol_slice(lookup_symbol, exchange_hint)
+    mapping = SYMBOL_MAP.get(root_symbol)
     
     if not mapping:
         return {}
@@ -1185,8 +1185,8 @@ def get_symbol_for_broker(
 
         # Try with root symbol lookup for F&O
         root_symbol = extract_root_symbol(original_symbol)
-        symbol_map = _ensure_symbol_map()
-        mapping = symbol_map.get(root_symbol)
+        ensure_symbol_slice(original_symbol, exchange_hint)
+        mapping = SYMBOL_MAP.get(root_symbol)
 
         if mapping:
             # Select appropriate exchange
