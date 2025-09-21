@@ -84,8 +84,8 @@ def _load_symbol_map_or_exit() -> None:
     """
 
     try:
-        symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
-        log.info("Symbol map loaded successfully")
+        symbol_map.ensure_symbol_cache()
+        log.info("Symbol cache prepared successfully")
     except requests.RequestException as exc:  # pragma: no cover - network errors
         log.error("failed to load instrument data: %s", exc)
         raise SystemExit(1)
