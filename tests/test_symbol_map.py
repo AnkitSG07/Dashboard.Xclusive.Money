@@ -19,6 +19,46 @@ def test_symbol_map_includes_bse_x_series():
     assert mapping.get("security_id")
     assert mapping.get("exchange_segment") == "BSE_EQ"
 
+def test_direct_lookup_populates_only_requested_root(monkeypatch):
+    import brokers.symbol_map as sm
+
+    entry = {
+        "zerodha": {
+            "trading_symbol": "AAA",
+            "exchange": "NSE",
+            "token": "1",
+            "lot_size": "1",
+        }
+    }
+    slice_entry = {
+        "NSE": entry,
+        sm.SYMBOLS_KEY: {
+            "NSE": {
+                "AAA": entry,
+            }
+        },
+    }
+
+    calls: list[tuple[str, str | None]] = []
+
+    def fake_load(symbol: str, exchange: str | None = None):
+        calls.append((symbol, exchange))
+        if sm.extract_root_symbol(symbol) == "AAA":
+            return slice_entry
+        return {}
+
+    monkeypatch.setattr(sm, "load_symbol_slice", fake_load)
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        result = sm._direct_symbol_lookup("AAA", "zerodha", "NSE")
+        assert result["token"] == "1"
+        assert set(sm.SYMBOL_MAP.keys()) == {"AAA"}
+        assert calls and calls[-1] == ("AAA", "NSE")
+    finally:
+        sm.SYMBOL_MAP = original_map
+
 def test_build_symbol_map_preserves_multiple_exchanges(monkeypatch):
     import brokers.symbol_map as sm
 
@@ -101,6 +141,55 @@ def test_build_symbol_map_includes_derivatives(monkeypatch):
         mapping["BANKNIFTY24AUGFUT"]["NFO"]["dhan"]["exchange_segment"]
         == "NSE_FNO"
     )
+
+
+
+def test_derivative_fallback_populates_only_requested_root(monkeypatch):
+    import brokers.symbol_map as sm
+
+    dhan_entry = {
+        "security_id": "123",
+        "exchange_segment": "NSE_FNO",
+        "lot_size": "50",
+        "trading_symbol": "NIFTY24SEP24000CE",
+    }
+    exchange_entry = {"dhan": dhan_entry}
+    slice_entry = {
+        "NFO": exchange_entry,
+        sm.SYMBOLS_KEY: {
+            "NFO": {
+                "NIFTY24SEP24000CE": exchange_entry,
+            }
+        },
+    }
+
+    load_calls: list[tuple[str, str | None]] = []
+
+    def fake_load(symbol: str, exchange: str | None = None):
+        load_calls.append((symbol, exchange))
+        if sm.extract_root_symbol(symbol) == "NIFTY":
+            return slice_entry
+        return {}
+
+    original_direct = sm._direct_symbol_lookup
+
+    def fake_direct(symbol: str, broker: str, exchange: str | None = None):
+        original_direct(symbol, broker, exchange)
+        return {}
+
+    monkeypatch.setattr(sm, "load_symbol_slice", fake_load)
+    monkeypatch.setattr(sm, "_direct_symbol_lookup", fake_direct)
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        result = get_symbol_for_broker("NIFTY24SEP24000CE", "dhan")
+        assert result["security_id"] == "123"
+        assert result["lot_size"] == "50"
+        assert set(sm.SYMBOL_MAP.keys()) == {"NIFTY"}
+        assert load_calls and load_calls[0][0] == "NIFTY24SEP24000CE"
+    finally:
+        sm.SYMBOL_MAP = original_map
 
 
 def test_derivative_variants_map_to_distinct_ids(monkeypatch):
