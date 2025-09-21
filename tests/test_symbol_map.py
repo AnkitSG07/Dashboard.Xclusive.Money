@@ -39,18 +39,25 @@ def test_get_symbol_by_token_zerodha_uses_cached_csv(tmp_path, monkeypatch):
         return cache_file
 
     monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
-    sm._zerodha_token_index.cache_clear()
     sm._cached_token_lookup.cache_clear()
 
     original_map = sm.SYMBOL_MAP
+    original_globals = set(sm.__dict__)
     sm.SYMBOL_MAP = {}
     try:
-        symbol = get_symbol_by_token("111", "zerodha")
+        token = "111"
+        symbol = get_symbol_by_token(token, "zerodha")
         assert symbol == "RELIANCE"
         assert sm.SYMBOL_MAP == {}
+        assert set(sm.__dict__) == original_globals
+        assert sm._cached_token_lookup.cache_info().currsize == 1
+        assert not any(
+            isinstance(value, dict) and token in value
+            for name, value in sm.__dict__.items()
+            if name != "SYMBOL_MAP"
+        )
     finally:
         sm.SYMBOL_MAP = original_map
-        sm._zerodha_token_index.cache_clear()
         sm._cached_token_lookup.cache_clear()
 
 
@@ -69,18 +76,25 @@ def test_get_symbol_by_token_dhan_uses_cached_csv(tmp_path, monkeypatch):
         return cache_file
 
     monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
-    sm._dhan_token_index.cache_clear()
     sm._cached_token_lookup.cache_clear()
 
     original_map = sm.SYMBOL_MAP
+    original_globals = set(sm.__dict__)
     sm.SYMBOL_MAP = {}
     try:
-        symbol = get_symbol_by_token("321", "dhan")
+        token = "321"
+        symbol = get_symbol_by_token(token, "dhan")
         assert symbol == "RELIANCE"
         assert sm.SYMBOL_MAP == {}
+        assert set(sm.__dict__) == original_globals
+        assert sm._cached_token_lookup.cache_info().currsize == 1
+        assert not any(
+            isinstance(value, dict) and token in value
+            for name, value in sm.__dict__.items()
+            if name != "SYMBOL_MAP"
+        )
     finally:
         sm.SYMBOL_MAP = original_map
-        sm._dhan_token_index.cache_clear()
         sm._cached_token_lookup.cache_clear()
 
 def test_direct_lookup_populates_only_requested_root(monkeypatch):
