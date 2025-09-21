@@ -84,14 +84,13 @@ def get_expiry_year(month: str, day: int = None) -> str:
 def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
     """Get lot size from the symbol map for a given symbol."""
     try:
-        # Ensure symbol map is loaded
-        if not symbol_map.SYMBOL_MAP:
-            symbol_map.SYMBOL_MAP = symbol_map.build_symbol_map()
 
         exchange_hint = exchange.upper() if exchange else "NSE"
 
-        # Get the symbol mapping
-        mapping = symbol_map.get_symbol_for_broker(symbol, "dhan", exchange_hint)
+        # Get the symbol mapping lazily
+        mapping = symbol_map.get_symbol_for_broker_lazy(
+            symbol, "dhan", exchange_hint
+        )
         
         if mapping and "lot_size" in mapping:
             lot_size = mapping["lot_size"]
