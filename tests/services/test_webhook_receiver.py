@@ -108,6 +108,57 @@ def test_bse_equity_lot_size(monkeypatch):
     assert event["symbol"] == "SBVCL-EQ"
     assert event["lot_size"] == 600
 
+def test_get_lot_size_from_symbol_map_uses_lazy_slice(monkeypatch, tmp_path):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = tmp_path / "zerodha_instruments.csv"
+    zerodha_csv.write_text(
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "101,NSE,RELIANCE,NSE,EQ,1\n"
+    )
+
+    dhan_csv = tmp_path / "dhan_scrip_master.csv"
+    dhan_csv.write_text(
+        "SEM_SMST_SECURITY_ID,SEM_EXM_EXCH_ID,SEM_SEGMENT,SEM_TRADING_SYMBOL,SEM_SERIES,SEM_LOT_UNITS\n"
+        "5001,NSE,E,RELIANCE-EQ,EQ,1\n"
+    )
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+
+    class _FailLoader:
+        def __call__(self, *args, **kwargs):
+            raise AssertionError("should not load entire dataset")
+
+        def cache_clear(self):
+            pass
+
+    monkeypatch.setattr(sm, "_load_zerodha", _FailLoader())
+    monkeypatch.setattr(sm, "_load_dhan", _FailLoader())
+    monkeypatch.setattr(
+        sm,
+        "build_symbol_map",
+        lambda: (_ for _ in ()).throw(AssertionError("should not build full map")),
+    )
+
+    def fake_ensure(url: str, cache_name: str):
+        if "zerodha" in cache_name:
+            return zerodha_csv
+        if "dhan" in cache_name:
+            return dhan_csv
+        raise AssertionError(f"unexpected cache request {cache_name}")
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure)
+
+    try:
+        lot_size = wr.get_lot_size_from_symbol_map("RELIANCE-EQ", "NSE")
+        assert lot_size == 1
+        assert "RELIANCE" in sm.SYMBOL_MAP
+    finally:
+        sm.SYMBOL_MAP = original_map
+        sm._load_zerodha.cache_clear()
+        sm._load_dhan.cache_clear()
+
 def test_parses_human_readable_futures_symbol(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
