@@ -679,3 +679,118 @@ def test_lazy_derivative_slice(monkeypatch, tmp_path):
         sm.SYMBOL_MAP = original_map
         sm._load_zerodha.cache_clear()
         sm._load_dhan.cache_clear()
+
+def _prepare_sparse_symbol_map(monkeypatch, tmp_path):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = tmp_path / "zerodha_instruments.csv"
+    zerodha_csv.write_text(
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "101,NSE,RELIANCE,NSE,EQ,1\n"
+    )
+
+    dhan_csv = tmp_path / "dhan_scrip_master.csv"
+    dhan_csv.write_text(
+        "SEM_SMST_SECURITY_ID,SEM_EXM_EXCH_ID,SEM_SEGMENT,SEM_TRADING_SYMBOL,SEM_SERIES,SEM_LOT_UNITS\n"
+        "5001,NSE,E,RELIANCE-EQ,EQ,1\n"
+    )
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+
+    monkeypatch.setattr(
+        sm,
+        "build_symbol_map",
+        lambda: (_ for _ in ()).throw(AssertionError("should not build full map")),
+    )
+
+    def fake_ensure(url: str, cache_name: str):
+        if "zerodha" in cache_name:
+            return zerodha_csv
+        if "dhan" in cache_name:
+            return dhan_csv
+        raise AssertionError(f"unexpected cache request {cache_name}")
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure)
+
+    def cleanup():
+        sm.SYMBOL_MAP = original_map
+        sm._load_zerodha.cache_clear()
+        sm._load_dhan.cache_clear()
+
+    return sm, cleanup
+
+
+def test_dhan_broker_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_path):
+    sm, cleanup = _prepare_sparse_symbol_map(monkeypatch, tmp_path)
+
+    from brokers.dhan import DhanBroker
+
+    class DummyResponse:
+        def json(self):
+            return {"orderId": "1"}
+
+    monkeypatch.setattr(
+        DhanBroker,
+        "_request",
+        lambda self, method, url, json=None, headers=None, timeout=None: DummyResponse(),
+        raising=False,
+    )
+
+    try:
+        broker = DhanBroker("CID", "TOKEN")
+        result = broker.place_order(symbol="RELIANCE", action="BUY", qty=1)
+        assert result["status"] == "success"
+        assert set(sm.SYMBOL_MAP.keys()) == {"RELIANCE"}
+    finally:
+        cleanup()
+
+
+def test_aliceblue_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_path):
+    sm, cleanup = _prepare_sparse_symbol_map(monkeypatch, tmp_path)
+
+    from brokers.aliceblue import AliceBlueBroker
+
+    def fake_auth(self):
+        self.session_id = "sid"
+        self.headers = {"Authorization": "Bearer token"}
+
+    class DummyResponse:
+        def json(self):
+            return {"stat": "Ok", "nestOrderNumber": "1"}
+
+    monkeypatch.setattr(AliceBlueBroker, "authenticate", fake_auth, raising=False)
+    monkeypatch.setattr(
+        AliceBlueBroker,
+        "_request",
+        lambda self, method, url, headers=None, data=None: DummyResponse(),
+        raising=False,
+    )
+
+    try:
+        broker = AliceBlueBroker("CID", "APIKEY", device_number="device123")
+        result = broker.place_order(symbol="RELIANCE", action="BUY", qty=1)
+        assert result["status"] == "success"
+        assert set(sm.SYMBOL_MAP.keys()) == {"RELIANCE"}
+    finally:
+        cleanup()
+
+
+def test_order_consumer_lazy_lookup_keeps_symbol_map_sparse(monkeypatch, tmp_path):
+    sm, cleanup = _prepare_sparse_symbol_map(monkeypatch, tmp_path)
+
+    from services import order_consumer
+
+    try:
+        lot_size = order_consumer._lookup_lot_size_from_symbol_map(
+            "RELIANCE",
+            "dhan",
+            "NSE",
+            event={"symbol": "RELIANCE"},
+            broker_cfg={"name": "dhan"},
+        )
+
+        assert lot_size == "1"
+        assert set(sm.SYMBOL_MAP.keys()) == {"RELIANCE"}
+    finally:
+        cleanup()
