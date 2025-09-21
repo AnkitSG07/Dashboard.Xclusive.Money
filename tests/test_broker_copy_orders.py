@@ -378,6 +378,7 @@ def test_dhan_copy_without_symbol_map(client, monkeypatch):
     monkeypatch.setattr(app_module, "record_trade", lambda *a, **k: None)
 
     monkeypatch.setattr(brokers.symbol_map, "get_symbol_for_broker", lambda *a, **k: {})
+    monkeypatch.setattr(brokers.symbol_map, "get_symbol_for_broker_lazy", lambda *a, **k: {})
     monkeypatch.setattr(app_module, "get_symbol_for_broker", lambda *a, **k: {})
 
     with app.app_context():
