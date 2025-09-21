@@ -1,6 +1,6 @@
 import requests
 from .base import BrokerBase
-from .symbol_map import get_symbol_for_broker_lazy, refresh_symbol_map
+from .symbol_map import get_symbol_for_broker_lazy, refresh_symbol_slice
 import json
 import logging
 import re
@@ -175,7 +175,7 @@ class DhanBroker(BrokerBase):
             try:
                 security_id = mapping["security_id"]
             except KeyError:
-                refresh_symbol_map()
+                refresh_symbol_slice(tradingsymbol or "", exchange_base)
                 mapping = get_symbol_for_broker_lazy(
                     tradingsymbol or "", self.BROKER, exchange_base
                 )
