@@ -55,6 +55,25 @@ def _lookup_lot_size_from_symbol_map(
         )
         return None
 
+    lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+    if lot_size:
+        return lot_size
+
+    if symbol:
+        try:
+            symbol_map.refresh_symbol_slice(symbol, exchange)
+            mapping = symbol_map.get_symbol_for_broker_lazy(
+                symbol, broker_name, exchange
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            log.warning(
+                "Failed refreshing symbol slice for %s: %s",
+                symbol,
+                str(exc),
+                extra={"event": event, "broker": broker_cfg},
+            )
+            return None
+
     return mapping.get("lot_size") or mapping.get("lotSize")
 
 orders_success = Counter(
