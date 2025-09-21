@@ -19,6 +19,7 @@ import logging
 import threading
 import requests
 import re
+from contextlib import suppress
 
 from services.fo_symbol_utils import (
     format_dhan_future_symbol,
@@ -709,6 +710,32 @@ def ensure_symbol_slice(
     _load_zerodha.cache_clear()
     _load_dhan.cache_clear()
     return target
+
+
+def refresh_symbol_slice(
+    symbol: str, exchange: str | None = None
+) -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Refresh the cached mapping for the root of *symbol* only."""
+
+    root_symbol = extract_root_symbol(symbol)
+    if not root_symbol:
+        return {}
+
+    with _REFRESH_LOCK:
+        SYMBOL_MAP.pop(root_symbol, None)
+
+    for url, cache_name in (
+        (ZERODHA_URL, "zerodha_instruments.csv"),
+        (DHAN_URL, "dhan_scrip_master.csv"),
+    ):
+        with suppress(requests.RequestException):
+            _ensure_cached_csv(url, cache_name)
+
+    try:
+        return ensure_symbol_slice(symbol, exchange)
+    except requests.RequestException as exc:  # pragma: no cover - defensive
+        log.warning("Failed to refresh symbol slice for %s: %s", symbol, exc)
+        return {}
 
 
 def get_symbol_for_broker_lazy(
