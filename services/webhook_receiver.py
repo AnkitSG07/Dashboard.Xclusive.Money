@@ -125,7 +125,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     # Pattern 1: Already normalized Dhan format with hyphens
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
         pattern = re.compile(
-            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+(?:\.\d+)?-(?:CE|PE)|FUT))$',
             re.IGNORECASE,
         )
         match = pattern.match(sym)
@@ -163,7 +163,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
                     day=day,
                 )
                 metadata['instrument_type'] = 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
-                metadata['strike'] = int(strike)
+                metadata['strike'] = float(strike) if '.' in strike else int(strike)
                 metadata['option_type'] = opt_type
 
             lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
@@ -176,7 +176,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     # CRITICAL FIX: Handle day-month format "UNDERLYING DD MON STRIKE TYPE"
     # Pattern 2: Format with day first: "NIFTY 23 SEP 25500 CALL"
     day_first_pattern = re.match(
-        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+(?:\.\d+)?)\s+(CALL|PUT|CE|PE)$',
         sym
     )
     if day_first_pattern:
@@ -204,7 +204,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
             'expiry_month': month,
             'expiry_year': full_year,
             'expiry_day': day,
-            'strike': int(strike),
+            'strike': float(strike) if '.' in strike else int(strike),
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
@@ -252,7 +252,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     # Pattern 4: Format with year in middle: "NIFTY 25 SEP 33300 CALL" (where 25 could be year)
     # This should be checked AFTER day patterns to avoid confusion
     year_middle_pattern = re.match(
-        r'^([A-Z]+(?:\d+)?)\s+(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        r'^([A-Z]+(?:\d+)?)\s+(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+(?:\.\d+)?)\s+(CALL|PUT|CE|PE)$',
         sym
     )
     if year_middle_pattern:
@@ -289,7 +289,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
             'underlying': root,
             'expiry_month': month,
             'expiry_year': full_year,
-            'strike': int(strike),
+            'strike': float(strike) if '.' in strike else int(strike),
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
@@ -306,7 +306,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     
     # Pattern 5: Compact options with year: FINNIFTY25SEP33300CE
     compact_opt_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CALL|PUT|CE|PE)$',
         sym
     )
     if compact_opt_with_year:
@@ -327,12 +327,18 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
         
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+        )
         metadata = {
             'underlying': root,
             'expiry_month': month,
             'expiry_year': full_year,
-            'strike': int(strike),
+            'strike': float(strike) if '.' in strike else int(strike),
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
@@ -346,7 +352,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     
     # Pattern 6: Compact options without year: NIFTYSEP33300CE
     compact_opt_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CALL|PUT|CE|PE)$',
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CALL|PUT|CE|PE)$',
         sym
     )
     if compact_opt_no_year:
@@ -359,12 +365,18 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
         full_year = f"20{year}"
         opt_code = "CE" if opt_type in ("CALL", "CE") else "PE"
         
-        normalized = f"{root}-{month.title()}{full_year}-{strike}-{opt_code}"
+        normalized = format_dhan_option_symbol(
+            root,
+            month,
+            full_year,
+            strike,
+            opt_code,
+        )
         metadata = {
             'underlying': root,
             'expiry_month': month,
             'expiry_year': full_year,
-            'strike': int(strike),
+            'strike': float(strike) if '.' in strike else int(strike),
             'option_type': opt_code,
             'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
         }
