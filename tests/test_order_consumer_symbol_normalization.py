@@ -2,6 +2,7 @@ import pytest
 
 import services.order_consumer as order_consumer
 import services.webhook_receiver as webhook_receiver
+import services.fo_symbol_utils as fo_symbol_utils
 from services.fo_symbol_utils import is_fo_symbol
 from brokers import symbol_map
 
@@ -172,6 +173,61 @@ def test_currency_weekly_symbols_retain_day(monkeypatch):
     assert normalized_consumer == weekly_key
     assert normalized_webhook == weekly_key
     assert metadata["expiry_day"] == 23
+
+
+def test_currency_future_without_day_resolves_from_symbol_map(monkeypatch):
+    """Dayless currency futures should consult the symbol map for expiry day."""
+
+    fo_symbol_utils._lookup_currency_future_expiry_day.cache_clear()
+
+    fake_entry = {
+        "dhan": {
+            "security_id": "USDINR20240926",
+            "expiry_day": 26,
+        }
+    }
+    fake_map = {
+        "USDINR": {
+            symbol_map.SYMBOLS_KEY: {
+                "NFO": {
+                    "USDINR-26Sep2024-FUT": fake_entry,
+                    "USDINR-Sep2024-FUT": fake_entry,
+                }
+            }
+        }
+    }
+    calls = []
+
+    def fake_ensure(symbol, exchange=None):
+        calls.append((symbol, exchange))
+        return fake_map.get("USDINR", {})
+
+    def fake_get_symbol(symbol, broker, exchange=None):
+        if symbol == "USDINR-26Sep2024-FUT" and broker == "dhan":
+            return fake_entry["dhan"]
+        return {}
+
+    monkeypatch.setattr(symbol_map, "SYMBOL_MAP", fake_map)
+    monkeypatch.setattr(fo_symbol_utils.symbol_map, "SYMBOL_MAP", fake_map)
+    monkeypatch.setattr(order_consumer.symbol_map, "SYMBOL_MAP", fake_map)
+    monkeypatch.setattr(symbol_map, "ensure_symbol_slice", fake_ensure)
+    monkeypatch.setattr(fo_symbol_utils.symbol_map, "ensure_symbol_slice", fake_ensure)
+    monkeypatch.setattr(order_consumer.symbol_map, "ensure_symbol_slice", fake_ensure)
+    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol)
+    monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol)
+    monkeypatch.setattr(order_consumer, "get_expiry_year", lambda month, day=None: "24")
+
+    normalized = order_consumer.normalize_symbol_to_dhan_format("USDINRSEPFUT")
+    assert normalized == "USDINR-26Sep2024-FUT"
+
+    mapping = order_consumer.symbol_map.get_symbol_for_broker_lazy(
+        normalized, "dhan", "NFO"
+    )
+    assert mapping["expiry_day"] == 26
+
+    second = order_consumer.normalize_symbol_to_dhan_format("USDINRSEPFUT")
+    assert second == normalized
+    assert len(calls) == 1
 
 
 def test_decimal_strike_normalization(monkeypatch):
