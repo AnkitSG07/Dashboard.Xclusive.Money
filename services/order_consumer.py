@@ -30,6 +30,7 @@ from .fo_symbol_utils import (
     is_fo_symbol,
     format_dhan_option_symbol,
     format_dhan_future_symbol,
+    _lookup_currency_future_expiry_day,
 )
 from services.product_support import map_product_type, is_mtf_supported, _cache_mtf_support
 
@@ -360,7 +361,15 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = format_dhan_future_symbol(root, month, full_year)
+        expiry_day = None
+        if root.upper().endswith("INR"):
+            expiry_day = _lookup_currency_future_expiry_day(root, month, full_year)
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=expiry_day,
+        )
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
