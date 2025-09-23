@@ -585,9 +585,20 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         return normalized
     
     # Pattern 5: Handle equity symbols
-    if not re.search(r'(FUT|CE|PE)$', sym) and not sym.endswith('-EQ'):
-        if not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym):
-            normalized = f"{sym}-EQ" if not sym.endswith('-EQ') else sym
+    if not re.search(r'(FUT|CE|PE)$', sym):
+        existing_suffix = re.search(r'-(?P<suffix>[A-Z]{1,3})$', sym)
+        if existing_suffix:
+            suffix = existing_suffix.group('suffix')
+            if suffix != 'EQ':
+                log.info(f"Preserving equity suffix: {sym}")
+                return sym
+            log.info(f"Normalized equity symbol: {sym}")
+            return sym
+
+        if not sym.endswith('-EQ') and (
+            not re.search(r'\d', sym) or re.match(r'^[A-Z]+\d+$', sym)
+        ):
+            normalized = f"{sym}-EQ"
             log.info(f"Normalized equity symbol: {normalized}")
             return normalized
     
