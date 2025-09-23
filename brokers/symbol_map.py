@@ -1093,7 +1093,7 @@ def _assemble_symbol_map(
             else:
                 aliases.add(f"{symbol}-EQ")
 
-           if exchange == "BSE":
+            if exchange == "BSE":
                 bse_series = _extract_bse_series(symbol, dhan_info, dhan_aliases)
                 if bse_series:
                     base_symbol = extract_root_symbol(symbol) or symbol
