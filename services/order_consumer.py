@@ -251,11 +251,29 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         )
         match = pattern.match(original_symbol)
         if match:
-            month = match.group('month').upper().title()
-            day = match.group('day')
+            root = match.group('root')
+            month = match.group('month').upper()
+            year = match.group('year')
+            day = int(match.group('day')) if match.group('day') else None
             suffix = match.group('suffix')
-            date_part = f"{int(day):02d}{month}{match.group('year')}" if day else f"{month}{match.group('year')}"
-            normalized = f"{match.group('root')}-{date_part}{suffix}"
+            if suffix.upper().endswith('-FUT'):
+                normalized = format_dhan_future_symbol(
+                    root,
+                    month,
+                    year,
+                    day=day,
+                )
+            else:
+                strike, opt_type = suffix[1:].rsplit('-', 1)
+                normalized = format_dhan_option_symbol(
+                    root,
+                    month,
+                    year,
+                    strike,
+                    opt_type,
+                    day=day,
+                )
+
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
