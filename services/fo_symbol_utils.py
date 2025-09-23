@@ -6,8 +6,9 @@ between different broker formats (Dhan, Zerodha, AliceBlue, etc.).
 
 from __future__ import annotations
 
-import re
 import logging
+import re
+from decimal import Decimal, InvalidOperation
 from datetime import date
 from typing import Dict, Optional
 
@@ -47,7 +48,20 @@ def format_dhan_option_symbol(
 ) -> str:
     """Return a Dhan formatted option symbol including weekly expiry day when available."""
 
-    strike_str = str(strike)
+    strike_str = str(strike).strip()
+
+    if strike_str:
+        try:
+            strike_decimal = Decimal(strike_str)
+        except (InvalidOperation, ValueError):
+            strike_decimal = None
+
+        if strike_decimal is not None:
+            if strike_decimal == strike_decimal.to_integral():
+                strike_str = str(int(strike_decimal))
+            else:
+                strike_str = f"{strike_decimal.quantize(Decimal('0.01')):.2f}"
+
     opt_code = option_type.upper()
     month_part = month.title()
     include_day = day is not None and _should_include_expiry_day(underlying)
@@ -161,7 +175,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
     if broker == 'dhan':
         # NIFTY-23Sep2024-24000-CE or NIFTY-Sep2024-24000-CE format
         opt_match = re.match(
-            r'^(?P<underlying>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})-(?P<strike>\d+)-(?P<option>CE|PE)$',
+            r'^(?P<underlying>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})-(?P<strike>\d+(?:\.\d+)?)-(?P<option>CE|PE)$',
             symbol,
         )
         if opt_match:
@@ -197,7 +211,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia', 'flattrade']:
         # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+(?:\.\d+)?)(CE|PE)$', symbol)
         if opt_match:
             return {
                 'underlying': opt_match.group(1),
@@ -314,7 +328,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
         pattern = re.compile(
-            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+(?:\.\d+)?-(?:CE|PE)|FUT))$',
             re.IGNORECASE,
         )
         match = pattern.match(original_symbol)
@@ -358,7 +372,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
 
     # Explicit day-first option format: "NIFTY 23 SEP 25500 CALL"
     day_first_option = re.match(
-        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+(?:\.\d+)?)\s+(CALL|PUT|CE|PE)$',
         sym,
     )
     if day_first_option:
@@ -426,7 +440,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 3: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym,
     )
     if opt_with_year:
@@ -446,7 +460,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 4: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym,
     )
     if opt_no_year:
