@@ -386,6 +386,44 @@ def test_bse_equity_generates_plain_and_eq_aliases(monkeypatch):
     assert "SBVCL-EQ" in bse_symbols
 
 
+def test_bse_equity_uses_series_suffix_for_children(monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "1,BSE,MCL,BSE,EQ,1\n"
+    )
+
+    dhan_csv = (
+        "SEM_EXM_EXCH_ID,SEM_TRADING_SYMBOL,SEM_SEGMENT,SEM_SERIES,SEM_SMST_SECURITY_ID,SEM_LOT_UNITS\n"
+        "BSE,MCL,E,NS,504001,1\n"
+    )
+
+    def fake_fetch(url, cache_name):
+        return zerodha_csv if "kite" in url else dhan_csv
+
+    monkeypatch.setattr(sm, "_fetch_csv", fake_fetch)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    mapping = sm.build_symbol_map()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = mapping
+    try:
+        alice = get_symbol_for_broker("MCL", "aliceblue", "BSE")
+        assert alice["trading_symbol"] == "MCL-NS"
+
+        fyers = get_symbol_for_broker("MCL", "fyers", "BSE")
+        assert fyers["symbol"] == "BSE:MCL-NS"
+
+        aliases = mapping["MCL"][sm.SYMBOLS_KEY]["BSE"]
+        assert "MCL-NS" in aliases
+        assert "MCL-EQ" in aliases
+    finally:
+        sm.SYMBOL_MAP = original_map
+
+
 def test_dhan_alias_merges_with_existing_equity(monkeypatch):
     import brokers.symbol_map as sm
 
