@@ -3,6 +3,7 @@ import hashlib
 import requests
 from urllib.parse import urlencode
 import logging
+from brokers import symbol_map
 
 try:
     from fyers_apiv3 import fyersModel
@@ -136,7 +137,29 @@ class FyersBroker(BrokerBase):
         
         # Determine if it's an F&O symbol
         is_fo = any(suffix in symbol for suffix in ["FUT", "CE", "PE"])
-        
+
+        # Attempt to use the precomputed symbol map for equity lookups
+        if not is_fo:
+            lookup_exchange = exchange
+            if lookup_exchange in {"NSE_EQ", "BSE_EQ"}:
+                lookup_exchange = lookup_exchange.split("_", 1)[0]
+            try:
+                mapping = symbol_map.get_symbol_for_broker(
+                    symbol, self.BROKER, lookup_exchange
+                )
+            except Exception:
+                mapping = {}
+            if (not mapping or not mapping.get("symbol")) and symbol.endswith("-EQ"):
+                base_symbol = symbol[:-3]
+                try:
+                    mapping = symbol_map.get_symbol_for_broker(
+                        base_symbol, self.BROKER, lookup_exchange
+                    )
+                except Exception:
+                    mapping = {}
+            if mapping and mapping.get("symbol"):
+                return mapping["symbol"]
+                
         # Remove existing -EQ suffix if present
         if symbol.endswith("-EQ"):
             symbol = symbol[:-3]
