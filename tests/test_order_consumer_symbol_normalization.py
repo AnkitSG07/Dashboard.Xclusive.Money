@@ -208,11 +208,10 @@ def test_currency_future_without_day_resolves_from_symbol_map(monkeypatch):
         return {}
 
     monkeypatch.setattr(symbol_map, "SYMBOL_MAP", fake_map)
-    monkeypatch.setattr(fo_symbol_utils.symbol_map, "SYMBOL_MAP", fake_map)
     monkeypatch.setattr(order_consumer.symbol_map, "SYMBOL_MAP", fake_map)
     monkeypatch.setattr(symbol_map, "ensure_symbol_slice", fake_ensure)
-    monkeypatch.setattr(fo_symbol_utils.symbol_map, "ensure_symbol_slice", fake_ensure)
     monkeypatch.setattr(order_consumer.symbol_map, "ensure_symbol_slice", fake_ensure)
+    monkeypatch.setattr(fo_symbol_utils, "_symbol_map_module", symbol_map)
     monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker_lazy", fake_get_symbol)
     monkeypatch.setattr(order_consumer.symbol_map, "get_symbol_for_broker", fake_get_symbol)
     monkeypatch.setattr(order_consumer, "get_expiry_year", lambda month, day=None: "24")
