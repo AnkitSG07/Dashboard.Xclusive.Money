@@ -96,7 +96,7 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
             lot_size = mapping["lot_size"]
             if lot_size:
                 try:
-                    return int(lot_size)
+                    return int(float(lot_size))
                 except (ValueError, TypeError):
                     pass
         
