@@ -14,7 +14,7 @@ from datetime import datetime
 from functools import lru_cache
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Iterable, Tuple
 import logging
 import threading
 import requests
@@ -194,6 +194,52 @@ def extract_root_symbol(symbol: str) -> str:
     return cleaned
 
 
+def _extract_series_candidate(base_symbol: str, candidate: str) -> str | None:
+    """Return the BSE series suffix embedded in *candidate* if present."""
+
+    if not candidate:
+        return None
+
+    base = (base_symbol or "").upper().strip()
+    cand = candidate.upper().strip()
+    if not base or not cand.startswith(base):
+        return None
+
+    remainder = cand[len(base) :]
+    if not remainder.startswith("-"):
+        return None
+
+    suffix = remainder[1:]
+    if suffix and suffix.isalpha() and suffix != "EQ":
+        return suffix
+    return None
+
+
+def _extract_bse_series(
+    symbol: str, dhan_info: Dict[str, str] | None, aliases: Iterable[str] | None
+) -> str | None:
+    """Determine the BSE series for *symbol* using Dhan metadata and aliases."""
+
+    if not dhan_info:
+        return None
+
+    series = (dhan_info.get("series") or "").strip().upper()
+    if series and series != "EQ":
+        return series
+
+    candidate = _extract_series_candidate(symbol, dhan_info.get("trading_symbol", ""))
+    if candidate:
+        return candidate
+
+    if aliases:
+        for alias in aliases:
+            candidate = _extract_series_candidate(symbol, alias)
+            if candidate:
+                return candidate
+
+    return None
+
+
 def parse_fo_symbol(symbol: str, broker: str) -> dict:
     """Parse F&O symbol into components based on broker format."""
     if not symbol:
@@ -362,7 +408,8 @@ def _load_dhan() -> Dict[Key, Dict[str, str]]:
                     data[key] = {
                         "security_id": row["SEM_SMST_SECURITY_ID"],
                         "lot_size": lot_size,
-                        "trading_symbol": symbol
+                        "trading_symbol": symbol,
+                        "series": series,
                     }
         elif exch in {"NSE", "BSE"} and segment == "D":
             # Derivatives segment
@@ -830,11 +877,34 @@ def _assemble_symbol_map(
         lot_size = zdata.get("lot_size", "1")
         
         is_equity = exchange in {"NSE", "BSE"}
+
+        dhan_aliases: list[str] = []
+        dhan_info = dhan_data.get((symbol, exchange))
+        if dhan_info is None and is_equity and exchange == "NSE":
+            dhan_info = dhan_data.get((f"{symbol}-EQ", exchange))
+
+        if dhan_info:
+            raw_aliases = dhan_info.get("aliases")
+            if raw_aliases:
+                if isinstance(raw_aliases, str):
+                    dhan_aliases = [raw_aliases]
+                else:
+                    dhan_aliases = list(raw_aliases)
+
+        bse_series = None
+        if is_equity and exchange == "BSE":
+            bse_series = _extract_bse_series(symbol, dhan_info, dhan_aliases)
+
         if is_equity:
-            ab_symbol = f"{symbol}-EQ"
+            default_child_symbol = f"{symbol}-EQ"
+            aliceblue_symbol = default_child_symbol
             fyers_symbol = f"{exchange}:{symbol}-EQ"
+            if bse_series:
+                aliceblue_symbol = f"{symbol}-{bse_series}"
+                fyers_symbol = f"{exchange}:{symbol}-{bse_series}"
         else:
-            ab_symbol = symbol
+            default_child_symbol = symbol
+            aliceblue_symbol = symbol
             fyers_symbol = f"{exchange}:{symbol}"
         
         entry = {
@@ -845,7 +915,7 @@ def _assemble_symbol_map(
                 "lot_size": lot_size
             },
             "aliceblue": {
-                "trading_symbol": ab_symbol,
+                "trading_symbol": aliceblue_symbol,
                 "symbol_id": token,
                 "exch": exchange,
                 "lot_size": lot_size
@@ -856,19 +926,19 @@ def _assemble_symbol_map(
                 "lot_size": lot_size
             },
             "finvasia": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
             },
             "flattrade": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
             },
             "acagarwal": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
@@ -886,19 +956,19 @@ def _assemble_symbol_map(
                 "lot_size": lot_size
             },
             "tradejini": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
             },
             "zebu": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
             },
             "enrichmoney": {
-                "symbol": ab_symbol,
+                "symbol": default_child_symbol,
                 "token": token,
                 "exchange": exchange,
                 "lot_size": lot_size
@@ -906,22 +976,7 @@ def _assemble_symbol_map(
         }
         
         # Add Dhan data if available
-        dhan_aliases: list[str] = []
-        dhan_info = dhan_data.get((symbol, exchange))
-        if (
-            dhan_info is None
-            and is_equity
-            and exchange == "NSE"
-        ):
-            dhan_info = dhan_data.get((f"{symbol}-EQ", exchange))
         if dhan_info:
-            raw_aliases = dhan_info.get("aliases")
-            if raw_aliases:
-                if isinstance(raw_aliases, str):
-                    dhan_aliases = [raw_aliases]
-                else:
-                    dhan_aliases = list(raw_aliases)
-
             if exchange in {"NSE", "BSE"}:
                 exch_segment = f"{exchange}_EQ"
             elif exchange in {"NFO", "BFO"}:
@@ -938,6 +993,9 @@ def _assemble_symbol_map(
                 "lot_size": dhan_lot_size,
                 "trading_symbol": dhan_info.get("trading_symbol", symbol)
             }
+
+            if "series" in dhan_info and dhan_info["series"]:
+                dhan_entry["series"] = dhan_info["series"]
 
             if dhan_aliases:
                 dhan_entry["aliases"] = dhan_aliases
@@ -963,7 +1021,9 @@ def _assemble_symbol_map(
         exchange_symbols = symbols.setdefault(exchange, {})
 
         if is_equity and exchange in {"NSE", "BSE"}:
-            aliases = {symbol, f"{symbol}-EQ"}
+            aliases = {symbol, default_child_symbol}
+            if exchange == "BSE" and aliceblue_symbol != default_child_symbol:
+                aliases.add(aliceblue_symbol)
         else:
             aliases = {symbol}
 
@@ -1004,6 +1064,10 @@ def _assemble_symbol_map(
             }
         }
 
+
+        if "series" in dhan_info and dhan_info["series"]:
+            entry["dhan"]["series"] = dhan_info["series"]
+
         if dhan_aliases:
             entry["dhan"]["aliases"] = dhan_aliases
 
@@ -1028,6 +1092,15 @@ def _assemble_symbol_map(
                     aliases.add(stripped)
             else:
                 aliases.add(f"{symbol}-EQ")
+
+           if exchange == "BSE":
+                bse_series = _extract_bse_series(symbol, dhan_info, dhan_aliases)
+                if bse_series:
+                    base_symbol = extract_root_symbol(symbol) or symbol
+                    aliases.add(f"{base_symbol}-{bse_series}")
+                root_alias = extract_root_symbol(symbol)
+                if root_alias and root_alias != symbol:
+                    aliases.add(root_alias)
         else:
             aliases = {symbol}
 
