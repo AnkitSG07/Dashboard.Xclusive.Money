@@ -412,8 +412,16 @@ async def _replicate_to_children(
         timed_out: list[tuple[Account, asyncio.Future]] = []
         for child in children:
             child_payload = _snapshot_account(child)
+            master_for_processor: Any = master_payload
+            child_for_processor: Any = child_payload
+
+            if isinstance(master_payload, Mapping):
+                master_for_processor = SimpleNamespace(**master_payload)
+            if isinstance(child_payload, Mapping):
+                child_for_processor = SimpleNamespace(**child_payload)
+
             orig_fut = loop.run_in_executor(
-                executor, processor, master_payload, child_payload, order
+                executor, processor, master_for_processor, child_for_processor, order
             )
             shielded = asyncio.shield(orig_fut)
             wrapped = asyncio.wait_for(shielded, timeout) if timeout is not None else shielded
