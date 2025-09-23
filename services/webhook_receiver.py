@@ -124,39 +124,54 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     
     # Pattern 1: Already normalized Dhan format with hyphens
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
-        # Extract metadata from Dhan format
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', sym)
-        if opt_match:
-            underlying = opt_match.group(1)
+        pattern = re.compile(
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            re.IGNORECASE,
+        )
+        match = pattern.match(sym)
+        if match:
+            root = match.group('root')
+            month = match.group('month').upper()
+            year = match.group('year')
+            day = int(match.group('day')) if match.group('day') else None
+            suffix = match.group('suffix')
+
             metadata = {
-                'underlying': underlying,
-                'expiry_month': opt_match.group(2),
-                'expiry_year': opt_match.group(3),
-                'strike': int(opt_match.group(4)),
-                'option_type': opt_match.group(5),
-                'instrument_type': 'OPTIDX' if 'NIFTY' in underlying else 'OPTSTK'
+                'underlying': root,
+                'expiry_month': month,
+                'expiry_year': year,
             }
-            # Get lot size from symbol map
-            lot_size = get_lot_size_from_symbol_map(sym, "NFO")
+            if day is not None:
+                metadata['expiry_day'] = day
+
+            if suffix.upper().endswith('-FUT'):
+                normalized = format_dhan_future_symbol(
+                    root,
+                    month,
+                    year,
+                    day=day,
+                )
+                metadata['instrument_type'] = 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+            else:
+                strike, opt_type = suffix[1:].rsplit('-', 1)
+                normalized = format_dhan_option_symbol(
+                    root,
+                    month,
+                    year,
+                    strike,
+                    opt_type,
+                    day=day,
+                )
+                metadata['instrument_type'] = 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+                metadata['strike'] = int(strike)
+                metadata['option_type'] = opt_type
+
+            lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
             if lot_size:
                 metadata['lot_size'] = lot_size
-        
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', sym)
-        if fut_match:
-            underlying = fut_match.group(1)
-            metadata = {
-                'underlying': underlying,
-                'expiry_month': fut_match.group(2),
-                'expiry_year': fut_match.group(3),
-                'instrument_type': 'FUTIDX' if 'NIFTY' in underlying else 'FUTSTK'
-            }
-            # Get lot size from symbol map
-            lot_size = get_lot_size_from_symbol_map(sym, "NFO")
-            if lot_size:
-                metadata['lot_size'] = lot_size
-        
-        logger.info(f"Symbol already in Dhan format: {sym}")
-        return sym, metadata
+
+            logger.info(f"Symbol already in Dhan format: {sym}")
+            return normalized, metadata
     
     # CRITICAL FIX: Handle day-month format "UNDERLYING DD MON STRIKE TYPE"
     # Pattern 2: Format with day first: "NIFTY 23 SEP 25500 CALL"
