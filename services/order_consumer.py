@@ -337,8 +337,28 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         )
         log.info(f"Normalized futures with day from '{sym}' to '{normalized}'")
         return normalized
-    
-    # Pattern 3: Compact futures format with explicit year: FINNIFTY25SEPFUT
+    # Pattern 3: Futures with spaces but without explicit day: "NIFTY SEP FUT"
+    fut_spaced_no_day = re.match(
+        r'^([A-Z]+(?:\d+)?)\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+FUT$',
+        sym
+    )
+    if fut_spaced_no_day:
+        root, month = fut_spaced_no_day.groups()
+        year = get_expiry_year(month)
+        full_year = f"20{year}"
+        expiry_day = None
+        if root.upper().endswith("INR"):
+            expiry_day = _lookup_currency_future_expiry_day(root, month, full_year)
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=expiry_day,
+        )
+        log.info(f"Normalized spaced futures from '{sym}' to '{normalized}'")
+        return normalized
+
+    # Pattern 4: Compact futures format with explicit year: FINNIFTY25SEPFUT
     fut_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
         sym
@@ -352,7 +372,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             log.info(f"Normalized futures with year from '{sym}' to '{normalized}'")
             return normalized
     
-    # Pattern 4: Compact futures format without explicit year: NIFTYNXT50SEPFUT
+    # Pattern 5: Compact futures format without explicit year: NIFTYNXT50SEPFUT
     fut_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)FUT$',
         sym
@@ -373,7 +393,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
-    # Pattern 5: Options with explicit year: FINNIFTY25SEP33300CE
+    # Pattern 6: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
         r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym
@@ -393,7 +413,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
             log.info(f"Normalized options with year from '{sym}' to '{normalized}'")
             return normalized
     
-    # Pattern 6: Options without explicit year: NIFTYNXT50SEP33300CE
+    # Pattern 7: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
         r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym
@@ -412,7 +432,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         log.info(f"Normalized options without year from '{sym}' to '{normalized}'")
         return normalized
     
-    # Pattern 7: Handle equity symbols - IMPROVED LOGIC
+    # Pattern 8: Handle equity symbols - IMPROVED LOGIC
     # Check if it's NOT a derivative and looks like an equity symbol
     if (not re.search(r'(FUT|CE|PE|CALL|PUT)$', sym) and 
         not re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', sym) and
