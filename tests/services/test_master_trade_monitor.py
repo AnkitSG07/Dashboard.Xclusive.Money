@@ -148,6 +148,36 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     assert redis.acks == [b"1"]
 
 
+def test_manual_order_preserves_bse_suffix_in_event(monkeypatch):
+    order = {"id": "99", "symbol": "MCL-NS", "action": "BUY", "qty": 2}
+    master = SimpleNamespace(
+        client_id="bse-master",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+        user_id=42,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="bse-child",
+        credentials={},
+        copy_qty=None,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    assert redis.stream, "expected a manual trade event to be published"
+    event = redis.stream[0][1]
+    assert event["symbol"] == "MCL-NS"
+
+
 def test_monitor_emits_for_master_created_via_save_account(monkeypatch):
     BrokerStub.placed = []
     fd, db_path = tempfile.mkstemp()
