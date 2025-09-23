@@ -17,6 +17,25 @@ log = logging.getLogger(__name__)
 _DERIVATIVE_SUFFIX_TRIGGER = re.compile(r"(?:\d|-|CALL|PUT)\s*$")
 
 
+def _should_include_expiry_day(underlying: str) -> bool:
+    """Return ``True`` when the expiry *day* should be encoded in the symbol."""
+
+    if not underlying:
+        return False
+
+    root = underlying.upper()
+
+    # Currency contracts keep their day component so that weekly expiries
+    # remain distinguishable (e.g. ``USDINR-23Sep2024-83.00-CE``).
+    if root.endswith("INR"):
+        return True
+
+    # Equity / index contracts (e.g. NIFTY, BANKNIFTY) omit the day component
+    # in their canonical trading symbol while callers still retain the value in
+    # metadata.
+    return False
+
+
 def format_dhan_option_symbol(
     underlying: str,
     month: str,
@@ -31,7 +50,8 @@ def format_dhan_option_symbol(
     strike_str = str(strike)
     opt_code = option_type.upper()
     month_part = month.title()
-    if day is not None:
+    include_day = day is not None and _should_include_expiry_day(underlying)
+    if include_day:
         date_part = f"{int(day):02d}{month_part}{year}"
     else:
         date_part = f"{month_part}{year}"
@@ -48,7 +68,8 @@ def format_dhan_future_symbol(
     """Return a Dhan formatted future symbol including weekly expiry day when available."""
 
     month_part = month.title()
-    if day is not None:
+    include_day = day is not None and _should_include_expiry_day(underlying)
+    if include_day:
         date_part = f"{int(day):02d}{month_part}{year}"
     else:
         date_part = f"{month_part}{year}"
@@ -298,11 +319,30 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         )
         match = pattern.match(original_symbol)
         if match:
-            month = match.group('month').upper().title()
-            day = match.group('day')
+            root = match.group('root')
+            month = match.group('month').upper()
+            year = match.group('year')
+            day = int(match.group('day')) if match.group('day') else None
             suffix = match.group('suffix')
-            date_part = f"{int(day):02d}{month}{match.group('year')}" if day else f"{month}{match.group('year')}"
-            normalized = f"{match.group('root')}-{date_part}{suffix}"
+
+            if suffix.upper().endswith('-FUT'):
+                normalized = format_dhan_future_symbol(
+                    root,
+                    month,
+                    year,
+                    day=day,
+                )
+            else:
+                strike, opt_type = suffix[1:].rsplit('-', 1)
+                normalized = format_dhan_option_symbol(
+                    root,
+                    month,
+                    year,
+                    strike,
+                    opt_type,
+                    day=day,
+                )
+
             log.debug(
                 "Symbol already in correct format, preserving casing: %s -> %s",
                 original_symbol,
