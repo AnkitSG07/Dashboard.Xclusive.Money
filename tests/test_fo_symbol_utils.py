@@ -58,3 +58,11 @@ def test_currency_future_lazy_symbol_map_import(monkeypatch):
         sys.modules.pop("services.fo_symbol_utils", None)
         if original_fo_utils_module is not None:
             sys.modules["services.fo_symbol_utils"] = original_fo_utils_module
+
+
+def test_normalize_preserves_equity_suffixes():
+    from services import fo_symbol_utils
+
+    assert fo_symbol_utils.normalize_symbol_to_dhan_format("MCL-NS") == "MCL-NS"
+    assert fo_symbol_utils.normalize_symbol_to_dhan_format("ABC-BE") == "ABC-BE"
+    assert fo_symbol_utils.normalize_symbol_to_dhan_format("XYZ-BL") == "XYZ-BL"
