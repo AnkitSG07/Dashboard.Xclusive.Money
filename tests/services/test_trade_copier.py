@@ -255,6 +255,109 @@ def test_copy_from_dhan_to_aliceblue(monkeypatch):
     assert captured["payload"][0]["prctyp"] == "MKT"
 
 
+def test_copy_bse_equity_includes_series_symbols(monkeypatch):
+    from brokers.aliceblue import AliceBlueBroker
+    from brokers.fyers import FyersBroker
+
+    captured = {}
+
+    class DummyAliceBlue(AliceBlueBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            self.client_id = client_id
+            self.session_id = "sid"
+            captured["alice_instance"] = self
+
+        def ensure_session(self):
+            pass
+
+        def _request(self, method, url, headers=None, data=None):
+            captured["alice_payload"] = json.loads(data)[0]
+
+            class Resp:
+                def json(self_inner):
+                    return [{"stat": "Ok", "nestOrderNumber": "1"}]
+
+            return Resp()
+
+    class DummyFyers(FyersBroker):
+        def __init__(self, client_id, access_token="", **kwargs):
+            super().__init__(client_id, access_token, **kwargs)
+
+        def place_order(self, **params):
+            formatted = self._format_symbol_for_fyers(
+                params.get("symbol"), params.get("exchange")
+            )
+            payload = dict(params)
+            payload["symbol"] = formatted
+            captured["fyers_payload"] = payload
+            return {"status": "success"}
+
+    def fake_client(name):
+        if name == "aliceblue":
+            return DummyAliceBlue
+        if name == "fyers":
+            return DummyFyers
+        raise AssertionError(f"unexpected broker {name}")
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_client)
+
+    import brokers.aliceblue as alice_mod
+    monkeypatch.setattr(
+        alice_mod,
+        "get_symbol_for_broker_lazy",
+        lambda symbol, broker, exchange=None: {
+            "symbol_id": "321",
+            "trading_symbol": "MCL-NS",
+            "exch": "BSE",
+        },
+    )
+
+    import brokers.fyers as fyers_mod
+
+    def fake_fyers_lookup(symbol, broker, exchange=None):
+        if symbol in {"MCL", "MCL-EQ"}:
+            return {"symbol": "BSE:MCL-NS"}
+        return {}
+
+    monkeypatch.setattr(
+        fyers_mod.symbol_map,
+        "get_symbol_for_broker",
+        fake_fyers_lookup,
+    )
+
+    master = SimpleNamespace(broker="dhan", client_id="m")
+
+    alice_child = SimpleNamespace(
+        broker="aliceblue",
+        client_id="alice",
+        credentials={},
+        copy_qty=None,
+    )
+
+    fyers_child = SimpleNamespace(
+        broker="fyers",
+        client_id="fyers",
+        credentials={},
+        copy_qty=None,
+    )
+
+    order = {
+        "symbol": "MCL",
+        "action": "BUY",
+        "qty": 1,
+        "exchange": "BSE_EQ",
+        "product_type": "INTRADAY",
+        "order_type": "MARKET",
+    }
+
+    trade_copier.copy_order(master, alice_child, dict(order))
+    assert captured["alice_payload"]["trading_symbol"] == "MCL-NS"
+
+    trade_copier.copy_order(master, fyers_child, dict(order))
+    assert captured["fyers_payload"]["symbol"] == "BSE:MCL-NS"
+    assert captured["fyers_payload"]["exchange"] == "BSE"
+
+
 def test_copy_from_dhan_to_zerodha(monkeypatch):
     from brokers.zerodha import ZerodhaBroker
     captured = {}
