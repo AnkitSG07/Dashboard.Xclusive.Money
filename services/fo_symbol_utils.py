@@ -11,11 +11,14 @@ import re
 from decimal import Decimal, InvalidOperation
 from datetime import date
 from functools import lru_cache
-from typing import Dict, Optional
+from typing import TYPE_CHECKING
 
-from brokers import symbol_map
+if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
+    from brokers import symbol_map as symbol_map_module
 
 log = logging.getLogger(__name__)
+
+_symbol_map_module = None
 
 
 _DERIVATIVE_SUFFIX_TRIGGER = re.compile(r"(?:\d|-|CALL|PUT)\s*$")
@@ -113,6 +116,15 @@ def _lookup_currency_future_expiry_day(
 
     if len(year_clean) == 2:
         year_clean = f"20{year_clean}"
+
+    global _symbol_map_module
+
+    if _symbol_map_module is None:
+        from brokers import symbol_map as imported_symbol_map  # local import for lazy loading
+
+        _symbol_map_module = imported_symbol_map
+
+    symbol_map = _symbol_map_module
 
     try:
         symbol_map.ensure_symbol_slice(root_clean, None)
@@ -220,7 +232,7 @@ def get_expiry_year(month: str, day: int = None) -> str:
     return str(year % 100).zfill(2)
 
 
-def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
+def parse_fo_symbol(symbol: str, broker: str) -> dict[str, str] | None:
     """Parse F&O symbol into components based on broker format.
     
     Args:
@@ -299,7 +311,7 @@ def parse_fo_symbol(symbol: str, broker: str) -> Optional[Dict[str, str]]:
     return None
 
 
-def format_fo_symbol(components: Dict[str, str], to_broker: str) -> Optional[str]:
+def format_fo_symbol(components: dict[str, str], to_broker: str) -> str | None:
     """Format symbol components for target broker.
     
     Args:
@@ -342,7 +354,9 @@ def format_fo_symbol(components: Dict[str, str], to_broker: str) -> Optional[str
     return None
 
 
-def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str, instrument_type: str = None) -> str:
+def convert_symbol_between_brokers(
+    symbol: str, from_broker: str, to_broker: str, instrument_type: str | None = None
+) -> str:
     """Convert F&O symbol from one broker format to another.
     
     Args:
