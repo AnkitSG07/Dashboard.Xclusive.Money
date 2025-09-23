@@ -172,3 +172,40 @@ def test_currency_weekly_symbols_retain_day(monkeypatch):
     assert normalized_consumer == weekly_key
     assert normalized_webhook == weekly_key
     assert metadata["expiry_day"] == 23
+
+
+def test_decimal_strike_normalization(monkeypatch):
+    monkeypatch.setattr(order_consumer, "get_expiry_year", lambda month, day=None: "24")
+    monkeypatch.setattr(webhook_receiver, "get_expiry_year", lambda month, day=None: "24")
+    monkeypatch.setattr(webhook_receiver, "get_lot_size_from_symbol_map", lambda *a, **k: None)
+
+    normalized_day_first = order_consumer.normalize_symbol_to_dhan_format(
+        "USDINR 23 SEP 83.5 CALL"
+    )
+    assert normalized_day_first == "USDINR-23Sep2024-83.50-CE"
+
+    normalized_webhook, webhook_metadata = webhook_receiver.normalize_fo_symbol(
+        "USDINR 23 SEP 83.5 CALL"
+    )
+    assert normalized_webhook == "USDINR-23Sep2024-83.50-CE"
+    assert webhook_metadata["strike"] == 83.5
+
+    normalized_with_year = order_consumer.normalize_symbol_to_dhan_format("USDINR25SEP83.5CE")
+    assert normalized_with_year == "USDINR-Sep2025-83.50-CE"
+
+    normalized_webhook_with_year, metadata_with_year = webhook_receiver.normalize_fo_symbol(
+        "USDINR25SEP83.5CE"
+    )
+    assert normalized_webhook_with_year == "USDINR-Sep2025-83.50-CE"
+    assert metadata_with_year["strike"] == 83.5
+
+    normalized_without_year = order_consumer.normalize_symbol_to_dhan_format(
+        "USDINRSEP83.5CE"
+    )
+    assert normalized_without_year == "USDINR-Sep2024-83.50-CE"
+
+    normalized_webhook_no_year, metadata_no_year = webhook_receiver.normalize_fo_symbol(
+        "USDINRSEP83.5CE"
+    )
+    assert normalized_webhook_no_year == "USDINR-Sep2024-83.50-CE"
+    assert metadata_no_year["strike"] == 83.5
