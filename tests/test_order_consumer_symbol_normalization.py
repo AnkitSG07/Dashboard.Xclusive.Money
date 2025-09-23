@@ -225,6 +225,9 @@ def test_currency_future_without_day_resolves_from_symbol_map(monkeypatch):
     )
     assert mapping["expiry_day"] == 26
 
+    spaced = order_consumer.normalize_symbol_to_dhan_format("USDINR SEP FUT")
+    assert spaced == normalized
+
     second = order_consumer.normalize_symbol_to_dhan_format("USDINRSEPFUT")
     assert second == normalized
     assert len(calls) == 1
@@ -265,3 +268,11 @@ def test_decimal_strike_normalization(monkeypatch):
     )
     assert normalized_webhook_no_year == "USDINR-Sep2024-83.50-CE"
     assert metadata_no_year["strike"] == 83.5
+
+
+def test_equity_future_without_day(monkeypatch):
+    monkeypatch.setattr(order_consumer, "get_expiry_year", lambda month, day=None: "24")
+
+    normalized = order_consumer.normalize_symbol_to_dhan_format("OIL SEP FUT")
+
+    assert normalized == "OIL-Sep2024-FUT"
