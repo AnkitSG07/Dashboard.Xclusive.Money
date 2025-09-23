@@ -10,7 +10,10 @@ import logging
 import re
 from decimal import Decimal, InvalidOperation
 from datetime import date
+from functools import lru_cache
 from typing import Dict, Optional
+
+from brokers import symbol_map
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +91,67 @@ def format_dhan_future_symbol(
     else:
         date_part = f"{month_part}{year}"
     return f"{underlying}-{date_part}-FUT"
+
+
+@lru_cache(maxsize=128)
+def _lookup_currency_future_expiry_day(
+    root: str,
+    month: str,
+    year: str,
+) -> int | None:
+    """Return the expiry *day* for a currency future from the symbol map."""
+
+    if not root or not month or not year:
+        return None
+
+    root_clean = root.strip().upper()
+    month_clean = month.strip().upper()
+    year_clean = str(year).strip()
+
+    if not root_clean.endswith("INR"):
+        return None
+
+    if len(year_clean) == 2:
+        year_clean = f"20{year_clean}"
+
+    try:
+        symbol_map.ensure_symbol_slice(root_clean, None)
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("Could not load symbol slice for %s: %s", root_clean, exc)
+
+    mapping = getattr(symbol_map, "SYMBOL_MAP", {}).get(root_clean)
+    if not mapping:
+        return None
+
+    exchange_aliases = mapping.get(symbol_map.SYMBOLS_KEY, {})
+    day_pattern = re.compile(
+        rf"-([0-9]{{1,2}}){month_clean}{year_clean}-FUT$",
+        re.IGNORECASE,
+    )
+
+    for aliases in exchange_aliases.values():
+        for alias, entry in aliases.items():
+            alias_upper = alias.upper()
+            if not alias_upper.endswith("-FUT"):
+                continue
+            if month_clean not in alias_upper or year_clean not in alias_upper:
+                continue
+
+            dhan_info = (entry or {}).get("dhan", {})
+            expiry_day = dhan_info.get("expiry_day")
+            if isinstance(expiry_day, str) and expiry_day.strip().isdigit():
+                return int(expiry_day)
+            if isinstance(expiry_day, (int, float)):
+                return int(expiry_day)
+
+            match = day_pattern.search(alias_upper)
+            if match:
+                try:
+                    return int(match.group(1))
+                except ValueError:
+                    continue
+
+    return None
 
 
 def _has_derivative_suffix(symbol: str) -> bool:
@@ -434,7 +498,15 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
         root, month = fut_no_year.groups()
         year = get_expiry_year(month)
         full_year = f"20{year}"
-        normalized = format_dhan_future_symbol(root, month, full_year)
+        expiry_day = None
+        if root.upper().endswith("INR"):
+            expiry_day = _lookup_currency_future_expiry_day(root, month, full_year)
+        normalized = format_dhan_future_symbol(
+            root,
+            month,
+            full_year,
+            day=expiry_day,
+        )
         log.info(f"Normalized futures without year from '{sym}' to '{normalized}'")
         return normalized
     
