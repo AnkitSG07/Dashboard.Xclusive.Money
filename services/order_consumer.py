@@ -246,7 +246,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     # Handle already correctly formatted symbols (with hyphens)
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
         pattern = re.compile(
-            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+-(?:CE|PE)|FUT))$',
+            r'^(?P<root>.+?)-(?:(?P<day>\d{1,2}))?(?P<month>[A-Za-z]{3})(?P<year>\d{4})(?P<suffix>-(?:\d+(?:\.\d+)?-(?:CE|PE)|FUT))$',
             re.IGNORECASE,
         )
         match = pattern.match(original_symbol)
@@ -290,7 +290,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     # CRITICAL FIX: Handle day-month format "UNDERLYING DD MON STRIKE TYPE"
     # Pattern 1: Format with day first: "NIFTY 23 SEP 25500 CALL"
     day_first_pattern = re.match(
-        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+)\s+(CALL|PUT|CE|PE)$',
+        r'^([A-Z]+(?:\d+)?)\s+(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d+(?:\.\d+)?)\s+(CALL|PUT|CE|PE)$',
         sym
     )
     if day_first_pattern:
@@ -366,7 +366,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 5: Options with explicit year: FINNIFTY25SEP33300CE
     opt_with_year = re.match(
-        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym
     )
     if opt_with_year:
@@ -386,7 +386,7 @@ def normalize_symbol_to_dhan_format(symbol: str) -> str:
     
     # Pattern 6: Options without explicit year: NIFTYNXT50SEP33300CE
     opt_no_year = re.match(
-        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+)(CE|PE)$',
+        r'^(.+?)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d+(?:\.\d+)?)(CE|PE)$',
         sym
     )
     if opt_no_year:
@@ -479,12 +479,16 @@ def consume_webhook_events(
                     # Update instrument type based on normalized symbol
                     if "-FUT" in normalized_symbol:
                         event["instrument_type"] = "FUTIDX" if "NIFTY" in normalized_symbol else "FUTSTK"
-                    elif re.search(r'-\d+-(CE|PE)$', normalized_symbol):
+                    elif re.search(r'-\d+(?:\.\d+)?-(CE|PE)$', normalized_symbol):
                         event["instrument_type"] = "OPTIDX" if "NIFTY" in normalized_symbol else "OPTSTK"
                         # Extract and set strike price and option type
-                        match = re.search(r'-(\d+)-(CE|PE)$', normalized_symbol)
+                        match = re.search(r'-(\d+(?:\.\d+)?)-(CE|PE)$', normalized_symbol)
                         if match:
-                            event["strike"] = int(match.group(1))
+                            strike_value = match.group(1)
+                            if "." in strike_value:
+                                event["strike"] = float(strike_value)
+                            else:
+                                event["strike"] = int(strike_value)
                             event["option_type"] = match.group(2)
 
             # Handle allowed accounts
