@@ -102,14 +102,14 @@ class BrokerStub:
         return self.orders
 
     def place_order(self, symbol, action, qty, exchange=None, order_type=None, **kwargs):
-        BrokerStub.placed.append(
-            {
-                "client_id": self.client_id,
-                "symbol": symbol,
-                "action": action,
-                "qty": qty,
-            }
-        )
+        record = {
+            "client_id": self.client_id,
+            "symbol": symbol,
+            "action": action,
+            "qty": qty,
+        }
+        record.update(kwargs)
+        BrokerStub.placed.append(record)
 
 
 def fake_get_broker_client(name):
@@ -166,6 +166,58 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
     assert redis.acks == [b"1"]
 
+
+def test_manual_orders_preserve_product_type(monkeypatch):
+    BrokerStub.placed = []
+    order = {
+        "id": "cnc-1",
+        "symbol": "IDEA",
+        "action": "BUY",
+        "qty": 1,
+        "productType": "CNC",
+    }
+    master = SimpleNamespace(
+        client_id="m-cnc",
+        broker="mock",
+        credentials={"access_token": "", "orders": [order]},
+        role="master",
+        user_id=1,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="c-cnc",
+        credentials={},
+        copy_qty=None,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    event = redis.stream[0][1]
+    assert event["product_type"] == "CNC"
+
+    trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=1,
+    )
+
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["product_type"] == "CNC"
 
 
 def test_orders_with_different_identifiers_are_deduplicated(monkeypatch):
