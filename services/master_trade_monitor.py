@@ -334,9 +334,16 @@ def monitor_master_trades(
                     instrument_type = (
                         order.get("instrument_type")
                         or order.get("instrumentType")
-                        or order.get("productType")
                         or order.get("product_type")
                         or order.get("pCode")
+                    )
+
+                    product_type = (
+                        order.get("product_type")
+                        or order.get("productType")
+                        or order.get("pCode")
+                        or order.get("productcode")
+                        or order.get("prodType")
                     )
                     
                     # Additional fields for derivatives
@@ -423,6 +430,7 @@ def monitor_master_trades(
                         "option_type": option_type,
                         "lot_size": lot_size,
                         "price": price,
+                        "product_type": product_type,
                         "order_id": order_id,
                         "order_time": order.get("order_time") or order.get("orderTime") or order.get("trade_time"),
                         "source": "manual_trade_monitor",  # Mark as manual trade
