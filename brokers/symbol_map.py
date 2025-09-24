@@ -938,6 +938,12 @@ def _assemble_symbol_map(
             default_child_symbol = symbol
             aliceblue_symbol = symbol
             fyers_symbol = f"{exchange}:{symbol}"
+
+        aliceblue_symbol_id = token
+        if is_equity and dhan_info:
+            security_id = dhan_info.get("security_id")
+            if security_id:
+                aliceblue_symbol_id = security_id
         
         entry = {
             "zerodha": {
@@ -947,7 +953,7 @@ def _assemble_symbol_map(
                 "lot_size": lot_size
             },
             "aliceblue": {
-                "trading_symbol": aliceblue_symbol,
+                "symbol_id": aliceblue_symbol_id,
                 "symbol_id": token,
                 "exch": exchange,
                 "lot_size": lot_size
