@@ -13,6 +13,8 @@ class RedisStub:
     def __init__(self):
         self.stream = []
         self.acks = []
+        self.sets = {}
+        self.expirations = {}
 
     def xgroup_create(self, *args, **kwargs):
         pass
@@ -30,6 +32,18 @@ class RedisStub:
     def xack(self, stream, group, msg_id):
         self.acks.append(msg_id)
 
+    def smembers(self, key):
+        return self.sets.get(key, set())
+
+    def sadd(self, key, value):
+        existing = self.sets.setdefault(key, set())
+        if isinstance(value, (list, tuple, set)):
+            existing.update(value)
+        else:
+            existing.add(value)
+
+    def expire(self, key, ttl):
+        self.expirations[key] = ttl
 
 class SessionStub:
     def __init__(self, master, children):
@@ -77,9 +91,14 @@ class BrokerStub:
 
     def __init__(self, client_id, token=None, access_token=None, **kwargs):
         self.orders = kwargs.get("orders", [])
+        self.orders_sequence = kwargs.get("orders_sequence")
         self.client_id = client_id
 
     def list_orders(self):
+        if self.orders_sequence is not None:
+            if self.orders_sequence:
+                return self.orders_sequence.pop(0)
+            return []
         return self.orders
 
     def place_order(self, symbol, action, qty, exchange=None, order_type=None, **kwargs):
@@ -146,6 +165,77 @@ def test_manual_orders_are_published_and_copied(monkeypatch):
     assert placed_order["qty"] == 1
     assert placed_order["symbol"] in {"AAPL", "AAPL-EQ"}
     assert redis.acks == [b"1"]
+
+
+
+def test_orders_with_different_identifiers_are_deduplicated(monkeypatch):
+    BrokerStub.placed = []
+    order_time = "2024-05-20T10:00:00"
+    orders_sequence = [
+        [
+            {
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "order_id": None,
+                "orderId": None,
+                "order_time": order_time,
+            }
+        ],
+        [
+            {
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "orderId": "abc-123",
+                "order_time": order_time,
+            }
+        ],
+    ]
+    master = SimpleNamespace(
+        client_id="m-seq",
+        broker="mock",
+        credentials={"access_token": "", "orders_sequence": orders_sequence},
+        role="master",
+        user_id=2,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="c-seq",
+        credentials={},
+        copy_qty=None,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=2, poll_interval=0
+    )
+
+    assert len(redis.stream) == 1
+    processed = trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=5,
+    )
+
+    assert processed == 1
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["client_id"] == "c-seq"
+    assert redis.sets[
+        master_trade_monitor.PROCESSED_ORDERS_KEY.format(master_id="m-seq")
+    ] == {order_time, "abc-123"}
 
 
 def test_manual_order_preserves_bse_suffix_in_event(monkeypatch):
