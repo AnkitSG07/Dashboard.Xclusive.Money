@@ -2821,11 +2821,23 @@ def get_order_book(client_id):
                         if sym_by_token:
                             symbol = sym_by_token
 
+                # Extract order type
+                order_type = (
+                    order.get("orderType")
+                    or order.get("order_type")
+                    or order.get("orderTypeString")
+                    or order.get("Type")
+                    or order.get("type")
+                    or order.get("ordertype")
+                    or order.get("order")
+                    or None
+                )
+
                 # Extract product type
                 product_type = (
                     order.get("productType")
-                    or order.get("product") 
-                    or order.get("Pcode") 
+                    or order.get("product")
+                    or order.get("Pcode")
                     or order.get("prd")
                     or "—"
                 )
@@ -2924,8 +2936,10 @@ def get_order_book(client_id):
                 formatted_order = {
                     "order_id": str(order_id),
                     "side": str(side).upper(),
+                    "transaction_type": str(side).upper(),
                     "status": status,
                     "symbol": str(symbol),
+                    "order_type": str(order_type).upper() if order_type else "—",
                     "product_type": str(product_type),
                     "placed_qty": placed_qty,
                     "filled_qty": filled_qty,
