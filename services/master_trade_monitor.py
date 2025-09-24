@@ -334,7 +334,14 @@ def monitor_master_trades(
                     instrument_type = (
                         order.get("instrument_type")
                         or order.get("instrumentType")
-                        or order.get("product_type")
+                        or order.get("instrument")
+                        or order.get("instType")
+                        or order.get("iType")
+                    )
+
+                    product_type = (
+                        order.get("product_type")
+                        or order.get("product")
                         or order.get("pCode")
                     )
 
