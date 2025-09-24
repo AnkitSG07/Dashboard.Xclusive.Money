@@ -560,12 +560,40 @@ class WebhookEventSchema(Schema):
             if key in data and data[key] is not None and isinstance(data[key], str):
                 data[key] = data[key].upper()
 
-        # Preserve user's exchange selection
-        user_exchange = data.get("exchange")
-        if user_exchange and isinstance(user_exchange, str):
-            user_exchange = user_exchange.upper()
-            data["exchange"] = user_exchange
-            logger.info(f"User specified exchange: {user_exchange}")
+        exchange_preferences: list[str] = []
+
+        def _collect_exchange_values(value):
+            """Normalise exchange selections into uppercase preferences."""
+
+            if value is None:
+                return
+            if isinstance(value, str):
+                choice = value.strip().upper()
+                if not choice:
+                    return
+                if choice == "BOTH":
+                    _collect_exchange_values(["NSE", "BSE"])
+                else:
+                    exchange_preferences.append(choice)
+                return
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    _collect_exchange_values(item)
+                return
+            exchange_preferences.append(str(value).strip().upper())
+
+        _collect_exchange_values(data.get("exchange"))
+
+        if exchange_preferences:
+            # Deduplicate while preserving order so users can control the priority
+            seen = set()
+            exchange_preferences = [
+                exch for exch in exchange_preferences if not (exch in seen or seen.add(exch))
+            ]
+            data["exchange"] = exchange_preferences[0]
+            logger.info(f"User specified exchange options: {exchange_preferences}")
+        else:
+            data.pop("exchange", None)
 
         # Enhanced symbol normalization
         if "symbol" in data and isinstance(data["symbol"], str):
@@ -629,6 +657,78 @@ class WebhookEventSchema(Schema):
                     else:
                         data["exchange"] = "NSE"
                     logger.info(f"Set default exchange to {data.get('exchange')}")
+
+        def _symbol_on_exchange(symbol_value: str, exchange_code: str) -> bool:
+            """Return ``True`` if *symbol_value* is tradable on *exchange_code*."""
+
+            if not symbol_value or not exchange_code:
+                return False
+
+            exchange_code = exchange_code.upper()
+            symbol_value = symbol_value.upper()
+            if ":" in symbol_value:
+                symbol_value = symbol_value.split(":", 1)[1]
+
+            candidates = [symbol_value]
+            if symbol_value.endswith("-EQ"):
+                candidates.append(symbol_value[:-3])
+            else:
+                candidates.append(f"{symbol_value}-EQ")
+
+            checked = set()
+            for candidate in candidates:
+                if not candidate or candidate in checked:
+                    continue
+                checked.add(candidate)
+                try:
+                    mapping = symbol_map.get_symbol_for_broker_lazy(
+                        candidate, "dhan", exchange_code
+                    )
+                    if mapping:
+                        return True
+                except Exception:
+                    logger.debug(
+                        "Exchange availability lookup failed",
+                        extra={"symbol": candidate, "exchange": exchange_code},
+                        exc_info=True,
+                    )
+            return False
+
+        if (
+            exchange_preferences
+            and len(exchange_preferences) > 1
+            and all(exch in {"NSE", "BSE"} for exch in exchange_preferences)
+        ):
+            symbol_value = data.get("symbol")
+            instrument_type = data.get("instrument_type")
+            selected_exchange = None
+
+            if symbol_value and not is_fo_symbol(symbol_value, instrument_type):
+                for preference in exchange_preferences:
+                    if _symbol_on_exchange(symbol_value, preference):
+                        selected_exchange = preference
+                        break
+
+                if selected_exchange is None:
+                    fallbacks = [ex for ex in ("NSE", "BSE") if ex in exchange_preferences]
+                    for fallback in fallbacks:
+                        counterpart = "BSE" if fallback == "NSE" else "NSE"
+                        if counterpart in fallbacks:
+                            continue
+                        if _symbol_on_exchange(symbol_value, counterpart):
+                            selected_exchange = counterpart
+                            break
+
+            if not selected_exchange:
+                selected_exchange = exchange_preferences[0]
+
+            if selected_exchange != data.get("exchange"):
+                logger.info(
+                    "Auto-selected exchange %s for symbol %s",
+                    selected_exchange,
+                    symbol_value,
+                )
+            data["exchange"] = selected_exchange
         
         return data
 
