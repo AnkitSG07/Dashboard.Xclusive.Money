@@ -564,48 +564,123 @@ window.pageScripts["copy-trading"] = function () {
     return undefined;
   }
 
-  function withFallback(value, fallback = '-') {
+  function withFallback(value, fallback = '—') {
     return value === undefined || value === null ? fallback : value;
   }
 
+  function formatOrderStatus(rawStatus) {
+    if (rawStatus === undefined || rawStatus === null) {
+      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+    }
+
+    const statusStr = String(rawStatus).trim();
+    if (!statusStr) {
+      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+    }
+
+    const statusCodeMap = {
+      1: 'Cancelled',
+      2: 'Traded',
+      4: 'In Transit',
+      5: 'Rejected',
+      6: 'Pending',
+      7: 'Expired'
+    };
+
+    const numeric = Number(statusStr);
+    const isNumeric = !Number.isNaN(numeric) && statusStr === String(numeric);
+    const baseLabel = isNumeric ? (statusCodeMap[numeric] || `Status ${statusStr}`) : statusStr.replace(/[_-]+/g, ' ');
+
+    const titleCase = baseLabel
+      .split(/\s+/)
+      .map(word => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ''))
+      .join(' ')
+      .trim() || 'Unknown';
+
+    const upper = baseLabel.toUpperCase();
+    let className = 'bg-primary';
+    if (/REJECT|FAIL|ERROR/.test(upper)) {
+      className = 'bg-danger';
+    } else if (/CANCEL|EXPIRE/.test(upper)) {
+      className = 'bg-secondary';
+    } else if (/TRADE|FILL|COMPLETE|SUCCESS/.test(upper)) {
+      className = 'bg-success';
+    } else if (/PEND|TRANSIT|OPEN|TRIGGER/.test(upper)) {
+      className = 'bg-warning text-dark';
+    }
+
+    const tooltip = isNumeric ? `Broker status code ${statusStr}` : titleCase;
+
+    return { label: titleCase, className, tooltip };
+  }
+
   function orderItemHtml(order) {
-    const status = String(getOrderField(order, ['status']) || '').toUpperCase();
-    const statusClass = status === 'TRADED' ? 'bg-success'
-                     : status === 'REJECTED' ? 'bg-danger'
-                     : 'bg-primary';
-    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym']) || '-';
-    const orderTimeRaw = getOrderField(order, ['order_time', 'order_timestamp', 'created_at', 'exchange_time']);
-    let orderTimeDisplay = '-';
+    const rawStatus = getOrderField(order, ['status', 'order_status', 'report_type', 'status_message', 'statusmessage', 'ord_status']);
+    const { label: statusLabel, className: statusClass, tooltip: statusTooltip } = formatOrderStatus(rawStatus);
+    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym', 'description']) || '—';
+    const orderTimeRaw = getOrderField(order, [
+      'order_time',
+      'order_timestamp',
+      'order_datetime',
+      'orderDateTime',
+      'created_at',
+      'exchange_time',
+      'time',
+      'time_oms',
+      'time_exch',
+      'update_time',
+      'update_time_exch'
+    ]);
+    let orderTimeDisplay = '—';
     if (orderTimeRaw) {
       const parsed = orderTimeRaw instanceof Date ? orderTimeRaw : new Date(orderTimeRaw);
       orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
     }
-    const orderId = getOrderField(order, ['order_id', 'orderid']) || '-';
-    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell']));
-    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity']));
-    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity']));
-    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype']));
-    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg']));
-    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype']));
-    const remarks = withFallback(getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short']));
+    const orderId = getOrderField(order, ['order_id', 'orderid', 'orderId', 'id', 'orderNumber', 'norenordno']) || '—';
+    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell', 'tran_side', 'bs']));
+    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity', 'orderqty', 'orderQty']));
+    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity', 'filledQty', 'traded_qty', 'tradedQuantity']));
+    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']));
+    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg', 'avgPrice', 'tradePrice']));
+    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']));
+    const remarks = withFallback(getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short', 'oms_msg', 'message']));
+
+    const detailItems = [
+      { label: 'Side', value: side },
+      { label: 'Order Type', value: orderType },
+      { label: 'Product', value: productType },
+      { label: 'Placed Qty', value: placedQty },
+      { label: 'Filled Qty', value: filledQty },
+      { label: 'Avg Price', value: avgPrice }
+    ];
+
+    const detailsHtml = detailItems.map(item => `
+        <div class="col">
+          <div class="text-muted text-uppercase small fw-semibold">${escapeHtml(item.label)}</div>
+          <div class="fw-semibold">${escapeHtml(withFallback(item.value))}</div>
+        </div>
+      `).join('');
+
+    const remarksHtml = remarks && remarks !== '—'
+      ? `<div class="mt-3 small"><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
+      : '';
+
     return `
       <div class="list-group-item list-group-item-action py-3">
-        <div class="d-flex w-100 justify-content-between flex-wrap">
-          <h6 class="mb-1">${escapeHtml(symbol)}
-            <span class="badge ${statusClass} ms-2">${escapeHtml(status)}</span>
-          </h6>
-          <small class="text-muted mt-1 mt-md-0">${escapeHtml(orderTimeDisplay)}</small>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+          <div>
+            <h6 class="mb-1">${escapeHtml(symbol)}</h6>
+            <div class="small text-muted">Order ID: ${escapeHtml(orderId)}</div>
+          </div>
+          <div class="text-md-end">
+            <span class="badge ${statusClass}" title="${escapeHtml(statusTooltip)}">${escapeHtml(statusLabel)}</span>
+            <div class="small text-muted mt-1">${escapeHtml(orderTimeDisplay)}</div>
+          </div>
         </div>
-        <p class="mb-1">Order ID: ${escapeHtml(orderId)}
-          | Side: ${escapeHtml(side)}
-          | Qty: ${escapeHtml(placedQty)}
-          / ${escapeHtml(filledQty)}
-          | Type: ${escapeHtml(orderType)}
-          | Avg Price: ${escapeHtml(avgPrice)}
-        </p>
-        <small class="text-muted">Product Type: ${escapeHtml(productType)}
-          | Remarks: ${escapeHtml(remarks)}
-        </small>
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 mt-3">
+          ${detailsHtml}
+        </div>
+        ${remarksHtml}
       </div>
     `;
   }
