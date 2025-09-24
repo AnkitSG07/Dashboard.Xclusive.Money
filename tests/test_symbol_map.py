@@ -58,6 +58,7 @@ def test_lazy_lookup_preserves_bse_series_for_brokers(tmp_path, monkeypatch):
     try:
         aliceblue = get_symbol_for_broker_lazy("IDEA", "aliceblue", "BSE")
         assert aliceblue["trading_symbol"] == "IDEA-A"
+        assert aliceblue["symbol_id"] == "500295"
 
         fyers = get_symbol_for_broker_lazy("IDEA", "fyers", "BSE")
         assert fyers["symbol"] == "BSE:IDEA-A"
