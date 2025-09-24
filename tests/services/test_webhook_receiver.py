@@ -138,6 +138,26 @@ def test_exchange_supports_both_keyword(monkeypatch):
     assert event["exchange"] == "NSE"
 
 
+def test_exchange_accepts_iterables(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+    monkeypatch.setattr(
+        wr.symbol_map,
+        "get_symbol_for_broker_lazy",
+        lambda symbol, broker, exchange: {"lot_size": 1},
+    )
+
+    payload = {
+        "symbol": "IDEA",
+        "action": "buy",
+        "qty": 1,
+        "exchange": ("BSE", "NSE"),
+    }
+
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["exchange"] == "BSE"
+
 def test_bse_equity_lot_size(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
