@@ -253,21 +253,40 @@ def monitor_master_trades(
                         except (ValueError, TypeError):
                             continue
 
-                    # Try multiple possible order ID fields
-                    order_id = (
-                        order.get("id")
-                        or order.get("order_id")
-                        or order.get("orderId")
-                        or order.get("norenordno")  # Finvasia
-                        or order.get("NOrdNo")      # AliceBlue
-                        or order.get("nestOrderNumber")  # AliceBlue
-                        or order.get("orderNumber") # Fyers
-                        or order.get("orderid")     # Flattrade
-                        or order.get("order_time")  # Fallback to timestamp
-                    )
-                    
+                    candidate_id_fields = [
+                        "id",
+                        "order_id",
+                        "orderId",
+                        "orderNumber",
+                        "norenordno",  # Finvasia
+                        "NOrdNo",  # AliceBlue
+                        "nestOrderNumber",  # AliceBlue
+                        "orderid",  # Flattrade
+                        "trade_id",
+                        "exchangeTradeId",
+                        "order_time",
+                        "orderTime",
+                        "trade_time",
+                    ]
+                    candidate_ids = []
+                    for field in candidate_id_fields:
+                        value = order.get(field)
+                        if value is None:
+                            continue
+                        value_str = str(value).strip()
+                        if not value_str:
+                            continue
+                        candidate_ids.append(value_str)
+                    # Preserve order while ensuring uniqueness
+                    candidate_ids = list(dict.fromkeys(candidate_ids))
+                    order_id = candidate_ids[0] if candidate_ids else None
+
                     # Skip orders that were already published
-                    if order_id is not None and str(order_id) in seen:
+                    if candidate_ids and any(candidate in seen for candidate in candidate_ids):
+                        for candidate in candidate_ids:
+                            if candidate not in seen:
+                                seen.add(candidate)
+                                mark_order_processed(master.client_id, candidate)
                         continue
 
                     # Extract order details with multiple field name attempts
@@ -427,9 +446,10 @@ def monitor_master_trades(
                         continue
 
                     # Mark order as processed
-                    if order_id is not None:
-                        seen.add(str(order_id))
-                        mark_order_processed(master.client_id, str(order_id))
+                    for candidate in candidate_ids:
+                        if candidate not in seen:
+                            seen.add(candidate)
+                        mark_order_processed(master.client_id, candidate)
 
                 if new_orders_found > 0:
                     log.info(
