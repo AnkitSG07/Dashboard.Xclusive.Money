@@ -174,6 +174,51 @@ def test_consumer_applies_cash_lot_size(monkeypatch):
     ]
 
 
+def test_consumer_looks_up_cash_lot_size_when_missing(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "SBVCL-EQ",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "exchange": "BSE",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(
+        order_consumer,
+        "_lookup_lot_size_from_symbol_map",
+        lambda *a, **k: 600,
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert MockBroker.orders == [
+        {"symbol": "SBVCL-EQ", "action": "BUY", "qty": 600, "exchange": "BSE", "lot_size": 600}
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "symbol": "SBVCL-EQ",
+                "action": "BUY",
+                "qty": 600,
+                "exchange": "BSE",
+                "lot_size": 600,
+            },
+        )
+    ]
+
+
 def test_consumer_mtf_or_cnc_success(monkeypatch):
     event = {
         "user_id": 1,
