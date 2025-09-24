@@ -220,6 +220,50 @@ def test_manual_orders_preserve_product_type(monkeypatch):
     assert placed_order["product_type"] == "CNC"
 
 
+def test_manual_monitor_refreshes_processed_orders(monkeypatch):
+    """Orders recorded elsewhere mid-run should not be published again."""
+
+    order = {"id": "dup-1", "symbol": "IDEA", "action": "BUY", "qty": 1}
+    master = SimpleNamespace(
+        client_id="master-dup",
+        broker="mock",
+        credentials={
+            "access_token": "",
+            "orders_sequence": [[order], [order]],
+        },
+        role="master",
+        user_id=1,
+    )
+    session = SessionStub(master, [])
+    redis = RedisStub()
+
+    monkeypatch.setattr(
+        master_trade_monitor, "get_broker_client", fake_get_broker_client
+    )
+
+    processed_key = master_trade_monitor.PROCESSED_ORDERS_KEY.format(
+        master_id=master.client_id
+    )
+
+    call_count = {"value": 0}
+
+    async def fake_sleep(_):
+        if call_count["value"] == 0:
+            redis.sadd(processed_key, order["id"])
+        call_count["value"] += 1
+
+    monkeypatch.setattr(master_trade_monitor.asyncio, "sleep", fake_sleep)
+
+    master_trade_monitor.monitor_master_trades(
+        session,
+        redis_client=redis,
+        max_iterations=2,
+        poll_interval=0,
+    )
+
+    assert len(redis.stream) == 1
+
+
 def test_orders_with_different_identifiers_are_deduplicated(monkeypatch):
     BrokerStub.placed = []
     order_time = "2024-05-20T10:00:00"
