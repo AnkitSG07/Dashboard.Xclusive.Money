@@ -25,7 +25,11 @@ from .webhook_receiver import redis_client, get_redis_client
 from .utils import _decode_event
 from .db import get_session
 from models import Strategy, Account
-from .master_trade_monitor import COMPLETED_STATUSES
+from .master_trade_monitor import (
+    COMPLETED_STATUSES,
+    PROCESSED_ORDERS_KEY,
+    PROCESSED_ORDERS_TTL,
+)
 from .fo_symbol_utils import (
     is_fo_symbol,
     format_dhan_option_symbol,
@@ -797,7 +801,19 @@ def consume_webhook_events(
                         )
                     if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
                         raise RuntimeError(f"broker order failed: {result}")
-                    
+
+
+                    try:
+                        redis_key = PROCESSED_ORDERS_KEY.format(master_id=str(client_id))
+                        redis_client.sadd(redis_key, str(order_id))
+                        redis_client.expire(redis_key, PROCESSED_ORDERS_TTL)
+                    except Exception:
+                        log.debug(
+                            "failed to record processed order id",
+                            extra={"master_id": client_id, "order_id": order_id},
+                            exc_info=True,
+                        )
+
                     # Check order status
                     status = None
                     try:
