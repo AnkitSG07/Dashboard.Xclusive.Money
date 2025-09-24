@@ -634,13 +634,45 @@ def _load_dhan_slice(
                     if stripped:
                         keys.add((stripped, exch))
 
+                series = (row.get("SEM_SERIES") or "").strip().upper()
+
+                alias_candidates = []
+                for alias_field in (
+                    "SEM_ALIAS_SYMBOL",
+                    "SEM_ALIAS_NAME",
+                    "SEM_CUSTOM_SYMBOL",
+                ):
+                    alias_value = (row.get(alias_field) or "").strip()
+                    if alias_value and alias_value.upper() != trading_symbol.upper():
+                        alias_candidates.append(alias_value)
+
+                if alias_candidates:
+                    # Ensure stable ordering while removing duplicates
+                    seen_aliases = set()
+                    unique_aliases = []
+                    for alias in alias_candidates:
+                        alias_upper = alias.upper()
+                        if alias_upper in seen_aliases:
+                            continue
+                        seen_aliases.add(alias_upper)
+                        unique_aliases.append(alias)
+                    alias_candidates = unique_aliases
+
                 for key in keys:
-                    if key not in data or row.get("SEM_SERIES", "").upper() == "EQ":
-                        data[key] = {
+                    if key not in data or series == "EQ":
+                        entry = {
                             "security_id": row.get("SEM_SMST_SECURITY_ID", ""),
                             "lot_size": lot_size,
                             "trading_symbol": trading_symbol,
                         }
+
+                        if series:
+                            entry["series"] = series
+
+                        if alias_candidates:
+                            entry["aliases"] = alias_candidates
+
+                        data[key] = entry
             elif exch in {"NSE", "BSE"} and segment == "D":
                 exchange_segment = "NFO" if exch == "NSE" else "BFO"
                 expiry_flag = row.get("SEM_EXPIRY_FLAG", "").strip().upper()
