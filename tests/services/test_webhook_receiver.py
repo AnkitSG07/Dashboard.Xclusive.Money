@@ -158,6 +158,35 @@ def test_exchange_accepts_iterables(monkeypatch):
     event = wr.enqueue_webhook(1, None, payload)
     assert event["exchange"] == "BSE"
 
+
+def test_exchange_accepts_mapping(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    lookups = []
+
+    def fake_lookup(symbol, broker, exchange=None):
+        lookups.append((symbol, exchange))
+        if exchange == "BSE":
+            return {"lot_size": 1}
+        return None
+
+    monkeypatch.setattr(wr.symbol_map, "get_symbol_for_broker_lazy", fake_lookup)
+
+    payload = {
+        "symbol": "IDEA",
+        "action": "buy",
+        "qty": 1,
+        "exchange": {"primary": "NSE", "secondary": "BSE"},
+    }
+
+    event = wr.enqueue_webhook(1, None, payload)
+
+    assert event["exchange"] == "BSE"
+    assert lookups[0][1] == "NSE"
+    assert any(exchange == "BSE" for _, exchange in lookups)
+
 def test_bse_equity_lot_size(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
