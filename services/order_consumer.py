@@ -754,14 +754,42 @@ def consume_webhook_events(
                         calculated_qty,
                     )
 
-                elif lot_size_value is not None:
-                    try:
-                        lot_size_int = int(float(lot_size_value))
-                    except (ValueError, TypeError):
-                        log.error("Invalid lot size provided for cash order")
-                        return None
+                else:
+                    def _normalize_cash_lot_size(raw_value: Any) -> int | None:
+                        try:
+                            value = float(raw_value)
+                        except (TypeError, ValueError):
+                            return None
+                        if value <= 0:
+                            return None
+                        return int(value)
 
-                    if lot_size_int > 1:
+                    lot_size_int = None
+                    if lot_size_value is not None:
+                        lot_size_int = _normalize_cash_lot_size(lot_size_value)
+                        if lot_size_int is None:
+                            log.error("Invalid lot size provided for cash order")
+                            return None
+
+                    looked_up_lot_size = False
+                    if lot_size_int is None or lot_size_int <= 1:
+                        looked_up_lot_size = True
+                        looked_up_value = _lookup_lot_size_from_symbol_map(
+                            converted_symbol,
+                            broker_name,
+                            exchange,
+                            event,
+                            broker_cfg,
+                        )
+                        lot_size_int = _normalize_cash_lot_size(looked_up_value)
+                        if lot_size_int:
+                            log.info(
+                                "Found equity lot size %s for %s from symbol map",
+                                lot_size_int,
+                                converted_symbol,
+                            )
+
+                    if lot_size_int and lot_size_int > 1:
                         try:
                             original_qty = int(float(event["qty"]))
                         except (ValueError, TypeError):
