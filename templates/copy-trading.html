@@ -548,28 +548,59 @@ window.pageScripts["copy-trading"] = function () {
     return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
+  function getOrderField(order, keys) {
+    if (!order || typeof order !== 'object') return undefined;
+    for (const key of keys) {
+      const lower = key.toLowerCase();
+      for (const prop in order) {
+        if (Object.prototype.hasOwnProperty.call(order, prop) && prop.toLowerCase() === lower) {
+          const value = order[prop];
+          if (value !== undefined && value !== null && (String(value).length > 0 || value === 0)) {
+            return value;
+          }
+        }
+      }
+    }
+    return undefined;
+  }
+
   function orderItemHtml(order) {
-    const status = String(order.status || '').toUpperCase();
+    const status = String(getOrderField(order, ['status']) || '').toUpperCase();
     const statusClass = status === 'TRADED' ? 'bg-success'
                      : status === 'REJECTED' ? 'bg-danger'
                      : 'bg-primary';
+    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym']) || '-';
+    const orderTimeRaw = getOrderField(order, ['order_time', 'order_timestamp', 'created_at', 'exchange_time']);
+    let orderTimeDisplay = '-';
+    if (orderTimeRaw) {
+      const parsed = orderTimeRaw instanceof Date ? orderTimeRaw : new Date(orderTimeRaw);
+      orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
+    }
+    const orderId = getOrderField(order, ['order_id', 'orderid']) || '-';
+    const side = getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell']) || '-';
+    const placedQty = getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity']) || '-';
+    const filledQty = getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity']) || '-';
+    const orderType = getOrderField(order, ['order_type', 'type', 'ordertype']) || '-';
+    const avgPrice = getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg']) || '-';
+    const productType = getOrderField(order, ['product_type', 'product', 'producttype']) || '-';
+    const remarks = getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short']) || '-';
     return `
       <div class="list-group-item list-group-item-action py-3">
         <div class="d-flex w-100 justify-content-between flex-wrap">
-          <h6 class="mb-1">${escapeHtml(order.symbol || '-')}
+          <h6 class="mb-1">${escapeHtml(symbol)}
             <span class="badge ${statusClass} ms-2">${escapeHtml(status)}</span>
           </h6>
-          <small class="text-muted mt-1 mt-md-0">${order.order_time ? new Date(order.order_time).toLocaleString() : '-'}</small>
+          <small class="text-muted mt-1 mt-md-0">${escapeHtml(orderTimeDisplay)}</small>
         </div>
-        <p class="mb-1">Order ID: ${escapeHtml(order.order_id || '-')}
-          | Side: ${escapeHtml(order.side || '-')}
-          | Qty: ${escapeHtml(order.placed_qty || '-')}
-          / ${escapeHtml(order.filled_qty || '-')}
-          | Type: ${escapeHtml(order.order_type || order.type || '-')}
-          | Avg Price: ${escapeHtml(order.avg_price || '-')}
+        <p class="mb-1">Order ID: ${escapeHtml(orderId)}
+          | Side: ${escapeHtml(side)}
+          | Qty: ${escapeHtml(placedQty)}
+          / ${escapeHtml(filledQty)}
+          | Type: ${escapeHtml(orderType)}
+          | Avg Price: ${escapeHtml(avgPrice)}
         </p>
-        <small class="text-muted">Product Type: ${escapeHtml(order.product_type || '-')}
-          | Remarks: ${escapeHtml(order.remarks || '-')}
+        <small class="text-muted">Product Type: ${escapeHtml(productType)}
+          | Remarks: ${escapeHtml(remarks)}
         </small>
       </div>
     `;
