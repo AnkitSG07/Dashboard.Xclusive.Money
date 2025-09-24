@@ -587,6 +587,8 @@ class WebhookEventSchema(Schema):
 
         exchange_preferences: list[str] = []
 
+        raw_exchange_backup = data.pop("_raw_exchange", None)
+
         def _collect_exchange_values(value):
             """Normalise exchange selections into uppercase preferences."""
 
@@ -607,6 +609,7 @@ class WebhookEventSchema(Schema):
                 return
             exchange_preferences.append(str(value).strip().upper())
 
+        _collect_exchange_values(raw_exchange_backup)
         _collect_exchange_values(data.get("exchange"))
 
         if exchange_preferences:
@@ -785,6 +788,27 @@ def enqueue_webhook(
     event = dict(payload)
     event["user_id"] = user_id
     event["strategy_id"] = strategy_id
+
+    raw_exchange_selection = event.get("exchange")
+    if isinstance(raw_exchange_selection, dict):
+        raw_options = list(raw_exchange_selection.values())
+    elif isinstance(raw_exchange_selection, (list, tuple, set)):
+        raw_options = list(raw_exchange_selection)
+    else:
+        raw_options = None
+
+    if raw_options is not None:
+        event["_raw_exchange"] = raw_options
+        for option in raw_options:
+            if option is None:
+                continue
+            text = str(option).strip()
+            if text:
+                event["exchange"] = text
+                break
+        else:
+            event["exchange"] = None
+
 
     schema = WebhookEventSchema()
     validated = schema.load(event)
