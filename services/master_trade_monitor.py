@@ -234,11 +234,17 @@ def monitor_master_trades(
                         )
                     continue
 
-                # Load previously processed orders for this master
-                if master.client_id not in seen_order_ids:
-                    seen_order_ids[master.client_id] = load_processed_orders(master.client_id)
-
-                seen = seen_order_ids[master.client_id]
+                # Load previously processed orders for this master. Refresh the
+                # in-memory cache on every iteration so that orders recorded by
+                # other services (e.g. the webhook consumer) are taken into
+                # account immediately.  Previously we only loaded this data the
+                # first time a master was encountered which meant subsequent
+                # iterations missed freshly processed order IDs and resulted in
+                # duplicate trade events being published.
+                latest_processed = load_processed_orders(master.client_id)
+                seen = seen_order_ids.setdefault(master.client_id, set())
+                if latest_processed:
+                    seen.update(latest_processed)
                 new_orders_found = 0
                 
                 for order in orders:
