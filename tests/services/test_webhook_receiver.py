@@ -87,6 +87,57 @@ def test_symbol_preserves_existing_suffix(monkeypatch):
     assert event["exchange"] == "BSE"
 
 
+def test_exchange_auto_falls_back_to_bse(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {
+        "symbol": "SBVCL",
+        "action": "buy",
+        "qty": 1,
+        "exchange": ["NSE", "BSE"],
+    }
+
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == "SBVCL-EQ"
+    assert event["exchange"] == "BSE"
+
+
+def test_exchange_respects_preference_order(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {
+        "symbol": "IDEA",
+        "action": "buy",
+        "qty": 1,
+        "exchange": ["BSE", "NSE"],
+    }
+
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == "IDEA-EQ"
+    assert event["exchange"] == "BSE"
+
+
+def test_exchange_supports_both_keyword(monkeypatch):
+    stub = StubRedis()
+    monkeypatch.setattr(wr, "redis_client", stub)
+    monkeypatch.setattr(wr, "check_duplicate_and_risk", lambda e: True)
+
+    payload = {
+        "symbol": "IDEA",
+        "action": "buy",
+        "qty": 1,
+        "exchange": "BOTH",
+    }
+
+    event = wr.enqueue_webhook(1, None, payload)
+    assert event["symbol"] == "IDEA-EQ"
+    assert event["exchange"] == "NSE"
+
+
 def test_bse_equity_lot_size(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
