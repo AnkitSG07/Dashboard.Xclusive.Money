@@ -489,6 +489,31 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     return sym, metadata
 
 
+
+
+class FlexibleExchangeField(fields.Str):
+    """String field that also accepts iterables of exchange codes.
+
+    TradingView can emit ``exchange`` as either a single string value or a
+    collection (typically ``["NSE", "BSE"]``). ``fields.Str`` rejects
+    iterables outright, resulting in the ``"Not a valid string"`` validation
+    error users reported. The webhook pre-processing code normalises the
+    preferences, so here we only need to coerce the first non-empty item when an
+    iterable is supplied.
+    """
+
+    def _deserialize(self, value, attr, data, **kwargs):  # type: ignore[override]
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                if item is None:
+                    continue
+                text = str(item).strip()
+                if text:
+                    return super()._deserialize(text, attr, data, **kwargs)
+            return None
+        return super()._deserialize(value, attr, data, **kwargs)
+
+
 class WebhookEventSchema(Schema):
     """Schema for validating webhook events."""
 
@@ -497,7 +522,7 @@ class WebhookEventSchema(Schema):
     symbol = fields.Str(required=True)
     action = fields.Str(required=True)
     qty = fields.Int(required=True)
-    exchange = fields.Str(allow_none=True)
+    exchange = FlexibleExchangeField(allow_none=True)
     order_type = fields.Str(allow_none=True)
     alert_id = fields.Str(allow_none=True)
     # Broker specific fields
