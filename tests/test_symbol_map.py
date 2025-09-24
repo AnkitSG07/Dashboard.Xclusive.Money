@@ -68,6 +68,48 @@ def test_lazy_lookup_preserves_bse_series_for_brokers(tmp_path, monkeypatch):
         sm._load_dhan.cache_clear()
 
 
+def test_aliceblue_bse_equity_without_series_uses_plain_symbol(
+    tmp_path, monkeypatch
+):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "1,BSE,IDEA,BSE,EQ,1\n"
+    )
+    dhan_csv = (
+        "SEM_SMST_SECURITY_ID,SEM_TRADING_SYMBOL,SEM_CUSTOM_SYMBOL,"
+        "SEM_EXM_EXCH_ID,SEM_SEGMENT,SEM_SERIES,SEM_LOT_UNITS\n"
+        "500295,IDEA,,BSE,E,EQ,1\n"
+    )
+
+    zerodha_file = tmp_path / "zerodha.csv"
+    dhan_file = tmp_path / "dhan.csv"
+    zerodha_file.write_text(zerodha_csv)
+    dhan_file.write_text(dhan_csv)
+
+    def fake_ensure_cached_csv(url: str, cache_name: str):
+        if "kite" in url:
+            return zerodha_file
+        assert "dhan" in url
+        return dhan_file
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        aliceblue = get_symbol_for_broker_lazy("IDEA", "aliceblue", "BSE")
+        assert aliceblue["trading_symbol"] == "IDEA"
+        assert aliceblue["symbol_id"] == "500295"
+    finally:
+        sm.SYMBOL_MAP = original_map
+        sm._load_zerodha.cache_clear()
+        sm._load_dhan.cache_clear()
+
+
 def test_get_symbol_by_token_zerodha_uses_cached_csv(tmp_path, monkeypatch):
     import brokers.symbol_map as sm
 
