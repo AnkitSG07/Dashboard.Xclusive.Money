@@ -931,9 +931,13 @@ def _assemble_symbol_map(
             default_child_symbol = f"{symbol}-EQ"
             aliceblue_symbol = default_child_symbol
             fyers_symbol = f"{exchange}:{symbol}-EQ"
-            if bse_series:
-                aliceblue_symbol = f"{symbol}-{bse_series}"
-                fyers_symbol = f"{exchange}:{symbol}-{bse_series}"
+            if exchange == "BSE":
+                fyers_symbol = f"{exchange}:{symbol}"
+                if bse_series:
+                    aliceblue_symbol = f"{symbol}-{bse_series}"
+                    fyers_symbol = f"{exchange}:{symbol}-{bse_series}"
+                else:
+                    aliceblue_symbol = symbol
         else:
             default_child_symbol = symbol
             aliceblue_symbol = symbol
@@ -954,7 +958,7 @@ def _assemble_symbol_map(
             },
             "aliceblue": {
                 "symbol_id": aliceblue_symbol_id,
-                "symbol_id": token,
+                "trading_symbol": aliceblue_symbol,
                 "exch": exchange,
                 "lot_size": lot_size
             },
