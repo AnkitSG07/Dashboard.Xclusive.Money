@@ -564,6 +564,10 @@ window.pageScripts["copy-trading"] = function () {
     return undefined;
   }
 
+  function withFallback(value, fallback = '-') {
+    return value === undefined || value === null ? fallback : value;
+  }
+
   function orderItemHtml(order) {
     const status = String(getOrderField(order, ['status']) || '').toUpperCase();
     const statusClass = status === 'TRADED' ? 'bg-success'
@@ -577,13 +581,13 @@ window.pageScripts["copy-trading"] = function () {
       orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
     }
     const orderId = getOrderField(order, ['order_id', 'orderid']) || '-';
-    const side = getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell']) || '-';
-    const placedQty = getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity']) || '-';
-    const filledQty = getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity']) || '-';
-    const orderType = getOrderField(order, ['order_type', 'type', 'ordertype']) || '-';
-    const avgPrice = getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg']) || '-';
-    const productType = getOrderField(order, ['product_type', 'product', 'producttype']) || '-';
-    const remarks = getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short']) || '-';
+    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell']));
+    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity']));
+    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity']));
+    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype']));
+    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg']));
+    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype']));
+    const remarks = withFallback(getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short']));
     return `
       <div class="list-group-item list-group-item-action py-3">
         <div class="d-flex w-100 justify-content-between flex-wrap">
