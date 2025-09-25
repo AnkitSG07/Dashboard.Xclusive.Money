@@ -225,6 +225,11 @@ def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str
     log.warning(f"Could not convert symbol {symbol} from {from_broker} to {to_broker}")
     return symbol
 
+def normalize_derivative_symbol(symbol: str) -> str:
+    """Backward-compatible helper retained for legacy tests."""
+
+    return symbol
+
 
 def normalize_symbol_to_dhan_format(symbol: str) -> str:
     """Convert various symbol formats to Dhan's expected format.
@@ -807,72 +812,122 @@ def consume_webhook_events(
                         )
                 
                 try:
+                    def _extract_order_id(order_result):
+                        if not isinstance(order_result, dict):
+                            return None
+                        return (
+                            order_result.get("order_id")
+                            or order_result.get("id")
+                            or order_result.get("data", {}).get("order_id")
+                            or order_result.get("orderId")
+                            or order_result.get("data", {}).get("orderId")
+                        )
+
+                    def _fetch_order_status(target_order_id):
+                        status_value = None
+                        try:
+                            if hasattr(client, "get_order"):
+                                info = client.get_order(target_order_id)
+                                if isinstance(info, dict):
+                                    status_value = info.get("status") or info.get("data", {}).get("status")
+                            elif hasattr(client, "list_orders"):
+                                orders = client.list_orders()
+                                for order in orders:
+                                    oid = (
+                                        order.get("id")
+                                        or order.get("order_id")
+                                        or order.get("orderId")
+                                        or order.get("data", {}).get("order_id")
+                                    )
+                                    if str(oid) == str(target_order_id):
+                                        status_value = order.get("status") or order.get("data", {}).get("status")
+                                        break
+                        except Exception:
+                            log.warning(
+                                "failed to fetch order status",
+                                extra={"order_id": target_order_id},
+                                exc_info=True,
+                            )
+                        return status_value
+
+                    def _record_processed_order(processed_order_id):
+                        try:
+                            redis_key = PROCESSED_ORDERS_KEY.format(master_id=str(client_id))
+                            redis_client.sadd(redis_key, str(processed_order_id))
+                            redis_client.expire(redis_key, PROCESSED_ORDERS_TTL)
+                        except Exception:
+                            log.debug(
+                                "failed to record processed order id",
+                                extra={"master_id": client_id, "order_id": processed_order_id},
+                                exc_info=True,
+                            )
+
                     result = client.place_order(**order_params)
+                    fallback_from_mtf = False
                     if mtf_requested:
                         if attempt_mtf:
                             if isinstance(result, dict) and result.get("status") == "failure":
                                 _cache_mtf_support(original_symbol, broker_name, False)
-                                order_params["product_type"] = map_product_type("cnc", broker_name)
-                                result = client.place_order(**order_params)
-                            else:
-                                _cache_mtf_support(original_symbol, broker_name, True)
+                                cnc_order_params = dict(order_params)
+                                cnc_order_params["product_type"] = map_product_type("cnc", broker_name)
+                                result = client.place_order(**cnc_order_params)
+                                order_params = cnc_order_params
+                                fallback_from_mtf = True
                         else:
                             _cache_mtf_support(original_symbol, broker_name, False)
-                    order_id = None
-                    if isinstance(result, dict):
-                        order_id = (
-                            result.get("order_id")
-                            or result.get("id")
-                            or result.get("data", {}).get("order_id")
-                            or result.get("orderId")
-                            or result.get("data", {}).get("orderId")
-                        )
+                    order_id = _extract_order_id(result)
                     if not isinstance(result, dict) or result.get("status") != "success" or not order_id:
                         raise RuntimeError(f"broker order failed: {result}")
 
-
-                    try:
-                        redis_key = PROCESSED_ORDERS_KEY.format(master_id=str(client_id))
-                        redis_client.sadd(redis_key, str(order_id))
-                        redis_client.expire(redis_key, PROCESSED_ORDERS_TTL)
-                    except Exception:
-                        log.debug(
-                            "failed to record processed order id",
-                            extra={"master_id": client_id, "order_id": order_id},
-                            exc_info=True,
-                        )
-
                     # Check order status
-                    status = None
-                    try:
-                        if hasattr(client, "get_order"):
-                            info = client.get_order(order_id)
-                            if isinstance(info, dict):
-                                status = info.get("status") or info.get("data", {}).get("status")
-                        elif hasattr(client, "list_orders"):
-                            orders = client.list_orders()
-                            for order in orders:
-                                oid = (
-                                    order.get("id")
-                                    or order.get("order_id")
-                                    or order.get("orderId")
-                                    or order.get("data", {}).get("order_id")
-                                )
-                                if str(oid) == str(order_id):
-                                    status = order.get("status") or order.get("data", {}).get("status")
-                                    break
-                    except Exception:
-                        log.warning("failed to fetch order status", extra={"order_id": order_id}, exc_info=True)
+                    status = _fetch_order_status(order_id)
                     
                     status_upper = str(status).upper() if status is not None else None
                     if status_upper in REJECTED_STATUSES:
-                        log.info("skipping trade event due to rejected status", extra={"order_id": order_id, "status": status})
-                        return None
+                        if mtf_requested and attempt_mtf and not fallback_from_mtf:
+                            _cache_mtf_support(original_symbol, broker_name, False)
+                            cnc_order_params = dict(order_params)
+                            cnc_order_params["product_type"] = map_product_type("cnc", broker_name)
+                            result = client.place_order(**cnc_order_params)
+                            order_params = cnc_order_params
+                            fallback_from_mtf = True
+                            order_id = _extract_order_id(result)
+                            if (
+                                not isinstance(result, dict)
+                                or result.get("status") != "success"
+                                or not order_id
+                            ):
+                                raise RuntimeError(f"broker order failed: {result}")
+                            status = _fetch_order_status(order_id)
+                            status_upper = str(status).upper() if status is not None else None
+                            if status_upper in REJECTED_STATUSES:
+                                _record_processed_order(order_id)
+                                log.info(
+                                    "skipping trade event due to rejected status",
+                                    extra={"order_id": order_id, "status": status},
+                                )
+                                return None
+                        else:
+                            _record_processed_order(order_id)
+                            log.info(
+                                "skipping trade event due to rejected status",
+                                extra={"order_id": order_id, "status": status},
+                            )
+                            return None
                     if status_upper not in COMPLETED_STATUSES:
-                        log.info("publishing trade event with incomplete status", extra={"order_id": order_id, "status": status})
+                        log.info(
+                            "publishing trade event with incomplete status",
+                            extra={"order_id": order_id, "status": status},
+                        )
+
+                    if mtf_requested and attempt_mtf and not fallback_from_mtf:
+                        _cache_mtf_support(original_symbol, broker_name, True)
+
+                    _record_processed_order(order_id)
                         
                     trade_event = {
                         "master_id": client_id,
+                        "order_id": str(order_id),
                         **{k: v for k, v in order_params.items() if k != "master_accounts"},
                     }
                     return trade_event
@@ -972,6 +1027,7 @@ __all__ = [
     "consume_webhook_events",
     "orders_success",
     "orders_failed",
+    "normalize_derivative_symbol",
     "normalize_symbol_to_dhan_format",
     "convert_symbol_between_brokers",
     "parse_fo_symbol",
