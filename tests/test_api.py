@@ -1696,16 +1696,26 @@ def test_account_to_dict_filters_broker_logs(client):
             module="system",
             details={"client_id": "X2"},
         )
-        db.session.add_all([copy_log, broker_log, system_log])
+        noisy_system_log = SystemLog(
+            level="ERROR",
+            message="Order failed: Ok",
+            user_id=str(user.id),
+            module="system",
+            details={"client_id": "X2"},
+        )
+
+        db.session.add_all([copy_log, broker_log, system_log, noisy_system_log])
         db.session.commit()
 
         result = app_module._account_to_dict(acc)
         assert "copy issue" in result["errors"]
         assert "broker issue" in result["errors"]
+        assert "Order failed: Ok" in result["errors"]
         assert "system issue" in result["system_errors"]
         assert "system issue" not in result["errors"]
         assert "broker issue" not in result["system_errors"]
         assert "copy issue" not in result["system_errors"]
+        assert "Order failed: Ok" not in result["system_errors"]
 
 def test_broker_api_does_not_pass_duplicate_client_id(monkeypatch):
     app = app_module.app
