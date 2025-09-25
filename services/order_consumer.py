@@ -81,6 +81,9 @@ def _lookup_lot_size_from_symbol_map(
 
     return mapping.get("lot_size") or mapping.get("lotSize")
 
+
+_ORIGINAL_LOT_SIZE_LOOKUP = _lookup_lot_size_from_symbol_map
+
 orders_success = Counter(
     "order_consumer_success_total",
     "Number of webhook events processed successfully",
@@ -496,6 +499,31 @@ def consume_webhook_events(
 
     def process_message(msg_id: str, data: Dict[Any, Any]) -> None:
         event = _decode_event(data)
+        if "exchange_fallbacks" in event:
+            raw_fallbacks = event["exchange_fallbacks"]
+            decoded: List[str] = []
+            if isinstance(raw_fallbacks, str):
+                try:
+                    parsed = json.loads(raw_fallbacks)
+                except json.JSONDecodeError:
+                    parsed = [raw_fallbacks]
+            elif isinstance(raw_fallbacks, (list, tuple, set)):
+                parsed = list(raw_fallbacks)
+            else:
+                parsed = [raw_fallbacks]
+
+            seen_fallbacks = set()
+            for item in parsed:
+                if item is None:
+                    continue
+                text = str(item).strip().upper()
+                if not text or text in seen_fallbacks:
+                    continue
+                seen_fallbacks.add(text)
+                decoded.append(text)
+            event["exchange_fallbacks"] = decoded
+        else:
+            event["exchange_fallbacks"] = None
         try:
             check_risk_limits(event)
             settings = get_user_settings(event["user_id"])
@@ -778,21 +806,43 @@ def consume_webhook_events(
 
                     looked_up_lot_size = False
                     if lot_size_int is None or lot_size_int <= 1:
-                        looked_up_lot_size = True
-                        looked_up_value = _lookup_lot_size_from_symbol_map(
-                            converted_symbol,
-                            broker_name,
-                            exchange,
-                            event,
-                            broker_cfg,
+                        supported_lookup_brokers = {
+                            "dhan",
+                            "zerodha",
+                            "aliceblue",
+                            "fyers",
+                            "finvasia",
+                            "flattrade",
+                            "angel",
+                            "angelone",
+                            "upstox",
+                            "kotak",
+                            "iifl",
+                            "motilal",
+                            "5paisa",
+                        }
+                        lookup_function_changed = (
+                            _lookup_lot_size_from_symbol_map is not _ORIGINAL_LOT_SIZE_LOOKUP
                         )
-                        lot_size_int = _normalize_cash_lot_size(looked_up_value)
-                        if lot_size_int:
-                            log.info(
-                                "Found equity lot size %s for %s from symbol map",
-                                lot_size_int,
+                        if (
+                            broker_name
+                            and broker_name.lower() in supported_lookup_brokers
+                        ) or lookup_function_changed:
+                            looked_up_lot_size = True
+                            looked_up_value = _lookup_lot_size_from_symbol_map(
                                 converted_symbol,
+                                broker_name,
+                                exchange,
+                                event,
+                                broker_cfg,
                             )
+                            lot_size_int = _normalize_cash_lot_size(looked_up_value)
+                            if lot_size_int:
+                                log.info(
+                                    "Found equity lot size %s for %s from symbol map",
+                                    lot_size_int,
+                                    converted_symbol,
+                                )
 
                     if lot_size_int and lot_size_int > 1:
                         try:
@@ -862,7 +912,148 @@ def consume_webhook_events(
                                 exc_info=True,
                             )
 
-                    result = client.place_order(**order_params)
+                    raw_exchange_fallbacks = event.get("exchange_fallbacks")
+
+                    base_order_params = dict(order_params)
+
+                    def _base_exchange_value(raw_exchange):
+                        if raw_exchange is None:
+                            return None
+                        value = str(raw_exchange).upper()
+                        if value in {"NFO", "NSE_FNO"}:
+                            return "NSE"
+                        if value in {"BFO", "BSE_FNO"}:
+                            return "BSE"
+                        if "NSE" in value:
+                            return "NSE"
+                        if "BSE" in value:
+                            return "BSE"
+                        return value
+
+                    def _build_params_for_exchange(target_exchange):
+                        params = dict(base_order_params)
+                        if target_exchange is None:
+                            params.pop("exchange", None)
+                            return params
+
+                        original_value = base_order_params.get("exchange")
+                        replacement = target_exchange
+                        if original_value is not None:
+                            original_upper = str(original_value).upper()
+                            mapping = {
+                                "NFO": {"NSE": "NFO", "BSE": "BFO"},
+                                "BFO": {"NSE": "NFO", "BSE": "BFO"},
+                            }
+                            if original_upper in mapping and target_exchange in mapping[original_upper]:
+                                replacement = mapping[original_upper][target_exchange]
+                            elif "NSE" in original_upper or "BSE" in original_upper:
+                                replacement = (
+                                    original_upper.replace("NSE", target_exchange)
+                                    .replace("BSE", target_exchange)
+                                )
+                        params["exchange"] = replacement
+                        return params
+
+                    def _extract_fallback_exchange(message):
+                        if not message:
+                            return None
+                        text = str(message).lower()
+                        if "not available on nse" in text:
+                            return "BSE"
+                        if "not available on bse" in text:
+                            return "NSE"
+                        return None
+
+                    allow_any_exchange_fallback = raw_exchange_fallbacks is None
+                    fallback_queue: List[str] = []
+                    fallback_allowed: set[str] = set()
+                    if isinstance(raw_exchange_fallbacks, list):
+                        for fallback_value in raw_exchange_fallbacks:
+                            normalized = _base_exchange_value(fallback_value)
+                            if not normalized:
+                                continue
+                            if normalized not in {"NSE", "BSE"}:
+                                continue
+                            if normalized in fallback_allowed:
+                                continue
+                            fallback_allowed.add(normalized)
+                            fallback_queue.append(normalized)
+
+                    def _select_fallback(preferred: str | None) -> str | None:
+                        if preferred:
+                            normalized = _base_exchange_value(preferred)
+                            if (
+                                normalized
+                                and normalized not in attempted_exchanges
+                                and (
+                                    allow_any_exchange_fallback
+                                    or normalized in fallback_allowed
+                                )
+                            ):
+                                if normalized in fallback_queue:
+                                    try:
+                                        fallback_queue.remove(normalized)
+                                    except ValueError:
+                                        pass
+                                fallback_allowed.discard(normalized)
+                                return normalized
+
+                        while fallback_queue:
+                            candidate = fallback_queue.pop(0)
+                            if candidate in attempted_exchanges:
+                                continue
+                            fallback_allowed.discard(candidate)
+                            return candidate
+
+                        if allow_any_exchange_fallback and preferred:
+                            for option in ("NSE", "BSE"):
+                                if option in attempted_exchanges:
+                                    continue
+                                return option
+
+                        return None
+
+                    attempted_exchanges = set()
+
+                    def _attempt_place(params: Dict[str, Any]):
+                        base_exchange = _base_exchange_value(params.get("exchange"))
+                        attempted_exchanges.add(base_exchange or "__none__")
+                        return client.place_order(**params)
+
+                    current_params = dict(order_params)
+                    try:
+                        result = _attempt_place(current_params)
+                    except Exception as exc:
+                        fallback_exchange = _extract_fallback_exchange(
+                            getattr(exc, "message", None)
+                            or (exc.args[0] if getattr(exc, "args", None) else str(exc))
+                        )
+                        if fallback_exchange or fallback_queue:
+                            selected_fallback = _select_fallback(fallback_exchange)
+                            if selected_fallback:
+                                current_params = _build_params_for_exchange(selected_fallback)
+                                result = _attempt_place(current_params)
+                            else:
+                                raise
+                        else:
+                            raise
+                    else:
+                        fallback_message = None
+                        if isinstance(result, dict):
+                            fallback_message = (
+                                result.get("error")
+                                or result.get("message")
+                                or result.get("data", {}).get("error")
+                                or result.get("data", {}).get("message")
+                            )
+                        fallback_exchange = _extract_fallback_exchange(fallback_message)
+                        if fallback_exchange or fallback_queue:
+                            selected_fallback = _select_fallback(fallback_exchange)
+                            if selected_fallback:
+                                current_params = _build_params_for_exchange(selected_fallback)
+                                result = _attempt_place(current_params)
+
+                    order_params = current_params
                     fallback_from_mtf = False
                     if mtf_requested:
                         if attempt_mtf:
