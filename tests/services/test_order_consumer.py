@@ -175,6 +175,186 @@ def test_consumer_applies_cash_lot_size(monkeypatch):
     ]
 
 
+def test_consumer_falls_back_to_bse_when_nse_unavailable(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "RELIANCE",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "exchange": "NSE",
+        "exchange_fallbacks": "[\"BSE\"]",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    class FallbackBroker:
+        orders = []
+        call_count = 0
+
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+            self.access_token = access_token
+
+        def place_order(self, **order):
+            type(self).orders.append(order)
+            type(self).call_count += 1
+            if type(self).call_count == 1:
+                raise ValueError(
+                    "DhanBroker: symbol RELIANCE is not available on NSE. Please choose a different exchange or instrument."
+                )
+            return {"status": "success", "order_id": "99"}
+
+        def get_order(self, order_id):
+            return {"status": "COMPLETE"}
+
+    FallbackBroker.orders = []
+    FallbackBroker.call_count = 0
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: FallbackBroker)
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert FallbackBroker.orders == [
+        {"symbol": "RELIANCE", "action": "BUY", "qty": 1, "exchange": "NSE"},
+        {"symbol": "RELIANCE", "action": "BUY", "qty": 1, "exchange": "BSE"},
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "order_id": "99",
+                "symbol": "RELIANCE",
+                "action": "BUY",
+                "qty": 1,
+                "exchange": "BSE",
+            },
+        )
+    ]
+
+
+def test_consumer_falls_back_to_nse_when_bse_unavailable(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "RELIANCE",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "exchange": "BSE",
+        "exchange_fallbacks": "[\"NSE\"]",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    class FallbackBroker:
+        orders = []
+        call_count = 0
+
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+            self.access_token = access_token
+
+        def place_order(self, **order):
+            type(self).orders.append(order)
+            type(self).call_count += 1
+            if type(self).call_count == 1:
+                return {
+                    "status": "failure",
+                    "order_id": None,
+                    "error": "DhanBroker: symbol RELIANCE is not available on BSE. Please choose a different exchange or instrument.",
+                }
+            return {"status": "success", "order_id": "42"}
+
+        def get_order(self, order_id):
+            return {"status": "COMPLETE"}
+
+    FallbackBroker.orders = []
+    FallbackBroker.call_count = 0
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: FallbackBroker)
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert FallbackBroker.orders == [
+        {"symbol": "RELIANCE", "action": "BUY", "qty": 1, "exchange": "BSE"},
+        {"symbol": "RELIANCE", "action": "BUY", "qty": 1, "exchange": "NSE"},
+    ]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "order_id": "42",
+                "symbol": "RELIANCE",
+                "action": "BUY",
+                "qty": 1,
+                "exchange": "NSE",
+            },
+        )
+    ]
+
+
+def test_consumer_respects_absence_of_exchange_fallback(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "RELIANCE",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "exchange": "NSE",
+        "exchange_fallbacks": "[]",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    class SingleExchangeBroker:
+        orders = []
+
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+            self.access_token = access_token
+
+        def place_order(self, **order):
+            type(self).orders.append(order)
+            raise ValueError(
+                "DhanBroker: symbol RELIANCE is not available on NSE. Please choose a different exchange or instrument."
+            )
+
+        def get_order(self, order_id):
+            return {"status": "COMPLETE"}
+
+    SingleExchangeBroker.orders = []
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: SingleExchangeBroker)
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert SingleExchangeBroker.orders == [
+        {"symbol": "RELIANCE", "action": "BUY", "qty": 1, "exchange": "NSE"}
+    ]
+    assert stub.added == []
+    assert order_consumer.orders_success._value.get() == 0
+    assert order_consumer.orders_failed._value.get() == 2
+
 def test_consumer_looks_up_cash_lot_size_when_missing(monkeypatch):
     event = {
         "user_id": 1,
