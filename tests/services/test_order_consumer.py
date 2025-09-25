@@ -164,6 +164,7 @@ def test_consumer_applies_cash_lot_size(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "SBVCL-EQ",
                 "action": "BUY",
                 "qty": 600,
@@ -209,6 +210,7 @@ def test_consumer_looks_up_cash_lot_size_when_missing(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "SBVCL-EQ",
                 "action": "BUY",
                 "qty": 600,
@@ -257,6 +259,7 @@ def test_consumer_mtf_or_cnc_success(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -316,6 +319,80 @@ def test_consumer_mtf_or_cnc_falls_back_on_failure(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "2",
+                "symbol": "AAPL",
+                "action": "BUY",
+                "qty": 1,
+                "product_type": "CNC",
+            },
+        )
+    ]
+
+
+def test_consumer_mtf_or_cnc_falls_back_on_rejected_status(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "productType": "mtf_or_cnc",
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", lambda e: True)
+
+    def settings(_: int):
+        return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    monkeypatch.setattr(order_consumer, "is_mtf_supported", lambda symbol, broker: None)
+    cached = []
+
+    def record_cache(symbol, broker, supported):
+        cached.append((symbol, broker, supported))
+
+    monkeypatch.setattr(order_consumer, "_cache_mtf_support", record_cache)
+
+    class RejectingBroker:
+        orders = []
+        statuses = {}
+        counter = 0
+
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+            self.access_token = access_token
+
+        def place_order(self, **order):
+            RejectingBroker.counter += 1
+            order_id = str(RejectingBroker.counter)
+            RejectingBroker.orders.append(order)
+            RejectingBroker.statuses[order_id] = "REJECTED" if order_id == "1" else "COMPLETE"
+            return {"status": "success", "order_id": order_id}
+
+        def get_order(self, order_id):
+            return {"status": RejectingBroker.statuses.get(str(order_id))}
+
+    RejectingBroker.orders = []
+    RejectingBroker.statuses = {}
+    RejectingBroker.counter = 0
+
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: RejectingBroker)
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert RejectingBroker.orders == [
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "MTF"},
+        {"symbol": "AAPL", "action": "BUY", "qty": 1, "product_type": "CNC"},
+    ]
+    assert cached == [("AAPL", "mock", False)]
+    assert stub.added == [
+        (
+            "trade_events",
+            {
+                "master_id": "c",
+                "order_id": "2",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -363,6 +440,7 @@ def test_consumer_mtf_or_cnc_skips_when_cached_false(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
+                "order_id": "1",
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
@@ -392,12 +470,16 @@ def test_consumer_places_derivative_order(monkeypatch):
         return {"brokers": [{"name": "mock", "client_id": "c", "access_token": "t"}]}
 
     monkeypatch.setattr(order_consumer, "get_user_settings", settings)
-    # Provide a minimal symbol map with lot size information so that the
-    # consumer can resolve the contract size automatically.
+    # Provide a minimal symbol map response so the consumer resolves the contract size.
     monkeypatch.setattr(
         order_consumer.symbol_map,
-        "SYMBOL_MAP",
-        {"NIFTY24AUGFUT": {"NFO": {"mock": {"lot_size": 25}}}},
+        "get_symbol_for_broker_lazy",
+        lambda symbol, broker, exchange: {"lot_size": 25},
+    )
+    monkeypatch.setattr(
+        order_consumer.symbol_map,
+        "refresh_symbol_map",
+        lambda force=False: None,
     )
     reset_metrics()
 
@@ -412,11 +494,12 @@ def test_consumer_places_derivative_order(monkeypatch):
             "trade_events",
             {
                 "master_id": "c",
-                "symbol": "NIFTY24AUGFUT",
+                "order_id": "1",
+                "symbol": "NIFTY-Aug2024-FUT",
                 "action": "BUY",
                 "qty": 50,
                 "exchange": "NFO",
-                "instrument_type": "FUT",
+                "instrument_type": "FUTIDX",
                 "expiry": "2024-08-29",
                 "lot_size": 25,
             },
@@ -538,7 +621,7 @@ def test_consumer_errors_when_lot_size_non_positive(monkeypatch, caplog):
 def test_consumer_rejects_missing_lot_size_for_niftynxt50(monkeypatch, caplog):
     """NIFTYNXT50 contracts without lot data should be rejected instead of guessed."""
 
-def test_consumer_niftynxt50_fallback_lot_size(monkeypatch):
+def test_consumer_niftynxt50_fallback_lot_size(monkeypatch, caplog):
     """NIFTYNXT50 symbols should not use the generic NIFTY fallback."""
     event = {
         "user_id": 1,
@@ -928,7 +1011,7 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
             "symbol": "AAPL",
             "action": "BUY",
             "qty": 1,
-            "product_type": "INTRADAY",
+            "product_type": "MIS",
             "validity": "DAY",
             "master_accounts": [1],
         }
@@ -942,7 +1025,7 @@ def test_consumer_passes_optional_order_fields(monkeypatch):
                 "symbol": "AAPL",
                 "action": "BUY",
                 "qty": 1,
-                "product_type": "INTRADAY",
+                "product_type": "MIS",
                 "validity": "DAY",
             },
         )
@@ -1119,7 +1202,7 @@ def test_consumer_uses_strategy_master_accounts(monkeypatch):
     assert stub.added == [
         (
             "trade_events",
-            {"master_id": "c", "symbol": "AAPL", "action": "BUY", "qty": 1},
+            {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
 
