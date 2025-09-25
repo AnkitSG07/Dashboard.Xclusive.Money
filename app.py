@@ -981,12 +981,20 @@ def _account_to_dict(acc: Account) -> dict:
                 except Exception:
                     details = {}
             if isinstance(details, dict) and str(details.get("client_id")) == acc.client_id:
-                if log.module == "system":
-                    system_errors.append(log.message)
+                message = log.message or ""
+                module = (log.module or "").strip().lower()
+
+                if module == "system" and message:
+                    lower_msg = message.lower()
+                    if lower_msg.startswith("order failed") or lower_msg.startswith("failed to place order"):
+                        module = "broker"
+
+                if module == "system":
+                    system_errors.append(message)
                 else:
-                    errors.append(log.message)
+                    errors.append(message)
                     if not last_error:
-                        last_error = log.message
+                        last_error = message
     except Exception as e:  # pragma: no cover - logging failures shouldn't break
         # On any failure just ignore - logging should not break API
         last_error = None
@@ -2500,12 +2508,21 @@ def _legacy_poll_and_copy_trades():
                                         "FAILED",
                                         error_msg
                                     )
-                                    source = response.get("source", "system")
+                                    raw_source = response.get("source")
+                                    if isinstance(raw_source, str):
+                                        normalized_source = raw_source.strip().lower()
+                                    else:
+                                        normalized_source = ""
+
+                                    if normalized_source in {"system", "copy_trading"}:
+                                        source = normalized_source
+                                    else:
+                                        source = "broker"
                                     log_connection_error(
                                         child,
                                         f"Order failed: {error_msg}",
                                         module=source,
-                                    )    
+                                    )
                                     record_trade(
                                         user_email,
                                         symbol,
