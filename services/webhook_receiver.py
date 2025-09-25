@@ -538,6 +538,7 @@ class WebhookEventSchema(Schema):
     strike = fields.Int(allow_none=True)
     option_type = fields.Str(allow_none=True)
     lot_size = fields.Int(allow_none=True)
+    exchange_fallbacks = fields.List(fields.Str(), allow_none=True)
 
     @pre_load
     def normalize(self, data: Dict[str, Any], **_: Any) -> Dict[str, Any]:
@@ -757,7 +758,17 @@ class WebhookEventSchema(Schema):
                     symbol_value,
                 )
             data["exchange"] = selected_exchange
-        
+
+
+        if exchange_preferences:
+            selected_exchange = data.get("exchange")
+            fallbacks = [
+                exch for exch in exchange_preferences if exch != selected_exchange
+            ]
+            data["exchange_fallbacks"] = fallbacks
+        else:
+            data["exchange_fallbacks"] = []
+
         return data
 
 
