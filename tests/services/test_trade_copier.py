@@ -213,6 +213,37 @@ def test_copy_qty_overrides_master_quantity(monkeypatch):
 
     assert orders == [{"symbol": "AAPL", "action": "BUY", "qty": 2}]
 
+
+def test_copy_qty_with_lot_size_multiplier(monkeypatch):
+    orders = []
+
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            orders.append(params)
+            return {"status": "ok"}
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    child = SimpleNamespace(
+        broker="stub",
+        client_id="c1",
+        credentials={"access_token": "t"},
+        copy_qty=3,
+    )
+    master = SimpleNamespace(client_id="m", broker="stub")
+
+    order_with_lot = {"symbol": "AAPL", "action": "BUY", "qty": 10, "lot_size": 600}
+    order_without_lot = {"symbol": "AAPL", "action": "BUY", "qty": 10}
+
+    trade_copier.copy_order(master, child, order_with_lot)
+    trade_copier.copy_order(master, child, order_without_lot)
+
+    assert orders[0]["qty"] == 1800
+    assert orders[1]["qty"] == 3
+
 def test_copy_order_derivative_missing_master_broker(monkeypatch, caplog):
     placed = {}
 
