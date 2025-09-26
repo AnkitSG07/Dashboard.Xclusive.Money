@@ -139,7 +139,22 @@ def test_dhan_rejected_order_surfaces_nested_reason(client, monkeypatch):
     assert order["remarks"] == nested_reason["omsErrorMessage"]
 
 
-def test_dhan_rejected_order_prefers_description_over_numeric_code(client, monkeypatch):
+@pytest.fixture
+def dhan_rejection_payload():
+    return {
+        "orderId": "3",
+        "status": "REJECTED",
+        "transactionType": "SELL",
+        "tradingSymbol": "SBIN",
+        "orderQty": 1,
+        "reasonCode": 0,
+        "ReasonDescription": "Fund limit insufficient",
+    }
+
+
+def test_dhan_rejected_order_prefers_description_over_numeric_code(
+    client, monkeypatch, dhan_rejection_payload
+):
     login(client)
     app = app_module.app
     db = app_module.db
@@ -157,19 +172,9 @@ def test_dhan_rejected_order_prefers_description_over_numeric_code(client, monke
         db.session.add(acc)
         db.session.commit()
 
-    sample_order = {
-        "orderId": "3",
-        "status": "REJECTED",
-        "transactionType": "SELL",
-        "tradingSymbol": "SBIN",
-        "orderQty": 1,
-        "reasonCode": 0,
-        "ReasonDescription": "Fund limit insufficient",
-    }
-
     class DummyBroker:
         def get_order_list(self):
-            return [sample_order]
+            return [dhan_rejection_payload]
 
     monkeypatch.setattr(app_module, "broker_api", lambda acc: DummyBroker())
 
