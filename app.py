@@ -2711,6 +2711,33 @@ def get_order_book(client_id):
 
         return value
 
+    numeric_pattern = re.compile(r"^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+    def _is_numeric_or_bool(value):
+        if isinstance(value, bool):
+            return True
+
+        if isinstance(value, (int, float)):
+            return True
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return False
+            return bool(numeric_pattern.fullmatch(text))
+
+        return False
+
+    def _meaningful_reason(value):
+        cleaned = _clean_field_value(value)
+        if cleaned is None:
+            return None
+
+        if _is_numeric_or_bool(cleaned):
+            return None
+
+        return cleaned
+
     def _first_order_value(order_dict, keys):
         """Fetch the first non-empty value for any key (case-insensitive)."""
 
@@ -2792,24 +2819,6 @@ def get_order_book(client_id):
 
         if not isinstance(order_dict, dict):
             return None
-
-        numeric_pattern = re.compile(r"^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
-
-        def _is_numeric_or_bool(value):
-            if isinstance(value, bool):
-                return True
-
-            if isinstance(value, (int, float)):
-                return True
-
-            if isinstance(value, str):
-                text = value.strip()
-                if not text:
-                    return False
-                return bool(numeric_pattern.fullmatch(text))
-
-            return False
-
 
         for key, value in order_dict.items():
             try:
@@ -3086,43 +3095,51 @@ def get_order_book(client_id):
                 )
                 
                 if status.startswith("REJECT"):
-                    rejection_reason = _first_order_value(
-                        order,
-                        [
-                            "rejreason",
-                            "rej_reason",
-                            "rejectionreason",
-                            "rejection_reason",
-                            "rejectreason",
-                            "reject_reason",
-                            "rejectmessage",
-                            "reject_message",
-                            "rejectionmessage",
-                            "rejection_message",
-                            "error_message",
-                            "errormessage",
-                            "exchange_message",
-                            "status_message",
-                            "statusmessage",
-                            "status_message_raw",
-                            "status_message_short",
-                            "oms_msg",
-                            "message",
-                        ],
+                    rejection_reason = _meaningful_reason(
+                        _first_order_value(
+                            order,
+                            [
+                                "rejreason",
+                                "rej_reason",
+                                "rejectionreason",
+                                "rejection_reason",
+                                "rejectreason",
+                                "reject_reason",
+                                "rejectmessage",
+                                "reject_message",
+                                "rejectionmessage",
+                                "rejection_message",
+                                "error_message",
+                                "errormessage",
+                                "exchange_message",
+                                "status_message",
+                                "statusmessage",
+                                "status_message_raw",
+                                "status_message_short",
+                                "oms_msg",
+                                "message",
+                            ],
+                        )
                     )
 
                     if not rejection_reason:
-                        rejection_reason = _first_matching_field(
-                            order, lambda k: "reason" in k
+                        rejection_reason = _meaningful_reason(
+                            _first_matching_field(
+                                order, lambda k: "reason" in k
+                            )
                         )
 
                     if not rejection_reason:
-                        rejection_reason = _first_matching_field(
-                            order, lambda k: "message" in k
+                        rejection_reason = _meaningful_reason(
+                            _first_matching_field(
+                                order, lambda k: "message" in k
+                            )
                         )
                         
                     if not rejection_reason:
-                        rejection_reason = _extract_reason_from_payload(order)
+                        rejection_reason = _meaningful_reason(
+                            _extract_reason_from_payload(order)
+                        )
 
                     rejection_reason = _normalize_remarks(rejection_reason)
 
