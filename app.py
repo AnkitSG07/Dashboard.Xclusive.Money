@@ -2690,6 +2690,61 @@ def get_order_book(client_id):
         JSON response with formatted order list or error message
     """
     logger.info(f"Fetching order book for client {client_id}")
+
+
+    def _clean_field_value(value):
+        """Return a stripped value or ``None`` if the value is empty."""
+
+        if value is None:
+            return None
+
+        if isinstance(value, str):
+            text = value.strip()
+            return text or None
+
+        # ``0`` and ``False`` are meaningful in certain contexts
+        if isinstance(value, (int, float)):
+            return value
+
+        if isinstance(value, (list, dict, set, tuple)):
+            return value if value else None
+
+        return value
+
+    def _first_order_value(order_dict, keys):
+        """Fetch the first non-empty value for any key (case-insensitive)."""
+
+        if not isinstance(order_dict, dict):
+            return None
+
+        lowered = {str(k).lower(): v for k, v in order_dict.items()}
+
+        for key in keys:
+            lookup = lowered.get(str(key).lower())
+            cleaned = _clean_field_value(lookup)
+            if cleaned is not None:
+                return cleaned
+
+        return None
+
+    def _first_matching_field(order_dict, predicate):
+        """Return first value whose key satisfies ``predicate`` (case-insensitive)."""
+
+        if not isinstance(order_dict, dict):
+            return None
+
+        for key, value in order_dict.items():
+            try:
+                key_lower = str(key).lower()
+            except Exception:
+                continue
+
+            if predicate(key_lower):
+                cleaned = _clean_field_value(value)
+                if cleaned is not None:
+                    return cleaned
+
+        return None
     
     try:
         user = current_user()
@@ -2933,21 +2988,63 @@ def get_order_book(client_id):
                         )
 
                 # Extract remarks
-                remarks = (
-                    order.get("remarks")
-                    or order.get("Remark")
-                    or order.get("orderTag")
-                    or order.get("usercomment")
-                    or order.get("Usercomments")
-                    or order.get("remarks1")
+                base_remarks = _first_order_value(
+                    order,
+                    [
+                        "remarks",
+                        "Remark",
+                        "orderTag",
+                        "usercomment",
+                        "Usercomments",
+                        "remarks1",
+                    ],
                 )
                 
                 if status.startswith("REJECT"):
-                    remarks = order.get("rejreason") or remarks or "Order rejected"
+                    rejection_reason = _first_order_value(
+                        order,
+                        [
+                            "rejreason",
+                            "rej_reason",
+                            "rejectionreason",
+                            "rejection_reason",
+                            "rejectreason",
+                            "reject_reason",
+                            "rejectmessage",
+                            "reject_message",
+                            "rejectionmessage",
+                            "rejection_message",
+                            "error_message",
+                            "errormessage",
+                            "exchange_message",
+                            "status_message",
+                            "statusmessage",
+                            "status_message_raw",
+                            "status_message_short",
+                            "oms_msg",
+                            "message",
+                        ],
+                    )
+
+                    if not rejection_reason:
+                        rejection_reason = _first_matching_field(
+                            order, lambda k: "reason" in k
+                        )
+
+                    if not rejection_reason:
+                        rejection_reason = _first_matching_field(
+                            order, lambda k: "message" in k
+                        )
+
+                    remarks = (
+                        rejection_reason
+                        or base_remarks
+                        or "Order rejected"
+                    )
                 elif status in ["TRADED", "FILLED", "COMPLETE", "SUCCESS"]:
-                    remarks = remarks or "Trade successful"
+                    remarks = base_remarks or "Trade successful"
                 else:
-                    remarks = remarks or "—"
+                    remarks = base_remarks or "—"
 
                 # ✅ Create formatted order entry
                 formatted_order = {
