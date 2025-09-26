@@ -669,7 +669,11 @@ window.pageScripts["copy-trading"] = function () {
       'oms_error_description',
       'omsErrorDescription'
     ]));
+    const resolutionHint = getOrderField(order, ['resolution_hint', 'resolutionHint']);
 
+    const hasRemarks = remarks && remarks !== '—';
+    const hasResolutionHint = resolutionHint && resolutionHint !== '—';
+    
     const detailItems = [
       { label: 'Side', value: side },
       { label: 'Order Type', value: orderType },
@@ -686,9 +690,16 @@ window.pageScripts["copy-trading"] = function () {
         </div>
       `).join('');
 
-    const remarksHtml = remarks && remarks !== '—'
-      ? `<div class="mt-3 small"><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
-      : '';
+    let remarksHtml = '';
+    if (hasRemarks || hasResolutionHint) {
+      const remarksRow = hasRemarks
+        ? `<div><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
+        : '';
+      const hintRow = hasResolutionHint
+        ? `<div class="mt-${hasRemarks ? '2' : '0'}"><span class="text-muted text-uppercase fw-semibold">Suggested fix:</span> <span class="text-dark">${escapeHtml(resolutionHint)}</span></div>`
+        : '';
+      remarksHtml = `<div class="mt-3 small">${remarksRow}${hintRow}</div>`;
+    }
 
     return `
       <div class="list-group-item list-group-item-action py-3">
