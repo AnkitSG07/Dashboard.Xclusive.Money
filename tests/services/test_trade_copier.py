@@ -213,6 +213,44 @@ def test_copy_qty_overrides_master_quantity(monkeypatch):
 
     assert orders == [{"symbol": "AAPL", "action": "BUY", "qty": 2}]
 
+def test_copy_order_derivative_missing_master_broker(monkeypatch, caplog):
+    placed = {}
+
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            placed.update(params)
+            return {"status": "ok"}
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    master = SimpleNamespace(client_id="m")  # No broker key present
+    child = SimpleNamespace(
+        broker="stub",
+        client_id="c1",
+        credentials={"access_token": "token"},
+        copy_qty=None,
+    )
+
+    order = {
+        "symbol": "NIFTY24JUNFUT",
+        "instrument_type": "FUT",
+        "action": "BUY",
+        "qty": 1,
+    }
+
+    with caplog.at_level("WARNING"):
+        result = trade_copier.copy_order(master, child, order)
+
+    assert result == {"status": "ok"}
+    assert placed["symbol"] == "NIFTY24JUNFUT"
+    assert any(
+        "Skipping derivative symbol conversion" in record.getMessage()
+        for record in caplog.records
+    )
+
 def test_copy_from_dhan_to_aliceblue(monkeypatch):
     from brokers.aliceblue import AliceBlueBroker
     captured = {}
