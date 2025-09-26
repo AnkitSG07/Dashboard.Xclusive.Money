@@ -137,3 +137,46 @@ def test_dhan_rejected_order_surfaces_nested_reason(client, monkeypatch):
     order = data[0]
     assert order["status"] == "REJECTED"
     assert order["remarks"] == nested_reason["omsErrorMessage"]
+
+
+def test_dhan_rejected_order_prefers_description_over_numeric_code(client, monkeypatch):
+    login(client)
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+        acc = Account(
+            user_id=user.id,
+            client_id="DH3",
+            broker="dhan",
+            credentials={"access_token": "token"},
+        )
+        db.session.add(acc)
+        db.session.commit()
+
+    sample_order = {
+        "orderId": "3",
+        "status": "REJECTED",
+        "transactionType": "SELL",
+        "tradingSymbol": "SBIN",
+        "orderQty": 1,
+        "reasonCode": 0,
+        "ReasonDescription": "Fund limit insufficient",
+    }
+
+    class DummyBroker:
+        def get_order_list(self):
+            return [sample_order]
+
+    monkeypatch.setattr(app_module, "broker_api", lambda acc: DummyBroker())
+
+    resp = client.get("/api/order-book/DH3")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, list) and len(data) == 1
+    order = data[0]
+    assert order["status"] == "REJECTED"
+    assert order["remarks"] == "Fund limit insufficient"
