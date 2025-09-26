@@ -87,6 +87,67 @@ from services.alert_guard import get_user_settings, update_user_settings
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
 
+_REJECTION_HINT_RULES: tuple[tuple[str, str], ...] = (
+    (
+        "fund limit insufficient",
+        "Add funds or reduce the order size so it fits within the available margin limit.",
+    ),
+    (
+        "insufficient funds",
+        "Add funds or reduce the order size so it fits within the available margin limit.",
+    ),
+    (
+        "margin not available",
+        "Add funds or trim position size so the required margin is available before retrying.",
+    ),
+    (
+        "strike price is not within range",
+        "Choose an option strike that is allowed for the selected expiry to stay within the exchange range.",
+    ),
+    (
+        "strike price not allowed",
+        "Choose an option strike that is allowed for the selected expiry to stay within the exchange range.",
+    ),
+    (
+        "price is not within circuit",
+        "Set the order price inside the exchange circuit limits or switch to a market order if appropriate.",
+    ),
+    (
+        "price is out of range",
+        "Set the order price inside the exchange circuit limits or switch to a market order if appropriate.",
+    ),
+    (
+        "qty not a multiple",
+        "Adjust the quantity so it matches the contract lot size required by the exchange.",
+    ),
+    (
+        "quantity not a multiple",
+        "Adjust the quantity so it matches the contract lot size required by the exchange.",
+    ),
+)
+
+
+def resolve_rejection_reason(reason: str | None) -> str | None:
+    """Return a concise resolution hint for a well-known rejection reason."""
+
+    if not reason:
+        return None
+
+    try:
+        reason_text = str(reason).lower()
+    except Exception:
+        return None
+
+    reason_text = reason_text.strip()
+    if not reason_text:
+        return None
+
+    for needle, hint in _REJECTION_HINT_RULES:
+        if needle in reason_text:
+            return hint
+
+    return None
+
 app = Flask(__name__)
 secret_key = os.environ.get("SECRET_KEY")
 if not secret_key:
@@ -3114,6 +3175,7 @@ def get_order_book(client_id):
                         )
 
                 # Extract remarks
+                rejection_reason = None
                 base_remarks = _normalize_remarks(
                     _first_order_value(
                         order,
@@ -3196,6 +3258,12 @@ def get_order_book(client_id):
 
                 remarks = _normalize_remarks(remarks)
 
+                resolution_hint = resolve_rejection_reason(remarks)
+                if not resolution_hint and rejection_reason:
+                    resolution_hint = resolve_rejection_reason(rejection_reason)
+                if resolution_hint:
+                    resolution_hint = _normalize_remarks(resolution_hint)
+
                 # ✅ Create formatted order entry
                 formatted_order = {
                     "order_id": str(order_id),
@@ -3211,6 +3279,9 @@ def get_order_book(client_id):
                     "order_time": order_time,
                     "remarks": str(remarks)[:100]  # Limit remarks length
                 }
+
+                if resolution_hint:
+                    formatted_order["resolution_hint"] = str(resolution_hint)[:150]
                 
                 formatted.append(formatted_order)
                 
