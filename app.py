@@ -2727,6 +2727,63 @@ def get_order_book(client_id):
 
         return None
 
+    def _extract_reason_from_payload(payload):
+        """Depth-first search for rejection reason/message fields in nested payloads."""
+
+        keywords = (
+            "reason",
+            "message",
+            "oms_error",
+            "omserror",
+        )
+        visited = set()
+
+        def _dfs(node):
+            node_id = id(node)
+            if node_id in visited:
+                return None
+            visited.add(node_id)
+
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    try:
+                        key_lower = str(key).lower()
+                    except Exception:
+                        key_lower = ""
+
+                    if any(keyword in key_lower for keyword in keywords):
+                        if isinstance(value, dict):
+                            normalized = clean_response_message(value)
+                            if normalized:
+                                return normalized
+                        else:
+                            cleaned = _clean_field_value(value)
+                            if cleaned is not None:
+                                return cleaned
+
+                    if isinstance(value, (dict, list, tuple, set)):
+                        result = _dfs(value)
+                        if result is not None:
+                            return result
+
+            elif isinstance(node, (list, tuple, set)):
+                for item in node:
+                    result = _dfs(item)
+                    if result is not None:
+                        return result
+
+            return None
+
+        return _dfs(payload)
+
+    def _normalize_remarks(value):
+        if isinstance(value, dict):
+            normalized = clean_response_message(value)
+            if normalized:
+                return normalized
+            return json.dumps(value)
+        return value
+
     def _first_matching_field(order_dict, predicate):
         """Return first value whose key satisfies ``predicate`` (case-insensitive)."""
 
@@ -2988,16 +3045,18 @@ def get_order_book(client_id):
                         )
 
                 # Extract remarks
-                base_remarks = _first_order_value(
-                    order,
-                    [
-                        "remarks",
-                        "Remark",
-                        "orderTag",
-                        "usercomment",
-                        "Usercomments",
-                        "remarks1",
-                    ],
+                base_remarks = _normalize_remarks(
+                    _first_order_value(
+                        order,
+                        [
+                            "remarks",
+                            "Remark",
+                            "orderTag",
+                            "usercomment",
+                            "Usercomments",
+                            "remarks1",
+                        ],
+                    )
                 )
                 
                 if status.startswith("REJECT"):
@@ -3035,6 +3094,11 @@ def get_order_book(client_id):
                         rejection_reason = _first_matching_field(
                             order, lambda k: "message" in k
                         )
+                        
+                    if not rejection_reason:
+                        rejection_reason = _extract_reason_from_payload(order)
+
+                    rejection_reason = _normalize_remarks(rejection_reason)
 
                     remarks = (
                         rejection_reason
@@ -3045,6 +3109,8 @@ def get_order_book(client_id):
                     remarks = base_remarks or "Trade successful"
                 else:
                     remarks = base_remarks or "—"
+
+                remarks = _normalize_remarks(remarks)
 
                 # ✅ Create formatted order entry
                 formatted_order = {
