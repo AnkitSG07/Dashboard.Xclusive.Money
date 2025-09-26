@@ -37,6 +37,7 @@ from .fo_symbol_utils import (
     _lookup_currency_future_expiry_day,
 )
 from services.product_support import map_product_type, is_mtf_supported, _cache_mtf_support
+from .lot_size import normalize_lot_size
 
 log = logging.getLogger(__name__)
 
@@ -732,16 +733,7 @@ def consume_webhook_events(
                 if is_fo:
                     lot_size = lot_size_value
 
-                    def _normalize_lot_size(raw_value):
-                        try:
-                            value = float(raw_value)
-                        except (TypeError, ValueError):
-                            return None
-                        if value <= 0:
-                            return None
-                        return int(value)
-
-                    normalized_lot_size = _normalize_lot_size(lot_size)
+                    normalized_lot_size = normalize_lot_size(lot_size)
                     looked_up_lot_size = False
 
                     if normalized_lot_size is None:
@@ -753,7 +745,7 @@ def consume_webhook_events(
                             event,
                             broker_cfg,
                         )
-                        normalized_lot_size = _normalize_lot_size(lot_size)
+                        normalized_lot_size = normalize_lot_size(lot_size)
 
                         if normalized_lot_size is not None:
                             log.info(
@@ -788,18 +780,9 @@ def consume_webhook_events(
                     )
 
                 else:
-                    def _normalize_cash_lot_size(raw_value: Any) -> int | None:
-                        try:
-                            value = float(raw_value)
-                        except (TypeError, ValueError):
-                            return None
-                        if value <= 0:
-                            return None
-                        return int(value)
-
                     lot_size_int = None
                     if lot_size_value is not None:
-                        lot_size_int = _normalize_cash_lot_size(lot_size_value)
+                        lot_size_int = normalize_lot_size(lot_size_value)
                         if lot_size_int is None:
                             log.error("Invalid lot size provided for cash order")
                             return None
@@ -836,7 +819,7 @@ def consume_webhook_events(
                                 event,
                                 broker_cfg,
                             )
-                            lot_size_int = _normalize_cash_lot_size(looked_up_value)
+                            lot_size_int = normalize_lot_size(looked_up_value)
                             if lot_size_int:
                                 log.info(
                                     "Found equity lot size %s for %s from symbol map",
