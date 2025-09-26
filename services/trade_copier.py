@@ -108,17 +108,28 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     if isinstance(child, Mapping):
         child = SimpleNamespace(**child)
 
+    master_broker = _get_account_field(master, "broker")
+    child_broker = _get_account_field(child, "broker")
+    child_client_id = _get_account_field(child, "client_id")
+
+    if not child_broker:
+        log.error(
+            "❌ Cannot copy order to child %s: missing broker configuration",
+            child_client_id or "<unknown>",
+        )
+        return None
+
     # Look up the concrete broker implementation or service client.
-    client_cls = get_broker_client(child.broker)
+    client_cls = get_broker_client(child_broker)
 
     # Credentials are stored on the ``Account`` model as a JSON blob.  We only
     # require an access token for the tests so missing keys default to ``""``.
-    credentials = dict(child.credentials or {})
+    credentials = dict(_get_account_field(child, "credentials") or {})
     access_token = credentials.pop("access_token", "")
     credentials.pop("client_id", None)
 
     broker = client_cls(
-        client_id=child.client_id, access_token=access_token, **credentials
+        client_id=child_client_id, access_token=access_token, **credentials
     )
 
     # Get original symbol and metadata
@@ -139,29 +150,38 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     
     # Convert symbol if needed for different brokers
     converted_symbol = original_symbol
-    if is_derivative and master.broker != child.broker:
-        try:
-            converted_symbol = convert_symbol_between_brokers(
+    if is_derivative:
+        if master_broker and child_broker:
+            if master_broker != child_broker:
+                try:
+                    converted_symbol = convert_symbol_between_brokers(
+                        original_symbol,
+                        master_broker,
+                        child_broker,
+                        instrument_type,
+                    )
+                    if converted_symbol != original_symbol:
+                        log.info(
+                            "🔄 Converted F&O symbol from %s (%s) to %s (%s)",
+                            original_symbol,
+                            master_broker,
+                            converted_symbol,
+                            child_broker,
+                        )
+                except Exception as e:
+                    log.warning("Could not convert symbol %s: %s", original_symbol, e)
+                    converted_symbol = original_symbol
+        else:
+            log.warning(
+                "Skipping derivative symbol conversion for %s: missing broker info (master=%s, child=%s)",
                 original_symbol,
-                master.broker,
-                child.broker,
-                instrument_type
+                master_broker or "<unknown>",
+                child_broker or "<unknown>",
             )
-            if converted_symbol != original_symbol:
-                log.info(
-                    f"🔄 Converted F&O symbol from {original_symbol} ({master.broker}) "
-                    f"to {converted_symbol} ({child.broker})"
-                )
-        except Exception as e:
-            log.warning(f"Could not convert symbol {original_symbol}: {e}")
-            converted_symbol = original_symbol
     
     # Apply fixed quantity override for the child account if provided
-    qty = (
-        int(child.copy_qty)
-        if getattr(child, "copy_qty", None) is not None
-        else int(order.get("qty", 0))
-    )
+    copy_qty = _get_account_field(child, "copy_qty")
+    qty = int(copy_qty) if copy_qty is not None else int(order.get("qty", 0))
     
     # Handle lot size for F&O
     lot_size = order.get("lot_size")
@@ -184,7 +204,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     
     # Handle exchange - special handling for different brokers
     if exchange:
-        broker_lower = child.broker.lower()
+        broker_lower = str(child_broker).lower()
         
         if broker_lower == "fyers":
             # Fyers specific exchange handling
@@ -206,7 +226,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     # Handle product type with broker-specific mapping
     product_type = order.get("product_type") or order.get("productType")
     if product_type:
-        broker_lower = child.broker.lower()
+        broker_lower = str(child_broker).lower()
         
         # Normalize product type first
         pt_upper = str(product_type).upper()
@@ -300,7 +320,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     
     try:
         log.info(
-            f"📤 Placing order on {child.broker} for {child.client_id}: "
+            f"📤 Placing order on {child_broker} for {child_client_id}: "
             f"{params.get('action')} {params.get('qty')} {params.get('symbol')} "
             f"at {params.get('exchange', 'NSE')} with product {params.get('product_type', 'MIS')}"
         )
@@ -309,12 +329,12 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
         
         if isinstance(result, dict) and result.get("status") == "success":
             log.info(
-                f"✅ Successfully copied order to {child.broker} account {child.client_id}: "
+                f"✅ Successfully copied order to {child_broker} account {child_client_id}: "
                 f"Order ID: {result.get('order_id')}"
             )
         else:
             log.warning(
-                f"⚠️ Order placed but status unclear for {child.broker} account {child.client_id}: {result}"
+                f"⚠️ Order placed but status unclear for {child_broker} account {child_client_id}: {result}"
             )
         
         return result
@@ -328,7 +348,7 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
             exc.args[0] if getattr(exc, "args", None) else str(exc)
         )
         log.error(
-            f"❌ Failed to copy order to {child.broker} account {child.client_id}: {message}"
+            f"❌ Failed to copy order to {child_broker} account {child_client_id}: {message}"
         )
         raise RuntimeError(message) from exc
 
