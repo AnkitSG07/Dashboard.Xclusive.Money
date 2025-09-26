@@ -244,6 +244,53 @@ def test_copy_qty_with_lot_size_multiplier(monkeypatch):
     assert orders[0]["qty"] == 1800
     assert orders[1]["qty"] == 3
 
+
+def test_derivative_lot_size_fallback_from_symbol_map(monkeypatch, caplog):
+    orders = []
+
+    class StubBroker:
+        def __init__(self, client_id, access_token, **_):
+            self.client_id = client_id
+
+        def place_order(self, **params):
+            orders.append(params)
+            return {"status": "ok"}
+
+    monkeypatch.setattr(trade_copier, "get_broker_client", lambda name: StubBroker)
+
+    lookup_calls = []
+
+    def fake_lookup(symbol, broker, exchange=None):
+        lookup_calls.append((symbol, broker, exchange))
+        if broker == "child":
+            return {"lot_size": 25}
+        return {}
+
+    monkeypatch.setattr(trade_copier.symbol_map, "get_symbol_for_broker", fake_lookup)
+
+    master = SimpleNamespace(client_id="m", broker="master")
+    child = SimpleNamespace(
+        broker="child",
+        client_id="c1",
+        credentials={"access_token": "token"},
+        copy_qty=2,
+    )
+
+    order = {
+        "symbol": "NIFTY24JUNFUT",
+        "instrument_type": "FUT",
+        "action": "BUY",
+        "qty": 1,
+    }
+
+    with caplog.at_level("DEBUG"):
+        trade_copier.copy_order(master, child, order)
+
+    assert orders[0]["qty"] == 50
+    assert lookup_calls[0][0] == "NIFTY24JUNFUT"
+    assert lookup_calls[0][1] == "child"
+    assert "fallback lot size" in caplog.text
+
 def test_copy_order_derivative_missing_master_broker(monkeypatch, caplog):
     placed = {}
 
