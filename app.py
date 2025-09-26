@@ -2785,10 +2785,31 @@ def get_order_book(client_id):
         return value
 
     def _first_matching_field(order_dict, predicate):
-        """Return first value whose key satisfies ``predicate`` (case-insensitive)."""
+        """Return first value whose key satisfies ``predicate`` (case-insensitive).
+
+        Numeric or boolean values are ignored so descriptive strings later in the
+        payload (e.g., ``ReasonDescription``) are able to surface."""
 
         if not isinstance(order_dict, dict):
             return None
+
+        numeric_pattern = re.compile(r"^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+        def _is_numeric_or_bool(value):
+            if isinstance(value, bool):
+                return True
+
+            if isinstance(value, (int, float)):
+                return True
+
+            if isinstance(value, str):
+                text = value.strip()
+                if not text:
+                    return False
+                return bool(numeric_pattern.fullmatch(text))
+
+            return False
+
 
         for key, value in order_dict.items():
             try:
@@ -2798,8 +2819,13 @@ def get_order_book(client_id):
 
             if predicate(key_lower):
                 cleaned = _clean_field_value(value)
-                if cleaned is not None:
-                    return cleaned
+                if cleaned is None:
+                    continue
+
+                if _is_numeric_or_bool(cleaned):
+                    continue
+
+                return cleaned
 
         return None
     
