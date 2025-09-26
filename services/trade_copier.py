@@ -184,6 +184,30 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
     lot_size = normalize_lot_size(raw_lot_size)
     lot_size_multiplier = lot_size or 1
 
+    if is_derivative and lot_size is None:
+        exchange_hint = exchange or None
+        for broker_name in (child_broker, master_broker):
+            if not broker_name:
+                continue
+
+            mapping = symbol_map.get_symbol_for_broker(
+                converted_symbol, broker_name, exchange_hint
+            )
+            mapping_lot_size = normalize_lot_size(
+                (mapping or {}).get("lot_size")
+            )
+
+            if mapping_lot_size and mapping_lot_size > 0:
+                lot_size = mapping_lot_size
+                lot_size_multiplier = mapping_lot_size
+                log.debug(
+                    "Using fallback lot size %s for %s from %s symbol map entry",
+                    mapping_lot_size,
+                    converted_symbol,
+                    broker_name,
+                )
+                break
+
     # Apply fixed quantity override for the child account if provided
     copy_qty = _get_account_field(child, "copy_qty")
     if copy_qty is not None:
