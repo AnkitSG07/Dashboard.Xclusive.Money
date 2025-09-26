@@ -643,7 +643,28 @@ window.pageScripts["copy-trading"] = function () {
     const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']));
     const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg', 'avgPrice', 'tradePrice']));
     const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']));
-    const remarks = withFallback(getOrderField(order, ['remarks', 'status_message', 'statusmessage', 'status_message_raw', 'status_message_short', 'oms_msg', 'message']));
+    const remarks = withFallback(getOrderField(order, [
+      'remarks',
+      'status_message',
+      'statusmessage',
+      'status_message_raw',
+      'status_message_short',
+      'oms_msg',
+      'message',
+      'rejection_reason',
+      'rejectionreason',
+      'reject_reason',
+      'rejectreason',
+      'rejreason',
+      'rej_reason',
+      'rejection_message',
+      'rejectionmessage',
+      'reject_message',
+      'rejectmessage',
+      'error_message',
+      'errormessage',
+      'exchange_message'
+    ]));
 
     const detailItems = [
       { label: 'Side', value: side },
