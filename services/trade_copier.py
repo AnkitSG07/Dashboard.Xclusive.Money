@@ -32,6 +32,7 @@ import requests
 from .webhook_receiver import redis_client, get_redis_client
 from .db import get_session
 from .utils import _decode_event
+from .lot_size import normalize_lot_size
 from helpers import active_children_for_master, extract_exchange_from_order
 import redis
 
@@ -178,22 +179,27 @@ def copy_order(master: Account, child: Account, order: Dict[str, Any]) -> Any:
                 master_broker or "<unknown>",
                 child_broker or "<unknown>",
             )
-    
+
+    raw_lot_size = order.get("lot_size")
+    lot_size = normalize_lot_size(raw_lot_size)
+    lot_size_multiplier = lot_size or 1
+
     # Apply fixed quantity override for the child account if provided
     copy_qty = _get_account_field(child, "copy_qty")
-    qty = int(copy_qty) if copy_qty is not None else int(order.get("qty", 0))
+    if copy_qty is not None:
+        qty = int(copy_qty) * lot_size_multiplier
+    else:
+        qty = int(order.get("qty", 0))
     
     # Handle lot size for F&O
-    lot_size = order.get("lot_size")
-    if is_derivative and lot_size:
-        try:
-            lot_size_int = int(float(lot_size))
+    if is_derivative:
+        if lot_size:
             log.debug(
                 f"F&O order: {qty} lots of {converted_symbol} "
-                f"(lot size: {lot_size_int})"
+                f"(lot size: {lot_size})"
             )
-        except (ValueError, TypeError):
-            log.warning(f"Invalid lot size {lot_size} for F&O order")
+        elif raw_lot_size is not None:
+            log.warning(f"Invalid lot size {raw_lot_size} for F&O order")
 
     # Prepare order parameters
     params = {
