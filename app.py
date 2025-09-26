@@ -2811,32 +2811,66 @@ def get_order_book(client_id):
             return json.dumps(value)
         return value
 
-    def _first_matching_field(order_dict, predicate):
-        """Return first value whose key satisfies ``predicate`` (case-insensitive).
+    def _first_matching_field(payload, predicate):
+        """Depth-first search for the first field whose key satisfies ``predicate``.
 
-        Numeric or boolean values are ignored so descriptive strings later in the
-        payload (e.g., ``ReasonDescription``) are able to surface."""
+        The search walks dictionaries, lists, tuples and sets.  When a matching
+        key is found, nested containers are explored before returning so that a
+        descriptive string (e.g. ``ReasonDescription`` or ``rejectionReason.message``)
+        is preferred over the container itself.  Numeric, boolean and empty values
+        are ignored allowing later textual reasons to surface."""
 
-        if not isinstance(order_dict, dict):
+        seen: set = set()
+
+        def _search(node):
+            node_id = id(node)
+            if node_id in seen:
+                return None
+            seen.add(node_id)
+
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    try:
+                        key_lower = str(key).lower()
+                    except Exception:
+                        key_lower = ""
+
+                    if predicate(key_lower):
+                        cleaned = _clean_field_value(value)
+                        if cleaned is None:
+                            if isinstance(value, (dict, list, tuple, set)):
+                                result = _search(value)
+                                if result is not None:
+                                    return result
+                            continue
+                        elif isinstance(cleaned, (dict, list, tuple, set)):
+                            nested = _search(cleaned)
+                            if nested is not None:
+                                return nested
+                            if isinstance(cleaned, dict):
+                                normalized = clean_response_message(cleaned)
+                                if normalized:
+                                    return normalized
+                            continue
+                        else:
+                            if _is_numeric_or_bool(cleaned):
+                                continue
+                            return cleaned
+
+                    if isinstance(value, (dict, list, tuple, set)):
+                        result = _search(value)
+                        if result is not None:
+                            return result
+
+            elif isinstance(node, (list, tuple, set)):
+                for item in node:
+                    result = _search(item)
+                    if result is not None:
+                        return result
+
             return None
 
-        for key, value in order_dict.items():
-            try:
-                key_lower = str(key).lower()
-            except Exception:
-                continue
-
-            if predicate(key_lower):
-                cleaned = _clean_field_value(value)
-                if cleaned is None:
-                    continue
-
-                if _is_numeric_or_bool(cleaned):
-                    continue
-
-                return cleaned
-
-        return None
+        return _search(payload)
     
     try:
         user = current_user()
@@ -3126,6 +3160,13 @@ def get_order_book(client_id):
                         rejection_reason = _meaningful_reason(
                             _first_matching_field(
                                 order, lambda k: "reason" in k
+                            )
+                        )
+
+                    if not rejection_reason:
+                        rejection_reason = _meaningful_reason(
+                            _first_matching_field(
+                                order, lambda k: "description" in k
                             )
                         )
 
