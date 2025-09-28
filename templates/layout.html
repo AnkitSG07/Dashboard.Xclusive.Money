@@ -17,39 +17,129 @@
       visibility: visible !important;
     }
     /* Custom CSS for a modern SaaS look */
-    :root {
-      --bs-primary: #4F46E5; /* Indigo 600 */
+[data-theme="light"] {
+      color-scheme: light;
+      --surface-page: #F3F4F6;
+      --surface-sidebar: #FFFFFF;
+      --surface-navbar: #FFFFFF;
+      --surface-card: #FFFFFF;
+      --surface-muted: #F9FAFB;
+      --surface-translucent: rgba(255, 255, 255, 0.7);
+      --border-subtle: #E5E7EB;
+      --border-strong: #D1D5DB;
+      --text-primary: #1F2937;
+      --text-secondary: #374151;
+      --text-muted: #6B7280;
+      --accent-primary: #4F46E5;
+      --accent-primary-contrast: #FFFFFF;
+      --accent-primary-strong: #4338CA;
+      --accent-primary-soft: rgba(79, 70, 229, 0.18);
+      --status-success: #10B981;
+      --status-success-strong: #059669;
+      --status-success-soft: rgba(16, 185, 129, 0.12);
+      --status-info: #3B82F6;
+      --status-info-soft: rgba(59, 130, 246, 0.14);
+      --status-warning: #F59E0B;
+      --status-warning-soft: rgba(245, 158, 11, 0.15);
+      --status-danger: #EF4444;
+      --status-danger-strong: #DC2626;
+      --status-danger-soft: rgba(239, 68, 68, 0.14);
+      --shadow-soft: rgba(15, 23, 42, 0.08);
+      --shadow-strong: rgba(79, 70, 229, 0.2);
+      --bg-input: #F3F4F6;
+      --bg-light-gray: #E5E7EB;
+      --glass-shape-primary: rgba(99, 102, 241, 0.25);
+      --glass-shape-secondary: rgba(20, 184, 166, 0.2);
+      --text-light: var(--text-primary);
+      --text-dark: var(--text-primary);
+      --bs-primary: var(--accent-primary);
       --bs-primary-rgb: 79, 70, 229;
-      --bs-secondary: #6B7280; /* Gray 500 */
+      --bs-secondary: var(--text-muted);
       --bs-secondary-rgb: 107, 114, 128;
-      --bs-success: #10B981; /* Green 500 */
+      --bs-success: var(--status-success);
       --bs-success-rgb: 16, 185, 129;
-      --bs-info: #3B82F6; /* Blue 500 */
+      --bs-info: var(--status-info);
       --bs-info-rgb: 59, 130, 246;
-      --bs-warning: #F59E0B; /* Yellow 500 */
+      --bs-warning: var(--status-warning);
       --bs-warning-rgb: 245, 158, 11;
-      --bs-danger: #EF4444; /* Red 500 */
+      --bs-danger: var(--status-danger);
       --bs-danger-rgb: 239, 68, 68;
-      --bs-light: #F9FAFB; /* Gray 50 */
-      --bs-dark: #1F2937; /* Gray 800 */
-      --bs-body-color: #374151; /* Gray 700 */
-      --bs-body-bg: #F3F4F6; /* Gray 100 */
-      --bs-border-color: #E5E7EB; /* Gray 200 */
-      --bs-heading-color: #111827; /* Gray 900 */
+      --bs-light: var(--surface-muted);
+      --bs-dark: #0F172A;
+      --bs-body-color: var(--text-primary);
+      --bs-body-bg: var(--surface-page);
+      --bs-border-color: var(--border-subtle);
+      --bs-heading-color: var(--text-primary);
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --surface-page: #0F172A;
+      --surface-sidebar: #111C2F;
+      --surface-navbar: #111C2F;
+      --surface-card: #1E293B;
+      --surface-muted: #162340;
+      --surface-translucent: rgba(30, 41, 59, 0.65);
+      --border-subtle: #1F2A3D;
+      --border-strong: #26334A;
+      --text-primary: #E2E8F0;
+      --text-secondary: #CBD5F5;
+      --text-muted: #94A3B8;
+      --accent-primary: #818CF8;
+      --accent-primary-contrast: #0F172A;
+      --accent-primary-strong: #6366F1;
+      --accent-primary-soft: rgba(99, 102, 241, 0.35);
+      --status-success: #34D399;
+      --status-success-strong: #059669;
+      --status-success-soft: rgba(52, 211, 153, 0.2);
+      --status-info: #60A5FA;
+      --status-info-soft: rgba(96, 165, 250, 0.22);
+      --status-warning: #FBBF24;
+      --status-warning-soft: rgba(251, 191, 36, 0.22);
+      --status-danger: #F87171;
+      --status-danger-strong: #DC2626;
+      --status-danger-soft: rgba(248, 113, 113, 0.22);
+      --shadow-soft: rgba(2, 6, 23, 0.6);
+      --shadow-strong: rgba(15, 23, 42, 0.75);
+      --bg-input: #1A2234;
+      --bg-light-gray: #1F2A3D;
+      --glass-shape-primary: rgba(129, 140, 248, 0.35);
+      --glass-shape-secondary: rgba(45, 212, 191, 0.25);
+      --text-light: var(--text-primary);
+      --text-dark: var(--text-primary);
+      --bs-primary: var(--accent-primary);
+      --bs-primary-rgb: 129, 140, 248;
+      --bs-secondary: var(--text-muted);
+      --bs-secondary-rgb: 148, 163, 184;
+      --bs-success: var(--status-success);
+      --bs-success-rgb: 52, 211, 153;
+      --bs-info: var(--status-info);
+      --bs-info-rgb: 96, 165, 250;
+      --bs-warning: var(--status-warning);
+      --bs-warning-rgb: 251, 191, 36;
+      --bs-danger: var(--status-danger);
+      --bs-danger-rgb: 248, 113, 113;
+      --bs-light: var(--surface-muted);
+      --bs-dark: #020617;
+      --bs-body-color: var(--text-primary);
+      --bs-body-bg: var(--surface-page);
+      --bs-border-color: var(--border-subtle);
+      --bs-heading-color: var(--text-primary);
     }
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bs-body-bg);
-      color: var(--bs-body-color);
+      background-color: var(--surface-page);
+      color: var(--text-primary);
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     /* Sidebar Styling */
     .sidebar {
       width: 260px;
       flex-shrink: 0;
-      background-color: #ffffff; /* White background */
-      border-right: 1px solid var(--bs-border-color);
+      background-color: var(--surface-sidebar);
+      border-right: 1px solid var(--border-subtle);
       height: 100vh;
       position: sticky;
       top: 0;
@@ -62,7 +152,7 @@
 
     .sidebar-logo {
       padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--bs-border-color);
+      border-bottom: 1px solid var(--border-subtle);
       margin-bottom: 1.5rem;
     }
 
@@ -85,7 +175,7 @@
     .sidebar .nav-title {
       font-size: 0.75rem; /* text-xs */
       font-weight: 600; /* font-semibold */
-      color: #6B7280; /* Gray 500 */
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em; /* tracking-wider */
       margin-top: 1.5rem;
@@ -98,7 +188,7 @@
     align-items: center;
     gap: 0.6rem;
     padding: clamp(0.6rem, 2.8vw, 0.8rem) clamp(0.75rem, 3.5vw, 1rem);
-    color: var(--text-light); /* Dark text for links */
+    color: var(--text-secondary);
     font-weight: 500;
     border-radius: 0.3rem;
     margin: 0.1rem clamp(0.75rem, 3.5vw, 1rem);
@@ -111,25 +201,25 @@
     .sidebar .nav-link i {
       font-size: 1.125rem; /* text-lg */
       margin-right: 0.75rem;
-      color: #9CA3AF; /* Gray 400 */
+      color: var(--text-muted);
       transition: color 0.2s ease-in-out;
     }
 
     .sidebar .nav-link:hover {
-      background-color: var(--bs-light); /* Light gray background on hover */
-      color: var(--bs-primary);
+      background-color: var(--surface-muted);
+      color: var(--accent-primary);
     }
     .sidebar .nav-link:hover i {
-      color: var(--bs-primary);
+      color: var(--accent-primary);
     }
 
     .sidebar .nav-link.active {
-      background-color: var(--bs-primary); /* Primary color for active link */
-      color: #ffffff;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Shadow for active */
+      background-color: var(--accent-primary);
+      color: var(--accent-primary-contrast);
+      box-shadow: 0 6px 12px -4px var(--shadow-soft);
     }
     .sidebar .nav-link.active i {
-      color: #ffffff;
+      color: var(--accent-primary-contrast);
     }
 
     .sidebar .nav-collapse {
@@ -157,15 +247,15 @@
 
     /* Logout Button */
     .sidebar .logout {
-      background-color: var(--bs-danger);
-      color: #ffffff;
+      background-color: var(--status-danger);
+      color: var(--accent-primary-contrast);
       padding: 0.75rem 1.5rem;
       border-radius: 0.5rem;
       font-weight: 600;
       transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
     }
     .sidebar .logout:hover {
-      background-color: #DC2626; /* Red 600 */
+      background-color: var(--status-danger-strong);
       transform: translateY(-1px);
     }
     .sidebar .logout:active {
@@ -182,11 +272,12 @@
 
     /* Navbar */
     .navbar {
-      background-color: #ffffff;
-      border-bottom: 1px solid var(--bs-border-color);
+      background-color: var(--surface-navbar);
+      border-bottom: 1px solid var(--border-subtle);
       padding: 1rem 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 1px 3px 0 var(--shadow-soft);
       z-index: 999; /* Below sidebar */
+      transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     .navbar-icons {
@@ -195,14 +286,34 @@
       gap: 1.25rem; /* Space between icons */
     }
 
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s ease-in-out;
+    }
+    .theme-toggle:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
+    }
+    .theme-toggle:hover {
+      color: var(--accent-primary);
+    }
+
     .navbar-icons i {
       font-size: 1.25rem; /* text-xl */
-      color: #6B7280; /* Gray 500 */
+      color: var(--text-muted);
       cursor: pointer;
       transition: color 0.2s ease-in-out;
     }
     .navbar-icons i:hover {
-      color: var(--bs-primary);
+      color: var(--accent-primary);
     }
 
     .navbar-icons .profile-img {
@@ -210,8 +321,9 @@
       height: 40px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid var(--bs-primary);
-      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+      border: 2px solid var(--accent-primary);
+      box-shadow: 0 0 0 2px var(--accent-primary-soft);
+      transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     }
 
     /* Profile image on user profile page */
@@ -220,7 +332,7 @@
       height: 150px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid var(--bs-primary);
+      border: 2px solid var(--accent-primary);
     }
 
     /* Hamburger Icon */
@@ -244,7 +356,7 @@
       position: absolute;
       height: 2px;
       width: 100%;
-      background: var(--bs-dark);
+      background: var(--text-primary);
       border-radius: 9999px;
       opacity: 1;
       left: 0;
@@ -311,37 +423,38 @@
 
     /* General Card/Section Styling */
     .section-box {
-      background-color: #ffffff;
+      background-color: var(--surface-card);
       border-radius: 0.75rem; /* rounded-xl */
       padding: 1.5rem;
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-md */
+      box-shadow: 0 1px 3px 0 var(--shadow-soft);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     /* Utility classes for consistency */
     .btn-primary {
-      background-color: var(--bs-primary);
-      border-color: var(--bs-primary);
+      background-color: var(--accent-primary);
+      border-color: var(--accent-primary);
       transition: all 0.2s ease-in-out;
     }
     .btn-primary:hover {
-      background-color: #4338CA; /* Indigo 700 */
-      border-color: #4338CA;
+      background-color: var(--accent-primary-strong);
+      border-color: var(--accent-primary-strong);
       transform: translateY(-1px);
     }
     .btn-primary:active {
-      background-color: #3730A3; /* Indigo 800 */
-      border-color: #3730A3;
+      background-color: var(--accent-primary-strong);
+      border-color: var(--accent-primary-strong);
       transform: translateY(0);
     }
 
     .btn-outline-primary {
-      color: var(--bs-primary);
-      border-color: var(--bs-primary);
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
       transition: all 0.2s ease-in-out;
     }
     .btn-outline-primary:hover {
-      background-color: var(--bs-primary);
-      color: #ffffff;
+      background-color: var(--accent-primary);
+      color: var(--accent-primary-contrast);
       transform: translateY(-1px);
     }
     .btn-outline-primary:active {
@@ -385,9 +498,9 @@
         visibility: visible;
     }
     .custom-modal-content {
-        background-color: #ffffff;
+        background-color: var(--surface-card);
         border-radius: 0.75rem;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 15px -3px var(--shadow-soft), 0 4px 6px -2px var(--shadow-soft);
         padding: 1.5rem;
         width: 90%;
         max-width: 450px;
@@ -403,23 +516,23 @@
         align-items: center;
         margin-bottom: 1rem;
         padding-bottom: 0.75rem;
-        border-bottom: 1px solid var(--bs-border-color);
+        border-bottom: 1px solid var(--border-subtle);
     }
     .custom-modal-title {
         font-size: 1.25rem;
         font-weight: 600;
-        color: var(--bs-heading-color);
+        color: var(--text-primary);
     }
     .custom-modal-close-btn {
         background: none;
         border: none;
         font-size: 1.5rem;
-        color: #9CA3AF;
+        color: var(--text-muted);
         cursor: pointer;
     }
     .custom-modal-body {
         margin-bottom: 1.5rem;
-        color: var(--bs-body-color);
+        color: var(--text-secondary);
     }
     .custom-modal-footer {
         display: flex;
@@ -506,8 +619,21 @@
       max-width: 100%;
     }
   </style>
+  <script>
+    (function() {
+      const storageKey = 'dashboard-theme';
+      try {
+        const storedTheme = localStorage.getItem(storageKey);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+        const initialTheme = storedTheme || (prefersDark.matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', initialTheme);
+      } catch (error) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
 </head>
-<body>
+<body data-theme="light">
   <div class="d-flex">
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
@@ -580,6 +706,9 @@
         </button>
         <div class="navbar-icons ms-auto">
           <i class="bi bi-bell"></i>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">
+            <i class="bi bi-moon-stars"></i>
+          </button>
           <i class="bi bi-gear"></i>
           <a href="{{ url_for('user_profile') }}">
             {% if logged_in_user and logged_in_user.profile_image %}
@@ -610,6 +739,10 @@
           </div>
           <div class="custom-modal-body" id="custom-alert-message"></div>
           <div class="custom-modal-footer">
+              <button type="button" class="custom-modal-close-btn" onclick="hideCustomAlert()">&times;</button>
+          </div>
+          <div class="custom-modal-body" id="custom-alert-message"></div>
+          <div class="custom-modal-footer">
               <button type="button" class="btn btn-primary" onclick="hideCustomAlert()">OK</button>
           </div>
       </div>
@@ -631,6 +764,73 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function() {
+      const storageKey = 'dashboard-theme';
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+      const toggleSelector = '[data-theme-toggle]';
+      const root = document.documentElement;
+
+      const getStoredTheme = () => {
+        try {
+          return localStorage.getItem(storageKey);
+        } catch (error) {
+          return null;
+        }
+      };
+
+      const setStoredTheme = (theme) => {
+        try {
+          localStorage.setItem(storageKey, theme);
+        } catch (error) {
+          /* ignore storage errors */
+        }
+      };
+
+      const updateToggleVisualState = (theme) => {
+        const toggleButton = document.querySelector(toggleSelector);
+        if (!toggleButton) return;
+        const icon = toggleButton.querySelector('i');
+        toggleButton.setAttribute('aria-pressed', theme === 'dark');
+        toggleButton.setAttribute('title', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        if (!icon) return;
+        icon.classList.toggle('bi-moon-stars', theme !== 'dark');
+        icon.classList.toggle('bi-sun', theme === 'dark');
+      };
+
+      const applyTheme = (theme) => {
+        document.body.setAttribute('data-theme', theme);
+        root.setAttribute('data-theme', theme);
+        updateToggleVisualState(theme);
+      };
+
+      const stored = getStoredTheme();
+      const initialTheme = stored || (prefersDark.matches ? 'dark' : 'light');
+      applyTheme(initialTheme);
+
+      const toggleButton = document.querySelector(toggleSelector);
+      if (toggleButton) {
+        toggleButton.addEventListener('click', () => {
+          const currentTheme = document.body.getAttribute('data-theme') || 'light';
+          const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          applyTheme(nextTheme);
+          setStoredTheme(nextTheme);
+        });
+      }
+
+      const themeChangeHandler = (event) => {
+        if (!getStoredTheme()) {
+          applyTheme(event.matches ? 'dark' : 'light');
+        }
+      };
+
+      if (typeof prefersDark.addEventListener === 'function') {
+        prefersDark.addEventListener('change', themeChangeHandler);
+      } else if (typeof prefersDark.addListener === 'function') {
+        prefersDark.addListener(themeChangeHandler);
+      }
+    })();
+  </script>
   <script id="spa-script">
     // Custom Alert/Confirm Modals
     let _confirmCallback = null;
