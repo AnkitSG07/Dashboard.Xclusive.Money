@@ -250,9 +250,9 @@
     .sidebar .nav-link .sidebar-item__label {
       flex: 1 1 auto;
       color: inherit;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
     }
 
     .sidebar .nav-link .sidebar-item__meta {
@@ -1095,13 +1095,14 @@
           <span class="topbar-subtitle">Updated moments ago</span>
         </div>
         <div class="topbar-actions ms-auto">
-          <button class="topbar-primary-button" type="button">
-            <i class="bi bi-plus-lg"></i>
+          <a class="topbar-primary-button" href="{{ url_for('AddAccount') }}" aria-label="Create a new automation">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
             <span>New Automation</span>
-          </button>
-          <button class="topbar-icon-button" type="button" aria-label="Notifications" data-indicator="3">
-            <i class="bi bi-bell"></i>
-          </button>
+          </a>
+          <a class="topbar-icon-button" href="{{ url_for('demat_notifications') }}" aria-label="View notifications" title="View notifications">
+            <i class="bi bi-bell" aria-hidden="true"></i>
+            <span class="visually-hidden">Notifications</span>
+          </a>
           <button class="topbar-icon-button theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">
             <i class="bi bi-moon-stars"></i>
           </button>
