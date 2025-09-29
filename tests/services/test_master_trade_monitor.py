@@ -116,6 +116,17 @@ def fake_get_broker_client(name):
     return BrokerStub
 
 
+@pytest.fixture
+def zerodha_manual_cnc_order():
+    return {
+        "id": "zerodha-1",
+        "symbol": "RELIANCE",
+        "action": "BUY",
+        "qty": 2,
+        "product": "CNC",
+    }
+
+
 def test_manual_orders_are_published_and_copied(monkeypatch):
     BrokerStub.placed = []
     order = {"id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1}
@@ -205,6 +216,53 @@ def test_manual_orders_preserve_product_type(monkeypatch):
         session, redis_client=redis, max_iterations=1, poll_interval=0
     )
 
+    event = redis.stream[0][1]
+    assert event["product_type"] == "CNC"
+
+    trade_copier.poll_and_copy_trades(
+        session,
+        processor=trade_copier.copy_order,
+        redis_client=redis,
+        max_messages=1,
+    )
+
+    assert len(BrokerStub.placed) == 1
+    placed_order = BrokerStub.placed[0]
+    assert placed_order["product_type"] == "CNC"
+
+
+def test_manual_orders_preserve_product_from_zerodha(monkeypatch, zerodha_manual_cnc_order):
+    BrokerStub.placed = []
+    master = SimpleNamespace(
+        client_id="zerodha-master",
+        broker="mock",
+        credentials={"access_token": "", "orders": [zerodha_manual_cnc_order]},
+        role="master",
+        user_id=1,
+    )
+    child = SimpleNamespace(
+        broker="mock",
+        client_id="zerodha-child",
+        credentials={},
+        copy_qty=None,
+        role="child",
+    )
+    session = SessionStub(master, [child])
+    redis = RedisStub()
+
+    monkeypatch.setattr(master_trade_monitor, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(trade_copier, "get_broker_client", fake_get_broker_client)
+    monkeypatch.setattr(
+        trade_copier,
+        "active_children_for_master",
+        lambda m, *args, **kwargs: [child],
+    )
+
+    master_trade_monitor.monitor_master_trades(
+        session, redis_client=redis, max_iterations=1, poll_interval=0
+    )
+
+    assert redis.stream, "expected zerodha manual trade event"
     event = redis.stream[0][1]
     assert event["product_type"] == "CNC"
 
