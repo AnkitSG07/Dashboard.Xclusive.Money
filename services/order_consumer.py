@@ -1030,7 +1030,7 @@ def consume_webhook_events(
                                 or result.get("data", {}).get("message")
                             )
                         fallback_exchange = _extract_fallback_exchange(fallback_message)
-                        if fallback_exchange or fallback_queue:
+                        if fallback_exchange:
                             selected_fallback = _select_fallback(fallback_exchange)
                             if selected_fallback:
                                 current_params = _build_params_for_exchange(selected_fallback)
