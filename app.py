@@ -1641,6 +1641,8 @@ def save_log(user_id, symbol, action, quantity, status, response):
     """Persist a trade log entry using SQLAlchemy."""
     log = TradeLog(
         timestamp=datetime.now().isoformat(),
+        # Always coerce the user identifier to string so it matches the
+        # TradeLog.user_id column type and supports broker client IDs.
         user_id=str(user_id),
         symbol=symbol,
         action=action,
