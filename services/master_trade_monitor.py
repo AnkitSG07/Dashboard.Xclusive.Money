@@ -345,19 +345,23 @@ def monitor_master_trades(
                         or order.get("iType")
                     )
 
-                    product_type = (
-                        order.get("product_type")
-                        or order.get("product")
-                        or order.get("pCode")
-                    )
-
-                    product_type = (
-                        order.get("product_type")
-                        or order.get("productType")
-                        or order.get("pCode")
-                        or order.get("productcode")
-                        or order.get("prodType")
-                    )
+                    product_type = None
+                    for field in (
+                        "product_type",
+                        "productType",
+                        "product",
+                        "productcode",
+                        "productCode",
+                        "pCode",
+                        "prodType",
+                    ):
+                        value = order.get(field)
+                        if value is None:
+                            continue
+                        if isinstance(value, str) and not value.strip():
+                            continue
+                        product_type = value
+                        break
                     
                     # Additional fields for derivatives
                     expiry = order.get("expiry") or order.get("expiryDate")
