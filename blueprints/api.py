@@ -1,3 +1,8 @@
+import os
+from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from threading import Lock
+
 from flask import Blueprint, jsonify, session, request
 from helpers import (
     current_user,
@@ -6,11 +11,24 @@ from helpers import (
     normalize_position,
 )
 from models import Account, db, Strategy, StrategyLog, StrategySubscription, Trade
-from dhanhq import dhanhq
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+_SNAPSHOT_CACHE: dict[str, dict] = {}
+_SNAPSHOT_LOCK = Lock()
+_HOLDINGS_CACHE: dict[str, dict] = {}
+_HOLDINGS_LOCK = Lock()
+
+_SNAPSHOT_INTERVAL = timedelta(
+    seconds=int(os.environ.get("DASHBOARD_SNAPSHOT_INTERVAL", "15"))
+)
+_HOLDINGS_INTERVAL = timedelta(
+    seconds=int(os.environ.get("DASHBOARD_HOLDINGS_INTERVAL", "30"))
+)
+_BROKER_TIMEOUT_SECONDS = float(os.environ.get("BROKER_TIMEOUT_SECONDS", "4"))
+_EXECUTOR = ThreadPoolExecutor(max_workers=4)
 
 
 def login_required_api(fn):
@@ -20,28 +38,63 @@ def login_required_api(fn):
             return jsonify({"error": "Unauthorized"}), 401
         return fn(*args, **kwargs)
 
-    
+
     return wrapper
 
 
-@api_bp.route("/portfolio", defaults={"client_id": None})
-@api_bp.route("/portfolio/<client_id>")
-@login_required_api
-def portfolio(client_id=None):
-    """Return positions for the requested account."""
-    user = current_user()
-    if client_id:
-        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
-    else:
-        account = get_primary_account(user)
-    if not account or not account.credentials:
-        return jsonify({"error": "Account not configured"}), 400
+def _snapshot_cache_key(account: Account) -> str:
+    client_id = account.client_id or "primary"
+    return f"snapshot:{account.user_id}:{client_id}"
 
-    from app import broker_api, _account_to_dict
-    api = broker_api(_account_to_dict(account))
+
+def _holdings_cache_key(account: Account) -> str:
+    client_id = account.client_id or "primary"
+    return f"holdings:{account.user_id}:{client_id}"
+
+
+def _default_order_summary() -> dict:
+    return {"total_trades": 0, "total_quantity": 0, "last_status": "-"}
+
+
+def _safe_float(val, default: float = 0.0) -> float:
     try:
-        resp = api.get_positions()
-        if isinstance(resp, dict):
+        if val is None:
+            return default
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def _call_with_timeout(func, timeout: float):
+    future = _EXECUTOR.submit(func)
+    try:
+        return future.result(timeout=timeout)
+    except FuturesTimeoutError as exc:  # pragma: no cover - concurrency edge
+        future.cancel()
+        raise TimeoutError(str(exc))
+
+
+def _prepare_snapshot_for_response(entry: dict) -> dict:
+    now = datetime.utcnow()
+    data = deepcopy(entry.get("data", {}))
+    data.setdefault("errors", {})
+    data.setdefault("stale", False)
+    cached_at = entry.get("timestamp", now)
+    if isinstance(cached_at, datetime):
+        data["cached_at"] = cached_at.isoformat() + "Z"
+        data["age"] = max((now - cached_at).total_seconds(), 0.0)
+    else:  # pragma: no cover - defensive
+        data["cached_at"] = None
+        data["age"] = None
+    return data
+
+
+def _normalize_portfolio_data(resp, account: Account) -> list:
+    data = []
+    if isinstance(resp, dict):
+        if resp.get("status") == "success" and isinstance(resp.get("data"), list):
+            data = resp.get("data")
+        else:
             data = (
                 resp.get("data")
                 or resp.get("positions")
@@ -50,27 +103,270 @@ def portfolio(client_id=None):
                 or resp.get("net_positions")
                 or []
             )
+    elif isinstance(resp, list):
+        data = resp
+    else:
+        data = resp or []
+
+    if isinstance(data, dict):
+        data = (
+            data.get("data")
+            or data.get("positions")
+            or data.get("net")
+            or data.get("netPositions")
+            or data.get("net_positions")
+            or []
+        )
+
+    if not isinstance(data, list):
+        data = []
+
+    standardized = [normalize_position(p, account.broker) for p in data]
+    return [p for p in standardized if p]
+
+
+def _order_summary_from_items(items: list) -> dict:
+    summary = _default_order_summary()
+    total_qty = 0
+    last_status = summary["last_status"]
+    for order in items:
+        qty = order.get("quantity") or order.get("qty") or order.get("filledQty")
+        total_qty += _safe_float(qty, 0)
+        status = (
+            order.get("order_status")
+            or order.get("status")
+            or order.get("statusMessage")
+            or last_status
+        )
+        last_status = status
+    summary["total_trades"] = len(items)
+    summary["total_quantity"] = int(total_qty)
+    summary["last_status"] = last_status or "-"
+    return summary
+
+
+def _normalize_orders(resp) -> dict:
+    items = []
+    summary = _default_order_summary()
+
+    if isinstance(resp, dict):
+        candidate = resp.get("data") or resp.get("orders") or []
+        items = candidate if isinstance(candidate, list) else []
+        raw_summary = resp.get("summary")
+        if isinstance(raw_summary, dict):
+            summary.update({k: raw_summary.get(k, summary[k]) for k in summary})
+    elif isinstance(resp, list):
+        items = resp
+    else:
+        items = []
+
+    if not isinstance(items, list):
+        items = []
+
+    computed = _order_summary_from_items(items)
+    summary = {
+        "total_trades": summary.get("total_trades") or computed["total_trades"],
+        "total_quantity": summary.get("total_quantity") or computed["total_quantity"],
+        "last_status": summary.get("last_status") or computed["last_status"],
+    }
+
+    return {"items": items, "summary": summary}
+
+
+def _normalize_account_stats(resp) -> dict:
+    data = resp
+    if isinstance(resp, dict):
+        data = resp.get("data") or resp
+    if not isinstance(data, dict):
+        return {}
+
+    def first_float(keys, default=0.0):
+        for key in keys:
+            if key in data:
+                val = _safe_float(data.get(key))
+                return val
+        return default
+
+    return {
+        "total_funds": first_float(
+            [
+                "availabelBalance",
+                "availableBalance",
+                "availableAmount",
+                "netCashAvailable",
+                "netCash",
+            ]
+        ),
+        "available_margin": first_float(
+            ["withdrawableBalance", "availableBalance", "availableAmount"]
+        ),
+        "used_margin": first_float(["utilizedAmount", "usedMargin", "blockedMargin"]),
+    }
+
+
+def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
+    existing = existing or {}
+    from app import broker_api, _account_to_dict
+
+    api = broker_api(_account_to_dict(account))
+    if hasattr(api, "timeout"):
+        try:
+            api.timeout = min(getattr(api, "timeout", _BROKER_TIMEOUT_SECONDS), _BROKER_TIMEOUT_SECONDS)
+        except Exception:  # pragma: no cover - defensive
+            api.timeout = _BROKER_TIMEOUT_SECONDS
+
+    snapshot = {
+        "portfolio": existing.get("portfolio", []),
+        "orders": existing.get(
+            "orders", {"items": [], "summary": _default_order_summary()}
+        ),
+        "account": existing.get("account", {}),
+        "errors": {},
+        "stale": False,
+    }
+
+    if hasattr(api, "get_positions"):
+        try:
+            resp = _call_with_timeout(api.get_positions, _BROKER_TIMEOUT_SECONDS)
+            snapshot["portfolio"] = _normalize_portfolio_data(resp, account)
+        except Exception as exc:
+            snapshot["errors"]["portfolio"] = str(exc)
+    else:
+        snapshot["errors"]["portfolio"] = "Broker does not expose positions"
+
+    if hasattr(api, "get_order_list"):
+        try:
+            resp = _call_with_timeout(api.get_order_list, _BROKER_TIMEOUT_SECONDS)
+            snapshot["orders"] = _normalize_orders(resp)
+        except Exception as exc:
+            snapshot["errors"]["orders"] = str(exc)
+    else:
+        snapshot["errors"]["orders"] = "Broker does not expose order list"
+
+    profile_method = None
+    for candidate in ("get_profile", "get_fund_limits", "get_account_details"):
+        if hasattr(api, candidate):
+            profile_method = getattr(api, candidate)
+            break
+
+    if profile_method is not None:
+        try:
+            resp = _call_with_timeout(profile_method, _BROKER_TIMEOUT_SECONDS)
+            stats = _normalize_account_stats(resp)
+            if stats:
+                snapshot["account"] = stats
+            else:
+                snapshot["errors"].setdefault(
+                    "account", "Account response missing expected fields"
+                )
+        except Exception as exc:
+            snapshot["errors"]["account"] = str(exc)
+    elif not snapshot["account"]:
+        snapshot["errors"]["account"] = "Broker does not expose account stats"
+
+    snapshot["stale"] = bool(snapshot["errors"])
+    return snapshot
+
+
+def _get_dashboard_snapshot(account: Account) -> dict:
+    key = _snapshot_cache_key(account)
+    now = datetime.utcnow()
+
+    with _SNAPSHOT_LOCK:
+        entry = _SNAPSHOT_CACHE.get(key)
+        if entry and now - entry["timestamp"] < _SNAPSHOT_INTERVAL:
+            return _prepare_snapshot_for_response(entry)
+
+    existing = deepcopy(entry["data"]) if entry else {}
+
+    try:
+        snapshot = _collect_snapshot(account, existing)
+        entry = {"timestamp": datetime.utcnow(), "data": snapshot}
+        with _SNAPSHOT_LOCK:
+            _SNAPSHOT_CACHE[key] = entry
+        return _prepare_snapshot_for_response(entry)
+    except Exception as exc:
+        if entry:
+            cached = _prepare_snapshot_for_response(entry)
+            cached.setdefault("errors", {})["snapshot"] = str(exc)
+            cached["stale"] = True
+            return cached
+        raise
+
+
+def _resolve_account(user, client_id: str | None) -> Account | None:
+    if client_id:
+        return Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+    return get_primary_account(user)
+
+
+def _get_holdings_payload(account: Account) -> tuple[list, bool]:
+    key = _holdings_cache_key(account)
+    now = datetime.utcnow()
+
+    with _HOLDINGS_LOCK:
+        entry = _HOLDINGS_CACHE.get(key)
+        if entry and now - entry["timestamp"] < _HOLDINGS_INTERVAL:
+            return deepcopy(entry["data"]), entry.get("stale", False)
+
+    from app import broker_api, _account_to_dict
+
+    api = broker_api(_account_to_dict(account))
+    if hasattr(api, "timeout"):
+        try:
+            api.timeout = min(getattr(api, "timeout", _BROKER_TIMEOUT_SECONDS), _BROKER_TIMEOUT_SECONDS)
+        except Exception:  # pragma: no cover - defensive
+            api.timeout = _BROKER_TIMEOUT_SECONDS
+
+    if not hasattr(api, "get_holdings"):
+        raise AttributeError("Broker does not expose holdings")
+
+    cached_data = deepcopy(entry["data"]) if entry else []
+    try:
+        resp = _call_with_timeout(api.get_holdings, _BROKER_TIMEOUT_SECONDS)
+        if isinstance(resp, dict):
+            data = resp.get("data") or resp.get("holdings") or []
         else:
             data = resp or []
-
-        if isinstance(data, dict):
-            data = (
-                data.get("data")
-                or data.get("positions")
-                or data.get("net")
-                or data.get("netPositions")
-                or data.get("net_positions")
-                or []
-            )
-
         if not isinstance(data, list):
             data = []
+        entry = {
+            "timestamp": datetime.utcnow(),
+            "data": data,
+            "stale": False,
+        }
+        with _HOLDINGS_LOCK:
+            _HOLDINGS_CACHE[key] = entry
+        return deepcopy(data), False
+    except Exception as exc:
+        if cached_data:
+            return cached_data, True
+        raise exc
+@api_bp.route("/dashboard/snapshot", defaults={"client_id": None})
+@api_bp.route("/dashboard/snapshot/<client_id>")
+@login_required_api
+def dashboard_snapshot(client_id=None):
+    user = current_user()
+    account = _resolve_account(user, client_id)
+    if not account or not account.credentials:
+        return jsonify({"error": "Account not configured"}), 400
 
-        standardized = [normalize_position(p, account.broker) for p in data]
-        standardized = [p for p in standardized if p]
-        return jsonify(standardized)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    snapshot = _get_dashboard_snapshot(account)
+    return jsonify(snapshot)
+
+
+@api_bp.route("/portfolio", defaults={"client_id": None})
+@api_bp.route("/portfolio/<client_id>")
+@login_required_api
+def portfolio(client_id=None):
+    """Return positions for the requested account."""
+    user = current_user()
+    account = _resolve_account(user, client_id)
+    if not account or not account.credentials:
+        return jsonify({"error": "Account not configured"}), 400
+
+    snapshot = _get_dashboard_snapshot(account)
+    return jsonify(snapshot.get("portfolio", []))
 
 
 @api_bp.route("/orders", defaults={"client_id": None})
@@ -79,25 +375,25 @@ def portfolio(client_id=None):
 def orders(client_id=None):
     """Return order list for the requested account."""
     user = current_user()
-    if client_id:
-        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
-    else:
-        account = get_primary_account(user)
+    account = _resolve_account(user, client_id)
     if not account or not account.credentials:
         return jsonify({"error": "Account not configured"}), 400
 
-    from app import broker_api, _account_to_dict
-    api = broker_api(_account_to_dict(account))
-    try:
-        resp = api.get_order_list()
-        orders = []
-        if isinstance(resp, dict):
-            orders = resp.get("data") or resp.get("orders") or []
-        elif isinstance(resp, list):
-            orders = resp
-        return jsonify(orders)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    snapshot = _get_dashboard_snapshot(account)
+    orders = snapshot.get("orders", {})
+    if isinstance(orders, dict):
+        payload = {
+            "orders": orders.get("items", []),
+            "summary": orders.get("summary", _default_order_summary()),
+            "stale": bool(snapshot.get("errors", {}).get("orders")),
+            "cached_at": snapshot.get("cached_at"),
+            "age": snapshot.get("age"),
+        }
+        error = snapshot.get("errors", {}).get("orders")
+        if error:
+            payload["error"] = error
+        return jsonify(payload)
+    return jsonify(orders)
 
 
 @api_bp.route("/holdings", defaults={"client_id": None})
@@ -106,28 +402,18 @@ def orders(client_id=None):
 def holdings(client_id=None):
     """Return holdings for the requested account if supported."""
     user = current_user()
-    if client_id:
-        account = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
-    else:
-        account = get_primary_account(user)
+    account = _resolve_account(user, client_id)
     if not account or not account.credentials:
         return jsonify({"error": "Account not configured"}), 400
 
-    from app import broker_api, _account_to_dict
-    api = broker_api(_account_to_dict(account))
-
-    if not hasattr(api, "get_holdings"):
-        return jsonify({"error": "Holdings not supported for this broker"}), 400
-
     try:
-        resp = api.get_holdings()
-        if isinstance(resp, dict):
-            data = resp.get("data") or resp.get("holdings") or []
-        else:
-            data = resp or []
-        return jsonify(data)
+        data, stale = _get_holdings_payload(account)
+    except AttributeError:
+        return jsonify({"error": "Holdings not supported for this broker"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    return jsonify({"data": data, "stale": stale})
 
 
 @api_bp.route("/account")
@@ -138,23 +424,22 @@ def account_stats():
     if not account or not account.credentials:
         return jsonify({"error": "Account not configured"}), 400
 
-    dhan = dhanhq(account.client_id, account.credentials.get("access_token"))
-    try:
-        stats_resp = dhan.get_fund_limits()
-        if not isinstance(stats_resp, dict) or "data" not in stats_resp:
-            return (
-                jsonify({"error": "Unexpected response format", "details": stats_resp}),
-                500,
-            )
-        stats = stats_resp["data"]
-        mapped_stats = {
-            "total_funds": stats.get("availabelBalance", 0),
-            "available_margin": stats.get("withdrawableBalance", 0),
-            "used_margin": stats.get("utilizedAmount", 0),
+    snapshot = _get_dashboard_snapshot(account)
+    stats = snapshot.get("account", {})
+    payload = dict(stats)
+    payload.update(
+        {
+            "stale": bool(snapshot.get("errors", {}).get("account")),
+            "cached_at": snapshot.get("cached_at"),
+            "age": snapshot.get("age"),
         }
-        return jsonify(mapped_stats)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    )
+    error = snapshot.get("errors", {}).get("account")
+    if error:
+        payload["error"] = error
+    if not stats and error:
+        return jsonify(payload), 502
+    return jsonify(payload)
 
 
 @api_bp.route("/order-mappings")
@@ -466,6 +751,8 @@ def regenerate_webhook_secret(strategy_id):
     strategy.webhook_secret = secrets.token_hex(16)
     db.session.commit()
     return jsonify({"webhook_secret": strategy.webhook_secret})
+
+
 
 
 @api_bp.route("/strategies/<int:strategy_id>/test-webhook", methods=["POST"])
