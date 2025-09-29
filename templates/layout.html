@@ -7,8 +7,8 @@
   <title>{% block title %}DhanBot - Modern Trading Platform{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-  <!-- Using Inter font for a modern SaaS look -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Updated typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS -->
   <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet">
   <style>
@@ -19,53 +19,53 @@
     /* Custom CSS for a modern SaaS look */
 [data-theme="light"] {
       color-scheme: light;
-      --surface-page: #F3F4F6;
+      --surface-page: #F5F7FB;
       --surface-sidebar: #FFFFFF;
       --surface-navbar: #FFFFFF;
       --surface-card: #FFFFFF;
-      --surface-muted: #F9FAFB;
-      --surface-translucent: rgba(255, 255, 255, 0.7);
-      --border-subtle: #E5E7EB;
-      --border-strong: #D1D5DB;
-      --text-primary: #1F2937;
-      --text-secondary: #374151;
-      --text-muted: #6B7280;
-      --accent-primary: #4F46E5;
+      --surface-muted: #EEF1F8;
+      --surface-translucent: rgba(255, 255, 255, 0.72);
+      --border-subtle: #E2E6EF;
+      --border-strong: #C5CDDF;
+      --text-primary: #1C1F2B;
+      --text-secondary: #27324C;
+      --text-muted: #7A849F;
+      --accent-primary: #3751FF;
       --accent-primary-contrast: #FFFFFF;
-      --accent-primary-strong: #4338CA;
-      --accent-primary-soft: rgba(79, 70, 229, 0.18);
-      --status-success: #10B981;
-      --status-success-strong: #059669;
-      --status-success-soft: rgba(16, 185, 129, 0.12);
-      --status-info: #3B82F6;
-      --status-info-soft: rgba(59, 130, 246, 0.14);
-      --status-warning: #F59E0B;
-      --status-warning-soft: rgba(245, 158, 11, 0.15);
-      --status-danger: #EF4444;
-      --status-danger-strong: #DC2626;
-      --status-danger-soft: rgba(239, 68, 68, 0.14);
-      --shadow-soft: rgba(15, 23, 42, 0.08);
-      --shadow-strong: rgba(79, 70, 229, 0.2);
-      --bg-input: #F3F4F6;
-      --bg-light-gray: #E5E7EB;
-      --glass-shape-primary: rgba(99, 102, 241, 0.25);
-      --glass-shape-secondary: rgba(20, 184, 166, 0.2);
+      --accent-primary-strong: #2336D6;
+      --accent-primary-soft: rgba(55, 81, 255, 0.18);
+      --status-success: #2CC59A;
+      --status-success-strong: #1E9C79;
+      --status-success-soft: rgba(44, 197, 154, 0.14);
+      --status-info: #3F8CFF;
+      --status-info-soft: rgba(63, 140, 255, 0.16);
+      --status-warning: #F5A524;
+      --status-warning-soft: rgba(245, 165, 36, 0.16);
+      --status-danger: #F05252;
+      --status-danger-strong: #D83333;
+      --status-danger-soft: rgba(240, 82, 82, 0.16);
+      --shadow-soft: rgba(19, 33, 68, 0.08);
+      --shadow-strong: rgba(55, 81, 255, 0.24);
+      --bg-input: #F0F3FA;
+      --bg-light-gray: #E6EBF5;
+      --glass-shape-primary: rgba(55, 81, 255, 0.25);
+      --glass-shape-secondary: rgba(33, 150, 243, 0.18);
       --text-light: var(--text-primary);
       --text-dark: var(--text-primary);
       --bs-primary: var(--accent-primary);
-      --bs-primary-rgb: 79, 70, 229;
+      --bs-primary-rgb: 55, 81, 255;
       --bs-secondary: var(--text-muted);
-      --bs-secondary-rgb: 107, 114, 128;
+      --bs-secondary-rgb: 122, 132, 159;
       --bs-success: var(--status-success);
-      --bs-success-rgb: 16, 185, 129;
+      --bs-success-rgb: 44, 197, 154;
       --bs-info: var(--status-info);
-      --bs-info-rgb: 59, 130, 246;
+      --bs-info-rgb: 63, 140, 255;
       --bs-warning: var(--status-warning);
-      --bs-warning-rgb: 245, 158, 11;
+      --bs-warning-rgb: 245, 165, 36;
       --bs-danger: var(--status-danger);
-      --bs-danger-rgb: 239, 68, 68;
+      --bs-danger-rgb: 240, 82, 82;
       --bs-light: var(--surface-muted);
-      --bs-dark: #0F172A;
+      --bs-dark: #111827;
       --bs-body-color: var(--text-primary);
       --bs-body-bg: var(--surface-page);
       --bs-border-color: var(--border-subtle);
@@ -74,53 +74,53 @@
 
     [data-theme="dark"] {
       color-scheme: dark;
-      --surface-page: #0F172A;
-      --surface-sidebar: #111C2F;
-      --surface-navbar: #111C2F;
-      --surface-card: #1E293B;
-      --surface-muted: #162340;
-      --surface-translucent: rgba(30, 41, 59, 0.65);
-      --border-subtle: #1F2A3D;
-      --border-strong: #26334A;
-      --text-primary: #E2E8F0;
-      --text-secondary: #CBD5F5;
-      --text-muted: #94A3B8;
-      --accent-primary: #818CF8;
-      --accent-primary-contrast: #0F172A;
-      --accent-primary-strong: #6366F1;
-      --accent-primary-soft: rgba(99, 102, 241, 0.35);
-      --status-success: #34D399;
-      --status-success-strong: #059669;
-      --status-success-soft: rgba(52, 211, 153, 0.2);
-      --status-info: #60A5FA;
-      --status-info-soft: rgba(96, 165, 250, 0.22);
-      --status-warning: #FBBF24;
-      --status-warning-soft: rgba(251, 191, 36, 0.22);
-      --status-danger: #F87171;
-      --status-danger-strong: #DC2626;
-      --status-danger-soft: rgba(248, 113, 113, 0.22);
-      --shadow-soft: rgba(2, 6, 23, 0.6);
-      --shadow-strong: rgba(15, 23, 42, 0.75);
-      --bg-input: #1A2234;
-      --bg-light-gray: #1F2A3D;
-      --glass-shape-primary: rgba(129, 140, 248, 0.35);
-      --glass-shape-secondary: rgba(45, 212, 191, 0.25);
+      --surface-page: #0D1324;
+      --surface-sidebar: #10182B;
+      --surface-navbar: #111A30;
+      --surface-card: #18223B;
+      --surface-muted: #1D2942;
+      --surface-translucent: rgba(24, 34, 59, 0.68);
+      --border-subtle: #1E2B44;
+      --border-strong: #253453;
+      --text-primary: #F3F5FA;
+      --text-secondary: #CBD4E7;
+      --text-muted: #8793B5;
+      --accent-primary: #4C67FF;
+      --accent-primary-contrast: #0D1324;
+      --accent-primary-strong: #3751FF;
+      --accent-primary-soft: rgba(76, 103, 255, 0.35);
+      --status-success: #3AD9B0;
+      --status-success-strong: #24B490;
+      --status-success-soft: rgba(58, 217, 176, 0.28);
+      --status-info: #5DA0FF;
+      --status-info-soft: rgba(93, 160, 255, 0.28);
+      --status-warning: #FFC857;
+      --status-warning-soft: rgba(255, 200, 87, 0.28);
+      --status-danger: #FF6B6B;
+      --status-danger-strong: #E63946;
+      --status-danger-soft: rgba(255, 107, 107, 0.28);
+      --shadow-soft: rgba(3, 6, 14, 0.65);
+      --shadow-strong: rgba(55, 81, 255, 0.45);
+      --bg-input: #141D31;
+      --bg-light-gray: #1A2640;
+      --glass-shape-primary: rgba(76, 103, 255, 0.32);
+      --glass-shape-secondary: rgba(61, 160, 255, 0.28);
       --text-light: var(--text-primary);
       --text-dark: var(--text-primary);
       --bs-primary: var(--accent-primary);
-      --bs-primary-rgb: 129, 140, 248;
+      --bs-primary-rgb: 76, 103, 255;
       --bs-secondary: var(--text-muted);
-      --bs-secondary-rgb: 148, 163, 184;
+      --bs-secondary-rgb: 135, 147, 181;
       --bs-success: var(--status-success);
-      --bs-success-rgb: 52, 211, 153;
+      --bs-success-rgb: 58, 217, 176;
       --bs-info: var(--status-info);
-      --bs-info-rgb: 96, 165, 250;
+      --bs-info-rgb: 93, 160, 255;
       --bs-warning: var(--status-warning);
-      --bs-warning-rgb: 251, 191, 36;
+      --bs-warning-rgb: 255, 200, 87;
       --bs-danger: var(--status-danger);
-      --bs-danger-rgb: 248, 113, 113;
+      --bs-danger-rgb: 255, 107, 107;
       --bs-light: var(--surface-muted);
-      --bs-dark: #020617;
+      --bs-dark: #030712;
       --bs-body-color: var(--text-primary);
       --bs-body-bg: var(--surface-page);
       --bs-border-color: var(--border-subtle);
@@ -128,7 +128,7 @@
     }
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Poppins', sans-serif;
       background-color: var(--surface-page);
       color: var(--text-primary);
       transition: background-color 0.3s ease, color 0.3s ease;
@@ -168,81 +168,177 @@
 
     .sidebar .nav {
       flex-grow: 1;
-      padding: 0 1rem;
-      overflow-y: auto; /* Enable scrolling for long navs */
+      padding: 0 1.25rem 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sidebar .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
     }
 
     .sidebar .nav-title {
-      font-size: 0.75rem; /* text-xs */
-      font-weight: 600; /* font-semibold */
+      font-size: 0.7rem;
+      font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em; /* tracking-wider */
-      margin-top: 1.5rem;
-      margin-bottom: 0.75rem;
-      padding-left: 0.75rem;
+      letter-spacing: 0.12em;
+      padding-left: 1.1rem;
+      margin-bottom: 0.2rem;
     }
 
     .sidebar .nav-link {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: clamp(0.6rem, 2.8vw, 0.8rem) clamp(0.75rem, 3.5vw, 1rem);
-    color: var(--text-secondary);
-    font-weight: 500;
-    border-radius: 0.3rem;
-    margin: 0.1rem clamp(0.75rem, 3.5vw, 1rem);
-    transition: all 0.2s ease-in-out;
-    text-decoration: none;
-    font-size: clamp(0.875rem, 3.2vw, 0.95rem);
-    flex-shrink: 0;
-  }
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem 0.75rem 1.75rem;
+      margin: 0;
+      border-radius: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 0.95rem;
+      min-height: 3.25rem;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
 
-    .sidebar .nav-link i {
-      font-size: 1.125rem; /* text-lg */
-      margin-right: 0.75rem;
+    .sidebar .nav-link .sidebar-item__indicator {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 64%;
+      border-radius: 999px;
+      background: var(--accent-primary);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .sidebar .nav-link .sidebar-item__content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .sidebar .nav-link .sidebar-item__icon {
+      width: 2.625rem;
+      height: 2.625rem;
+      border-radius: 0.9rem;
+      background: var(--surface-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       color: var(--text-muted);
-      transition: color 0.2s ease-in-out;
+      font-size: 1.125rem;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .sidebar .nav-link .sidebar-item__label {
+      flex: 1 1 auto;
+      color: inherit;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .sidebar .nav-link .sidebar-item__meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-left: auto;
+    }
+
+    .sidebar .nav-link .sidebar-item__badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      background: var(--accent-primary-soft);
+      color: var(--accent-primary);
+      font-weight: 600;
+      font-size: 0.7rem;
+      letter-spacing: 0.02em;
     }
 
     .sidebar .nav-link:hover {
       background-color: var(--surface-muted);
       color: var(--accent-primary);
+      box-shadow: 0 10px 18px -12px var(--shadow-strong);
     }
-    .sidebar .nav-link:hover i {
+    .sidebar .nav-link:hover .sidebar-item__indicator {
+      opacity: 0.45;
+    }
+    .sidebar .nav-link:hover .sidebar-item__icon {
+      background: var(--accent-primary-soft);
       color: var(--accent-primary);
+      box-shadow: 0 8px 16px -14px var(--shadow-strong);
     }
 
     .sidebar .nav-link.active {
-      background-color: var(--accent-primary);
-      color: var(--accent-primary-contrast);
-      box-shadow: 0 6px 12px -4px var(--shadow-soft);
+      background-color: rgba(55, 81, 255, 0.12);
+      color: var(--accent-primary);
+      box-shadow: 0 14px 24px -18px var(--shadow-strong);
     }
-    .sidebar .nav-link.active i {
+    .sidebar .nav-link.active .sidebar-item__indicator {
+      opacity: 1;
+    }
+    .sidebar .nav-link.active .sidebar-item__icon {
+      background: var(--accent-primary);
       color: var(--accent-primary-contrast);
+      box-shadow: 0 10px 18px -12px var(--shadow-strong);
     }
 
-    .sidebar .nav-collapse {
+    .sidebar .nav-link.nav-collapse {
       cursor: pointer;
-      justify-content: space-between;
     }
-    .sidebar .nav-collapse .arrow {
-      transition: transform 0.2s ease-in-out;
+
+    .sidebar .nav-link.nav-collapse .sidebar-item__meta {
+      color: var(--text-muted);
     }
-    .sidebar .nav-collapse.active .arrow {
+
+    .sidebar .nav-link.nav-collapse .arrow {
+      font-size: 0.85rem;
+      transition: transform 0.2s ease;
+    }
+
+    .sidebar .nav-link.nav-collapse.active .arrow {
       transform: rotate(180deg);
     }
 
     .sidebar .submenu {
       display: none;
       flex-direction: column;
-      padding-left: 1.5rem;
-      margin-top: 0.25rem;
-      margin-bottom: 0.5rem;
+      gap: 0.35rem;
+      padding-left: 0;
+      margin: 0.25rem 0 0.75rem;
     }
+
     .sidebar .submenu .nav-link {
-      padding: 0.5rem 1rem;
-      font-size: 0.9375rem; /* text-sm */
+      padding-left: 3.5rem;
+      font-size: 0.9rem;
+      min-height: 2.85rem;
+    }
+
+    .sidebar .submenu .nav-link .sidebar-item__icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+    }
+
+    .sidebar .submenu .nav-link.active {
+      background-color: rgba(55, 81, 255, 0.16);
     }
 
     /* Logout Button */
@@ -274,56 +370,141 @@
     .navbar {
       background-color: var(--surface-navbar);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 1rem 1.5rem;
-      box-shadow: 0 1px 3px 0 var(--shadow-soft);
-      z-index: 999; /* Below sidebar */
-      transition: background-color 0.3s ease, border-color 0.3s ease;
-    }
-
-    .navbar-icons {
+      padding: 1.25rem 1.75rem;
+      box-shadow: 0 14px 28px -24px var(--shadow-strong);
+      z-index: 999;
+      transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 1.25rem; /* Space between icons */
+      gap: 1.5rem;
     }
 
-    .theme-toggle {
-      background: none;
-      border: none;
+    .navbar .topbar-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+    }
+
+    .navbar .topbar-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      margin: 0;
+    }
+
+    .topbar-subtitle {
+      font-size: 0.82rem;
       color: var(--text-muted);
-      font-size: 1.25rem;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-left: auto;
+    }
+
+    .topbar-primary-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-strong) 100%);
+      color: var(--accent-primary-contrast);
+      border: none;
+      border-radius: 0.9rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.65rem 1.2rem;
+      box-shadow: 0 12px 18px -14px var(--shadow-strong);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .topbar-primary-button i {
+      font-size: 1rem;
+    }
+
+    .topbar-primary-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 28px -18px var(--shadow-strong);
+    }
+
+    .topbar-icon-button {
+      width: 42px;
+      height: 42px;
+      border-radius: 0.95rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-muted);
+      color: var(--text-muted);
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      font-size: 1.1rem;
+      position: relative;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .topbar-icon-button:hover {
+      background: var(--accent-primary-soft);
+      color: var(--accent-primary);
+      border-color: rgba(55, 81, 255, 0.4);
+    }
+
+    .topbar-icon-button[data-indicator]::after {
+      content: attr(data-indicator);
+      position: absolute;
+      top: -0.3rem;
+      right: -0.35rem;
+      min-width: 1.2rem;
+      height: 1.2rem;
+      border-radius: 999px;
+      background: var(--status-danger);
+      color: var(--accent-primary-contrast);
+      font-weight: 600;
+      font-size: 0.65rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.25rem;
+      box-shadow: 0 8px 16px -10px rgba(240, 82, 82, 0.5);
+    }
+
+    .theme-toggle {
+      border: none;
       cursor: pointer;
       padding: 0;
-      transition: color 0.2s ease-in-out;
     }
+
     .theme-toggle:focus-visible {
       outline: 2px solid var(--accent-primary);
-      outline-offset: 2px;
-    }
-    .theme-toggle:hover {
-      color: var(--accent-primary);
+      outline-offset: 3px;
     }
 
-    .navbar-icons i {
-      font-size: 1.25rem; /* text-xl */
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: color 0.2s ease-in-out;
-    }
-    .navbar-icons i:hover {
-      color: var(--accent-primary);
+    .topbar-profile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 1.25rem;
+      padding: 0.25rem;
+      border: 1px solid transparent;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .navbar-icons .profile-img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
+    .topbar-profile:hover {
+      border-color: rgba(55, 81, 255, 0.35);
+      box-shadow: 0 10px 18px -16px var(--shadow-strong);
+    }
+
+    .topbar-profile .profile-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 1rem;
       object-fit: cover;
       border: 2px solid var(--accent-primary);
       box-shadow: 0 0 0 2px var(--accent-primary-soft);
-      transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     /* Profile image on user profile page */
@@ -642,47 +823,179 @@
           <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DhanBot Logo" class="max-w-[140px] h-auto">
         </a>
       </div>
-      <div class="nav">
-        <p class="nav-title">Dashboard</p>
-        <a class="nav-link" href="/Summary"><i class="bi bi-speedometer2"></i> Summary</a>
-        <a class="nav-link" href="/Add-Account"><i class="bi bi-graph-up-arrow"></i> Add Account</a>
-        <a class="nav-link" href="/copy-trading"><i class="bi bi-people-fill"></i> Copy Trading</a>
-        <div class="nav-link nav-collapse">
-          <i class="bi bi-pie-chart"></i> Demat Trading <i class="bi bi-chevron-down arrow"></i>
+      <div class="nav sidebar-nav">
+        <div class="nav-group">
+          <p class="nav-title">Dashboard</p>
+          <a class="nav-link" href="/Summary">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-speedometer2"></i></span>
+              <span class="sidebar-item__label">Summary</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">12</span>
+            </span>
+          </a>
+          <a class="nav-link" href="/Add-Account">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-graph-up-arrow"></i></span>
+              <span class="sidebar-item__label">Account Configuration</span>
+            </span>
+          </a>
+          <a class="nav-link" href="/copy-trading">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-people-fill"></i></span>
+              <span class="sidebar-item__label">Copy Trading</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">4 Live</span>
+            </span>
+          </a>
+          <div class="nav-link nav-collapse" role="button" tabindex="0">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-pie-chart"></i></span>
+              <span class="sidebar-item__label">Demat Trading</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">3</span>
+              <i class="bi bi-chevron-down arrow"></i>
+            </span>
+          </div>
+          <div class="submenu">
+            <a class="nav-link" href="/demat-strategies">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-bar-chart"></i></span>
+                <span class="sidebar-item__label">Strategies</span>
+              </span>
+            </a>
+            <a class="nav-link" href="/strategy-marketplace">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-shop"></i></span>
+                <span class="sidebar-item__label">Marketplace</span>
+              </span>
+            </a>
+            <a class="nav-link" href="/demat-notifications">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-bell"></i></span>
+                <span class="sidebar-item__label">Notifications</span>
+              </span>
+            </a>
+          </div>
+          <a class="nav-link" href="/groups">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-collection"></i></span>
+              <span class="sidebar-item__label">Groups</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">New</span>
+            </span>
+          </a>
         </div>
-        <div class="submenu">
-          <a class="nav-link" href="/demat-strategies"><i class="bi bi-bar-chart"></i> Strategies</a>
-          <a class="nav-link" href="/strategy-marketplace"><i class="bi bi-shop"></i> Marketplace</a>
-          <a class="nav-link" href="/demat-notifications"><i class="bi bi-bell"></i> Notifications</a>
-        </div>
-        <a class="nav-link" href="/groups"><i class="bi bi-collection"></i> Groups</a>
 
-        <p class="nav-title">Pages</p>
-        <div class="nav-link nav-collapse">
-          <i class="bi bi-lock"></i> Authentication <i class="bi bi-chevron-down arrow"></i>
-        </div>
-        <div class="submenu">
-          <a class="nav-link" href="{{ url_for('auth.login') }}"><i class="bi bi-person-fill"></i> Log in</a>
-          <a class="nav-link" href="{{ url_for('auth.signup') }}"><i class="bi bi-receipt-cutoff"></i> Sign up</a>
+        <div class="nav-group">
+          <p class="nav-title">Pages</p>
+          <div class="nav-link nav-collapse" role="button" tabindex="0">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-lock"></i></span>
+              <span class="sidebar-item__label">Authentication</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <i class="bi bi-chevron-down arrow"></i>
+            </span>
+          </div>
+          <div class="submenu">
+            <a class="nav-link" href="{{ url_for('auth.login') }}">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-person-fill"></i></span>
+                <span class="sidebar-item__label">Log in</span>
+              </span>
+            </a>
+            <a class="nav-link" href="{{ url_for('auth.signup') }}">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-receipt-cutoff"></i></span>
+                <span class="sidebar-item__label">Sign up</span>
+              </span>
+            </a>
+          </div>
         </div>
 
-        <p class="nav-title">Management</p>
-        <div class="nav-link nav-collapse">
-          <i class="bi bi-people"></i> Management <i class="bi bi-chevron-down arrow"></i>
-        </div>
-        <div class="submenu">
-          <a class="nav-link" href="/users"><i class="bi bi-person-fill"></i> Users</a>
-          <a class="nav-link" href="/invoices"><i class="bi bi-receipt-cutoff"></i> Invoices</a>
-          <a class="nav-link" href="/change-plan"><i class="bi bi-sliders"></i> Change Plan</a>
+        <div class="nav-group">
+          <p class="nav-title">Management</p>
+          <div class="nav-link nav-collapse" role="button" tabindex="0">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-people"></i></span>
+              <span class="sidebar-item__label">Management</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">Team</span>
+              <i class="bi bi-chevron-down arrow"></i>
+            </span>
+          </div>
+          <div class="submenu">
+            <a class="nav-link" href="/users">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-person-fill"></i></span>
+                <span class="sidebar-item__label">Users</span>
+              </span>
+            </a>
+            <a class="nav-link" href="/invoices">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-receipt-cutoff"></i></span>
+                <span class="sidebar-item__label">Invoices</span>
+              </span>
+            </a>
+            <a class="nav-link" href="/change-plan">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-sliders"></i></span>
+                <span class="sidebar-item__label">Change Plan</span>
+              </span>
+            </a>
+          </div>
         </div>
 
-        <p class="nav-title">Support</p>
-        <div class="nav-link nav-collapse">
-          <i class="bi bi-question-circle"></i> Support <i class="bi bi-chevron-down arrow"></i>
-        </div>
-        <div class="submenu">
-          <a class="nav-link" href="tel:+91XXXXXXXX"><i class="bi bi-telephone-fill"></i> Call</a>
-          <a class="nav-link" href="mailto:support@dhanbot.com"><i class="bi bi-envelope-fill"></i> Email</a>
+        <div class="nav-group">
+          <p class="nav-title">Support</p>
+          <div class="nav-link nav-collapse" role="button" tabindex="0">
+            <span class="sidebar-item__indicator" aria-hidden="true"></span>
+            <span class="sidebar-item__content">
+              <span class="sidebar-item__icon"><i class="bi bi-question-circle"></i></span>
+              <span class="sidebar-item__label">Support</span>
+            </span>
+            <span class="sidebar-item__meta">
+              <span class="sidebar-item__badge">24/7</span>
+              <i class="bi bi-chevron-down arrow"></i>
+            </span>
+          </div>
+          <div class="submenu">
+            <a class="nav-link" href="tel:+91XXXXXXXX">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-telephone-fill"></i></span>
+                <span class="sidebar-item__label">Call</span>
+              </span>
+            </a>
+            <a class="nav-link" href="mailto:support@dhanbot.com">
+              <span class="sidebar-item__indicator" aria-hidden="true"></span>
+              <span class="sidebar-item__content">
+                <span class="sidebar-item__icon"><i class="bi bi-envelope-fill"></i></span>
+                <span class="sidebar-item__label">Email</span>
+              </span>
+            </a>
+          </div>
         </div>
       </div>
       <div class="px-3 mt-auto mb-4">
@@ -704,13 +1017,25 @@
             <span></span>
           </span>
         </button>
-        <div class="navbar-icons ms-auto">
-          <i class="bi bi-bell"></i>
-          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">
+        <div class="topbar-heading d-none d-md-flex">
+          <h2 class="topbar-title">Control Center</h2>
+          <span class="topbar-subtitle">Updated moments ago</span>
+        </div>
+        <div class="topbar-actions ms-auto">
+          <button class="topbar-primary-button" type="button">
+            <i class="bi bi-plus-lg"></i>
+            <span>New Automation</span>
+          </button>
+          <button class="topbar-icon-button" type="button" aria-label="Notifications" data-indicator="3">
+            <i class="bi bi-bell"></i>
+          </button>
+          <button class="topbar-icon-button theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">
             <i class="bi bi-moon-stars"></i>
           </button>
-          <i class="bi bi-gear"></i>
-          <a href="{{ url_for('user_profile') }}">
+          <button class="topbar-icon-button" type="button" aria-label="Preferences">
+            <i class="bi bi-gear"></i>
+          </button>
+          <a class="topbar-profile" href="{{ url_for('user_profile') }}">
             {% if logged_in_user and logged_in_user.profile_image %}
             {% if logged_in_user.profile_image.startswith('data:') %}
             <img src="{{ logged_in_user.profile_image }}" alt="User" class="profile-img">
@@ -887,11 +1212,28 @@
     // Sidebar submenu toggle logic
     function setupSidebarSubmenus() {
       document.querySelectorAll('.nav-collapse').forEach(toggle => {
-        toggle.addEventListener('click', function () {
-          toggle.classList.toggle('active');
-          const submenu = toggle.nextElementSibling;
+        const submenu = toggle.nextElementSibling;
+        const updateState = () => {
+          const isActive = toggle.classList.toggle('active');
+          toggle.setAttribute('aria-expanded', String(isActive));
           if (submenu && submenu.classList.contains('submenu')) {
-            submenu.style.display = submenu.style.display === 'flex' ? 'none' : 'flex';
+            submenu.style.display = isActive ? 'flex' : 'none';
+          }
+        };
+
+        toggle.setAttribute('role', toggle.getAttribute('role') || 'button');
+        const startsActive = toggle.classList.contains('active');
+        toggle.setAttribute('aria-expanded', startsActive ? 'true' : 'false');
+        if (submenu && submenu.classList.contains('submenu')) {
+          submenu.style.display = startsActive ? 'flex' : 'none';
+        }
+
+        toggle.addEventListener('click', updateState);
+
+        toggle.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            updateState();
           }
         });
       });
@@ -929,6 +1271,7 @@
       document.querySelectorAll('.sidebar .nav-link').forEach(link => {
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
+          if (!url) return;
           if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
           if (this.getAttribute('target') === '_blank') return; // open in new tab
           e.preventDefault();
