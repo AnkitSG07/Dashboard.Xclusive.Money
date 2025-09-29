@@ -79,7 +79,11 @@ from helpers import (
     clear_connection_error_logs,
     normalize_position,
 )
-from symbols import get_symbols
+from symbols import (
+    get_symbol_cache_stats,
+    get_symbols,
+    refresh_symbols_background,
+)
 from services.logging import publish_log_event
 from services.webhook_receiver import enqueue_webhook, ValidationError
 from services.alert_guard import get_user_settings, update_user_settings
@@ -243,6 +247,10 @@ for handler in logging.getLogger().handlers:
     handler.setFormatter(formatter)
 
 logger = logging.getLogger(__name__)
+
+# Warm the broker symbol map early so subsequent requests hit a cached snapshot.
+refresh_symbols_background(force=True)
+logger.info("Queued background symbol cache refresh during startup")
 
 # Centralized commit helper
 def safe_commit():
@@ -5877,8 +5885,33 @@ def delete_group(group_name):
 @login_required
 def symbols_list():
     """Return list of symbols with token mappings for common brokers."""
-    return jsonify(get_symbols())
+    symbols_snapshot = get_symbols()
+    if symbols_snapshot is None:
+        logger.warning(
+            "Symbol cache unavailable; returning HTTP 503 and kicking off refresh",
+        )
+        refresh_symbols_background(force=False)
+        return (
+            jsonify(
+                {
+                    "error": "Symbol list temporarily unavailable. Please retry shortly.",
+                    "status": "initializing",
+                }
+            ),
+            503,
+        )
 
+    stats = get_symbol_cache_stats()
+    duration = stats.get("last_refresh_duration")
+    duration_ms = int(duration * 1000) if duration is not None else None
+    logger.info(
+        "Served %d cached symbols (refresh_duration_ms=%s, success=%s, using_fallback=%s)",
+        len(symbols_snapshot),
+        duration_ms if duration_ms is not None else "unknown",
+        stats.get("last_refresh_success"),
+        stats.get("using_fallback"),
+    )
+    return jsonify(symbols_snapshot)
 
 @app.route('/api/quote/<symbol>')
 @login_required
