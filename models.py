@@ -246,7 +246,8 @@ class TradeLog(db.Model):
     # CORRECTED: Changed from Integer to String(36) for UUID
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    user_id = db.Column(db.Integer, index=True)
+    # Accept both numeric user IDs and broker-issued string identifiers
+    user_id = db.Column(db.String(64), index=True)
     symbol = db.Column(db.String(50), index=True)
     action = db.Column(db.String(10))
     quantity = db.Column(db.Integer)
