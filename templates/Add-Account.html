@@ -382,27 +382,32 @@ window.pageScripts["Add-Account"] = function() {
     if (addAccountBtn) addAccountBtn.style.display = 'inline-flex';
   }
 
+  function sanitizeClientId(id) {
+    return String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  function formatBalance(balance) {
+    if (typeof balance === 'number' && !Number.isNaN(balance)) {
+      return `₹${balance.toLocaleString('en-IN')}`;
+    }
+    return '-';
+  }
+
   function renderAccounts(accountsToRender) {
     const cardGrid = document.getElementById('accounts-card-grid');
     const emptyState = document.getElementById('accounts-empty-state');
     if (!cardGrid || !emptyState) return;
     cardGrid.innerHTML = '';
 
-    if (accountsToRender.length === 0) {
-        emptyState.style.display = 'flex';
-        return;
-    } else {
-        emptyState.style.display = 'none';
-    }
-
     accountsToRender.forEach(acc => {
         const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
         const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
         const statusHtml = renderStatusBadge(acc);
+        const sanitizedId = sanitizeClientId(acc.client_id);
 
         const cardHtml = `
-            <div class="col">
-                <div class="account-card">
+            <div class="col" data-client-id="${sanitizedId}">
+                <div class="account-card" data-client-id="${sanitizedId}">
                     <div class="account-card-header">
                         <img src="${iconUrl}" alt="${brokerName} logo">
                         <div class="account-info">
@@ -413,11 +418,11 @@ window.pageScripts["Add-Account"] = function() {
                     <div class="account-card-body">
                         <div class="account-detail">
                             <span>Balance:</span>
-                            <span>₹${acc.opening_balance ? acc.opening_balance.toLocaleString('en-IN') : '-'}</span>
+                            <span data-field="balance">${formatBalance(acc.opening_balance)}</span>
                         </div>
                         <div class="account-detail">
                             <span>Status:</span>
-                            <span id="status-${acc.client_id.replace(/[^a-zA-Z0-9_-]/g,'')}">${statusHtml}</span>
+                            <span data-field="status">${statusHtml}</span>
                         </div>
                     </div>
                     <div class="account-card-footer">
@@ -430,6 +435,62 @@ window.pageScripts["Add-Account"] = function() {
         `;
         cardGrid.insertAdjacentHTML('beforeend', cardHtml);
     });
+
+
+    updateEmptyState();
+  }
+
+  function matchesFilters(acc) {
+    let matches = true;
+    if (statusFilter === 'success') {
+      matches = (acc.status || '').toLowerCase() === 'connected';
+    } else if (statusFilter === 'failed') {
+      matches = (acc.status || '').toLowerCase() !== 'connected';
+    }
+
+    if (matches && brokerFilter) {
+      matches = acc.broker === brokerFilter;
+    }
+
+    if (matches && searchFilter) {
+      const term = searchFilter.toLowerCase();
+      matches = String(acc.client_id).toLowerCase().includes(term) || (acc.username || '').toLowerCase().includes(term);
+    }
+
+    return matches;
+  }
+
+  function updateEmptyState() {
+    const cardGrid = document.getElementById('accounts-card-grid');
+    const emptyState = document.getElementById('accounts-empty-state');
+    if (!cardGrid || !emptyState) return;
+
+    const visibleCards = Array.from(cardGrid.querySelectorAll('.col')).filter(col => col.style.display !== 'none');
+    emptyState.style.display = visibleCards.length === 0 ? 'flex' : 'none';
+  }
+
+  function updateAccountCard(acc) {
+    if (!acc) return;
+    const sanitizedId = sanitizeClientId(acc.client_id);
+    const card = document.querySelector(`.account-card[data-client-id="${sanitizedId}"]`);
+    if (!card) return;
+
+    const balanceEl = card.querySelector('[data-field="balance"]');
+    if (balanceEl) {
+      balanceEl.textContent = formatBalance(acc.opening_balance);
+    }
+
+    const statusContainer = card.querySelector('[data-field="status"]');
+    if (statusContainer) {
+      statusContainer.innerHTML = renderStatusBadge(acc);
+    }
+
+    const container = card.closest('.col');
+    if (container) {
+      container.style.display = matchesFilters(acc) ? '' : 'none';
+    }
+
+    updateEmptyState();
   }
 
   async function attemptAutoLoginForAccount(acc) {
@@ -506,18 +567,20 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   function applyFilters() {
-    let accountsToRender = allAccounts.slice();
-    if (statusFilter === 'success') accountsToRender = accountsToRender.filter(a => (a.status || '').toLowerCase() === 'connected');
-    else if (statusFilter === 'failed') accountsToRender = accountsToRender.filter(a => (a.status || '').toLowerCase() !== 'connected');
-    if (brokerFilter) accountsToRender = accountsToRender.filter(a => a.broker === brokerFilter);
-    if (searchFilter) {
-      const term = searchFilter.toLowerCase();
-      accountsToRender = accountsToRender.filter(a =>
-        String(a.client_id).toLowerCase().includes(term) ||
-        (a.username || '').toLowerCase().includes(term)
-      );
-    }
-    renderAccounts(accountsToRender);
+    const cardGrid = document.getElementById('accounts-card-grid');
+    if (!cardGrid) return;
+
+    allAccounts.forEach(acc => {
+      const sanitizedId = sanitizeClientId(acc.client_id);
+      const card = cardGrid.querySelector(`.account-card[data-client-id="${sanitizedId}"]`);
+      if (!card) return;
+      const container = card.closest('.col');
+      if (!container) return;
+
+      container.style.display = matchesFilters(acc) ? '' : 'none';
+    });
+
+    updateEmptyState();
   }
 
   function updateCounts() {
@@ -661,21 +724,23 @@ window.pageScripts["Add-Account"] = function() {
   fetchJson('/api/accounts?cache_only=1')
     .then(data => {
       allAccounts = data.accounts || [];
+      renderAccounts(allAccounts);
+      populateBrokerCarousel();
+      populateBrokerFilter();
+      updateCounts();
+      applyFilters();
+
       // Kick off status and balance refresh in the background so the
       // page can render immediately with cached data. The UI will be
       // updated as each account finishes processing.
       allAccounts.forEach(acc => {
         attemptAutoLoginForAccount(acc)
-          .then(() => { updateCounts(); applyFilters(); })
-          .catch(() => { updateCounts(); applyFilters(); });
+          .then(() => { updateCounts(); updateAccountCard(acc); })
+          .catch(() => { updateCounts(); updateAccountCard(acc); });
         refreshBalanceForAccount(acc)
-          .then(() => applyFilters())
-          .catch(() => {});
-      });   
-      populateBrokerCarousel();
-      populateBrokerFilter();
-      updateCounts();
-      applyFilters();
+          .then(() => { updateCounts(); updateAccountCard(acc); })
+          .catch(() => { updateAccountCard(acc); });
+      });
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
