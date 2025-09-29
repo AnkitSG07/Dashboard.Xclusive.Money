@@ -283,11 +283,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const BROKER_DISPLAY_KEYS = ['dhan', 'aliceblue', 'angelone', 'iifl', 'kotak', 'upstox'];
+
     async function loadSymbols() {
         try {
             const symbols = await fetchJson('/api/symbols');
             const symbolList = document.getElementById('symbolList');
-            symbolList.innerHTML = (symbols || []).map(s => `<option value="${s.symbol}">${s.security_id}</option>`).join('');
+            symbolList.innerHTML = '';
+
+            (symbols || []).forEach(symbolEntry => {
+                const option = document.createElement('option');
+                option.value = symbolEntry.symbol || '';
+
+                const preferredId = symbolEntry.dhan || symbolEntry.symbol || '';
+                const brokerTokens = BROKER_DISPLAY_KEYS
+                    .filter(key => symbolEntry[key])
+                    .map(key => `${key}: ${symbolEntry[key]}`);
+
+                const label = brokerTokens.length
+                    ? `${preferredId} — ${brokerTokens.join(', ')}`
+                    : preferredId;
+
+                option.label = label;
+                option.textContent = preferredId;
+                option.title = brokerTokens.length ? brokerTokens.join(' | ') : label;
+
+                symbolList.appendChild(option);
+            });
         } catch(error) {
             console.error("Failed to load symbols:", error);
         }
