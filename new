@@ -1,0 +1,1821 @@
+{% extends “layout.html” %}
+{% block title %}Copy Trading - DhanBot{% endblock %}
+
+{% block head %}
+{{ super() }}
+
+  <style>
+      :root {
+        --primary-color: #6366f1;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --warning-color: #f59e0b;
+        --info-color: #3b82f6;
+        --bg-primary: #ffffff;
+        --bg-secondary: #f9fafb;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+  
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        font-size: 14px;
+      }
+  
+      .card {
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s ease;
+        border: 1px solid var(--border-color);
+        background: var(--bg-primary);
+      }
+  
+      .card:hover {
+        box-shadow: var(--shadow-md);
+      }
+  
+      .card-header {
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+        font-weight: 600;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        padding: 16px 20px;
+        font-size: 16px;
+      }
+  
+      .hero-section {
+        background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+        color: white;
+        padding: 32px;
+        border-radius: 16px;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 24px;
+      }
+  
+      .hero-section h3 {
+          color: white;
+          font-size: 24px;
+          font-weight: 700;
+          margin-bottom: 8px;
+      }
+      
+      .hero-section p {
+          color: rgba(255, 255, 255, 0.95);
+          margin-bottom: 0;
+          font-size: 15px;
+      }
+  
+      .hero-section a {
+          color: rgba(255, 255, 255, 0.9);
+          text-decoration: underline;
+      }
+      
+      .hero-section a:hover {
+          color: white;
+      }
+  
+      .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+        font-size: 14px;
+        padding: 8px 16px;
+      }
+      
+      .btn-lg {
+        padding: 12px 24px;
+        font-size: 15px;
+      }
+      
+      .btn-sm {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+  
+      .btn-primary {
+        background: var(--primary-color);
+        color: white;
+      }
+      
+      .btn-primary:hover {
+        background: #4f46e5;
+        transform: translateY(-1px);
+      }
+      
+      .btn-success {
+        background: var(--success-color);
+        color: white;
+      }
+      
+      .btn-success:hover {
+        background: #059669;
+      }
+      
+      .btn-danger {
+        background: var(--danger-color);
+        color: white;
+      }
+      
+      .btn-danger:hover {
+        background: #dc2626;
+      }
+      
+      .btn-warning {
+        background: var(--warning-color);
+        color: white;
+      }
+      
+      .btn-warning:hover {
+        background: #d97706;
+      }
+      
+      .btn-info {
+        background: var(--info-color);
+        color: white;
+      }
+      
+      .btn-info:hover {
+        background: #2563eb;
+      }
+      
+      .btn-outline-primary {
+        border: 1px solid var(--primary-color);
+        color: var(--primary-color);
+        background: transparent;
+      }
+      
+      .btn-outline-primary:hover {
+        background: var(--primary-color);
+        color: white;
+      }
+      
+      .btn-outline-secondary {
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        background: transparent;
+      }
+      
+      .btn-outline-secondary:hover {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+      }
+      
+      .btn-outline-success {
+        border: 1px solid var(--success-color);
+        color: var(--success-color);
+        background: transparent;
+      }
+      
+      .btn-outline-success:hover {
+        background: var(--success-color);
+        color: white;
+      }
+      
+      .btn-outline-danger {
+        border: 1px solid var(--danger-color);
+        color: var(--danger-color);
+        background: transparent;
+      }
+      
+      .btn-outline-danger:hover {
+        background: var(--danger-color);
+        color: white;
+      }
+      
+      .btn-outline-warning {
+        border: 1px solid var(--warning-color);
+        color: var(--warning-color);
+        background: transparent;
+      }
+      
+      .btn-outline-warning:hover {
+        background: var(--warning-color);
+        color: white;
+      }
+      
+      .btn-outline-info {
+        border: 1px solid var(--info-color);
+        color: var(--info-color);
+        background: transparent;
+      }
+      
+      .btn-outline-info:hover {
+        background: var(--info-color);
+        color: white;
+      }
+  
+      .accordion-item {
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 12px;
+        overflow: hidden;
+        background: var(--bg-primary);
+      }
+  
+      .accordion-button {
+        background-color: var(--bg-primary);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        padding: 16px 20px;
+        font-size: 15px;
+        color: var(--text-primary);
+      }
+      
+      .accordion-button:focus {
+        box-shadow: none;
+        border-color: var(--border-color);
+      }
+  
+      .accordion-button:not(.collapsed) {
+        background-color: var(--bg-secondary);
+        color: var(--primary-color);
+        box-shadow: none;
+      }
+  
+      .accordion-body {
+        background-color: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        padding: 20px;
+      }
+  
+      .list-group-item {
+        border-radius: 8px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-primary);
+        transition: all 0.2s ease;
+        padding: 16px;
+      }
+  
+      .list-group-item:hover {
+          background-color: var(--bg-secondary);
+          box-shadow: var(--shadow-sm);
+          transform: translateY(-1px);
+      }
+  
+      .badge {
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      
+      .badge.bg-success {
+        background-color: var(--success-color) !important;
+      }
+      
+      .badge.bg-danger {
+        background-color: var(--danger-color) !important;
+      }
+      
+      .badge.bg-warning {
+        background-color: var(--warning-color) !important;
+      }
+      
+      .badge.bg-primary {
+        background-color: var(--primary-color) !important;
+      }
+      
+      .badge.bg-secondary {
+        background-color: var(--text-secondary) !important;
+      }
+      
+      .badge.bg-info {
+        background-color: var(--info-color) !important;
+      }
+  
+      .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+      
+      .form-check-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+      }
+      
+      .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+      }
+      
+      .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+  
+      .nav-tabs {
+        border-bottom: 2px solid var(--border-color);
+        margin-bottom: 16px;
+      }
+      
+      .nav-tabs .nav-link {
+        border: none;
+        color: var(--text-secondary);
+        padding: 12px 20px;
+        font-weight: 500;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s ease;
+        font-size: 14px;
+      }
+      
+      .nav-tabs .nav-link:hover {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+      }
+      
+      .nav-tabs .nav-link.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: transparent;
+      }
+  
+      .modal-header {
+        border-bottom: 1px solid var(--border-color);
+        padding: 20px 24px;
+      }
+      
+      .modal-header.bg-primary,
+      .modal-header.bg-info {
+          background-color: var(--primary-color) !important;
+          color: white;
+      }
+      
+      .modal-body {
+        padding: 24px;
+      }
+      
+      .modal-footer {
+        border-top: 1px solid var(--border-color);
+        padding: 16px 24px;
+      }
+      
+      .modal-content {
+        border-radius: 16px;
+        border: none;
+        box-shadow: var(--shadow-lg);
+      }
+  
+      .child-accordion-header {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          gap: 12px;
+          flex-wrap: nowrap;
+      }
+  
+      .child-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+          min-width: 0;
+      }
+  
+      .child-controls {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+          margin-left: auto;
+      }
+  
+      .copy-status-control {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+      }
+  
+      .copy-qty-control {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: nowrap;
+          flex-shrink: 0;
+      }
+  
+      .copy-qty-control .form-control {
+          width: 60px;
+          text-align: center;
+          font-size: 13px;
+          padding: 6px 8px;
+      }
+  
+      .copy-qty-control .btn {
+          font-size: 12px;
+          padding: 6px 12px;
+          white-space: nowrap;
+      }
+  
+      .copy-qty-control i {
+          font-size: 14px;
+          cursor: help;
+          color: var(--text-secondary);
+      }
+  
+      .accordion-button .form-check {
+          pointer-events: all;
+          z-index: 10;
+          position: relative;
+      }
+  
+      .accordion-button .form-check-input {
+          pointer-events: all;
+      }
+      
+      .form-switch .form-check-input {
+        width: 42px;
+        height: 22px;
+        cursor: pointer;
+      }
+      
+      .form-switch .form-check-label {
+        margin-left: 8px;
+        cursor: pointer;
+      }
+  
+      @media (max-width: 767.98px) {
+          .child-accordion-header {
+              flex-wrap: wrap;
+              flex-direction: column;
+              align-items: flex-start;
+          }
+  
+          .child-info {
+              width: 100%;
+          }
+  
+          .child-controls {
+              width: 100%;
+              justify-content: space-between;
+              margin-left: 0;
+              margin-top: 12px;
+              gap: 12px;
+          }
+  
+          .copy-qty-control .form-control {
+              width: 50px;
+          }
+  
+          .copy-qty-control .btn {
+              font-size: 11px;
+              padding: 5px 10px;
+          }
+  
+          .accordion-button .d-flex.w-100.pe-3 {
+              flex-wrap: nowrap;
+              justify-content: flex-start;
+              text-align: left;
+              overflow-x: auto;
+          }
+          
+          .accordion-button .d-flex.w-100.pe-3 > * {
+              flex-shrink: 0;
+              margin-bottom: 0;
+          }
+          
+          .accordion-button .d-flex.w-100.pe-3 .ms-auto {
+              margin-left: auto !important;
+              margin-right: 0 !important;
+          }
+  
+          .accordion-button .d-none.d-md-inline-block {
+              display: block !important;
+              font-size: 13px;
+          }
+  
+          .accordion-button .copy-qty-control {
+              width: auto;
+          }
+  
+          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
+              justify-content: center;
+          }
+  
+          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 .btn {
+              flex-grow: 1;
+              max-width: 48%;
+          }
+  
+          .nav-tabs .nav-item {
+              flex-grow: 1;
+              text-align: center;
+          }
+          
+          .nav-tabs .nav-link {
+              padding: 10px 8px;
+              font-size: 13px;
+          }
+  
+          .list-group-item p,
+          .list-group-item small {
+              word-break: break-word;
+          }
+          
+          .hero-section {
+            padding: 24px;
+          }
+          
+          .hero-section h3 {
+            font-size: 20px;
+          }
+      }
+      
+      .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15em;
+      }
+      
+      .text-muted {
+        color: var(--text-secondary) !important;
+      }
+      
+      h5, h6 {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      
+      .vr {
+        opacity: 0.2;
+      }
+  </style>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card hero-section">
+                <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between p-0">
+                    <div class="mb-3 mb-md-0">
+                        <h3 class="mb-2"><i class="bi bi-people-fill me-2"></i> Copy Trading Setup</h3>
+                        <p class="mb-0">Manage your trading accounts for copy trading. Use the <a href="/Add-Account" class="text-decoration-none fw-semibold">Account Configuration</a> page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.</p>
+                    </div>
+                    <a href="/Add-Account" class="btn btn-light text-primary btn-lg mt-3 mt-md-0 shadow-sm">
+                        <i class="bi bi-plus-circle me-2"></i> Configure New Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+```
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-question-circle me-2"></i> Unassigned Accounts</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Accounts added but not yet assigned a role (Master or Child). Assign their role below to get started.</p>
+                <div id="unassigned-accounts-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    </div>
+                <div id="unassigned-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                    <i class="bi bi-check-circle-fill fs-3 text-success mb-2"></i>
+                    <p class="mb-0">No unassigned accounts. All accounts have a role.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-badge-fill me-2"></i> Master Accounts</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Accounts selected to replicate their trades across linked child accounts.</p>
+                <div id="master-accounts-accordion" class="accordion">
+                    </div>
+                <div id="master-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                    <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                    <p class="mb-0">No master accounts configured.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Accounts where all trades from their assigned Master will be copied.</p>
+                <div id="children-accounts-accordion" class="accordion">
+                    </div>
+                <div id="children-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                    <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                    <p class="mb-0">No child accounts configured.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i> Master Orders</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Manage or cancel trades initiated by Master accounts and copied to children.</p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-danger btn-sm" id="cancelSelectedOrdersBtn"><i class="bi bi-x-circle me-1"></i> Cancel Selected</button>
+                    <button class="btn btn-warning btn-sm" id="squareOffSelectedOrdersBtn"><i class="bi bi-box-arrow-in-up-right me-1"></i> Square Off Selected</button>
+                    <div class="form-check form-check-inline ms-auto">
+                        <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange='window.toggleAllMasterOrders(this.checked)'>
+                        <label class="form-check-label" for="toggleAllMasterOrdersCheckbox">Select All</label>
+                    </div>
+                </div>
+                <div id="master-orders-list" class="list-group">
+                    </div>
+                <div id="master-orders-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
+                    <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
+                    <p class="mb-0">No master orders found.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+</div>
+
+<div class="modal fade" id="childMappingModal" tabindex="-1" aria-labelledby="childMappingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="childMappingModalLabel">Child Orders for Master Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="child-mapping-list" class="list-group">
+                    </div>
+                <div id="child-mapping-empty-state" class="text-center p-3 text-muted" style="display: none;">
+                    No child orders found for this master order.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changeMasterModal" tabindex="-1" aria-labelledby="changeMasterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="changeMasterModalLabel">Change Master for Child Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="changeChildId" />
+                <div class="mb-3">
+                    <label for="newMasterDropdown" class="form-label">Select New Master:</label>
+                    <select id="newMasterDropdown" class="form-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitChangeMasterBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+// Keep all existing JavaScript logic unchanged
+window.pageScripts = window.pageScripts || {};
+
+window.pageScripts["copy-trading"] = function () {
+  const brokerIcons = {{ broker_icons|tojson }};
+  window.brokerIcons = brokerIcons;
+  window.masterAccounts = [];
+  window.childAccounts = [];
+  window.exitedChildren = window.exitedChildren || {};
+  window.exitedMasters = window.exitedMasters || {};
+  window.accountCopyStatus = window.accountCopyStatus || {};
+  window.userToggledOff = window.userToggledOff || {};
+  window.masterOrderBooks = {};
+  window.masterOrderIndex = {};
+  window.childOrderBooks = {};
+  window.childOrderIndex = {};
+  window.masterPositions = {};
+  window.masterHoldings = {};
+  window.childPositions = {};
+  window.childHoldings = {};
+  const ORDER_PAGE_SIZE = 20;
+
+  const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
+  window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
+  window.loadingAccounts = window.loadingAccounts || false;
+  window.accountsPoller = window.accountsPoller || null;
+
+  // [Rest of the JavaScript code remains exactly the same]
+  // Copy all the existing functions without modification
+  
+  function pauseAccountsPolling() {
+    if (window.accountsPoller) {
+      clearInterval(window.accountsPoller);
+      window.accountsPoller = null;
+    }
+    if (window.accountsAbortController) {
+      window.accountsAbortController.abort();
+    }
+  }
+
+  function resumeAccountsPolling() {
+    if (!window.accountsPoller) {
+      window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+    }
+  }
+
+  function updatePollingState() {
+    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-accordion .accordion-collapse.show'))
+      .some(panel => {
+        const id = panel.id.replace('collapseMaster', '');
+        const active = document.querySelector(`#tabs-${id} .nav-link.active`);
+        return active && !active.id.includes('children');
+      });
+    const childDataOpen = !!document.querySelector('#children-accounts-accordion .accordion-collapse.show');
+    if (masterDataOpen || childDataOpen) {
+      pauseAccountsPolling();
+    } else {
+      resumeAccountsPolling();
+    }
+  }
+  
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function domId(id) {
+    return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  function getOrderField(order, keys) {
+    if (!order || typeof order !== 'object') return undefined;
+    for (const key of keys) {
+      const lower = key.toLowerCase();
+      for (const prop in order) {
+        if (Object.prototype.hasOwnProperty.call(order, prop) && prop.toLowerCase() === lower) {
+          const value = order[prop];
+          if (value !== undefined && value !== null && (String(value).length > 0 || value === 0)) {
+            return value;
+          }
+        }
+      }
+    }
+    return undefined;
+  }
+
+  function withFallback(value, fallback = '—') {
+    return value === undefined || value === null ? fallback : value;
+  }
+
+  function formatOrderStatus(rawStatus) {
+    if (rawStatus === undefined || rawStatus === null) {
+      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+    }
+
+    const statusStr = String(rawStatus).trim();
+    if (!statusStr) {
+      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+    }
+
+    const statusCodeMap = {
+      1: 'Cancelled',
+      2: 'Traded',
+      4: 'In Transit',
+      5: 'Rejected',
+      6: 'Pending',
+      7: 'Expired'
+    };
+
+  window.loadAccounts = function() {
+    if (window.loadingAccounts) return;
+    window.loadingAccounts = true;
+
+    if (window.accountsAbortController) {
+      window.accountsAbortController.abort();
+    }
+    const controller = new AbortController();
+    window.accountsAbortController = controller;
+  
+    const masterAccordionEl = document.getElementById("master-accounts-accordion");
+    const childrenAccordionEl = document.getElementById("children-accounts-accordion");
+    const unassignedListEl = document.getElementById("unassigned-accounts-list");
+
+    if (!masterAccordionEl && !childrenAccordionEl && !unassignedListEl) {
+      window.loadingAccounts = false;
+      return;
+    }
+    
+    const openMasters = masterAccordionEl
+      ? new Set(Array.from(masterAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseMaster','')))
+      : new Set();
+    const openChildren = childrenAccordionEl
+      ? new Set(Array.from(childrenAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseChild','')))
+      : new Set();
+
+    const masterActiveTabs = {};
+    if (masterAccordionEl) {
+      masterAccordionEl.querySelectorAll('.master-tab-links').forEach(tabList => {
+        const id = tabList.id.replace('tabs-','');
+        const activeLink = tabList.querySelector('.nav-link.active');
+        if (id && activeLink) {
+          const match = activeLink.id.match(/tab-(\w+)-/);
+          if (match) masterActiveTabs[id] = match[1];
+        }
+      });
+    }
+    const childActiveTabs = {};
+    if (childrenAccordionEl) {
+      childrenAccordionEl.querySelectorAll('.child-tab-links').forEach(tabList => {
+        const id = tabList.id.replace('child-tabs-','');
+        const activeLink = tabList.querySelector('.nav-link.active');
+        if (id && activeLink) {
+          const match = activeLink.id.match(/tab-child-(\w+)-/);
+          if (match) childActiveTabs[id] = match[1];
+        }
+      });
+    }
+    
+    let errorHandled = false;
+    fetch("/api/accounts", { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) {
+          errorHandled = true;
+          let message = "";
+          try {
+            const errData = await response.json();
+            message = errData.message || JSON.stringify(errData);
+          } catch (_) {
+            message = response.statusText;
+          }
+          const alertMsg = `Error ${response.status}: ${message}`;
+          console.error(alertMsg);
+          showMessage(alertMsg, 'danger');
+          if (response.status === 429) {
+            window.accountsPollInterval = Math.min(window.accountsPollInterval * 2, 60000);
+            if (window.accountsPoller) {
+              clearInterval(window.accountsPoller);
+            }
+            window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+          }
+          const fallbackMsg = response.status === 401
+            ? "You appear to be logged out. Please log in to view your accounts."
+            : "The server returned an error while loading accounts.";
+          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+            }
+          });
+          throw new Error(alertMsg);
+        }
+        return response.json();
+      })
+      .then(data => {
+        const masters = (Array.isArray(data.masters) ? data.masters : []).map(m => ({
+          ...m,
+          client_id: m.client_id || (m.client && m.client.id ? m.client.id : undefined),
+          username: m.username || (m.client && m.client.username ? m.client.username : undefined),
+          role: "master"
+        })).filter(m => m.client_id);
+        window.masterAccounts = masters;
+
+        let children = [];
+        for (const master of masters) {
+          if (master.children && Array.isArray(master.children)) {
+            master.children = master.children.map(child => {
+              children.push({
+                ...child,
+                linked_master_id: master.client_id
+              });
+              return child;
+            });
+          }
+        }
+        window.childAccounts = children;
+
+        masters.forEach(master => {
+          const prev = window.accountCopyStatus[master.client_id];
+          if (prev === 'On' && master.copy_status === 'Off') {
+            showMessage(`Copy trading for ${master.client_id} was turned off by the system.`);
+          }
+          window.accountCopyStatus[master.client_id] = master.copy_status;
+        });
+
+        children.forEach(child => {
+          const prev = window.accountCopyStatus[child.client_id];
+          if (prev === 'On' && child.copy_status === 'Off') {
+            if (!window.userToggledOff[child.client_id]) {
+              showMessage(`Copy trading for ${child.client_id} was turned off by the system.`);
+            } else {
+              delete window.userToggledOff[child.client_id];
+            }
+          }
+          window.accountCopyStatus[child.client_id] = child.copy_status;
+        });
+
+          if (window.accountsPollInterval !== BASE_ACCOUNTS_POLL_INTERVAL) {
+          window.accountsPollInterval = BASE_ACCOUNTS_POLL_INTERVAL;
+          if (window.accountsPoller) {
+            clearInterval(window.accountsPoller);
+            window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+          }
+        }
+
+        const masterAccordion = masterAccordionEl;
+        masterAccordion.innerHTML = "";
+        if (masters.length === 0) {
+            document.getElementById("master-empty-state").style.display = 'block';
+        } else {
+            document.getElementById("master-empty-state").style.display = 'none';
+            masters.forEach((master, index) => {
+              const rawMasterId = master.client_id || 'N/A';
+              const masterDomId = domId(rawMasterId);
+              const masterClientId = escapeHtml(rawMasterId);
+              const masterUsername = escapeHtml(master.username || "-");
+              const masterExited = window.exitedMasters[rawMasterId];
+              const masterOpen = openMasters.has(masterDomId);
+              
+              const accordionItem = `
+                <div class="accordion-item shadow-sm mb-3 rounded">
+                  <h2 class="accordion-header" id="headingMaster${masterDomId}">
+                    <button class="accordion-button${masterOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterDomId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterDomId}">
+                      <div class="d-flex align-items-center w-100 pe-3">
+                        ${brokerIconHTML(master.broker)}
+                        <span class="ms-2 fw-semibold">${masterClientId}</span>
+                        <span class="text-muted ms-3 d-none d-md-inline-block">${masterUsername}</span>
+                        <div class="ms-auto">${statusBadge(master.system_errors)}</div>
+                      </div>
+                    </button>
+                  </h2>
+                  <div id="collapseMaster${masterDomId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterDomId}" data-bs-parent="#master-accounts-accordion">
+                    <div class="accordion-body p-3">
+                      <div class="d-flex flex-wrap gap-2 mb-3">
+                          <button class="btn btn-sm btn-outline-danger" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
+                          <div class="vr"></div>
+                          <button class="btn btn-sm btn-outline-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
+                          <button class="btn btn-sm btn-outline-warning text-dark" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
+                          ${masterExited ? '<button class="btn btn-sm btn-outline-secondary disabled">Exited Master Positions</button>' : `<button class="btn btn-sm btn-outline-secondary" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
+                          <button class="btn btn-sm btn-outline-secondary" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
+                      </div>
+                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
+                          <li class="nav-item" role="presentation">
+                               <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children")'>View Children</button>
+                          </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions")'>Positions</button>
+                            </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="btn nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings")'>Holdings</button>
+                          </li>
+                          <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders")'>Order Book</button>
+                          </li>
+                      </ul>
+                      <div class="tab-content">
+                          <div class="tab-pane fade show active" id="master-children-${masterDomId}" role="tabpanel" aria-labelledby="tab-children-${masterDomId}-tab">
+                              <h6>Linked Child Accounts</h6>
+                              <div id="child-rows-${masterDomId}" class="list-group">
+                                  </div>
+                              <div id="child-rows-empty-${masterDomId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-positions-${masterDomId}" role="tabpanel" aria-labelledby="tab-positions-${masterDomId}-tab">
+                            <div id="positions-body-${masterDomId}" class="list-group"></div>
+                            <div id="positions-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-holdings-${masterDomId}" role="tabpanel" aria-labelledby="tab-holdings-${masterDomId}-tab">
+                            <div id="holdings-body-${masterDomId}" class="list-group"></div>
+                            <div id="holdings-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
+                          </div>
+                          <div class="tab-pane fade" id="master-orders-book-${masterDomId}" role="tabpanel" aria-labelledby="tab-orders-${masterDomId}-tab">
+                            <div id="orders-body-${masterDomId}" class="list-group"></div>
+                            <div id="orders-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                            <div class="text-center mt-2">
+                              <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
+                            </div>
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+              masterAccordion.innerHTML += accordionItem;
+            });
+            masters.forEach(master => {
+                const rawId = master.client_id || 'N/A';
+                const domIdVal = domId(rawId);
+                const tab = masterActiveTabs[domIdVal] || 'children';
+                window.showMasterTab(rawId, tab);
+            });
+        }
+
+        const childrenAccordion = childrenAccordionEl;
+        childrenAccordion.innerHTML = "";
+        if (children.length === 0) {
+            document.getElementById("children-empty-state").style.display = 'block';
+        } else {
+            document.getElementById("children-empty-state").style.display = 'none';
+            children.forEach((child, index) => {
+              const master = masters.find(m => m.client_id === child.linked_master_id) || {};
+              const exited = window.exitedChildren[child.client_id];
+              const disableCopy = childHasError(child) ? 'disabled' : '';
+              const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              const startDisabled = (copyStatus === 'On' || disableCopy) ? 'disabled' : '';
+              const stopDisabled = (copyStatus !== 'On' || disableCopy) ? 'disabled' : '';
+              const rawChildId = child.client_id || 'N/A';
+              const childDomId = domId(rawChildId);
+              const childClientId = escapeHtml(rawChildId);
+              const childUsername = escapeHtml(child.username || "-");
+              const rawMasterId = master.client_id || "-";
+              const linkedMasterId = escapeHtml(rawMasterId);
+              const linkedMasterUsername = escapeHtml(master.username || "-");
+              const childQty = child.copy_qty != null ? child.copy_qty : '';
+              const valueLimit = child.copy_value_limit;
+              const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
+              const childOpen = openChildren.has(childDomId);
+              
+              const accordionItem = `
+                <div class="accordion-item shadow-sm mb-3 rounded">
+                  <h2 class="accordion-header" id="headingChild${childDomId}">
+                    <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
+                      <div class="child-accordion-header">
+                        <div class="child-info">
+                          ${brokerIconHTML(child.broker)}
+                          <span class="fw-semibold">${childUsername} (${childClientId})</span>
+                          <span class="text-muted d-none d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
+                        </div>
+                        <div class="child-controls" onclick="event.stopPropagation()">
+                          <div>${statusBadge(child.system_errors)}</div>
+                          <div class="copy-status-control">
+                            <div class="form-check form-switch m-0">
+                              <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`}>
+                              <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
+                            </div>
+                          </div>
+                          <div class="copy-qty-control">
+                            <input type="number" min="1" step="1" class="form-control form-control-sm" id="qty-${childDomId}" value="${childQty}">
+                            <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty("${rawChildId}")'>Save</button>
+                            <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
+                              <i class="bi bi-info-circle"></i>
+                            </span>
+                          </div>
+                          ${remainingValue != null ? `<span class="badge bg-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  </h2>
+                  <div id="collapseChild${childDomId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childDomId}" data-bs-parent="#children-accounts-accordion">
+                    <div class="accordion-body p-3">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick='window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})'`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick='window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)'`}>Stop Copying</button>
+                            <div class="vr d-none d-md-block"></div>
+                            <button class="btn btn-sm btn-outline-info" onclick='window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})'>Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick='window.exitAllPositions(${JSON.stringify(rawChildId)})'`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <div class="vr d-none d-md-block"></div>
+                            <button class="btn btn-sm btn-outline-danger" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove Child</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick='window.openChangeMaster(${JSON.stringify(rawChildId)})'>Change Master</button>
+                        </div>
+                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childDomId}" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-child-orders-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childDomId}" type="button" role="tab" aria-controls="child-orders-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "orders")'>Order Book</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-child-positions-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childDomId}" type="button" role="tab" aria-controls="child-positions-${childDomId}" aria-selected="true" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "positions")'>Positions</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-child-holdings-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childDomId}" type="button" role="tab" aria-controls="child-holdings-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings")'>Holdings</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade" id="child-orders-${childDomId}" role="tabpanel" aria-labelledby="tab-child-orders-${childDomId}-tab">
+                                <div id="child-orders-body-${childDomId}" class="list-group"></div>
+                                <div id="child-orders-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
+                                <div class="text-center mt-2">
+                                  <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade show active" id="child-positions-${childDomId}" role="tabpanel" aria-labelledby="tab-child-positions-${childDomId}-tab">
+                                <div id="child-positions-body-${childDomId}" class="list-group"></div>
+                                <div id="child-positions-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
+                            </div>
+                            <div class="tab-pane fade" id="child-holdings-${childDomId}" role="tabpanel" aria-labelledby="tab-child-holdings-${childDomId}-tab">
+                                <div id="child-holdings-body-${childDomId}" class="list-group"></div>
+                                <div id="child-holdings-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+              childrenAccordion.innerHTML += accordionItem;
+            });
+            children.forEach(child => {
+              const rawId = child.client_id || 'N/A';
+              const domIdVal = domId(rawId);
+              const tab = childActiveTabs[domIdVal] || 'positions';
+              if (openChildren.has(domIdVal) || tab !== 'positions') {
+                window.showChildTab(rawId, tab);
+              }
+            });
+        }
+
+        const unassignedList = document.getElementById("unassigned-accounts-list");
+        unassignedList.innerHTML = "";
+        const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
+        if (unassignedAccounts.length === 0) {
+            document.getElementById("unassigned-empty-state").style.display = 'block';
+        } else {
+            document.getElementById("unassigned-empty-state").style.display = 'none';
+            unassignedAccounts.forEach(acc => {
+              const accClientIdRaw = acc.client_id || 'N/A';
+              const accClientId = escapeHtml(accClientIdRaw);
+              const accUsername = escapeHtml(acc.username || "-");
+
+              unassignedList.innerHTML += `
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex align-items-center mb-2">
+                                ${brokerIconHTML(acc.broker)}
+                                <h6 class="card-title mb-0 ms-2">${accClientId}</h6>
+                            </div>
+                            <p class="card-text text-muted mb-auto">Username: ${accUsername}</p>
+                            <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
+                            <div class="d-flex gap-2 mt-auto">
+                                <button class="btn btn-sm btn-primary flex-grow-1" onclick='window.setAsMaster(${JSON.stringify(accClientIdRaw)})'>Set as Master</button>
+                                <button class="btn btn-sm btn-info flex-grow-1" onclick='window.openSetAsChild(${JSON.stringify(accClientIdRaw)})'>Set as Child</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+              `;
+            });
+        }
+      })
+      .then(() => {
+      })
+      .catch(err => {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
+        console.error("Failed to load accounts:", err);
+        if (!errorHandled) {
+          showMessage(`Failed to load accounts: ${err.message}`, 'danger');
+          const fallbackMsg = "The server returned an error while loading accounts.";
+          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+            }
+          });
+        }
+      })
+      .finally(() => {
+        window.loadingAccounts = false;
+        window.accountsAbortController = null;
+      });
+  };
+
+  function renderMasterChildrenList(masterId) {
+      const master = window.masterAccounts.find(m => m.client_id === masterId);
+      const kids = (master?.children || []);
+      const dom = domId(masterId);
+      const listGroup = document.getElementById(`child-rows-${dom}`);
+      const emptyState = document.getElementById(`child-rows-empty-${dom}`);
+      if (!listGroup || !emptyState) return;
+
+      if (kids.length === 0) {
+          listGroup.innerHTML = ``;
+          emptyState.style.display = 'block';
+      } else {
+          emptyState.style.display = 'none';
+          listGroup.innerHTML = kids.map(child => {
+              const copyStatus = childHasError(child) ? 'Off' : child.copy_status;
+              const disableCopy = childHasError(child) ? 'disabled' : '';
+              const rawChildId = child.client_id || 'N/A';
+              const rawChildUsername = child.username || "-";
+              const childClientId = escapeHtml(rawChildId);
+              const childUsername = escapeHtml(rawChildUsername);
+              const qty = child.copy_qty;
+              const valueLimit = child.copy_value_limit;
+              const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
+
+                return `
+              <div class="list-group-item list-group-item-action py-3 d-flex align-items-center flex-wrap">
+                ${brokerIconHTML(child.broker)}
+                <span class="ms-2 me-auto fw-semibold">${childUsername} (${childClientId})</span>
+                <div class="me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
+                <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
+                  <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
+                    data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
+                    ${disableCopy ? '' : `onchange='window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)'` }>
+                  <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
+                </div>
+                ${qty != null ? `<span class="me-3 mt-2 mt-md-0">Qty: ${qty}</span>` : ''}
+                ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
+                <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove</button>
+              </div>
+          `}).join('');
+      }
+  }
+
+  window.showMasterTab = function(clientId, tabName) {
+    const dom = domId(clientId);
+    const tabLinks = document.querySelectorAll(`#tabs-${dom} .nav-link`);
+    const tabPanes = document.querySelectorAll(`#master-children-${dom}, #master-positions-${dom}, #master-holdings-${dom}, #master-orders-book-${dom}`);
+    const activeTabLink = document.getElementById(`tab-${tabName}-${dom}-tab`);
+    const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${dom}`);
+    const wasActive = activeTabLink && activeTabLink.classList.contains('active');
+    
+    tabLinks.forEach(link => link.classList.remove('active'));
+    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+
+    if (activeTabLink) activeTabLink.classList.add('active');
+    if (selectedTabPane) {
+      selectedTabPane.classList.add('show', 'active');
+      if (tabName === 'positions') {
+        loadMasterPositions(clientId, { force: wasActive });
+      } else if (tabName === 'orders') {
+        loadMasterOrderBook(clientId, { force: wasActive });
+      } else if (tabName === 'holdings') {
+        loadMasterHoldings(clientId, { force: wasActive });
+      } else if (tabName === 'children') {
+        renderMasterChildrenList(clientId);
+      }
+    }
+    updatePollingState();
+  };
+
+  function appendMasterOrders(clientId) {
+    const orders = window.masterOrderBooks[clientId] || [];
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
+    let idx = window.masterOrderIndex[clientId] || 0;
+    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
+    for (let i = idx; i < end; i++) {
+      listGroup.innerHTML += orderItemHtml(orders[i]);
+    }
+    window.masterOrderIndex[clientId] = end;
+    if (end >= orders.length && loadMoreButton) {
+      loadMoreButton.style.display = 'none';
+    }
+  }
+  
+  function loadMasterOrderBook(clientId, { force = false } = {}) {
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
+    const emptyState = document.getElementById(`orders-empty-${dom}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
+    if (!listGroup || !emptyState) return;
+
+    if (window.masterOrderBooks[clientId] && !force) {
+      listGroup.innerHTML = "";
+      emptyState.style.display = 'none';
+      if (loadMoreButton) loadMoreButton.style.display = 'none';
+      window.masterOrderIndex[clientId] = 0;
+      appendMasterOrders(clientId);
+      if (window.masterOrderBooks[clientId].length > ORDER_PAGE_SIZE && loadMoreButton) {
+        loadMoreButton.style.display = 'inline-block';
+        loadMoreButton.onclick = () => appendMasterOrders(clientId);
+      }
+      return;
+    }
+
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
+    emptyState.style.display = 'none';
+    if (loadMoreButton) loadMoreButton.style.display = 'none';
+    
+    fetch('/api/order-book/' + encodeURIComponent(clientId))
+      .then(res => res.json())
+      .then(data => {
+        listGroup.innerHTML = "";
+        const orders = Array.isArray(data) ? data : [];
+        if (orders.length > 0) {
+          window.masterOrderBooks[clientId] = orders;
+          window.masterOrderIndex[clientId] = 0;
+          appendMasterOrders(clientId);
+          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
+            loadMoreButton.style.display = 'inline-block';
+            loadMoreButton.onclick = () => appendMasterOrders(clientId);
+          }
+        } else {
+          emptyState.style.display = 'block';
+        }
+      })
+      .catch(err => {
+        console.error("Order book fetch failed:", err);
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
+        emptyState.style.display = 'none';
+        if (loadMoreButton) loadMoreButton.style.display = 'none';
+        showMessage("Failed to load order book.", 'danger');
+      });
+  }
+
+  function loadMasterPositions(clientId, { force = false } = {}) {
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`positions-body-${dom}`);
+    const emptyState = document.getElementById(`positions-empty-${dom}`);
+    if (!listGroup || !emptyState) return;
+
+    const cached = window.masterPositions[clientId];
+    if (cached && !force) {
+      listGroup.innerHTML = "";
+      if (cached.length > 0) {
+        cached.forEach(pos => {
+          const buyQty = pos.buyQty || pos.buy_quantity || 0;
+          const sellQty = pos.sellQty || pos.sell_quantity || 0;
+          const netQty = pos.netQty || pos.net_quantity || 0;
+          let type = 'CLOSED';
+          if (netQty > 0) {
+            type = 'BUY';
+          } else if (netQty < 0) {
+            type = 'SELL';
+          }
+          const typeClass = type === 'BUY' ? 'bg-success'
+                             : type === 'SELL' ? 'bg-danger'
+                             : 'bg-secondary';
+          listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
+                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
+              </div>
+            `;
+        });
+      } else {
+        emptyState.style.display = 'block';
+      }
+      return;
+    }
+
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
+    emptyState.style.display = 'none';
+
+    fetch('/api/portfolio/' + encodeURIComponent(clientId))
+      .then(res => res.json())
+      .then(positions => {
+        window.masterPositions[clientId] = Array.isArray(positions) ? positions : [];
+        listGroup.innerHTML = "";
+        if (window.masterPositions[clientId].length > 0) {
+          window.masterPositions[clientId].forEach(pos => {
+            const buyQty = pos.buyQty || pos.buy_quantity || 0;
+            const sellQty = pos.sellQty || pos.sell_quantity || 0;
+            const netQty = pos.netQty || pos.net_quantity || 0;
+            let type = 'CLOSED';
+            if (netQty > 0) {
+              type = 'BUY';
+            } else if (netQty < 0) {
+              type = 'SELL';
+            }
+            const typeClass = type === 'BUY' ? 'bg-success'
+                               : type === 'SELL' ? 'bg-danger'
+                               : 'bg-secondary';  
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between flex-wrap">
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
+                </div>
+                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
+                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
+              </div>
+            `;
+          });
+        } else {
+          emptyState.style.display = 'block';
+        }
+      })
+      .catch(err => {
+        console.error("Positions fetch failed:", err);
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        emptyState.style.display = 'none';
+        showMessage("Failed to load positions.", 'danger');
+      });
+  }
+
+  function loadMasterHoldings(clientId, { force = false } = {}) {
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`holdings-body-${dom}`);
+    const emptyState = document.getElementById(`holdings-empty-${dom}`);
+    if (!listGroup || !emptyState) return;
+
+    const cached = window.masterHoldings[clientId];
+    if (cached && !force
+
+    const numeric = Number(statusStr);
+    const isNumeric = !Number.isNaN(numeric) && statusStr === String(numeric);
+    const baseLabel = isNumeric ? (statusCodeMap[numeric] || `Status ${statusStr}`) : statusStr.replace(/[_-]+/g, ' ');
+
+    const titleCase = baseLabel
+      .split(/\s+/)
+      .map(word => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ''))
+      .join(' ')
+      .trim() || 'Unknown';
+
+    const upper = baseLabel.toUpperCase();
+    let className = 'bg-primary';
+    if (/REJECT|FAIL|ERROR/.test(upper)) {
+      className = 'bg-danger';
+    } else if (/CANCEL|EXPIRE/.test(upper)) {
+      className = 'bg-secondary';
+    } else if (/TRADE|FILL|COMPLETE|SUCCESS/.test(upper)) {
+      className = 'bg-success';
+    } else if (/PEND|TRANSIT|OPEN|TRIGGER/.test(upper)) {
+      className = 'bg-warning text-dark';
+    }
+
+    const tooltip = isNumeric ? `Broker status code ${statusStr}` : titleCase;
+
+    return { label: titleCase, className, tooltip };
+  }
+
+  function orderItemHtml(order) {
+    const rawStatus = getOrderField(order, ['status', 'order_status', 'report_type', 'status_message', 'statusmessage', 'ord_status']);
+    const { label: statusLabel, className: statusClass, tooltip: statusTooltip } = formatOrderStatus(rawStatus);
+    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym', 'description']) || '—';
+    const orderTimeRaw = getOrderField(order, [
+      'order_time',
+      'order_timestamp',
+      'order_datetime',
+      'orderDateTime',
+      'created_at',
+      'exchange_time',
+      'time',
+      'time_oms',
+      'time_exch',
+      'update_time',
+      'update_time_exch'
+    ]);
+    let orderTimeDisplay = '—';
+    if (orderTimeRaw) {
+      const parsed = orderTimeRaw instanceof Date ? orderTimeRaw : new Date(orderTimeRaw);
+      orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
+    }
+    const orderId = getOrderField(order, ['order_id', 'orderid', 'orderId', 'id', 'orderNumber', 'norenordno']) || '—';
+    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell', 'tran_side', 'bs']));
+    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity', 'orderqty', 'orderQty']));
+    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity', 'filledQty', 'traded_qty', 'tradedQuantity']));
+    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']));
+    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg', 'avgPrice', 'tradePrice']));
+    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']));
+    const remarks = withFallback(getOrderField(order, [
+      'remarks',
+      'status_message',
+      'statusmessage',
+      'status_message_raw',
+      'status_message_short',
+      'oms_msg',
+      'message',
+      'rejection_reason',
+      'rejectionreason',
+      'reject_reason',
+      'rejectreason',
+      'rejreason',
+      'rej_reason',
+      'rejection_message',
+      'rejectionmessage',
+      'reject_message',
+      'rejectmessage',
+      'error_message',
+      'errormessage',
+      'exchange_message',
+      'omsErrorMessage',
+      'oms_error_message',
+      'oms_error_description',
+      'omsErrorDescription'
+    ]));
+    const resolutionHint = getOrderField(order, ['resolution_hint', 'resolutionHint']);
+
+    const hasRemarks = remarks && remarks !== '—';
+    const hasResolutionHint = resolutionHint && resolutionHint !== '—';
+    
+    const detailItems = [
+      { label: 'Side', value: side },
+      { label: 'Order Type', value: orderType },
+      { label: 'Product', value: productType },
+      { label: 'Placed Qty', value: placedQty },
+      { label: 'Filled Qty', value: filledQty },
+      { label: 'Avg Price', value: avgPrice }
+    ];
+
+    const detailsHtml = detailItems.map(item => `
+        <div class="col">
+          <div class="text-muted text-uppercase small fw-semibold">${escapeHtml(item.label)}</div>
+          <div class="fw-semibold">${escapeHtml(withFallback(item.value))}</div>
+        </div>
+      `).join('');
+
+    let remarksHtml = '';
+    if (hasRemarks || hasResolutionHint) {
+      const remarksRow = hasRemarks
+        ? `<div><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
+        : '';
+      const hintRow = hasResolutionHint
+        ? `<div class="mt-${hasRemarks ? '2' : '0'}"><span class="text-muted text-uppercase fw-semibold">Suggested fix:</span> <span class="text-dark">${escapeHtml(resolutionHint)}</span></div>`
+        : '';
+      remarksHtml = `<div class="mt-3 small">${remarksRow}${hintRow}</div>`;
+    }
+
+    return `
+      <div class="list-group-item list-group-item-action py-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+          <div>
+            <h6 class="mb-1">${escapeHtml(symbol)}</h6>
+            <div class="small text-muted">Order ID: ${escapeHtml(orderId)}</div>
+          </div>
+          <div class="text-md-end">
+            <span class="badge ${statusClass}" title="${escapeHtml(statusTooltip)}">${escapeHtml(statusLabel)}</span>
+            <div class="small text-muted mt-1">${escapeHtml(orderTimeDisplay)}</div>
+          </div>
+        </div>
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 mt-3">
+          ${detailsHtml}
+        </div>
+        ${remarksHtml}
+      </div>
+    `;
+  }
+  
+  function brokerIconHTML(broker) {
+    const name = broker ? broker.charAt(0).toUpperCase() + broker.slice(1) : '';
+    const url = brokerIcons[broker] || '/static/images/logo.png';
+    return `<img src="${url}" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo">`;
+  }
+
+  function showMessage(message, type = 'info') {
+    alert(message);
+  }
+
+  function statusBadge(errors) {
+    const errList = Array.isArray(errors)
+      ? errors.map(e => String(e))
+      : errors
+        ? [String(errors)]
+        : [];
+
+    if (errList.length > 0) {
+      const tip = escapeHtml(errList.join('\n'));
+      return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${tip}"></i>`;
+    }
+
+    return '<span class="badge bg-success">LIVE</span>';
+  }
+
+  function childHasError(acc) {
+    const errList = Array.isArray(acc.system_errors)
+      ? acc.system_errors.map(e => String(e))
+      : acc.system_errors
+        ? [String(acc.system_errors)]
+        : [];
+    return errList.length > 0;
+  }
+
+  window.openChangeMaster = function(childId) {
+    document.getElementById("changeChildId").value = childId;
+    fetch("/api/accounts")
+      .then(res => res.json())
+      .then(data => {
+        const masters = data.masters || [];
+        const dropdown = document.getElementById("newMasterDropdown");
+        dropdown.innerHTML = masters
+          .map(m => {
+            const id = escapeHtml(m.client_id || "");
+            const name = escapeHtml(m.username || m.client_id || "N/A");
+            return `<option value="${id}">${name}</option>`;
+          })
+          .join("");
+        new bootstrap.Modal(document.getElementById("changeMasterModal")).show();
+      })
+      .catch(err => {
+        console.error("Error fetching accounts for change master:", err);
+        showMessage("Failed to load master accounts for selection.", 'danger');
+      });
+  };
+
+  document.getElementById("submitChangeMasterBtn").onclick = function() {
+    const child_id = document.getElementById("changeChildId").value;
+    const new_master_id = document.getElementById("newMasterDropdown").value;
+    fetch("/api/change-master", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ child_id, new_master_id })
+    })
+    .then(res => res.json())
+    .then(data => {
+      showMessage(data.message);
+      window.loadAccounts();
+      bootstrap.Modal.getInstance(document.getElementById("changeMasterModal")).hide();
+    })
+    .catch(err => {
+      console.error("Error changing master:", err);
+      showMessage("Failed to change master account.", 'danger');
+    });
+  };
+
+  window.viewChildMappings = function(masterOrderId) {
+    const encoded = encodeURIComponent(masterOrderId);
+    fetch(`/api/child-orders?master_order_id=${encoded}`)
+      .then(res => res.json())
+      .then(data => {
+        const listGroup = document.getElementById("child-mapping-list");
+        const emptyState = document.getElementById("child-mapping-empty-state");
+        listGroup.innerHTML = "";
+        if (data && data.length > 0) {
+          data.forEach(row => {
+            const childId = escapeHtml(row.child_client_id || "N/A");
+            const status = escapeHtml(row.status || "N/A");
+            const orderId = escapeHtml(row.child_order_id || "N/A");
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                  <div class="d-flex w-100 justify-content-between">
+                      <h6 class="mb-1">${childId} <span class="badge bg-secondary ms-2">${status}</span></h6>
+                      <small>${brokerIconHTML(row.child_broker)}</small>
+                  </div>
+                  <p class="mb-1 text-muted">Order ID: ${orderId}</p>
+              </div>`;
+          });
+          emptyState.style.display = 'none';
+        } else {
+          listGroup.innerHTML = ``;
+          emptyState.style.display = 'block';
+        }
+        new bootstrap.Modal(document.getElementById("childMappingModal")).show();
+      })
+      .catch(err => {
+        console.error("Error viewing child mappings:", err);
+        showMessage("Failed to load child orders.", 'danger');
+      });
+  };
+
+  window.openSetAsChild = function(clientId) {
+    fetch("/api/accounts")
+      .then(res => res.json())
+      .then(data => {
+        const masters = data.masters || [];
+        if (masters.length === 0) {
+          showMessage("No master accounts available to link as a child. Please set up a master account first.", "warning");
+          return;
+        }
+
+        let selectHtml = `
+          <div class="mb-3">
+            <label for="setChildMasterSelect" class="form-label">Select Master Account</label>
+            <select class="form-select" id="setChildMasterSelect">
+              ${masters
+                .map(m => {
+                  const id = escapeHtml(m.client_id || "");
+                  const name = escapeHtml(m.username || m.client_id || "N/A");
+                  return `<option value="${id}">${name}</option>`;
+                })
+                .join("")}
+            </select>
+          </div>
+          <div class="mb-3">
+            <div class="form-check d-flex align-items-center gap-1">
+              <input class="form-check-input" type="radio" name="copyOption" id="copyOptQuantity" value="quantity" checked>
+              <label class="form-check-label" for="copyOptQuantity">Quantity</label>
+              <span data-bs-toggle="tooltip" title="Child order quantity overrides master quantity.">
+                <i class="bi bi-info-circle"></i>
+              </span>
+            </div>
+            <div id="quantityContainer" class="mt-2">
+              <input type="number" class="form-control" id="newChildQuantity" value="1" min="1" step="1">
+            </div>
+            <div class="form-check mt-3 d-flex align-items-center gap-1">
+              <input class="form-check-input" type="radio" name="copyOption" id="copyOptValue" value="value">
+              <label class="form-check-label" for="copyOptValue">Value Amount (₹)</label>
+              <span data-bs-toggle="tooltip" title="Trade size = Balance ÷ Price. Balance reduces after each trade.">
+                <i class="bi bi-info-circle"></i>
+              </span>
+            </div>
+            <div id="valueContainer" class="mt-2" style="display:none;">
+              <input type="number" class="form-control" id="newChildValueLimit" placeholder="Amount in rupees" min="1" step="0.01">
+            </div>
+          </div>
+        `;
+        const modalElement = document.getElementById('manualSetChildModal') || (() => {
+            const div = document.createElement('div');
+            div.id = 'manualSetChildModal';
+            div.classList.add('modal', 'fade');
+            div.setAttribute('tabindex', '-1');
+            div.setAttribute('aria-hidden', 'true');
+            div.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">Assign as Child</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmSetAsChildBtn">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+            return div;
+        })();
+
+        modalElement.querySelector('.modal-body').innerHTML = selectHtml;
+        const tooltipList = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipList.forEach(el => new bootstrap.Tooltip(el));
+        const optQuantity = modalElement.querySelector('#copyOptQuantity');
+        const optValue = modalElement.querySelector('#copyOptValue');
+        const quantityContainer = modalElement.querySelector('#quantityContainer');
+        const valueContainer = modalElement.querySelector('#valueContainer');
+
+        const toggleInputs = () => {
+          if (optValue.checked) {
+            quantityContainer.style.display = 'none';
+            valueContainer.style.display = 'block';
+          } else {
+            quantityContainer.style.display = 'block';
+            valueContainer.style.display = 'none';
+          }
+        };
+        optQuantity.addEventListener('change', toggleInputs);
+        optValue.addEventListener('change', toggleInputs);
+        toggleInputs();
+
+        const setChildModal = new bootstrap.Modal(modalElement);
+        setChildModal.show();
+  
+        document.getElementById("confirmSetAsChildBtn").onclick = function() {
+          const linked_master_id = document.getElementById("setChildMasterSelect").value;
+          const selected = modalElement.querySelector('input[name="copyOption"]:checked').value;
+          let copy_qty = 1;
+          let value_limit = null;
+          if (selected === 'value') {
+            const raw = document.getElementById("newChildValueLimit").value;
+            value_limit = raw ? parseFloat(raw) : null;
+          } else {
+            copy_qty = parseInt(document.getElementById("newChildQuantity").value || "1", 10);
+          }
+          fetch("/api/set-child", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ client_id: clientId, linked_master_id, copy_qty, value_limit })
+          })
+          .then(res => res.json())
+          .then(data => {
+            showMessage(data.message || "Assigned as child.");
+            window.loadAccounts();
+          })
+          .catch(err => {
+            console.error("Error setting child:", err);
+            showMessage("Failed to assign as child.", 'danger');
+          })
+          .finally(() => {
+            setChildModal.hide();
+          });
+        };
+      })
+      .catch(err => {
+        console.error("Error fetching accounts for set as child:", err);
+        showMessage("Failed to load accounts for child assignment.", 'danger');
+      });
+  };
