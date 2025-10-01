@@ -19,6 +19,7 @@ from prometheus_client import Counter
 from brokers.factory import get_broker_client
 from brokers import symbol_map
 import redis
+from sqlalchemy import func
 
 from .alert_guard import check_risk_limits, get_user_settings
 from .webhook_receiver import redis_client, get_redis_client
@@ -599,6 +600,23 @@ def consume_webhook_events(
                 session = get_session()
                 try:
                     rows = session.query(Account).filter(Account.id.in_(ids)).all()
+                    master_client_ids = {
+                        str(r.client_id).lower()
+                        for r in rows
+                        if getattr(r, "client_id", None)
+                    }
+                    if master_client_ids:
+                        child_rows = (
+                            session.query(Account)
+                            .filter(
+                                Account.linked_master_id.isnot(None),
+                                func.lower(Account.linked_master_id).in_(
+                                    master_client_ids
+                                ),
+                            )
+                            .all()
+                        )
+                        rows.extend(child_rows)
                 finally:
                     session.close()
                 allowed_pairs = {(r.broker, r.client_id) for r in rows}
