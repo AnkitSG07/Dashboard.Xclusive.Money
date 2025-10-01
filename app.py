@@ -7172,8 +7172,20 @@ def user_profile():
         if action == "save_profile":
             first_name = request.form.get("first_name", "")
             last_name = request.form.get("last_name", "")
+            phone = request.form.get("phone", "")
+            address1 = request.form.get("address1", "")
+            address2 = request.form.get("address2", "")
+            state = request.form.get("state", "")
+            zip_code = request.form.get("zip_code", "")
+            gstin = request.form.get("gstin", "")
 
             user.name = f"{first_name} {last_name}".strip()
+            user.phone = phone.strip() or None
+            user.address_line1 = address1.strip() or None
+            user.address_line2 = address2.strip() or None
+            user.state = state.strip() or None
+            user.zip_code = zip_code.strip() or None
+            user.gstin = gstin.strip() or None
 
             file = request.files.get("profile_image")
             if file and file.filename:
@@ -7218,6 +7230,12 @@ def user_profile():
         "last_name": (user.name or "").split(" ")[1] if user.name and len(user.name.split(" ")) > 1 else "",
         "plan": user.plan,
         "profile_image": user.profile_image or "user.png",
+        "phone": user.phone,
+        "address1": user.address_line1,
+        "address2": user.address_line2,
+        "state": user.state,
+        "zip_code": user.zip_code,
+        "gstin": user.gstin,
     }
 
     return render_template("user.html", user=profile_data, message=message)
