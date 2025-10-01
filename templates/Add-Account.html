@@ -683,7 +683,9 @@ window.pageScripts["Add-Account"] = function() {
     const acc = allAccounts.find(a => a.client_id === cid);
     if (!acc) { showToast('Account not found for editing.', 'error'); return; }
     editingAccountId = cid;
-    document.getElementById('add-account-section').style.display = 'block';
+    const addAccountSection = document.getElementById('add-account-section');
+    addAccountSection.style.display = 'block';
+    addAccountSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     document.getElementById('add-account-btn').style.display = 'none';
     document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
     const item = document.querySelector(`.broker-item[data-broker="${acc.broker}"]`);
