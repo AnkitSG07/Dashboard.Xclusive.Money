@@ -164,7 +164,7 @@ function initializeNotificationsPanel() {
             renderNotifications(notifications);
         } catch (error) {
             console.error('Failed to load notifications', error);
-            showEmpty('We couldn't load your notifications right now.', 'bi bi-wifi-off');
+            showEmpty("We couldn't load your notifications right now.", 'bi bi-wifi-off');
         }
     }
 
