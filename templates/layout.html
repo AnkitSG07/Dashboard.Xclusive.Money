@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS -->
   <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet">
+  {% block styles %}{% endblock %}
   <style>
       /* Reset Tailwind's collapse utility so Bootstrap accordions work */
     .collapse:not(.tw-collapse) {
@@ -1301,9 +1302,6 @@
           </div>
         </div>
       </div>
-      <div class="px-3 mt-auto mb-4">
-        <button class="logout btn w-100" onclick="logout()">Logout</button>
-      </div>
     </div>
 
     <!-- Overlay for sidebar when open on mobile -->
@@ -1339,9 +1337,15 @@
           <button class="topbar-icon-button theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">
             <i class="bi bi-moon-stars"></i>
           </button>
-          <button class="topbar-icon-button" type="button" aria-label="Preferences">
-            <i class="bi bi-gear"></i>
-          </button>
+          <div class="dropdown">
+            <button class="topbar-icon-button" type="button" id="settingsMenuButton" data-bs-toggle="dropdown"
+              aria-expanded="false" aria-label="Preferences">
+              <i class="bi bi-gear"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsMenuButton">
+              <li><button class="dropdown-item" type="button" onclick="logout()">Logout</button></li>
+            </ul>
+          </div>
           <a class="topbar-profile" href="{{ url_for('user_profile') }}">
             {% if logged_in_user and logged_in_user.profile_image %}
             {% if logged_in_user.profile_image.startswith('data:') %}
