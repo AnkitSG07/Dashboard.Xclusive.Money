@@ -14,6 +14,10 @@ function initializeNotificationsPanel() {
         return;
     }
 
+    if (toggle.dataset.notificationsBound === 'true') {
+        return;
+    }
+
     toggle.setAttribute('aria-expanded', 'false');
 
     const emptyMessageEl = emptyState.querySelector('span');
@@ -187,9 +191,15 @@ function initializeNotificationsPanel() {
             showEmpty('Notifications cleared', 'bi bi-check-circle-fill');
         });
     }
+
+    toggle.dataset.notificationsBound = 'true';
 }
 
 window.initializeNotificationsPanel = initializeNotificationsPanel;
+
+if (document.readyState !== 'loading') {
+    initializeNotificationsPanel();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeNotificationsPanel();
