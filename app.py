@@ -7406,6 +7406,11 @@ def AddAccount():
 def groups_page():
     return render_template("groups.html")
 
+@app.route("/change-plan")
+@login_required
+def change_plan():
+    return render_template("change-plan.html")
+
 # === Admin routes ===
 @app.route('/adminlogin', methods=['GET', 'POST'])
 def admin_login():
