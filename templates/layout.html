@@ -1812,6 +1812,7 @@
               highlightActivePage();
               enableDropdowns();
               setTimeout(reinitializePageScripts, 50);
+              window.initializeNotificationsPanel?.();
               if (currentSPAFetchController === abortController) {
                 currentSPAFetchController = null;
               }
