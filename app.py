@@ -7347,7 +7347,7 @@ def account_info():
         'status': 'No account data available'
     })
 
-app.route('/api/notifications')
+@app.route('/api/notifications')
 @login_required
 def api_notifications():
     """Return the authenticated user's recent notification feed."""
