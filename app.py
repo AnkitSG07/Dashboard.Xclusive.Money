@@ -579,36 +579,59 @@ def initialize_database() -> None:
     ensure_setting_schema()
 
 
-def ensure_user_profile_schema():
-    """Ensure the user.profile_image column uses TEXT type."""
-    logger.info("Ensuring user.profile_image column is up-to-date...")
+def ensure_user_schema():
+    """Ensure the user table has required columns and types."""
+
+    logger.info("Ensuring user table schema is up-to-date...")
     with app.app_context():
         insp = inspect(db.engine)
         table_name = 'user'
 
         if table_name not in insp.get_table_names():
-            logger.warning(f'{table_name} table missing; skipping profile_image check.')
+            logger.warning(f'{table_name} table missing; skipping user schema check.')
             return
 
         columns = {c['name']: c for c in insp.get_columns(table_name)}
+
+        columns_to_add = {
+            'address_line1': 'VARCHAR(255)',
+            'address_line2': 'VARCHAR(255)',
+            'state': 'VARCHAR(120)',
+            'zip_code': 'VARCHAR(20)',
+            'gstin': 'VARCHAR(20)',
+        }
+
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in columns:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{col_name}" {col_def}'))
+                    logger.info(f'Added missing column "{col_name}" to "{table_name}" table.')
+                except Exception as exc:
+                    logger.warning(
+                        f'Failed to add column "{col_name}" to "{table_name}": {exc}. Manual migration might be needed.'
+                    )
+            else:
+                logger.debug(f'Column "{col_name}" already exists in "{table_name}" table.')
+
         if 'profile_image' in columns:
             current_type = str(columns['profile_image']['type']).upper()
             if 'VARCHAR' in current_type:
                 try:
                     with db.engine.begin() as conn:
-                        conn.execute(text('ALTER TABLE "user" ALTER COLUMN "profile_image" TYPE TEXT'))
+                        conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "profile_image" TYPE TEXT'))
                     logger.info('Altered column "profile_image" to TEXT in "user" table.')
                 except Exception as exc:
                     logger.warning(f'Failed to alter "profile_image" to TEXT: {exc}.')
         else:
             try:
                 with db.engine.begin() as conn:
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN "profile_image" TEXT'))
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "profile_image" TEXT'))
                 logger.info('Added column "profile_image" to "user" table.')
             except Exception as exc:
                 logger.warning(f'Failed to add "profile_image" column: {exc}.')
 
-ensure_user_profile_schema()
+ensure_user_schema()
 
 def ensure_trade_log_schema():
     """Ensure the trade_log table has required columns."""
