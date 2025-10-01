@@ -599,14 +599,18 @@ def consume_webhook_events(
                 ids: List[int] = [int(acc_id) for acc_id in allowed_accounts]
                 session = get_session()
                 try:
-                    rows = session.query(Account).filter(Account.id.in_(ids)).all()
+                    master_rows = session.query(Account).filter(Account.id.in_(ids)).all()
+                    allowed_master_pairs = {
+                        (r.broker, r.client_id) for r in master_rows
+                    }
                     master_client_ids = {
                         str(r.client_id).lower()
-                        for r in rows
+                        for r in master_rows
                         if getattr(r, "client_id", None)
                     }
+                    linked_child_accounts: List[Account] = []
                     if master_client_ids:
-                        child_rows = (
+                        linked_child_accounts = (
                             session.query(Account)
                             .filter(
                                 Account.linked_master_id.isnot(None),
@@ -616,10 +620,18 @@ def consume_webhook_events(
                             )
                             .all()
                         )
-                        rows.extend(child_rows)
+                        if linked_child_accounts:
+                            event["linked_child_accounts"] = [
+                                {
+                                    "id": child.id,
+                                    "broker": child.broker,
+                                    "client_id": child.client_id,
+                                }
+                                for child in linked_child_accounts
+                            ]
                 finally:
                     session.close()
-                allowed_pairs = {(r.broker, r.client_id) for r in rows}
+                allowed_pairs = allowed_master_pairs
                 brokers = [
                     b for b in brokers
                     if (b.get("name"), b.get("client_id")) in allowed_pairs
