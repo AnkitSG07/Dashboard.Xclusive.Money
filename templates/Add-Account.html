@@ -685,7 +685,11 @@ window.pageScripts["Add-Account"] = function() {
     editingAccountId = cid;
     const addAccountSection = document.getElementById('add-account-section');
     addAccountSection.style.display = 'block';
-    addAccountSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const sectionRect = addAccountSection.getBoundingClientRect();
+    const targetOffset = sectionRect.top + window.pageYOffset;
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: targetOffset - 16, behavior: 'smooth' });
+    });
     document.getElementById('add-account-btn').style.display = 'none';
     document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
     const item = document.querySelector(`.broker-item[data-broker="${acc.broker}"]`);
