@@ -1381,6 +1381,20 @@
       });
     }
 
+    let currentSPAFetchController = null;
+    let currentSPARequestId = 0;
+
+    function setActiveSidebarLink(link) {
+      document.querySelectorAll('.sidebar .nav-link.active').forEach(activeLink => {
+        if (activeLink !== link) {
+          activeLink.classList.remove('active');
+        }
+      });
+      if (link) {
+        link.classList.add('active');
+      }
+    }
+
     // Highlight active page in sidebar
     function highlightActivePage() {
       document.querySelectorAll('.nav-link').forEach(link => {
@@ -1491,6 +1505,47 @@
     }
 
     // SPA navigation for sidebar
+    const SPA_SCRIPT_ID = 'spa-script';
+    const PAGE_SCRIPT_ATTR = 'data-page-script';
+    const PAGE_SCRIPT_KEY_ATTR = 'data-page-script-key';
+
+    function normalizeScriptSrc(src) {
+      try {
+        return new URL(src, window.location.href).href;
+      } catch (error) {
+        return src;
+      }
+    }
+
+    function computeScriptKey(scriptEl) {
+      if (!scriptEl) return null;
+      if (scriptEl.src) {
+        return `src:${normalizeScriptSrc(scriptEl.src)}`;
+      }
+      const inlineContent = scriptEl.textContent ? scriptEl.textContent.trim() : '';
+      if (!inlineContent) return null;
+      return `inline:${inlineContent}`;
+    }
+
+    function removeInjectedPageScripts() {
+      document
+        .querySelectorAll(`script[${PAGE_SCRIPT_ATTR}]`)
+        .forEach(script => script.remove());
+    }
+
+    function hasScriptWithKey(key) {
+      if (!key) return false;
+      const scripts = document.querySelectorAll('script');
+      for (const existing of scripts) {
+        if (existing.id === SPA_SCRIPT_ID) continue;
+        const existingKey = existing.getAttribute(PAGE_SCRIPT_KEY_ATTR) || computeScriptKey(existing);
+        if (existingKey === key) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     function setupSidebarSPALinks() {
       document.querySelectorAll('.sidebar .nav-link').forEach(link => {
         link.addEventListener('click', function (e) {
@@ -1499,29 +1554,59 @@
           if (!url.startsWith('/')) return; // Allow external links (tel, mailto)
           if (this.getAttribute('target') === '_blank') return; // open in new tab
           e.preventDefault();
+
+          if (currentSPAFetchController) {
+            currentSPAFetchController.abort();
+          }
+
+          currentSPARequestId += 1;
+          const requestId = currentSPARequestId;
+          const abortController = new AbortController();
+          currentSPAFetchController = abortController;
+
+          setActiveSidebarLink(this);
+          toggleSidebar(false);
+
           fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: abortController.signal
           })
-          .then(res => res.text())
+          .then(res => {
+            if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
+            return res.text();
+          })
           .then(html => {
+            if (requestId !== currentSPARequestId) return;
+
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const newContent = doc.querySelector('#page-container');
             const pageContainer = document.querySelector('#page-container');
-            if (newContent) {
+            if (newContent && pageContainer) {
               pageContainer.innerHTML = newContent.innerHTML;
               // --- FIX: Update the data-page attribute! ---
               if (newContent.dataset.page) {
                 pageContainer.dataset.page = newContent.dataset.page;
               }
+              removeInjectedPageScripts();  
               doc.querySelectorAll('script').forEach(srcEl => {
-                if (srcEl.id === 'spa-script') return;
+                if (srcEl.id === SPA_SCRIPT_ID) return;
+                const key = computeScriptKey(srcEl);
+                if (hasScriptWithKey(key)) return;
                 const s = document.createElement('script');
+                Array.from(srcEl.attributes || []).forEach(attr => {
+                  if (attr.name === 'src') return;
+                  s.setAttribute(attr.name, attr.value);
+                });  
                 if (srcEl.src) {
                   s.src = srcEl.src;
 
                 } else if (srcEl.textContent) {
                   s.textContent = srcEl.textContent;
+                }
+                s.setAttribute(PAGE_SCRIPT_ATTR, 'true');
+                if (key) {
+                  s.setAttribute(PAGE_SCRIPT_KEY_ATTR, key);
                 }
                 document.body.appendChild(s);
               });
@@ -1529,14 +1614,21 @@
               highlightActivePage();
               enableDropdowns();
               setTimeout(reinitializePageScripts, 50);
-              document.getElementById('sidebar').classList.remove('show');
-              document.getElementById('sidebar-overlay').classList.remove('show');
-              document.body.classList.remove('sidebar-open');
-            } else {
+              if (currentSPAFetchController === abortController) {
+                currentSPAFetchController = null;
+              }
+            } else if (requestId === currentSPARequestId) {
+              if (currentSPAFetchController === abortController) {
+                currentSPAFetchController = null;
+              }
               window.location.href = url;
             }
           })
           .catch(err => {
+            if (abortController.signal.aborted) return;
+            if (currentSPAFetchController === abortController) {
+              currentSPAFetchController = null;
+            }
             console.error('Failed to load:', err);
             window.location.href = url;
           });
