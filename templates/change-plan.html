@@ -1,0 +1,526 @@
+{% extends "layout.html" %}
+{% block title %}Change Plan{% endblock %}
+{% block content %}
+<style>
+  .change-plan-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 3rem;
+  }
+
+  .change-plan-wrapper h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+  }
+
+  .billing-toggle {
+    display: inline-flex;
+    padding: 0.25rem;
+    border-radius: 999px;
+    background: var(--surface-muted);
+    gap: 0.35rem;
+    margin-bottom: 2rem;
+  }
+
+  .billing-toggle__btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 0.55rem 1.35rem;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .billing-toggle__btn.is-active {
+    background: #111;
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(17, 17, 17, 0.2);
+  }
+
+  [data-theme="dark"] .billing-toggle__btn.is-active {
+    background: #f5f5f5;
+    color: #111;
+  }
+
+  .plan-cycles {
+    position: relative;
+  }
+
+  .plan-cycle {
+    display: none;
+  }
+
+  .plan-cycle.is-active {
+    display: block;
+  }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.75rem;
+  }
+
+  .plan-card {
+    border-radius: 24px;
+    padding: 2.2rem 2rem;
+    background: var(--surface-card);
+    position: relative;
+    box-shadow: 0 25px 45px rgba(17, 24, 64, 0.08);
+    border: 1px solid rgba(17, 24, 64, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .plan-card--professional {
+    background: linear-gradient(180deg, #fff9eb 0%, #ffe8b8 100%);
+  }
+
+  .plan-card--enterprise {
+    background: linear-gradient(180deg, #e9fff6 0%, #c9ffe7 100%);
+  }
+
+  .plan-card--custom {
+    background: linear-gradient(180deg, #ffeef5 0%, #ffd9e6 100%);
+  }
+
+  .plan-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .plan-card__name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .plan-card__badge {
+    background: #111;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .plan-card__price {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .plan-card__amount {
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .plan-card__strikethrough {
+    font-size: 0.95rem;
+    text-decoration: line-through;
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  .plan-card__gst {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .plan-card__features {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    font-size: 0.95rem;
+  }
+
+  .plan-card__cta {
+    border: none;
+    border-radius: 999px;
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    background: #111;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .plan-card__cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 20px rgba(17, 17, 17, 0.18);
+  }
+
+  .plan-card__cta--secondary {
+    background: transparent;
+    color: #111;
+    border: 1px solid rgba(17, 17, 17, 0.2);
+    box-shadow: none;
+  }
+
+  .plan-card__meta {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .plan-card__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .plan-card__label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .plan-card__input {
+    border-radius: 14px;
+    border: none;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.95rem;
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  .plan-card--custom .plan-card__cta {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+    background: #111;
+    color: #fff;
+  }
+
+  @media (max-width: 768px) {
+    .change-plan-wrapper {
+      padding: 2rem 0.5rem 2.5rem;
+    }
+
+    .plan-card {
+      padding: 2rem 1.5rem;
+    }
+
+    .plan-card__amount {
+      font-size: 2rem;
+    }
+  }
+</style>
+<div class="change-plan-wrapper">
+  <div class="billing-toggle" role="tablist" aria-label="Billing cycle selector">
+    <button type="button" class="billing-toggle__btn is-active" data-cycle="monthly" role="tab" aria-selected="true">monthly</button>
+    <button type="button" class="billing-toggle__btn" data-cycle="quarterly" role="tab" aria-selected="false">quarterly</button>
+    <button type="button" class="billing-toggle__btn" data-cycle="half-yearly" role="tab" aria-selected="false">half-yearly</button>
+    <button type="button" class="billing-toggle__btn" data-cycle="yearly" role="tab" aria-selected="false">yearly</button>
+  </div>
+
+  <div class="plan-cycles">
+    <section class="plan-cycle is-active" data-cycle="monthly">
+      <div class="plan-grid">
+        <article class="plan-card plan-card--professional">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Professional</span>
+            <span class="plan-card__badge">Active</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">1899</span>
+            <span class="plan-card__strikethrough">2499</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>30 Days</li>
+            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
+            <li>3 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta plan-card__cta--secondary" type="button">Extend</button>
+          <p class="plan-card__meta">Validity to May 2025</p>
+        </article>
+
+        <article class="plan-card plan-card--enterprise">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Enterprise</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">3099</span>
+            <span class="plan-card__strikethrough">3799</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>30 Days</li>
+            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
+            <li>5 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Validity 30 Days</p>
+        </article>
+
+        <article class="plan-card plan-card--custom">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Custom</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">1899</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>Copy Trading with tailored limits</li>
+          </ul>
+          <form class="plan-card__form" action="#" method="post">
+            <label class="plan-card__label" for="custom-master-monthly">No of Master Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-master-monthly" name="master_accounts_monthly" value="3" min="1">
+            <label class="plan-card__label" for="custom-child-monthly">No of Child Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-child-monthly" name="child_accounts_monthly" value="30" min="0">
+            <label class="plan-card__label" for="custom-validity-monthly">Validity (in Days)</label>
+            <input class="plan-card__input" type="number" id="custom-validity-monthly" name="validity_monthly" value="30" min="1">
+            <button class="plan-card__cta" type="submit">Subscribe</button>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section class="plan-cycle" data-cycle="quarterly">
+      <div class="plan-grid">
+        <article class="plan-card plan-card--professional">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Professional</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">4999</span>
+            <span class="plan-card__strikethrough">5799</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>90 Days</li>
+            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
+            <li>3 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed every 3 months</p>
+        </article>
+
+        <article class="plan-card plan-card--enterprise">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Enterprise</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">7899</span>
+            <span class="plan-card__strikethrough">8699</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>90 Days</li>
+            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
+            <li>5 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed every 3 months</p>
+        </article>
+
+        <article class="plan-card plan-card--custom">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Custom</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">4999</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>Flexible trade limits</li>
+          </ul>
+          <form class="plan-card__form" action="#" method="post">
+            <label class="plan-card__label" for="custom-master-quarterly">No of Master Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-master-quarterly" name="master_accounts_quarterly" value="3" min="1">
+            <label class="plan-card__label" for="custom-child-quarterly">No of Child Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-child-quarterly" name="child_accounts_quarterly" value="42" min="0">
+            <label class="plan-card__label" for="custom-validity-quarterly">Validity (in Days)</label>
+            <input class="plan-card__input" type="number" id="custom-validity-quarterly" name="validity_quarterly" value="90" min="1">
+            <button class="plan-card__cta" type="submit">Subscribe</button>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section class="plan-cycle" data-cycle="half-yearly">
+      <div class="plan-grid">
+        <article class="plan-card plan-card--professional">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Professional</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">9299</span>
+            <span class="plan-card__strikethrough">9999</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>180 Days</li>
+            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
+            <li>3 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed every 6 months</p>
+        </article>
+
+        <article class="plan-card plan-card--enterprise">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Enterprise</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">13999</span>
+            <span class="plan-card__strikethrough">15199</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>180 Days</li>
+            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
+            <li>5 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed every 6 months</p>
+        </article>
+
+        <article class="plan-card plan-card--custom">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Custom</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">9299</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>Dedicated success manager</li>
+          </ul>
+          <form class="plan-card__form" action="#" method="post">
+            <label class="plan-card__label" for="custom-master-half-yearly">No of Master Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-master-half-yearly" name="master_accounts_half_yearly" value="4" min="1">
+            <label class="plan-card__label" for="custom-child-half-yearly">No of Child Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-child-half-yearly" name="child_accounts_half_yearly" value="60" min="0">
+            <label class="plan-card__label" for="custom-validity-half-yearly">Validity (in Days)</label>
+            <input class="plan-card__input" type="number" id="custom-validity-half-yearly" name="validity_half_yearly" value="180" min="1">
+            <button class="plan-card__cta" type="submit">Subscribe</button>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section class="plan-cycle" data-cycle="yearly">
+      <div class="plan-grid">
+        <article class="plan-card plan-card--professional">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Professional</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">16999</span>
+            <span class="plan-card__strikethrough">18999</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>365 Days</li>
+            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
+            <li>3 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed annually</p>
+        </article>
+
+        <article class="plan-card plan-card--enterprise">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Enterprise</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">24999</span>
+            <span class="plan-card__strikethrough">26999</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>365 Days</li>
+            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
+            <li>5 Master Accounts</li>
+          </ul>
+          <button class="plan-card__cta" type="button">Subscribe</button>
+          <p class="plan-card__meta">Billed annually</p>
+        </article>
+
+        <article class="plan-card plan-card--custom">
+          <header class="plan-card__header">
+            <span class="plan-card__name">Custom</span>
+          </header>
+          <div class="plan-card__price">
+            <span class="plan-card__amount">16999</span>
+            <span class="plan-card__gst">+18% GST applicable</span>
+          </div>
+          <ul class="plan-card__features">
+            <li>Auto Login</li>
+            <li>Enterprise SLA</li>
+          </ul>
+          <form class="plan-card__form" action="#" method="post">
+            <label class="plan-card__label" for="custom-master-yearly">No of Master Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-master-yearly" name="master_accounts_yearly" value="5" min="1">
+            <label class="plan-card__label" for="custom-child-yearly">No of Child Accounts</label>
+            <input class="plan-card__input" type="number" id="custom-child-yearly" name="child_accounts_yearly" value="100" min="0">
+            <label class="plan-card__label" for="custom-validity-yearly">Validity (in Days)</label>
+            <input class="plan-card__input" type="number" id="custom-validity-yearly" name="validity_yearly" value="365" min="1">
+            <button class="plan-card__cta" type="submit">Subscribe</button>
+          </form>
+        </article>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  (function () {
+    const toggleButtons = document.querySelectorAll('.billing-toggle__btn');
+    const cycles = document.querySelectorAll('.plan-cycle');
+
+    toggleButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const selectedCycle = button.getAttribute('data-cycle');
+
+        toggleButtons.forEach((btn) => {
+          const isActive = btn === button;
+          btn.classList.toggle('is-active', isActive);
+          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        cycles.forEach((cycle) => {
+          const match = cycle.getAttribute('data-cycle') === selectedCycle;
+          cycle.classList.toggle('is-active', match);
+          cycle.setAttribute('aria-hidden', match ? 'false' : 'true');
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}
