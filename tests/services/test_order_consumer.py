@@ -56,9 +56,11 @@ def reset_metrics():
     MockBroker.status = "COMPLETE"
 
 class DummySession:
-    def __init__(self, accounts=None, strategy=None):
+    def __init__(self, accounts=None, strategy=None, child_accounts=None):
         self._accounts = accounts or []
         self._strategy = strategy
+        self._child_accounts = child_accounts or []
+        self._account_query_calls = 0
 
     class _Query:
         def __init__(self, session, model):
@@ -69,10 +71,16 @@ class DummySession:
             return self.session._strategy
 
         def filter(self, *_args):
+            if getattr(self.model, "__name__", None) == "Account":
+                self.session._account_query_calls += 1
             return self
 
         def all(self):
-            return self.session._accounts
+            if getattr(self.model, "__name__", None) == "Account":
+                if self.session._account_query_calls <= 1:
+                    return self.session._accounts
+                return self.session._child_accounts
+            return []
 
     def query(self, model):
         return DummySession._Query(self, model)
@@ -1252,6 +1260,50 @@ def test_consumer_restricts_to_selected_master_accounts(monkeypatch):
             {"master_id": "c", "order_id": "1", "symbol": "AAPL", "action": "BUY", "qty": 1},
         )
     ]
+
+
+def test_consumer_includes_linked_child_accounts(monkeypatch):
+    event = {
+        "user_id": 1,
+        "symbol": "AAPL",
+        "action": "BUY",
+        "qty": 1,
+        "alert_id": "1",
+        "masterAccounts": [1],
+    }
+    stub = StubRedis([event])
+    monkeypatch.setattr(order_consumer, "redis_client", stub)
+    monkeypatch.setattr(order_consumer, "get_broker_client", lambda name: MockBroker)
+    monkeypatch.setattr(order_consumer, "check_risk_limits", guard)
+
+    def settings(_: int):
+        return {
+            "brokers": [
+                {"name": "mock", "client_id": "MASTER", "access_token": "t"},
+                {"name": "mock", "client_id": "child1", "access_token": "t2"},
+            ]
+        }
+
+    monkeypatch.setattr(order_consumer, "get_user_settings", settings)
+    master = SimpleNamespace(id=1, broker="mock", client_id="MASTER")
+    child = SimpleNamespace(
+        id=2,
+        broker="mock",
+        client_id="child1",
+        linked_master_id="master",
+    )
+    monkeypatch.setattr(
+        order_consumer,
+        "get_session",
+        lambda: DummySession(accounts=[master], child_accounts=[child]),
+    )
+    reset_metrics()
+
+    processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
+    assert processed == 1
+    assert len(MockBroker.orders) == 2
+    trade_events = [data for stream, data in stub.added if stream == "trade_events"]
+    assert {event["master_id"] for event in trade_events} == {"MASTER", "child1"}
 
 
 def test_consumer_rejects_non_numeric_master_accounts(monkeypatch, caplog):
