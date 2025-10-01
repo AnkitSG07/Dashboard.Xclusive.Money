@@ -1545,7 +1545,7 @@
     // Enable all dropdowns on the page
     function enableDropdowns() {
       document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(trigger => {
-        if (!trigger._bs_dropdown) new bootstrap.Dropdown(trigger);
+        bootstrap.Dropdown.getOrCreateInstance(trigger);
       });
     }
 
