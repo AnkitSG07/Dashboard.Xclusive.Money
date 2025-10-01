@@ -734,9 +734,16 @@ window.pageScripts["Add-Account"] = function() {
       // page can render immediately with cached data. The UI will be
       // updated as each account finishes processing.
       allAccounts.forEach(acc => {
-        attemptAutoLoginForAccount(acc)
-          .then(() => { updateCounts(); updateAccountCard(acc); })
-          .catch(() => { updateCounts(); updateAccountCard(acc); });
+        const isConnected = (acc.status || '').toLowerCase() === 'connected';
+
+        if (isConnected) {
+          autoLoginResults[acc.client_id] = { status: 'success' };
+          updateAccountCard(acc);
+        } else {
+          attemptAutoLoginForAccount(acc)
+            .then(() => { updateCounts(); updateAccountCard(acc); })
+            .catch(() => { updateCounts(); updateAccountCard(acc); });
+        }
         refreshBalanceForAccount(acc)
           .then(() => { updateCounts(); updateAccountCard(acc); })
           .catch(() => { updateAccountCard(acc); });
