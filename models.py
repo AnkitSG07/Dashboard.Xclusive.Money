@@ -15,6 +15,11 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=True)
     name = db.Column(db.String(120))
     phone = db.Column(db.String(20))
+    address_line1 = db.Column(db.String(255))
+    address_line2 = db.Column(db.String(255))
+    state = db.Column(db.String(120))
+    zip_code = db.Column(db.String(20))
+    gstin = db.Column(db.String(20))
     webhook_token = db.Column(db.String(64), unique=True, index=True)
     # Store the profile image as a data URL so it persists in the database
     # rather than relying on the local filesystem which may be wiped on
