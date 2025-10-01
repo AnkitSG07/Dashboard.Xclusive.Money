@@ -1292,19 +1292,25 @@ def test_consumer_includes_linked_child_accounts(monkeypatch):
         client_id="child1",
         linked_master_id="master",
     )
-    monkeypatch.setattr(
-        order_consumer,
-        "get_session",
-        lambda: DummySession(accounts=[master], child_accounts=[child]),
-    )
+    dummy_session = DummySession(accounts=[master], child_accounts=[child])
+    monkeypatch.setattr(order_consumer, "get_session", lambda: dummy_session)
     reset_metrics()
 
     processed = order_consumer.consume_webhook_events(max_messages=1, redis_client=stub)
     assert processed == 1
-    assert len(MockBroker.orders) == 2
+    assert len(MockBroker.orders) == 1
+    assert MockBroker.orders[0]["master_accounts"] == [1]
     trade_events = [data for stream, data in stub.added if stream == "trade_events"]
-    assert {event["master_id"] for event in trade_events} == {"MASTER", "child1"}
-
+    assert {event["master_id"] for event in trade_events} == {"MASTER", "child1"}    assert trade_events == [
+        {
+            "master_id": "MASTER",
+            "order_id": "1",
+            "symbol": "AAPL",
+            "action": "BUY",
+            "qty": 1,
+        }
+    ]
+    assert dummy_session._account_query_calls == 2
 
 def test_consumer_rejects_non_numeric_master_accounts(monkeypatch, caplog):
     event = {
