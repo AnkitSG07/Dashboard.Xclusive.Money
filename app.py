@@ -486,8 +486,18 @@ def ensure_trade_schema():
         logger.info(f"Schema check for {table_name} completed.")
 
 
-def ensure_account_schema():
+_account_schema_ensured = False
+
+
+def ensure_account_schema(force: bool = False):
     """Ensure the account table has copy trading columns."""
+
+    global _account_schema_ensured
+
+    if _account_schema_ensured and not force:
+        logger.debug("Account schema already ensured; skipping re-check.")
+        return
+
     logger.info("Ensuring account table schema is up-to-date...")
     with app.app_context():
         insp = inspect(db.engine)
@@ -525,7 +535,7 @@ def ensure_account_schema():
                 logger.debug(f'Column "{col_name}" already exists in "{table_name}" table.')
 
         logger.info(f"Schema check for {table_name} completed.")
-        
+        _account_schema_ensured = True
 
 def ensure_setting_schema():
     """Ensure the setting table exists and has a TEXT value column."""
@@ -565,7 +575,7 @@ def initialize_database() -> None:
     """Run schema checks for core application tables."""
     ensure_system_log_schema()
     ensure_trade_schema()
-    ensure_account_schema()
+    ensure_account_schema(force=True)
     ensure_setting_schema()
 
 
@@ -7313,6 +7323,33 @@ def account_info():
         'balance': 0.00,
         'status': 'No account data available'
     })
+
+app.route('/api/notifications')
+@login_required
+def api_notifications():
+    """Return the authenticated user's recent notification feed."""
+    user = current_user()
+
+    if not user:
+        return jsonify({'notifications': []})
+
+    logs = (
+        SystemLog.query.filter_by(user_id=str(user.id))
+        .order_by(SystemLog.timestamp.desc())
+        .limit(25)
+        .all()
+    )
+
+    notifications = [
+        {
+            'timestamp': log.timestamp.isoformat() if log.timestamp else None,
+            'message': log.message,
+            'level': (log.level or 'INFO').upper(),
+        }
+        for log in logs
+    ]
+
+    return jsonify({'notifications': notifications})
 
 @app.route('/api/dashboard-data')
 def dashboard_data():
