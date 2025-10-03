@@ -128,15 +128,19 @@ class FyersBroker(BrokerBase):
         
         logger.info(f"Fyers token format: {client_id}:[{len(token_parts[1])} chars]")
         
-        # Store the combined token (client_id:token_part)
+
+        raw_access_token = token_parts[1]
+
+        # Store both token representations for downstream use
         self.combined_token = combined_token
+        self.raw_access_token = raw_access_token
 
 
         # Normalized tokens should also be reflected in the base attributes and
         # session headers so any REST fallbacks share the same auth state.
-        self.access_token = combined_token
-        self.session.headers["Authorization"] = combined_token
-        self.session.headers["access_token"] = combined_token
+        self.access_token = self.combined_token
+        self.session.headers["Authorization"] = self.combined_token
+        self.session.headers["access_token"] = self.combined_token
         
         # Initialize Fyers API client
         if fyersModel is not None:
@@ -147,17 +151,17 @@ class FyersBroker(BrokerBase):
                 
                 self.api = fyersModel.FyersModel(
                     client_id=client_id,  # First parameter
-                    token=combined_token,  # Second parameter: client_id:token
+                    token=raw_access_token,  # Second parameter: bare token
                     is_async=False,
                     log_path=""
                 )
                 
                 # IMPORTANT: Set the access token explicitly as a property
                 # This is required by some versions of the Fyers SDK
-                self.api.token = combined_token
+                self.api.token = raw_access_token
                 
                 logger.info("Fyers API client initialized successfully")
-                logger.debug(f"API token set to: {combined_token[:40]}...{combined_token[-20:]}")
+                logger.debug(f"API token set to: {raw_access_token[:40]}...{raw_access_token[-20:]}")
                 
                 # Validate token immediately
                 try:
