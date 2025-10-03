@@ -69,28 +69,13 @@ class FyersBroker(BrokerBase):
 
     def __init__(self, client_id, access_token, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
-
-        raw_token = (access_token or "").strip()
-        if raw_token.lower().startswith("bearer "):
-            raw_token = raw_token[7:].lstrip()
-
-        client_prefix = (client_id or "").lower()
-        if client_prefix:
-            prefix = f"{client_prefix}:"
-            while raw_token.lower().startswith(prefix) and ":" in raw_token:
-                raw_token = raw_token.split(":", 1)[1]
-                
-        bare_token = raw_token
-
-        if client_id and bare_token:
-            auth_header = f"{client_id}:{bare_token}"
-            self.session.headers.update({"Authorization": auth_header})
-
         if fyersModel is not None:
-            self.api = fyersModel.FyersModel(token=bare_token, client_id=client_id)
+            self.api = fyersModel.FyersModel(token=access_token, client_id=client_id)
         else:
             # Library not installed; minimal HTTP fallback
             self.api = None
+            self.session = requests.Session()
+            self.session.headers.update({"Authorization": f"{client_id}:{access_token}"})
 
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
         """Format symbol according to Fyers requirements.
