@@ -25,7 +25,7 @@ def test_place_order_accepts_generic_params():
 
 
 
-def test_initializes_sdk_with_combined_token(monkeypatch):
+def test_initializes_sdk_with_bare_token_and_combined_session_header(monkeypatch):
     captured = {}
 
     class DummyFyersModel:
@@ -38,15 +38,38 @@ def test_initializes_sdk_with_combined_token(monkeypatch):
 
     broker = FyersBroker("APP123", "access-token")
 
-    assert captured["token"] == "APP123:access-token"
+    assert captured["token"] == "access-token"
     assert captured["client_id"] == "APP123"
-    assert broker.session.headers.get("Authorization") == "Bearer APP123:access-token"
-    assert not captured["token"].startswith("Bearer ")
-    assert broker.session.headers.get("Authorization") != "Bearer Bearer APP123:access-token"
+    auth_header = broker.session.headers.get("Authorization")
+    assert auth_header == "APP123:access-token"
+    assert not auth_header.startswith("Bearer ")
+    assert auth_header != "APP123:APP123:access-token"
 
     monkeypatch.setattr(fyers_module, "fyersModel", None)
     fallback = FyersBroker("APP123", "Bearer APP123:access-token")
 
     assert fallback.api is None
-    assert fallback.session.headers.get("Authorization") == "Bearer APP123:access-token"
-    assert not fallback.session.headers.get("Authorization", "").startswith("Bearer Bearer")
+    fallback_header = fallback.session.headers.get("Authorization")
+    assert fallback_header == "APP123:access-token"
+    assert not fallback_header.startswith("Bearer ")
+    assert fallback_header != "APP123:APP123:access-token"
+
+
+def test_strips_duplicate_client_id_prefix(monkeypatch):
+    captured = {}
+
+    class DummyFyersModel:
+        def __init__(self, token, client_id):
+            captured["token"] = token
+            captured["client_id"] = client_id
+
+    dummy_module = type("DummyModule", (), {"FyersModel": DummyFyersModel})
+    monkeypatch.setattr(fyers_module, "fyersModel", dummy_module)
+
+    broker = FyersBroker("APP123", "APP123:APP123:access-token")
+
+    header = broker.session.headers.get("Authorization")
+    assert header == "APP123:access-token"
+    assert not header.startswith("Bearer ")
+    assert captured["token"] == "access-token"
+    assert captured["client_id"] == "APP123"
