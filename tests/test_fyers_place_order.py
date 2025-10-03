@@ -36,7 +36,14 @@ def test_initializes_sdk_with_combined_token(monkeypatch):
     dummy_module = type("DummyModule", (), {"FyersModel": DummyFyersModel})
     monkeypatch.setattr(fyers_module, "fyersModel", dummy_module)
 
-    FyersBroker("APP123", "access-token")
+    broker = FyersBroker("APP123", "access-token")
 
-    assert captured["token"] == "APP123:access-token"
+    assert captured["token"] == "Bearer APP123:access-token"
     assert captured["client_id"] == "APP123"
+    assert broker.session.headers.get("Authorization") == "Bearer APP123:access-token"
+
+    monkeypatch.setattr(fyers_module, "fyersModel", None)
+    fallback = FyersBroker("APP123", "APP123:access-token")
+
+    assert fallback.api is None
+    assert fallback.session.headers.get("Authorization") == "Bearer APP123:access-token"
