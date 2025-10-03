@@ -70,26 +70,73 @@ class FyersBroker(BrokerBase):
     def __init__(self, client_id, access_token, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
 
+        # FIXED: Simplified token handling for Fyers
         raw_token = (access_token or "").strip()
+        
+        if not raw_token:
+            raise ValueError("Fyers access_token is required")
+        
+        # Remove "Bearer " prefix if present (case-insensitive)
         if raw_token.lower().startswith("bearer "):
-            raw_token = raw_token[7:].lstrip()
-
-        client_prefix = (client_id or "").lower()
-        if client_prefix:
-            prefix = f"{client_prefix}:"
-            while raw_token.lower().startswith(prefix) and ":" in raw_token:
-                raw_token = raw_token.split(":", 1)[1]
-                
-        bare_token = raw_token
-
-        if client_id and bare_token:
-            auth_header = f"{client_id}:{bare_token}"
-            self.session.headers.update({"Authorization": auth_header})
-
-        if fyersModel is not None:
-            self.api = fyersModel.FyersModel(token=bare_token, client_id=client_id)
+            raw_token = raw_token[7:].strip()
+            logger.debug("Removed 'Bearer' prefix from token")
+        
+        # Check if token already has client_id prefix
+        client_id_lower = str(client_id).lower()
+        expected_prefix = f"{client_id_lower}:"
+        
+        if raw_token.lower().startswith(expected_prefix):
+            # Token already correctly formatted with client_id
+            combined_token = raw_token
+            logger.debug("Token already has correct client_id prefix")
+        elif ":" in raw_token:
+            # Token has some prefix, check if it matches client_id
+            token_parts = raw_token.split(":", 1)
+            if token_parts[0].lower() == client_id_lower:
+                # Correct client_id, use as-is
+                combined_token = raw_token
+                logger.debug("Token has matching client_id prefix")
+            else:
+                # Different prefix or wrong client_id, replace with correct one
+                access_part = token_parts[1] if len(token_parts) > 1 else raw_token
+                combined_token = f"{client_id}:{access_part}"
+                logger.warning(f"Replaced token prefix from '{token_parts[0]}' to '{client_id}'")
         else:
-            # Library not installed; minimal HTTP fallback
+            # No prefix, add client_id
+            combined_token = f"{client_id}:{raw_token}"
+            logger.debug("Added client_id prefix to token")
+        
+        # Validate combined token format
+        if ":" not in combined_token:
+            logger.error("Invalid token format: missing colon separator")
+            raise ValueError("Fyers access token must be in format 'client_id:token' or provide just the token part")
+        
+        token_parts = combined_token.split(":", 1)
+        if len(token_parts) < 2 or not token_parts[1]:
+            raise ValueError("Invalid Fyers token: missing token part after colon")
+            
+        if len(token_parts[1]) < 50:
+            logger.warning(f"Token seems too short ({len(token_parts[1])} chars), expected 100-150")
+        
+        logger.info(f"Fyers token format: {client_id}:[{len(token_parts[1])} chars]")
+        
+        # Update session headers with Bearer token
+        self.session.headers.update({"Authorization": f"Bearer {combined_token}"})
+
+        # Initialize Fyers API client
+        if fyersModel is not None:
+            try:
+                # Pass combined token (client_id:token) to fyersModel
+                self.api = fyersModel.FyersModel(
+                    token=combined_token,
+                    client_id=client_id
+                )
+                logger.debug("Fyers API client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Fyers API: {e}")
+                raise
+        else:
+            logger.error("fyers_apiv3 library not installed")
             self.api = None
 
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
@@ -552,19 +599,61 @@ class FyersBroker(BrokerBase):
 
     @classmethod
     def exchange_code_for_token(cls, client_id, secret_key, auth_code):
-        """Exchange auth code for access and refresh tokens."""
+        """
+        Exchange auth code for access and refresh tokens.
+        
+        The auth_code from Fyers is a JWT token that needs to be exchanged
+        for an access_token using the app hash.
+        
+        Args:
+            client_id: Fyers client ID (e.g., WKQ6K175CV-100)
+            secret_key: Fyers app secret key
+            auth_code: JWT auth code from OAuth redirect
+            
+        Returns:
+            dict: Response with access_token and refresh_token
+        """
+        # Generate app hash: SHA256(client_id:secret_key)
         app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
+        
         payload = {
             "grant_type": "authorization_code",
             "appIdHash": app_hash,
             "code": auth_code,
         }
-        resp = requests.post(
-            "https://api-t1.fyers.in/api/v3/validate-authcode",
-            json=payload,
-            timeout=10,
-        )
-        return resp.json()
+        
+        logger.info(f"Exchanging auth_code for access_token (client: {client_id})")
+        logger.debug(f"App hash: {app_hash[:20]}...")
+        
+        try:
+            resp = requests.post(
+                "https://api-t1.fyers.in/api/v3/validate-authcode",
+                json=payload,
+                timeout=10,
+            )
+            
+            result = resp.json()
+            
+            if result.get("s") == "ok":
+                logger.info(f"Successfully exchanged auth_code for access_token")
+                # The access_token should already be in format client_id:token
+                access_token = result.get("access_token")
+                if access_token and ":" not in access_token:
+                    # If token doesn't have prefix, add it
+                    result["access_token"] = f"{client_id}:{access_token}"
+                    logger.debug("Added client_id prefix to access_token")
+            else:
+                logger.error(f"Token exchange failed: {result.get('message')}")
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Exception during token exchange: {e}", exc_info=True)
+            return {
+                "s": "error",
+                "code": -1,
+                "message": str(e)
+            }
 
     @classmethod
     def refresh_access_token(cls, client_id, secret_key, refresh_token, pin):
