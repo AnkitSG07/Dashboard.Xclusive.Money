@@ -120,23 +120,60 @@ class FyersBroker(BrokerBase):
         
         logger.info(f"Fyers token format: {client_id}:[{len(token_parts[1])} chars]")
         
-        # Update session headers with Bearer token
-        self.session.headers.update({"Authorization": f"Bearer {combined_token}"})
-
+        # Store the combined token (client_id:token_part)
+        self.combined_token = combined_token
+        
         # Initialize Fyers API client
         if fyersModel is not None:
             try:
-                # Pass combined token (client_id:token) to fyersModel
+                # CRITICAL FIX: Fyers API v3 expects specific initialization
+                # Parameter order matters: client_id first, then token
+                # The token should be client_id:access_token_part (no Bearer prefix)
+                
                 self.api = fyersModel.FyersModel(
-                    token=combined_token,
-                    client_id=client_id
+                    client_id=client_id,  # First parameter
+                    token=combined_token,  # Second parameter: client_id:token
+                    is_async=False,
+                    log_path=""
                 )
-                logger.debug("Fyers API client initialized successfully")
+                
+                # IMPORTANT: Set the access token explicitly as a property
+                # This is required by some versions of the Fyers SDK
+                self.api.token = combined_token
+                
+                logger.info("Fyers API client initialized successfully")
+                logger.debug(f"API token set to: {combined_token[:40]}...{combined_token[-20:]}")
+                
+                # Validate token immediately
+                try:
+                    test_resp = self.api.get_profile()
+                    logger.debug(f"Token validation response: {test_resp}")
+                    
+                    if test_resp and test_resp.get("s") == "ok":
+                        logger.info(f"✓ Fyers token validated successfully for {client_id}")
+                    elif test_resp and test_resp.get("s") == "error":
+                        error_code = test_resp.get("code")
+                        error_msg = test_resp.get("message")
+                        logger.error(f"✗ Token validation failed: [{error_code}] {error_msg}")
+                        
+                        if error_code == -16:
+                            logger.error("Authentication error (-16): Token may be expired or invalid format")
+                            logger.error(f"Client ID: {client_id}")
+                            logger.error(f"Token format: {combined_token[:50]}...")
+                            raise ValueError(f"Fyers authentication failed: {error_msg}")
+                    else:
+                        logger.warning(f"Unexpected validation response: {test_resp}")
+                        
+                except Exception as test_error:
+                    logger.error(f"Token validation error: {test_error}", exc_info=True)
+                    # Don't raise here during init, let the actual API call fail with context
+                    
             except Exception as e:
-                logger.error(f"Failed to initialize Fyers API: {e}")
+                logger.error(f"Failed to initialize Fyers API: {e}", exc_info=True)
                 raise
         else:
             logger.error("fyers_apiv3 library not installed")
+            raise ImportError("fyers_apiv3 library is required for Fyers broker")
             self.api = None
 
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
@@ -624,6 +661,7 @@ class FyersBroker(BrokerBase):
         
         logger.info(f"Exchanging auth_code for access_token (client: {client_id})")
         logger.debug(f"App hash: {app_hash[:20]}...")
+        logger.debug(f"Auth code length: {len(auth_code)}")
         
         try:
             resp = requests.post(
@@ -632,18 +670,35 @@ class FyersBroker(BrokerBase):
                 timeout=10,
             )
             
+            logger.debug(f"Exchange response status: {resp.status_code}")
+            
             result = resp.json()
+            logger.debug(f"Exchange response: {result}")
             
             if result.get("s") == "ok":
-                logger.info(f"Successfully exchanged auth_code for access_token")
-                # The access_token should already be in format client_id:token
-                access_token = result.get("access_token")
-                if access_token and ":" not in access_token:
-                    # If token doesn't have prefix, add it
-                    result["access_token"] = f"{client_id}:{access_token}"
-                    logger.debug("Added client_id prefix to access_token")
+                logger.info(f"✓ Successfully exchanged auth_code for access_token")
+                # The access_token from Fyers should already be in format client_id:token
+                access_token = result.get("access_token", "")
+                
+                # Verify token format
+                if access_token:
+                    if ":" in access_token:
+                        token_parts = access_token.split(":", 1)
+                        logger.debug(f"Token prefix: {token_parts[0]}, length: {len(token_parts[1])}")
+                        if token_parts[0].lower() != client_id.lower():
+                            logger.warning(f"Token prefix mismatch: expected {client_id}, got {token_parts[0]}")
+                            # Fix the prefix
+                            access_token = f"{client_id}:{token_parts[1]}"
+                            result["access_token"] = access_token
+                    else:
+                        logger.warning("Token missing client_id prefix, adding it")
+                        access_token = f"{client_id}:{access_token}"
+                        result["access_token"] = access_token
+                else:
+                    logger.error("No access_token in successful response")
             else:
-                logger.error(f"Token exchange failed: {result.get('message')}")
+                logger.error(f"✗ Token exchange failed: {result.get('message')}")
+                logger.error(f"Error code: {result.get('code')}")
                 
             return result
             
