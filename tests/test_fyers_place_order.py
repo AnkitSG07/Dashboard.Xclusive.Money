@@ -1,3 +1,4 @@
+import brokers.fyers as fyers_module
 from brokers.fyers import FyersBroker
 
 
@@ -21,3 +22,21 @@ def test_place_order_accepts_generic_params():
     assert payload["qty"] == 1
     assert payload["side"] == 1
     assert payload["productType"] == "INTRADAY"
+
+
+
+def test_initializes_sdk_with_combined_token(monkeypatch):
+    captured = {}
+
+    class DummyFyersModel:
+        def __init__(self, token, client_id):
+            captured["token"] = token
+            captured["client_id"] = client_id
+
+    dummy_module = type("DummyModule", (), {"FyersModel": DummyFyersModel})
+    monkeypatch.setattr(fyers_module, "fyersModel", dummy_module)
+
+    FyersBroker("APP123", "access-token")
+
+    assert captured["token"] == "APP123:access-token"
+    assert captured["client_id"] == "APP123"
