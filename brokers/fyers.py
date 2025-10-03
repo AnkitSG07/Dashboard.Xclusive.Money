@@ -70,88 +70,26 @@ class FyersBroker(BrokerBase):
     def __init__(self, client_id, access_token, **kwargs):
         super().__init__(client_id, access_token, **kwargs)
 
-        # Clean up the token
         raw_token = (access_token or "").strip()
-        
-        if not raw_token:
-            raise ValueError("Fyers access_token is required")
-        
-        # Remove Bearer prefix if present
         if raw_token.lower().startswith("bearer "):
-            raw_token = raw_token[7:].strip()
-            logger.debug("Removed 'Bearer' prefix from token")
+            raw_token = raw_token[7:].lstrip()
 
-        # Extract bare token (remove client_id prefix if present)
-        # The token from Fyers comes as "CLIENT_ID:ACTUAL_TOKEN"
-        # But the SDK wants just "ACTUAL_TOKEN" (without the prefix)
         client_prefix = (client_id or "").lower()
-        if client_prefix and ":" in raw_token:
+        if client_prefix:
             prefix = f"{client_prefix}:"
-            # Remove any duplicate prefixes
-            while raw_token.lower().startswith(prefix):
+            while raw_token.lower().startswith(prefix) and ":" in raw_token:
                 raw_token = raw_token.split(":", 1)[1]
-                logger.debug(f"Removed client_id prefix from token")
                 
         bare_token = raw_token
 
-        # Validate token length
-        if len(bare_token) < 50:
-            logger.error(f"Token too short: {len(bare_token)} chars, expected 100+")
-            raise ValueError(f"Fyers token seems invalid (too short: {len(bare_token)} chars)")
-
-        # Store both formats
-        self.raw_access_token = bare_token  # Token without prefix
-        self.combined_token = f"{client_id}:{bare_token}"  # With prefix for storage
-        self.access_token = self.combined_token
-
-        # Set authorization header with full format
         if client_id and bare_token:
             auth_header = f"{client_id}:{bare_token}"
-            self.session.headers.update({
-                "Authorization": auth_header,
-                "access_token": auth_header
-            })
+            self.session.headers.update({"Authorization": auth_header})
 
-        # Initialize Fyers SDK
         if fyersModel is not None:
-            try:
-                logger.info(f"Initializing Fyers SDK for {client_id}")
-                logger.debug(f"Token length: {len(bare_token)} chars")
-                
-                # CRITICAL FIX: Correct argument order
-                # The SDK signature is: FyersModel(client_id, token, ...)
-                self.api = fyersModel.FyersModel(
-                    client_id=client_id,      # First argument
-                    token=bare_token,         # Second argument (no prefix!)
-                    is_async=False,
-                    log_path=""
-                )
-                
-                logger.info("✅ Fyers SDK initialized successfully")
-                
-                # Validate token immediately
-                try:
-                    logger.debug("Testing token with get_profile()...")
-                    test_resp = self.api.get_profile()
-                    
-                    if not test_resp:
-                        logger.warning("get_profile() returned None")
-                    elif test_resp.get("s") == "ok":
-                        logger.info(f"✅ Token validated successfully for {client_id}")
-                    else:
-                        error_code = test_resp.get("code", "unknown")
-                        error_msg = test_resp.get("message", "Unknown error")
-                        logger.error(f"❌ Token validation failed: [{error_code}] {error_msg}")
-                        
-                except Exception as e:
-                    logger.warning(f"Token validation test failed: {e}")
-                    # Don't raise - let actual API calls fail with context
-                    
-            except Exception as e:
-                logger.error(f"Failed to initialize Fyers SDK: {e}", exc_info=True)
-                raise
+            self.api = fyersModel.FyersModel(token=bare_token, client_id=client_id)
         else:
-            logger.warning("fyers_apiv3 not installed - API unavailable")
+            # Library not installed; minimal HTTP fallback
             self.api = None
 
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
@@ -553,7 +491,6 @@ class FyersBroker(BrokerBase):
             return {"status": "failure", "error": str(e), "data": None}
 
     def check_token_valid(self):
-        """Validate if the stored token is still valid."""
         if self.api is None:
             return False
         try:
@@ -564,8 +501,7 @@ class FyersBroker(BrokerBase):
                     if code is None or int(code) >= 0:
                         return True
             return False
-        except Exception as e:
-            logger.debug(f"Token validation failed: {e}")
+        except Exception:
             return False
 
     def get_opening_balance(self):
@@ -616,84 +552,19 @@ class FyersBroker(BrokerBase):
 
     @classmethod
     def exchange_code_for_token(cls, client_id, secret_key, auth_code):
-        """Exchange auth code for access and refresh tokens.
-        
-        The auth_code from Fyers is a JWT token that needs to be exchanged
-        for an access_token using the app hash.
-        
-        Args:
-            client_id: Fyers client ID (e.g., WKQ6K175CV-100)
-            secret_key: Fyers app secret key
-            auth_code: JWT auth code from OAuth redirect
-            
-        Returns:
-            dict: Response with access_token and refresh_token
-            {
-                "s": "ok",
-                "code": 200,
-                "access_token": "CLIENT_ID:LONG_TOKEN_STRING",
-                "refresh_token": "..."
-            }
-        """
-        # Generate app hash: SHA256(client_id:secret_key)
+        """Exchange auth code for access and refresh tokens."""
         app_hash = hashlib.sha256(f"{client_id}:{secret_key}".encode()).hexdigest()
-        
         payload = {
             "grant_type": "authorization_code",
             "appIdHash": app_hash,
             "code": auth_code,
         }
-        
-        logger.info(f"Exchanging auth_code for access_token (client: {client_id})")
-        logger.debug(f"App hash: {app_hash[:20]}...")
-        logger.debug(f"Auth code length: {len(auth_code)}")
-        
-        try:
-            resp = requests.post(
-                "https://api-t1.fyers.in/api/v3/validate-authcode",
-                json=payload,
-                timeout=10,
-            )
-            
-            logger.debug(f"Exchange response status: {resp.status_code}")
-            
-            result = resp.json()
-            logger.debug(f"Exchange response: {result}")
-            
-            if result.get("s") == "ok":
-                logger.info(f"✅ Successfully exchanged auth_code for access_token")
-                # The access_token from Fyers should already be in format client_id:token
-                access_token = result.get("access_token", "")
-                
-                # Verify token format
-                if access_token:
-                    if ":" in access_token:
-                        token_parts = access_token.split(":", 1)
-                        logger.debug(f"Token prefix: {token_parts[0]}, length: {len(token_parts[1])}")
-                        if token_parts[0].lower() != client_id.lower():
-                            logger.warning(f"Token prefix mismatch: expected {client_id}, got {token_parts[0]}")
-                            # Fix the prefix
-                            access_token = f"{client_id}:{token_parts[1]}"
-                            result["access_token"] = access_token
-                    else:
-                        logger.warning("Token missing client_id prefix, adding it")
-                        access_token = f"{client_id}:{access_token}"
-                        result["access_token"] = access_token
-                else:
-                    logger.error("No access_token in successful response")
-            else:
-                logger.error(f"✗ Token exchange failed: {result.get('message')}")
-                logger.error(f"Error code: {result.get('code')}")
-                
-            return result
-            
-        except Exception as e:
-            logger.error(f"Exception during token exchange: {e}", exc_info=True)
-            return {
-                "s": "error",
-                "code": -1,
-                "message": str(e)
-            }
+        resp = requests.post(
+            "https://api-t1.fyers.in/api/v3/validate-authcode",
+            json=payload,
+            timeout=10,
+        )
+        return resp.json()
 
     @classmethod
     def refresh_access_token(cls, client_id, secret_key, refresh_token, pin):
