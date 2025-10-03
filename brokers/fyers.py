@@ -75,18 +75,23 @@ class FyersBroker(BrokerBase):
             raw_token = raw_token[7:].lstrip()
 
         access_part = raw_token
-        prefix = f"{client_id.lower()}:" if client_id else ""
-        if prefix and raw_token.lower().startswith(prefix):
-            access_part = raw_token.split(":", 1)[1]
+        if client_id:
+            prefix = f"{client_id.lower()}:"
+            if raw_token.lower().startswith(prefix):
+                access_part = raw_token.split(":", 1)[1]
+            else:
+                access_part = raw_token.split(":", 1)[1] if ":" in raw_token else raw_token
+            combined_token = f"{client_id}:{access_part}" if access_part else f"{client_id}:"
+        else:
+            combined_token = access_part
 
-        combined_token = f"{client_id}:{access_part}" if client_id and access_part else access_part
         bearer_token = f"Bearer {combined_token}" if combined_token else ""
 
         if bearer_token:
             self.session.headers.update({"Authorization": bearer_token})
 
         if fyersModel is not None:
-            self.api = fyersModel.FyersModel(token=bearer_token, client_id=client_id)
+            self.api = fyersModel.FyersModel(token=combined_token, client_id=client_id)
         else:
             # Library not installed; minimal HTTP fallback
             self.api = None
