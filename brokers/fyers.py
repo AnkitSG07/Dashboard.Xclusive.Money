@@ -114,6 +114,14 @@ class FyersBroker(BrokerBase):
         token_parts = combined_token.split(":", 1)
         if len(token_parts) < 2 or not token_parts[1]:
             raise ValueError("Invalid Fyers token: missing token part after colon")
+
+
+        # Guard against duplicated client_id prefixes (e.g. "id:id:token").
+        remainder = token_parts[1]
+        if remainder.lower().startswith(expected_prefix):
+            remainder = remainder.split(":", 1)[1]
+            combined_token = f"{client_id}:{remainder}"
+            token_parts = [client_id, remainder]
             
         if len(token_parts[1]) < 50:
             logger.warning(f"Token seems too short ({len(token_parts[1])} chars), expected 100-150")
@@ -122,6 +130,13 @@ class FyersBroker(BrokerBase):
         
         # Store the combined token (client_id:token_part)
         self.combined_token = combined_token
+
+
+        # Normalized tokens should also be reflected in the base attributes and
+        # session headers so any REST fallbacks share the same auth state.
+        self.access_token = combined_token
+        self.session.headers["Authorization"] = combined_token
+        self.session.headers["access_token"] = combined_token
         
         # Initialize Fyers API client
         if fyersModel is not None:
@@ -172,8 +187,9 @@ class FyersBroker(BrokerBase):
                 logger.error(f"Failed to initialize Fyers API: {e}", exc_info=True)
                 raise
         else:
-            logger.error("fyers_apiv3 library not installed")
-            raise ImportError("fyers_apiv3 library is required for Fyers broker")
+            logger.warning(
+                "fyers_apiv3 library not installed; falling back to raw session"
+            )
             self.api = None
 
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
