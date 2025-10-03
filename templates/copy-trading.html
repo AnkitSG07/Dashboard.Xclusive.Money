@@ -371,8 +371,21 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">Accounts selected to replicate their trades across linked child accounts.</p>
-                    <div id="master-accounts-accordion" class="accordion">
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="master-accounts-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Account</th>
+                                    <th class="d-none d-md-table-cell">Username</th>
+                                    <th class="d-none d-lg-table-cell">Broker</th>
+                                    <th>Status</th>
+                                    <th>Copy</th>
+                                    <th>Children</th>
+                                </tr>
+                            </thead>
+                            <tbody id="master-accounts-body"></tbody>
+                        </table>
+                    </div>
                     <div id="master-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
                         <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
                         <p class="mb-0">No master accounts configured.</p>
@@ -390,8 +403,21 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
-                    <div id="children-accounts-accordion" class="accordion">
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="children-accounts-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Master</th>
+                                    <th class="d-none d-lg-table-cell">Broker</th>
+                                    <th>Status</th>
+                                    <th>Copy</th>
+                                    <th>Settings</th>
+                                </tr>
+                            </thead>
+                            <tbody id="children-accounts-body"></tbody>
+                        </table>
+                    </div>
                     <div id="children-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
                         <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
                         <p class="mb-0">No child accounts configured.</p>
@@ -522,19 +548,42 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function updatePollingState() {
-    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-accordion .accordion-collapse.show'))
+    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-table .collapse.show[data-master]'))
       .some(panel => {
         const id = panel.id.replace('collapseMaster', '');
         const active = document.querySelector(`#tabs-${id} .nav-link.active`);
         return active && !active.id.includes('children');
       });
-    const childDataOpen = !!document.querySelector('#children-accounts-accordion .accordion-collapse.show');
+    const childDataOpen = !!document.querySelector('#children-accounts-table .collapse.show[data-child]');
     if (masterDataOpen || childDataOpen) {
       pauseAccountsPolling();
     } else {
       resumeAccountsPolling();
     }
   }
+  function initializeCollapseIconHandlers(containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    container.querySelectorAll('.collapse').forEach(collapseEl => {
+      const targetId = collapseEl.id;
+      if (!targetId) return;
+      const toggles = container.querySelectorAll(`[data-bs-target="#${targetId}"]`);
+      const updateIcon = (isShown) => {
+        toggles.forEach(toggle => {
+          const icon = toggle.querySelector('i');
+          if (icon) {
+            icon.classList.remove('bi-plus-square', 'bi-dash-square');
+            icon.classList.add(isShown ? 'bi-dash-square' : 'bi-plus-square');
+          }
+          toggle.setAttribute('aria-expanded', isShown);
+        });
+      };
+      collapseEl.addEventListener('shown.bs.collapse', () => updateIcon(true));
+      collapseEl.addEventListener('hidden.bs.collapse', () => updateIcon(false));
+      updateIcon(collapseEl.classList.contains('show'));
+    });
+  }
+
   function escapeHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -981,49 +1030,49 @@ window.pageScripts["copy-trading"] = function () {
     const controller = new AbortController();
     window.accountsAbortController = controller;
   
-    const masterAccordionEl = document.getElementById("master-accounts-accordion");
-    const childrenAccordionEl = document.getElementById("children-accounts-accordion");
+    const masterTableBodyEl = document.getElementById("master-accounts-body");
+    const childrenTableBodyEl = document.getElementById("children-accounts-body");
     const unassignedListEl = document.getElementById("unassigned-accounts-list");
 
     // If the page doesn't have any of the expected account containers,
     // skip fetching and rendering to avoid errors on unrelated pages.
-    if (!masterAccordionEl && !childrenAccordionEl && !unassignedListEl) {
+    if (!masterTableBodyEl && !childrenTableBodyEl && !unassignedListEl) {
       window.loadingAccounts = false;
       return;
     }
-    
-    const openMasters = masterAccordionEl
-      ? new Set(Array.from(masterAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseMaster','')))
+
+    const openMasters = masterTableBodyEl
+      ? new Set(Array.from(masterTableBodyEl.querySelectorAll('div.collapse.show[data-master]')).map(el => el.dataset.master))
       : new Set();
-    const openChildren = childrenAccordionEl
-      ? new Set(Array.from(childrenAccordionEl.querySelectorAll('.accordion-collapse.show')).map(el => el.id.replace('collapseChild','')))
+    const openChildren = childrenTableBodyEl
+      ? new Set(Array.from(childrenTableBodyEl.querySelectorAll('div.collapse.show[data-child]')).map(el => el.dataset.child))
       : new Set();
 
     // Capture currently active tabs so user selections persist after reload
     const masterActiveTabs = {};
-    if (masterAccordionEl) {
-      masterAccordionEl.querySelectorAll('.master-tab-links').forEach(tabList => {
+    if (masterTableBodyEl) {
+      masterTableBodyEl.querySelectorAll('.master-tab-links').forEach(tabList => {
         const id = tabList.id.replace('tabs-','');
         const activeLink = tabList.querySelector('.nav-link.active');
         if (id && activeLink) {
-          const match = activeLink.id.match(/tab-(\w+)-/);
+          const match = activeLink.id.match(/tab-(\\w+)-/);
           if (match) masterActiveTabs[id] = match[1];
         }
       });
     }
     const childActiveTabs = {};
-    if (childrenAccordionEl) {
-      childrenAccordionEl.querySelectorAll('.child-tab-links').forEach(tabList => {
+    if (childrenTableBodyEl) {
+      childrenTableBodyEl.querySelectorAll('.child-tab-links').forEach(tabList => {
         const id = tabList.id.replace('child-tabs-','');
         const activeLink = tabList.querySelector('.nav-link.active');
         if (id && activeLink) {
-          const match = activeLink.id.match(/tab-child-(\w+)-/);
+          const match = activeLink.id.match(/tab-child-(\\w+)-/);
           if (match) childActiveTabs[id] = match[1];
         }
       });
     }
-    
-    let errorHandled = false;
+
+let errorHandled = false;
     fetch("/api/accounts", { signal: controller.signal })
       .then(async response => {
         if (!response.ok) {
@@ -1048,10 +1097,15 @@ window.pageScripts["copy-trading"] = function () {
           const fallbackMsg = response.status === 401
             ? "You appear to be logged out. Please log in to view your accounts."
             : "The server returned an error while loading accounts.";
-          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+          ["master-accounts-body", "children-accounts-body", "unassigned-accounts-list"].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+              if (el.tagName === 'TBODY') {
+                const colspan = id === 'children-accounts-body' ? 6 : 6;
+                el.innerHTML = `<tr><td colspan="${colspan}" class="text-center p-4 text-muted">${fallbackMsg}</td></tr>`;
+              } else {
+                el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+              }
             }
           });
           throw new Error(alertMsg);
@@ -1116,101 +1170,127 @@ window.pageScripts["copy-trading"] = function () {
         }
 
         // --- Master Accounts Display ---
-        const masterAccordion = masterAccordionEl;
-        masterAccordion.innerHTML = "";
-        if (masters.length === 0) {
-            document.getElementById("master-empty-state").style.display = 'block';
+        const masterBody = masterTableBodyEl;
+        if (masterBody) {
+          masterBody.innerHTML = "";
+        }
+        const masterEmptyState = document.getElementById("master-empty-state");
+        if (!masterBody || masters.length === 0) {
+            if (masterEmptyState) masterEmptyState.style.display = 'block';
         } else {
-            document.getElementById("master-empty-state").style.display = 'none';
-            masters.forEach((master, index) => {
+            if (masterEmptyState) masterEmptyState.style.display = 'none';
+            const masterRows = [];
+            masters.forEach(master => {
               const rawMasterId = master.client_id || 'N/A';
               const masterDomId = domId(rawMasterId);
               const masterClientId = escapeHtml(rawMasterId);
               const masterUsername = escapeHtml(master.username || "-");
               const masterExited = window.exitedMasters[rawMasterId];
               const masterOpen = openMasters.has(masterDomId);
-              
-              const accordionItem = `
-                <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingMaster${masterDomId}">
-                    <button class="accordion-button${masterOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterDomId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterDomId}">
-                      <div class="d-flex align-items-center w-100 pe-3">
-                        ${brokerIconHTML(master.broker)}
-                        <span class="ms-2 fw-semibold">${masterClientId}</span>
-                        <span class="text-muted ms-3 d-none d-md-inline-block">${masterUsername}</span>
-                        <div class="ms-auto">${statusBadge(master.system_errors)}</div>
+              const childCount = Array.isArray(master.children) ? master.children.length : 0;
+              const copyStatus = master.copy_status || '-';
+              const copyClass = copyStatus === 'On' ? 'bg-success' : copyStatus === 'Off' ? 'bg-secondary' : 'bg-info';
+
+              const detailContent = `
+                <div class="accordion-body p-3">
+                  <div class="d-flex flex-wrap gap-2 mb-3">
+                      <button class="btn btn-sm btn-outline-danger" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
+                      <div class="vr"></div>
+                      <button class="btn btn-sm btn-outline-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
+                      <button class="btn btn-sm btn-outline-warning text-dark" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
+                      ${masterExited ? '<button class=\"btn btn-sm btn-outline-secondary disabled\">Exited Master Positions</button>' : `<button class=\"btn btn-sm btn-outline-secondary\" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
+                      <button class="btn btn-sm btn-outline-secondary" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
+                  </div>
+                  <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
+                      <li class="nav-item" role="presentation">
+                           <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children")'>View Children</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                          <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions")'>Positions</button>
+                        </li>
+                      <li class="nav-item" role="presentation">
+                          <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings")'>Holdings</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                          <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders")'>Order Book</button>
+                      </li>
+                  </ul>
+                  <div class="tab-content">
+                      <div class="tab-pane fade show active" id="master-children-${masterDomId}" role="tabpanel" aria-labelledby="tab-children-${masterDomId}-tab">
+                          <h6>Linked Child Accounts</h6>
+                          <div id="child-rows-${masterDomId}" class="list-group">
+                              </div>
+                          <div id="child-rows-empty-${masterDomId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
                       </div>
-                    </button>
-                  </h2>
-                  <div id="collapseMaster${masterDomId}" class="accordion-collapse collapse${masterOpen ? ' show' : ''}" aria-labelledby="headingMaster${masterDomId}" data-bs-parent="#master-accounts-accordion">
-                    <div class="accordion-body p-3">
-                      <div class="d-flex flex-wrap gap-2 mb-3">
-                          <button class="btn btn-sm btn-outline-danger" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
-                          <div class="vr"></div>
-                          <button class="btn btn-sm btn-outline-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
-                          <button class="btn btn-sm btn-outline-warning text-dark" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
-                          ${masterExited ? '<button class="btn btn-sm btn-outline-secondary disabled">Exited Master Positions</button>' : `<button class="btn btn-sm btn-outline-secondary" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
-                          <button class="btn btn-sm btn-outline-secondary" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
+                      <div class="tab-pane fade" id="master-positions-${masterDomId}" role="tabpanel" aria-labelledby="tab-positions-${masterDomId}-tab">
+                        <div id="positions-body-${masterDomId}" class="list-group"></div>
+                        <div id="positions-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
                       </div>
-                      <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
-                          <li class="nav-item" role="presentation">
-                               <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children")'>View Children</button>
-                          </li>
-                          <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions")'>Positions</button>
-                            </li>
-                          <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings")'>Holdings</button>
-                          </li>
-                          <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders")'>Order Book</button>
-                          </li>
-                      </ul>
-                      <div class="tab-content">
-                          <div class="tab-pane fade show active" id="master-children-${masterDomId}" role="tabpanel" aria-labelledby="tab-children-${masterDomId}-tab">
-                              <h6>Linked Child Accounts</h6>
-                              <div id="child-rows-${masterDomId}" class="list-group">
-                                  </div>
-                              <div id="child-rows-empty-${masterDomId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
-                          </div>
-                          <div class="tab-pane fade" id="master-positions-${masterDomId}" role="tabpanel" aria-labelledby="tab-positions-${masterDomId}-tab">
-                            <div id="positions-body-${masterDomId}" class="list-group"></div>
-                            <div id="positions-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
-                          </div>
-                          <div class="tab-pane fade" id="master-holdings-${masterDomId}" role="tabpanel" aria-labelledby="tab-holdings-${masterDomId}-tab">
-                            <div id="holdings-body-${masterDomId}" class="list-group"></div>
-                            <div id="holdings-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
-                          </div>
-                          <div class="tab-pane fade" id="master-orders-book-${masterDomId}" role="tabpanel" aria-labelledby="tab-orders-${masterDomId}-tab">
-                            <div id="orders-body-${masterDomId}" class="list-group"></div>
-                            <div id="orders-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
-                            <div class="text-center mt-2">
-                              <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
-                            </div>
-                          </div>
+                      <div class="tab-pane fade" id="master-holdings-${masterDomId}" role="tabpanel" aria-labelledby="tab-holdings-${masterDomId}-tab">
+                        <div id="holdings-body-${masterDomId}" class="list-group"></div>
+                        <div id="holdings-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
                       </div>
-                    </div>
+                      <div class="tab-pane fade" id="master-orders-book-${masterDomId}" role="tabpanel" aria-labelledby="tab-orders-${masterDomId}-tab">
+                        <div id="orders-body-${masterDomId}" class="list-group"></div>
+                        <div id="orders-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
+                        <div class="text-center mt-2">
+                          <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
+                        </div>
+                      </div>
                   </div>
                 </div>
               `;
-              masterAccordion.innerHTML += accordionItem;
+
+              const summaryRow = `
+                <tr class="align-middle" data-master-summary="${masterDomId}">
+                  <td>
+                    <button class="btn btn-link text-decoration-none p-0 me-2 master-toggle" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterDomId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterDomId}">
+                      <i class="bi ${masterOpen ? 'bi-dash-square' : 'bi-plus-square'}"></i>
+                    </button>
+                    ${brokerIconHTML(master.broker)}
+                    <span class="ms-2 fw-semibold">${masterClientId}</span>
+                  </td>
+                  <td class="d-none d-md-table-cell">${masterUsername}</td>
+                  <td class="d-none d-lg-table-cell">${escapeHtml(master.broker || '-')}</td>
+                  <td>${statusBadge(master.system_errors)}</td>
+                  <td><span class="badge ${copyClass}">${escapeHtml(copyStatus)}</span></td>
+                  <td>${childCount}</td>
+                </tr>
+              `;
+
+              const detailRow = `
+                <tr data-master-detail="${masterDomId}">
+                  <td colspan="6" class="p-0">
+                    <div id="collapseMaster${masterDomId}" class="collapse${masterOpen ? ' show' : ''}" data-master="${masterDomId}">
+                      ${detailContent}
+                    </div>
+                  </td>
+                </tr>
+              `;
+
+              masterRows.push(summaryRow + detailRow);
             });
-            // Restore previously active tab for each master (default to children)
+            masterBody.innerHTML = masterRows.join('');
+            initializeCollapseIconHandlers('#master-accounts-table');
+            // Restore active tab for each master if necessary
             masters.forEach(master => {
-                const rawId = master.client_id || 'N/A';
-                const domIdVal = domId(rawId);
-                const tab = masterActiveTabs[domIdVal] || 'children';
-                window.showMasterTab(rawId, tab);
+              const rawId = master.client_id || 'N/A';
+              const domIdVal = domId(rawId);
+              const tab = masterActiveTabs[domIdVal] || 'children';
+              window.showMasterTab(rawId, tab);
             });
         }
-
-        // --- Children Accounts Display ---
-        const childrenAccordion = childrenAccordionEl;
-        childrenAccordion.innerHTML = "";
-        if (children.length === 0) {
-            document.getElementById("children-empty-state").style.display = 'block';
+// --- Children Accounts Display ---
+        const childrenBody = childrenTableBodyEl;
+        if (childrenBody) {
+          childrenBody.innerHTML = "";
+        }
+        const childrenEmptyState = document.getElementById("children-empty-state");
+        if (!childrenBody || children.length === 0) {
+            if (childrenEmptyState) childrenEmptyState.style.display = 'block';
         } else {
-            document.getElementById("children-empty-state").style.display = 'none';
+            if (childrenEmptyState) childrenEmptyState.style.display = 'none';
+            const childRows = [];
             children.forEach((child, index) => {
               const master = masters.find(m => m.client_id === child.linked_master_id) || {};
               const exited = window.exitedChildren[child.client_id];
@@ -1229,39 +1309,8 @@ window.pageScripts["copy-trading"] = function () {
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
               const childOpen = openChildren.has(childDomId);
-              
-              const accordionItem = `
-                <div class="accordion-item shadow-sm mb-3 rounded">
-                  <h2 class="accordion-header" id="headingChild${childDomId}">
-                    <button class="accordion-button${childOpen ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
-                      <div class="child-accordion-header">
-                        <div class="child-info">
-                          ${brokerIconHTML(child.broker)}
-                          <span class="fw-semibold">${childUsername} (${childClientId})</span>
-                          <span class="text-muted d-none d-md-inline-block">Master: ${linkedMasterUsername} (${linkedMasterId})</span>
-                        </div>
-                        <div class="child-controls" onclick="event.stopPropagation()">
-                          <div>${statusBadge(child.system_errors)}</div>
-                          <div class="copy-status-control">
-                            <div class="form-check form-switch m-0">
-                              <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`}>
-                              <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || "-"}</label>
-                            </div>
-                          </div>
-                          <div class="copy-qty-control">
-                            <input type="number" min="1" step="1" class="form-control form-control-sm" id="qty-${childDomId}" value="${childQty}">
-                            <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty("${rawChildId}")'>Save</button>
-                            <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
-                              <i class="bi bi-info-circle"></i>
-                            </span>
-                          </div>
-                          ${remainingValue != null ? `<span class="badge bg-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
-                        </div>
-                      </div>
-                    </button>
-                  </h2>
-                  <div id="collapseChild${childDomId}" class="accordion-collapse collapse${childOpen ? ' show' : ''}" aria-labelledby="headingChild${childDomId}" data-bs-parent="#children-accounts-accordion">
-                    <div class="accordion-body p-3">
+              const detailContent = `
+                <div class="accordion-body p-3">
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick='window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})'`}>Start Copying</button>
                             <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick='window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)'`}>Stop Copying</button>
@@ -1300,12 +1349,56 @@ window.pageScripts["copy-trading"] = function () {
                                 <div id="child-holdings-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
                             </div>
                         </div>
-                    </div>
-                  </div>
                 </div>
               `;
-              childrenAccordion.innerHTML += accordionItem;
+              const summaryRow = `
+                <tr class="align-middle" data-child-summary="${childDomId}">
+                  <td>
+                    <button class="btn btn-link text-decoration-none p-0 me-2 child-toggle" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
+                      <i class="bi ${childOpen ? 'bi-dash-square' : 'bi-plus-square'}"></i>
+                    </button>
+                    ${brokerIconHTML(child.broker)}
+                    <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold">${linkedMasterUsername}</div>
+                    <div class="text-muted small">${linkedMasterId}</div>
+                  </td>
+                  <td class="d-none d-lg-table-cell">${escapeHtml(child.broker || master.broker || '-')}</td>
+                  <td>${statusBadge(child.system_errors)}</td>
+                  <td>
+                    <div class="form-check form-switch m-0">
+                      <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`}>
+                      <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      <div class="copy-qty-control">
+                        <input type="number" min="1" step="1" class="form-control form-control-sm" id="qty-${childDomId}" value="${childQty}">
+                        <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty("${rawChildId}")'>Save</button>
+                        <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
+                              <i class="bi bi-info-circle"></i>
+                        </span>
+                      </div>
+                      ${remainingValue != null ? `<span class="badge bg-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
+                    </div>
+                  </td>
+                </tr>
+              `;
+              const detailRow = `
+                <tr data-child-detail="${childDomId}">
+                  <td colspan="6" class="p-0">
+                    <div id="collapseChild${childDomId}" class="collapse${childOpen ? ' show' : ''}" data-child="${childDomId}">
+                      ${detailContent}
+                    </div>
+                  </td>
+                </tr>
+              `;
+              childRows.push(summaryRow + detailRow);
             });
+            childrenBody.innerHTML = childRows.join('');
+            initializeCollapseIconHandlers('#children-accounts-table');
             // Restore active tab for each child if necessary
             children.forEach(child => {
               const rawId = child.client_id || 'N/A';
@@ -1316,8 +1409,7 @@ window.pageScripts["copy-trading"] = function () {
               }
             });
         }
-
-        // --- Unassigned Accounts Display ---
+// --- Unassigned Accounts Display ---
         const unassignedList = document.getElementById("unassigned-accounts-list");
         unassignedList.innerHTML = "";
         // Ensure data.accounts is an array before filtering
@@ -1364,10 +1456,15 @@ window.pageScripts["copy-trading"] = function () {
         if (!errorHandled) {
           showMessage(`Failed to load accounts: ${err.message}`, 'danger');
           const fallbackMsg = "The server returned an error while loading accounts.";
-          ["master-accounts-accordion", "children-accounts-accordion", "unassigned-accounts-list"].forEach(id => {
+          ["master-accounts-body", "children-accounts-body", "unassigned-accounts-list"].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-              el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+              if (el.tagName === 'TBODY') {
+                const colspan = id === 'children-accounts-body' ? 6 : 6;
+                el.innerHTML = `<tr><td colspan="${colspan}" class="text-center p-4 text-muted">${fallbackMsg}</td></tr>`;
+              } else {
+                el.innerHTML = `<div class="text-center p-4 text-muted">${fallbackMsg}</div>`;
+              }
             }
           });
         }
@@ -2511,15 +2608,15 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   // --- INIT ON LOAD ---
-  const masterAccEl = document.getElementById('master-accounts-accordion');
-  if (masterAccEl) {
-    masterAccEl.addEventListener('shown.bs.collapse', updatePollingState);
-    masterAccEl.addEventListener('hidden.bs.collapse', updatePollingState);
+  const masterTableEl = document.getElementById('master-accounts-table');
+  if (masterTableEl) {
+    masterTableEl.addEventListener('shown.bs.collapse', updatePollingState);
+    masterTableEl.addEventListener('hidden.bs.collapse', updatePollingState);
   }
-  const childAccEl = document.getElementById('children-accounts-accordion');
-  if (childAccEl) {
-    childAccEl.addEventListener('shown.bs.collapse', updatePollingState);
-    childAccEl.addEventListener('hidden.bs.collapse', updatePollingState);
+  const childTableEl = document.getElementById('children-accounts-table');
+  if (childTableEl) {
+    childTableEl.addEventListener('shown.bs.collapse', updatePollingState);
+    childTableEl.addEventListener('hidden.bs.collapse', updatePollingState);
   }
 
   // These calls will now fetch and populate the sections
