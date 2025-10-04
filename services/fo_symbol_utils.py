@@ -21,6 +21,26 @@ log = logging.getLogger(__name__)
 _symbol_map_module = None
 
 
+_FYERS_MONTH_CODE_TO_MONTH = {
+    "J": "JAN",
+    "F": "FEB",
+    "M": "MAR",
+    "A": "APR",
+    "Y": "MAY",
+    "U": "JUN",
+    "L": "JUL",
+    "G": "AUG",
+    "S": "SEP",
+    "O": "OCT",
+    "N": "NOV",
+    "D": "DEC",
+}
+
+_FYERS_MONTH_NAME_TO_CODE = {
+    month: code for code, month in _FYERS_MONTH_CODE_TO_MONTH.items()
+}
+
+
 _DERIVATIVE_SUFFIX_TRIGGER = re.compile(r"(?:\d|-|CALL|PUT)\s*$")
 
 
@@ -286,6 +306,41 @@ def parse_fo_symbol(symbol: str, broker: str) -> dict[str, str] | None:
             return data
     
     elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia', 'flattrade']:
+        if broker == 'fyers':
+            weekly_opt_match = re.match(
+                r'^(?P<underlying>.+?)(?P<year>\d{2})(?P<month_code>[A-Z])(?P<day>\d{2})(?P<strike>\d+(?:\.\d+)?)(?P<option_type>CE|PE)$',
+                symbol,
+            )
+            if weekly_opt_match:
+                month_code = weekly_opt_match.group('month_code')
+                month = _FYERS_MONTH_CODE_TO_MONTH.get(month_code, month_code)
+                day = int(weekly_opt_match.group('day'))
+                return {
+                    'underlying': weekly_opt_match.group('underlying'),
+                    'year': '20' + weekly_opt_match.group('year'),
+                    'month': month,
+                    'strike': weekly_opt_match.group('strike'),
+                    'option_type': weekly_opt_match.group('option_type'),
+                    'instrument': 'OPT',
+                    'day': day,
+                }
+
+            weekly_fut_match = re.match(
+                r'^(?P<underlying>.+?)(?P<year>\d{2})(?P<month_code>[A-Z])(?P<day>\d{2})FUT$',
+                symbol,
+            )
+            if weekly_fut_match:
+                month_code = weekly_fut_match.group('month_code')
+                month = _FYERS_MONTH_CODE_TO_MONTH.get(month_code, month_code)
+                day = int(weekly_fut_match.group('day'))
+                return {
+                    'underlying': weekly_fut_match.group('underlying'),
+                    'year': '20' + weekly_fut_match.group('year'),
+                    'month': month,
+                    'instrument': 'FUT',
+                    'day': day,
+                }
+
         # NIFTY24DEC24000CE format
         opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+(?:\.\d+)?)(CE|PE)$', symbol)
         if opt_match:
@@ -346,10 +401,20 @@ def format_fo_symbol(components: dict[str, str], to_broker: str) -> str | None:
     
     elif to_broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia', 'flattrade']:
         year_short = components['year'][-2:]  # Get last 2 digits
+        month_upper = components['month'].upper()
+        if to_broker == 'fyers' and components.get('day') is not None:
+            month_code = _FYERS_MONTH_NAME_TO_CODE.get(month_upper)
+            if month_code:
+                month_part = f"{month_code}{int(components['day']):02d}"
+            else:
+                month_part = month_upper
+        else:
+            month_part = month_upper
+
         if components['instrument'] == 'OPT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
+            return f"{components['underlying']}{year_short}{month_part}{components['strike']}{components['option_type']}"
         elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
+            return f"{components['underlying']}{year_short}{month_part}FUT"
     
     return None
 
