@@ -51,8 +51,18 @@ def _lookup_lot_size_from_symbol_map(
 ) -> Any:
     """Return lot size from the symbol map without materialising the full dataset."""
 
+    exchange_hint = (exchange or "").upper() or None
+
+    if symbol and is_fo_symbol(symbol):
+        if exchange_hint in (None, "", "NSE"):
+            exchange_hint = "NFO"
+        elif exchange_hint == "BSE":
+            exchange_hint = "BFO"
+
     try:
-        mapping = symbol_map.get_symbol_for_broker_lazy(symbol, broker_name, exchange)
+        mapping = symbol_map.get_symbol_for_broker_lazy(
+            symbol, broker_name, exchange_hint
+        )
     except Exception as exc:  # pragma: no cover - defensive logging
         log.warning(
             "Could not retrieve lot size from symbol map for %s: %s",
@@ -68,9 +78,9 @@ def _lookup_lot_size_from_symbol_map(
 
     if symbol:
         try:
-            symbol_map.refresh_symbol_slice(symbol, exchange)
+            symbol_map.refresh_symbol_slice(symbol, exchange_hint)
             mapping = symbol_map.get_symbol_for_broker_lazy(
-                symbol, broker_name, exchange
+                symbol, broker_name, exchange_hint
             )
         except Exception as exc:  # pragma: no cover - defensive logging
             log.warning(
