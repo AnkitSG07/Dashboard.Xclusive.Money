@@ -187,6 +187,9 @@ def extract_root_symbol(symbol: str) -> str:
     
     # Remove month and year patterns
     cleaned = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', cleaned)
+
+    # Strip weekly expiry codes like "25O07" that appear in some Fyers symbols
+    cleaned = re.sub(r'\d{2}[A-Z]\d{2}', '', cleaned)
     
     # Remove strike prices (numbers at the end)
     cleaned = re.sub(r'\d+$', '', cleaned)
