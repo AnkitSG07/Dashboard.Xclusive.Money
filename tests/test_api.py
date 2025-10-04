@@ -1,15 +1,20 @@
 import pytest
-pytest.skip("poll_and_copy_trades migrated to queue-based service", allow_module_level=True)
+
 
 import os
 import sys
 import tempfile
 import io
 import json
+import types
 from datetime import datetime
 import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+
+if os.environ.get("ENABLE_API_TESTS") != "1":
+    pytest.skip("poll_and_copy_trades migrated to queue-based service", allow_module_level=True)
 
 os.environ.setdefault("SECRET_KEY", "test")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -1090,6 +1095,110 @@ def test_reconnect_uses_stored_credentials(client, monkeypatch):
         assert captured["kwargs"]["imei"] == "i"
         count = Account.query.filter_by(user_id=user.id, client_id="FIN124").count()
         assert count == 1
+
+def test_zerodha_redirect_preserves_credentials(client, monkeypatch):
+    app = app_module.app
+    db = app_module.db
+    User = app_module.User
+    Account = app_module.Account
+
+    owner_email = "test@example.com"
+    client_id = "ZER01"
+    initial_credentials = {
+        "api_key": "old_key",
+        "api_secret": "old_secret",
+        "password": "old_pass",
+        "totp_secret": "old_totp",
+        "access_token": "old_token",
+    }
+
+    with client.session_transaction() as sess:
+        sess["user"] = owner_email
+
+    with app.app_context():
+        app_module.save_account_to_user(
+            owner_email,
+            {
+                "broker": "zerodha",
+                "client_id": client_id,
+                "username": "zerouser",
+                "credentials": dict(initial_credentials),
+            },
+        )
+        pending = app_module.get_pending_zerodha()
+        pending[client_id] = {
+            "owner": owner_email,
+            "username": "zerouser",
+            "api_key": "new_key",
+            "api_secret": "new_secret",
+            "password": "",
+            "totp_secret": None,
+        }
+        app_module.set_pending_zerodha(pending)
+
+    request_token = "req-token"
+
+    class DummyKite:
+        def __init__(self, api_key):
+            self.api_key = api_key
+
+        def generate_session(self, token, secret):
+            assert self.api_key == "new_key"
+            assert token == request_token
+            assert secret == "new_secret"
+            return {"access_token": "fresh_token"}
+
+    kite_module = types.ModuleType("kiteconnect")
+    kite_module.KiteConnect = DummyKite
+    monkeypatch.setitem(sys.modules, "kiteconnect", kite_module)
+
+    resp = client.get(
+        f"/zerodha_redirects/{client_id}",
+        query_string={"request_token": request_token},
+    )
+    assert resp.status_code in (302, 303)
+
+    with app.app_context():
+        user = User.query.filter_by(email=owner_email).first()
+        acc = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+        assert acc is not None
+        assert acc.credentials["password"] == "old_pass"
+        assert acc.credentials["totp_secret"] == "old_totp"
+        assert acc.credentials["access_token"] == "fresh_token"
+        assert acc.credentials["api_key"] == "new_key"
+        assert acc.credentials["api_secret"] == "new_secret"
+
+    captured = {}
+
+    def fake_broker_api(acc):
+        captured["credentials"] = dict(acc.get("credentials", {}))
+
+        class DummyBroker:
+            def __init__(self):
+                self.access_token = "renewed_token"
+                self.token_time = datetime.utcnow().isoformat()
+
+            def check_token_valid(self):
+                return True
+
+        return DummyBroker()
+
+    monkeypatch.setattr(app_module, "broker_api", fake_broker_api)
+
+    resp = client.get("/api/reconnect-account", query_string={"client_id": client_id})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["message"] == f"Account {client_id} reconnected."
+
+    with app.app_context():
+        user = User.query.filter_by(email=owner_email).first()
+        acc = Account.query.filter_by(user_id=user.id, client_id=client_id).first()
+        assert acc.credentials["password"] == "old_pass"
+        assert acc.credentials["totp_secret"] == "old_totp"
+        assert acc.credentials["access_token"] == "renewed_token"
+
+    assert captured["credentials"]["password"] == "old_pass"
+    assert captured["credentials"]["totp_secret"] == "old_totp"
 
 
 def test_reconnect_totp_error_propagated(client, monkeypatch):
