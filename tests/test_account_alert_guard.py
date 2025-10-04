@@ -194,3 +194,53 @@ def test_update_account_case_insensitive_replace(client, monkeypatch):
             "api_key": "a",
         }
     ]
+
+
+def test_fyers_redirect_updates_alert_guard(client, monkeypatch):
+    app = app_module.app
+    User = app_module.User
+
+    monkeypatch.setattr(app_module, "get_user_settings", lambda uid: {})
+
+    captured = {}
+
+    def fake_update(user_id, settings):
+        captured["user_id"] = user_id
+        captured["settings"] = settings
+
+    monkeypatch.setattr(app_module, "update_user_settings", fake_update)
+
+    def fake_exchange(cls, client_id, secret_key, auth_code):
+        return {"s": "ok", "access_token": "new-token", "refresh_token": "ref"}
+
+    monkeypatch.setattr(
+        app_module.FyersBroker,
+        "exchange_code_for_token",
+        classmethod(fake_exchange),
+    )
+
+    client_id = "FY123"
+
+    with app.app_context():
+        app_module.set_pending_fyers(
+            {
+                client_id: {
+                    "secret_key": "sec",
+                    "username": "fyuser",
+                    "redirect_uri": "https://example.com",
+                    "state": "s123",
+                    "owner": "test@example.com",
+                }
+            }
+        )
+
+    resp = client.get(f"/fyers_redirects/{client_id}?auth_code=code&state=s123")
+    assert resp.status_code == 302
+
+    with app.app_context():
+        user = User.query.filter_by(email="test@example.com").first()
+
+    assert captured["user_id"] == user.id
+    assert captured["settings"]["brokers"] == [
+        {"name": "fyers", "client_id": client_id, "access_token": "new-token"}
+    ]
