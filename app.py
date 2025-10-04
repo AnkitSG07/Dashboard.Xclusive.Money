@@ -1468,6 +1468,16 @@ def save_settings(settings):
     db.session.commit()
 
 
+def _credential_value_provided(value) -> bool:
+    """Return ``True`` if a credential update supplies a meaningful value."""
+
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip() != ""
+    return True
+
+
 def save_account_to_user(owner: str, account: dict):
     """Create or update a user's broker account in the database."""
     user = User.query.filter_by(email=owner).first()
@@ -1505,7 +1515,13 @@ def save_account_to_user(owner: str, account: dict):
         acc.copy_qty = account.get("copy_qty", acc.copy_qty)
         acc.copy_value_limit = account.get("copy_value_limit", acc.copy_value_limit)
         acc.copied_value = account.get("copied_value", acc.copied_value)
-        acc.credentials = account.get("credentials", acc.credentials)
+        incoming_credentials = account.get("credentials")
+        if incoming_credentials is not None:
+            merged_credentials = dict(acc.credentials or {})
+            for key, value in incoming_credentials.items():
+                if _credential_value_provided(value):
+                    merged_credentials[key] = value
+            acc.credentials = merged_credentials
         acc.last_copied_trade_id = account.get("last_copied_trade_id", acc.last_copied_trade_id)
         if account.get("auto_login") is not None:
             acc.auto_login = account.get("auto_login")
@@ -1538,7 +1554,7 @@ def save_account_to_user(owner: str, account: dict):
             copy_qty=account.get("copy_qty"),
             copy_value_limit=account.get("copy_value_limit"),
             copied_value=account.get("copied_value", 0.0),
-            credentials=account.get("credentials"),
+            credentials=dict(account.get("credentials") or {}),
             last_copied_trade_id=account.get("last_copied_trade_id"),
             auto_login=account.get("auto_login", True),
         )
@@ -3435,6 +3451,19 @@ def zerodha_redirect_handler(client_id):
                     "api_secret": api_secret,
                 }
             )
+            owner_email = cred.get("owner", username)
+            if owner_email:
+                existing_user = User.query.filter_by(email=owner_email).first()
+                if existing_user:
+                    existing_account = Account.query.filter_by(
+                        user_id=existing_user.id, client_id=client_id
+                    ).first()
+                    if existing_account and existing_account.credentials:
+                        merged = dict(existing_account.credentials)
+                        for key, value in cred_fields.items():
+                            if _credential_value_provided(value):
+                                merged[key] = value
+                        cred_fields = merged
             account = {
                 "broker": "zerodha",
                 "client_id": client_id,
@@ -3451,7 +3480,7 @@ def zerodha_redirect_handler(client_id):
 
             # Save account data
             try:
-                save_account_to_user(cred.get("owner", username), account)
+                save_account_to_user(owner_email, account)
 
                 # Clear any previous connection error logs for this account
                 
