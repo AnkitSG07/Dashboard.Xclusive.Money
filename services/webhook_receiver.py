@@ -87,6 +87,15 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
 
         exchange_hint = exchange.upper() if exchange else "NSE"
 
+        # Derivative contracts always live on the derivative segment even if the
+        # incoming payload hints at the cash market. Normalise the hint so the
+        # lazy lookup does not miss F&O entries.
+        if is_fo_symbol(symbol):
+            if exchange_hint in (None, "", "NSE"):
+                exchange_hint = "NFO"
+            elif exchange_hint == "BSE":
+                exchange_hint = "BFO"
+
         # Get the symbol mapping lazily
         mapping = symbol_map.get_symbol_for_broker_lazy(
             symbol, "dhan", exchange_hint
