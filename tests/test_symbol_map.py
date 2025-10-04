@@ -110,6 +110,46 @@ def test_aliceblue_bse_equity_without_series_uses_plain_symbol(
         sm._load_dhan.cache_clear()
 
 
+def test_weekly_option_root_extraction_and_lot_size(tmp_path, monkeypatch):
+    import brokers.symbol_map as sm
+
+    zerodha_csv = (
+        "instrument_token,exchange,tradingsymbol,segment,instrument_type,lot_size\n"
+        "99,NFO,NIFTY25O0719400CE,NFO,OPTIDX,50\n"
+    )
+    dhan_csv = (
+        "SEM_SMST_SECURITY_ID,SEM_TRADING_SYMBOL,SEM_CUSTOM_SYMBOL,SEM_EXM_EXCH_ID,SEM_SEGMENT,SEM_SERIES,SEM_LOT_UNITS\n"
+    )
+
+    zerodha_file = tmp_path / "zerodha.csv"
+    dhan_file = tmp_path / "dhan.csv"
+    zerodha_file.write_text(zerodha_csv)
+    dhan_file.write_text(dhan_csv)
+
+    def fake_ensure_cached_csv(url: str, cache_name: str):
+        if "kite" in url:
+            return zerodha_file
+        assert "dhan" in url
+        return dhan_file
+
+    monkeypatch.setattr(sm, "_ensure_cached_csv", fake_ensure_cached_csv)
+    sm._load_zerodha.cache_clear()
+    sm._load_dhan.cache_clear()
+
+    original_map = sm.SYMBOL_MAP
+    sm.SYMBOL_MAP = {}
+    try:
+        mapping = get_symbol_for_broker_lazy(
+            "NIFTY25O0719400CE", "fyers", "NFO"
+        )
+        assert mapping["lot_size"] == "50"
+        assert sm.extract_root_symbol("NIFTY25O0719400CE") == "NIFTY"
+    finally:
+        sm.SYMBOL_MAP = original_map
+        sm._load_zerodha.cache_clear()
+        sm._load_dhan.cache_clear()
+
+
 def test_get_symbol_by_token_zerodha_uses_cached_csv(tmp_path, monkeypatch):
     import brokers.symbol_map as sm
 
