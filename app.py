@@ -163,6 +163,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Strict",
 )
+app.config["WTF_CSRF_TIME_LIMIT"] = None
 csrf = CSRFProtect(app)
 # Email configuration
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "localhost")
