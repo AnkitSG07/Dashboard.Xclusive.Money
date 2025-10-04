@@ -260,6 +260,28 @@ def test_get_lot_size_from_symbol_map_uses_lazy_slice(monkeypatch, tmp_path):
         sm._load_zerodha.cache_clear()
         sm._load_dhan.cache_clear()
 
+
+def test_get_lot_size_from_symbol_map_remaps_derivative_exchange(monkeypatch):
+    calls = []
+
+    def fake_get_symbol_for_broker_lazy(symbol, broker, exchange=None):
+        calls.append((symbol, broker, exchange))
+        assert broker == "dhan"
+        if exchange == "NFO":
+            return {"lot_size": "25"}
+        return None
+
+    monkeypatch.setattr(
+        wr.symbol_map,
+        "get_symbol_for_broker_lazy",
+        fake_get_symbol_for_broker_lazy,
+    )
+
+    lot_size = wr.get_lot_size_from_symbol_map("NIFTY25O0719400CE", "NSE")
+
+    assert lot_size == 25
+    assert calls == [("NIFTY25O0719400CE", "dhan", "NFO")]
+
 def test_parses_human_readable_futures_symbol(monkeypatch):
     stub = StubRedis()
     monkeypatch.setattr(wr, "redis_client", stub)
