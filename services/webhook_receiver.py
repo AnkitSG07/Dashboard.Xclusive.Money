@@ -84,7 +84,6 @@ def get_expiry_year(month: str, day: int = None) -> str:
 def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
     """Get lot size from the symbol map for a given symbol."""
     try:
-
         exchange_hint = exchange.upper() if exchange else "NSE"
 
         # Derivative contracts always live on the derivative segment even if the
@@ -96,19 +95,23 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
             elif exchange_hint == "BSE":
                 exchange_hint = "BFO"
 
-        # Get the symbol mapping lazily
-        mapping = symbol_map.get_symbol_for_broker_lazy(
-            symbol, "dhan", exchange_hint
-        )
-        
-        if mapping and "lot_size" in mapping:
-            lot_size = mapping["lot_size"]
-            if lot_size:
-                try:
-                    return int(float(lot_size))
-                except (ValueError, TypeError):
-                    pass
-        
+        brokers_to_try = ["dhan", "zerodha", "fyers"]
+
+        for broker in brokers_to_try:
+            mapping = symbol_map.get_symbol_for_broker_lazy(
+                symbol, broker, exchange_hint
+            )
+
+            if mapping and "lot_size" in mapping:
+                lot_size = mapping["lot_size"]
+                if lot_size:
+                    try:
+                        return int(float(lot_size))
+                    except (ValueError, TypeError):
+                        logger.debug(
+                            "Invalid lot size %s for %s from broker %s", lot_size, symbol, broker
+                        )
+
         logger.warning(f"Could not find lot size for symbol {symbol} in symbol map")
         return None
         
