@@ -560,14 +560,15 @@ def _load_zerodha_slice(
                 continue
 
             segment = row.get("segment", "").upper()
+            segment_base = segment.split("-", 1)[0] if segment else ""
             inst_type = row.get("instrument_type", "").upper()
 
-            if segment in {"NSE", "BSE"} and inst_type == "EQ":
+            if segment_base in {"NSE", "BSE"} and inst_type == "EQ":
                 exch = row.get("exchange", "").upper()
                 if exchange_hint and exch != exchange_hint:
                     continue
                 key = (tradingsymbol, exch)
-            elif segment in {"NFO", "BFO"} and inst_type in {
+            elif segment_base in {"NFO", "BFO"} and inst_type in {
                 "FUT",
                 "FUTSTK",
                 "FUTIDX",
@@ -577,9 +578,9 @@ def _load_zerodha_slice(
                 "CE",
                 "PE",
             }:
-                if exchange_hint and segment != exchange_hint:
+                if exchange_hint and segment_base != exchange_hint:
                     continue
-                key = (tradingsymbol, segment)
+                key = (tradingsymbol, segment_base)
             else:
                 continue
 
