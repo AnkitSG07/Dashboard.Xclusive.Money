@@ -4127,8 +4127,24 @@ def fyers_redirect_handler(client_id):
         'copy_status': 'Off',
     }
 
-    save_account_to_user(cred.get('owner', username), account)
+    owner_identifier = (
+        cred.get("owner")
+        or session.get("user")
+        or username
+        or client_id
+    )
+
+    save_account_to_user(owner_identifier, account)
     set_pending_fyers(pending)
+
+    user = User.query.filter_by(email=owner_identifier).first()
+    if user:
+        stored_account = Account.query.filter_by(
+            user_id=user.id, client_id=client_id
+        ).first()
+        if stored_account:
+            _update_alert_guard(user.id, stored_account)
+
     return redirect(url_for('AddAccount'))
     
 @app.route("/kite/callback")
@@ -4166,8 +4182,18 @@ def kite_callback():
         "copy_status": "Off",
     }
 
+    owner_identifier = username or session.get("user") or client_id
+
     # Save to accounts.json or DB
-    save_account_to_user(username or client_id, account)
+    save_account_to_user(owner_identifier, account)
+
+    user = User.query.filter_by(email=owner_identifier).first()
+    if user:
+        stored_account = Account.query.filter_by(
+            user_id=user.id, client_id=client_id
+        ).first()
+        if stored_account:
+            _update_alert_guard(user.id, stored_account)
 
     return "✅ Zerodha account connected!"
 
