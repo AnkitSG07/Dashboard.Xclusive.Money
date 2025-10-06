@@ -133,6 +133,100 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
     metadata = {}
     
     logger.info(f"Starting normalization for symbol: {sym}")
+
+    # Pattern: Fyers weekly options with letter month code: NIFTY25O0719400CE
+    # Format: UNDERLYING + YY + MonthLetter + DD + STRIKE + CE/PE
+    fyers_weekly_opt = re.match(
+        r'^([A-Z]+)(\d{2})([A-Z])(\d{2})(\d+(?:\.\d+)?)(CE|PE)$',
+        sym
+    )
+    if fyers_weekly_opt:
+        root = fyers_weekly_opt.group(1)
+        year_short = fyers_weekly_opt.group(2)
+        month_code = fyers_weekly_opt.group(3)
+        day = int(fyers_weekly_opt.group(4))
+        strike = fyers_weekly_opt.group(5)
+        opt_type = fyers_weekly_opt.group(6)
+        
+        # Fyers month codes (from symbol_map.py)
+        month_map = {
+            'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
+            'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
+            'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
+            # Weekly codes
+            'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
+            'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
+            'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
+        }
+        
+        month = month_map.get(month_code, month_code)
+        full_year = f"20{year_short}"
+        
+        normalized = format_dhan_option_symbol(
+            root, month, full_year, strike, opt_type, day=day
+        )
+        
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'expiry_day': day,
+            'strike': float(strike) if '.' in strike else int(strike),
+            'option_type': opt_type,
+            'instrument_type': 'OPTIDX' if 'NIFTY' in root else 'OPTSTK'
+        }
+        
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
+        logger.info(f"Normalized Fyers weekly option from '{sym}' to '{normalized}'")
+        return normalized, metadata
+    
+    # Pattern: Fyers weekly futures with letter month code: NIFTY25O07FUT
+    # Format: UNDERLYING + YY + MonthLetter + DD + FUT
+    fyers_weekly_fut = re.match(
+        r'^([A-Z]+)(\d{2})([A-Z])(\d{2})FUT$',
+        sym
+    )
+    if fyers_weekly_fut:
+        root = fyers_weekly_fut.group(1)
+        year_short = fyers_weekly_fut.group(2)
+        month_code = fyers_weekly_fut.group(3)
+        day = int(fyers_weekly_fut.group(4))
+        
+        # Fyers month codes (same as above)
+        month_map = {
+            'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
+            'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
+            'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
+            # Weekly codes
+            'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
+            'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
+            'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
+        }
+        
+        month = month_map.get(month_code, month_code)
+        full_year = f"20{year_short}"
+        
+        normalized = format_dhan_future_symbol(
+            root, month, full_year, day=day
+        )
+        
+        metadata = {
+            'underlying': root,
+            'expiry_month': month,
+            'expiry_year': full_year,
+            'expiry_day': day,
+            'instrument_type': 'FUTIDX' if 'NIFTY' in root else 'FUTSTK'
+        }
+        
+        lot_size = get_lot_size_from_symbol_map(normalized, "NFO")
+        if lot_size:
+            metadata['lot_size'] = lot_size
+        
+        logger.info(f"Normalized Fyers weekly future from '{sym}' to '{normalized}'")
+        return normalized, metadata
     
     # Pattern 1: Already normalized Dhan format with hyphens
     if '-' in sym and re.search(r'(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)20\d{2}', sym):
