@@ -24,8 +24,6 @@ from contextlib import suppress
 from services.fo_symbol_utils import (
     format_dhan_future_symbol,
     format_dhan_option_symbol,
-    format_fo_symbol as _shared_format_fo_symbol,
-    parse_fo_symbol as _shared_parse_fo_symbol,
 )
 
 log = logging.getLogger(__name__)
@@ -40,6 +38,60 @@ CACHE_DIR = Path(
 )
 CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
+
+# Fyers weekly expiry month codes mapping
+FYERS_MONTH_CODES = {
+    'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
+    'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
+    'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
+    # Weekly expiries use different codes
+    'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
+    'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
+    'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
+}
+
+# Reverse mapping for canonical month to Fyers weekly code
+CANONICAL_TO_FYERS_WEEKLY = {v: k for k, v in FYERS_MONTH_CODES.items() 
+                             if k in 'MNOPQRSTUVWX'}
+
+
+def parse_fyers_weekly_code(code: str) -> dict | None:
+    """Parse Fyers weekly expiry code like '25O07' into components.
+    
+    Format: YYMDD where:
+    - YY = year (25 = 2025)
+    - M = month code (O = October for weekly, V = October for monthly)
+    - DD = day (07)
+    
+    Args:
+        code: Fyers weekly code (e.g., "25O07")
+        
+    Returns:
+        Dict with 'year', 'month', 'day', 'is_weekly' or None if invalid
+    """
+    if not code or len(code) != 5:
+        return None
+    
+    match = re.match(r'^(\d{2})([A-Z])(\d{2})$', code.upper())
+    if not match:
+        return None
+    
+    year_short, month_code, day_str = match.groups()
+    
+    # Check if it's a valid Fyers month code
+    if month_code not in FYERS_MONTH_CODES:
+        return None
+    
+    canonical_month = FYERS_MONTH_CODES[month_code]
+    year = f"20{year_short}"
+    day = int(day_str)
+    
+    return {
+        'year': year,
+        'month': canonical_month,
+        'day': day,
+        'is_weekly': month_code in 'MNOPQRSTUVWX'
+    }
 
 
 def _find_symbol_in_zerodha_csv(token: str) -> str | None:
@@ -160,6 +212,7 @@ def extract_root_symbol(symbol: str) -> str:
     - NIFTYNXT50-Sep2025-FUT -> NIFTYNXT50
     - FINNIFTY-Sep2025-33300-CE -> FINNIFTY  
     - RELIANCE-EQ -> RELIANCE
+    - NIFTY25O0719400CE -> NIFTY (with Fyers weekly code)
     """
     if not symbol:
         return symbol
@@ -171,6 +224,15 @@ def extract_root_symbol(symbol: str) -> str:
     if "-" in cleaned:
         parts = cleaned.split("-")
         return parts[0]  # First part is always the root
+    
+    # Check for Fyers weekly expiry code pattern (e.g., NIFTY25O07)
+    # This must come before other patterns to avoid misidentification
+    weekly_match = re.match(r'^([A-Z]+?)(\d{2}[A-Z]\d{2})', cleaned)
+    if weekly_match:
+        # Validate it's actually a Fyers code
+        potential_code = weekly_match.group(2)
+        if parse_fyers_weekly_code(potential_code):
+            return weekly_match.group(1)
     
     # Remove trailing FUT when explicitly present
     if cleaned.endswith("FUT"):
@@ -245,16 +307,175 @@ def _extract_bse_series(
     return None
 
 
-def parse_fo_symbol(symbol: str, broker: str) -> dict | None:
-    """Delegate to :func:`services.fo_symbol_utils.parse_fo_symbol`."""
+def parse_fo_symbol(symbol: str, broker: str) -> dict:
+    """Parse F&O symbol into components based on broker format.
+    
+    Enhanced to handle Fyers weekly expiry codes like '25O07'.
+    """
+    if not symbol:
+        return None
+    
+    symbol = symbol.upper().strip()
+    broker = broker.lower()
+    
+    if broker == 'dhan':
+        # NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT format
+        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
+        if opt_match:
+            return {
+                'underlying': opt_match.group(1),
+                'month': opt_match.group(2),
+                'year': opt_match.group(3),
+                'strike': opt_match.group(4),
+                'option_type': opt_match.group(5),
+                'instrument': 'OPT'
+            }
+        
+        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
+        if fut_match:
+            return {
+                'underlying': fut_match.group(1),
+                'month': fut_match.group(2),
+                'year': fut_match.group(3),
+                'instrument': 'FUT'
+            }
+    
+    elif broker == 'fyers':
+        # Check for Fyers weekly format first: NIFTY25O0719400CE
+        # Pattern: UNDERLYING + YYMDD + STRIKE + CE/PE
+        weekly_opt_match = re.match(r'^([A-Z]+?)(\d{2}[A-Z]\d{2})(\d+)(CE|PE)$', symbol)
+        if weekly_opt_match:
+            underlying = weekly_opt_match.group(1)
+            expiry_code = weekly_opt_match.group(2)
+            strike = weekly_opt_match.group(3)
+            option_type = weekly_opt_match.group(4)
+            
+            # Parse the Fyers weekly code
+            parsed_expiry = parse_fyers_weekly_code(expiry_code)
+            if parsed_expiry:
+                return {
+                    'underlying': underlying,
+                    'year': parsed_expiry['year'],
+                    'month': parsed_expiry['month'],
+                    'day': parsed_expiry['day'],
+                    'strike': strike,
+                    'option_type': option_type,
+                    'instrument': 'OPT',
+                    'is_weekly': parsed_expiry['is_weekly'],
+                    'fyers_code': expiry_code
+                }
+        
+        # Check for Fyers weekly futures: NIFTY25O07FUT
+        weekly_fut_match = re.match(r'^([A-Z]+?)(\d{2}[A-Z]\d{2})FUT$', symbol)
+        if weekly_fut_match:
+            underlying = weekly_fut_match.group(1)
+            expiry_code = weekly_fut_match.group(2)
+            
+            parsed_expiry = parse_fyers_weekly_code(expiry_code)
+            if parsed_expiry:
+                return {
+                    'underlying': underlying,
+                    'year': parsed_expiry['year'],
+                    'month': parsed_expiry['month'],
+                    'day': parsed_expiry['day'],
+                    'instrument': 'FUT',
+                    'is_weekly': parsed_expiry['is_weekly'],
+                    'fyers_code': expiry_code
+                }
+        
+        # Fall back to standard Fyers format: NIFTY24DEC24000CE
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
+        if opt_match:
+            return {
+                'underlying': opt_match.group(1),
+                'year': '20' + opt_match.group(2),
+                'month': opt_match.group(3),
+                'strike': opt_match.group(4),
+                'option_type': opt_match.group(5),
+                'instrument': 'OPT'
+            }
+        
+        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
+        if fut_match:
+            return {
+                'underlying': fut_match.group(1),
+                'year': '20' + fut_match.group(2),
+                'month': fut_match.group(3),
+                'instrument': 'FUT'
+            }
+    
+    elif broker in ['zerodha', 'aliceblue', 'finvasia']:
+        # NIFTY24DEC24000CE format
+        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
+        if opt_match:
+            return {
+                'underlying': opt_match.group(1),
+                'year': '20' + opt_match.group(2),
+                'month': opt_match.group(3),
+                'strike': opt_match.group(4),
+                'option_type': opt_match.group(5),
+                'instrument': 'OPT'
+            }
+        
+        # NIFTY24DECFUT format
+        fut_match = re.match(r'^([A-Z]+?)(\d{2})(\w{3})FUT$', symbol)
+        if fut_match:
+            return {
+                'underlying': fut_match.group(1),
+                'year': '20' + fut_match.group(2),
+                'month': fut_match.group(3),
+                'instrument': 'FUT'
+            }
+    
+    return None
 
-    return _shared_parse_fo_symbol(symbol, broker)
 
-
-def format_fo_symbol(components: dict, to_broker: str) -> str | None:
-    """Delegate to :func:`services.fo_symbol_utils.format_fo_symbol`."""
-
-    return _shared_format_fo_symbol(components, to_broker)
+def format_fo_symbol(components: dict, to_broker: str) -> str:
+    """Format symbol components for target broker.
+    
+    Enhanced to generate Fyers weekly codes when day is present.
+    """
+    if not components:
+        return None
+    
+    to_broker = to_broker.lower()
+    
+    if to_broker == 'dhan':
+        if components['instrument'] == 'OPT':
+            return f"{components['underlying']}-{components['month']}{components['year']}-{components['strike']}-{components['option_type']}"
+        elif components['instrument'] == 'FUT':
+            return f"{components['underlying']}-{components['month']}{components['year']}-FUT"
+    
+    elif to_broker == 'fyers':
+        # If we have a day component, generate Fyers weekly code
+        if components.get('day'):
+            year_short = components['year'][-2:]
+            month_code = CANONICAL_TO_FYERS_WEEKLY.get(components['month'].upper())
+            
+            if month_code:
+                day_str = f"{components['day']:02d}"
+                fyers_code = f"{year_short}{month_code}{day_str}"
+                
+                if components['instrument'] == 'OPT':
+                    return f"{components['underlying']}{fyers_code}{components['strike']}{components['option_type']}"
+                elif components['instrument'] == 'FUT':
+                    return f"{components['underlying']}{fyers_code}FUT"
+        
+        # Fall back to standard monthly format
+        year_short = components['year'][-2:]
+        if components['instrument'] == 'OPT':
+            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
+        elif components['instrument'] == 'FUT':
+            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
+    
+    elif to_broker in ['zerodha', 'aliceblue', 'finvasia']:
+        year_short = components['year'][-2:]
+        if components['instrument'] == 'OPT':
+            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
+        elif components['instrument'] == 'FUT':
+            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
+    
+    return None
 
 
 def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str, instrument_type: str = None) -> str:
@@ -1287,7 +1508,8 @@ def get_symbol_for_broker(
 ) -> Dict[str, str]:
     """Return the mapping for *symbol* for the given *broker* including lot size.
 
-    Enhanced to handle F&O symbol conversion between different broker formats.
+    Enhanced to handle F&O symbol conversion between different broker formats,
+    including Fyers weekly option symbols like NIFTY25O0719400CE.
     """
     if symbol is None:
         symbol = ""
@@ -1305,7 +1527,7 @@ def get_symbol_for_broker(
     upper_symbol = original_symbol.upper()
 
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE)$', upper_symbol):
+    if re.search(r'(FUT|CE|PE), upper_symbol):
         # Try direct lookup first
         result = _direct_symbol_lookup(original_symbol, broker, exchange_hint)
         if result and "lot_size" in result:
@@ -1317,37 +1539,23 @@ def get_symbol_for_broker(
             return result
 
         # Try parsing and converting from different broker formats
-        tried_symbols: set[str] = set()
         for source_broker in ['dhan', 'zerodha', 'aliceblue', 'fyers', 'finvasia']:
-            components = parse_fo_symbol(original_symbol, source_broker)
-            if not components:
+            if source_broker == broker:
                 continue
 
-            candidate_symbols: list[str] = []
-
-            converted_symbol = format_fo_symbol(components, broker)
-            if converted_symbol:
-                candidate_symbols.append(converted_symbol)
-
-            zerodha_symbol = format_fo_symbol(components, "zerodha")
-            if zerodha_symbol:
-                candidate_symbols.append(zerodha_symbol)
-
-            for candidate in candidate_symbols:
-                if not candidate or candidate in tried_symbols:
-                    continue
-
-                tried_symbols.add(candidate)
-
-                result = _direct_symbol_lookup(candidate, broker, exchange_hint)
-                if result and "lot_size" in result:
-                    log.info(
-                        "Found F&O mapping via conversion: %s -> %s, lot size: %s",
-                        original_symbol,
-                        candidate,
-                        result["lot_size"],
-                    )
-                    return result
+            components = parse_fo_symbol(original_symbol, source_broker)
+            if components:
+                converted_symbol = format_fo_symbol(components, broker)
+                if converted_symbol:
+                    result = _direct_symbol_lookup(converted_symbol, broker, exchange_hint)
+                    if result and "lot_size" in result:
+                        log.info(
+                            "Found F&O mapping via conversion: %s -> %s, lot size: %s",
+                            original_symbol,
+                            converted_symbol,
+                            result["lot_size"],
+                        )
+                        return result
 
         # Try with root symbol lookup for F&O
         root_symbol = extract_root_symbol(original_symbol)
@@ -1458,6 +1666,13 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
     symbol = symbol.upper()
     broker = broker.lower()
     
+    # Check if it's a Fyers weekly symbol
+    if broker == 'fyers':
+        components = parse_fo_symbol(symbol, broker)
+        if components and components.get('is_weekly'):
+            result["debug_info"].append(f"Detected Fyers weekly symbol with code: {components.get('fyers_code')}")
+            result["debug_info"].append(f"Expiry day: {components.get('day')}, Month: {components.get('month')}")
+    
     # Extract root and generate variants
     root_symbol = extract_root_symbol(symbol)
     base_variants = [root_symbol]
@@ -1467,6 +1682,11 @@ def debug_symbol_lookup(symbol: str, broker: str = "dhan", exchange: str | None 
     
     if symbol.endswith(("FUT", "CE", "PE")):
         clean_variant = re.sub(r'\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)', '', symbol)
+        if clean_variant not in base_variants:
+            base_variants.append(clean_variant)
+        
+        # Also try removing Fyers weekly codes
+        clean_variant = re.sub(r'\d{2}[A-Z]\d{2}', '', symbol)
         if clean_variant not in base_variants:
             base_variants.append(clean_variant)
     
@@ -1564,4 +1784,7 @@ __all__ = [
     "parse_fo_symbol",
     "format_fo_symbol",
     "convert_symbol_between_brokers",
+    "parse_fyers_weekly_code",
+    "FYERS_MONTH_CODES",
+    "CANONICAL_TO_FYERS_WEEKLY",
 ]
