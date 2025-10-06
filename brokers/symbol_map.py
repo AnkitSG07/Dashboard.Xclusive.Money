@@ -24,6 +24,8 @@ from contextlib import suppress
 from services.fo_symbol_utils import (
     format_dhan_future_symbol,
     format_dhan_option_symbol,
+    format_fo_symbol as _shared_format_fo_symbol,
+    parse_fo_symbol as _shared_parse_fo_symbol,
 )
 
 log = logging.getLogger(__name__)
@@ -243,83 +245,16 @@ def _extract_bse_series(
     return None
 
 
-def parse_fo_symbol(symbol: str, broker: str) -> dict:
-    """Parse F&O symbol into components based on broker format."""
-    if not symbol:
-        return None
-    
-    symbol = symbol.upper().strip()
-    broker = broker.lower()
-    
-    if broker == 'dhan':
-        # NIFTY-Dec2024-24000-CE or NIFTY-Dec2024-FUT format
-        opt_match = re.match(r'^(.+?)-(\w{3})(\d{4})-(\d+)-(CE|PE)$', symbol)
-        if opt_match:
-            return {
-                'underlying': opt_match.group(1),
-                'month': opt_match.group(2),
-                'year': opt_match.group(3),
-                'strike': opt_match.group(4),
-                'option_type': opt_match.group(5),
-                'instrument': 'OPT'
-            }
-        
-        fut_match = re.match(r'^(.+?)-(\w{3})(\d{4})-FUT$', symbol)
-        if fut_match:
-            return {
-                'underlying': fut_match.group(1),
-                'month': fut_match.group(2),
-                'year': fut_match.group(3),
-                'instrument': 'FUT'
-            }
-    
-    elif broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
-        # NIFTY24DEC24000CE format
-        opt_match = re.match(r'^(.+?)(\d{2})(\w{3})(\d+)(CE|PE)$', symbol)
-        if opt_match:
-            return {
-                'underlying': opt_match.group(1),
-                'year': '20' + opt_match.group(2),
-                'month': opt_match.group(3),
-                'strike': opt_match.group(4),
-                'option_type': opt_match.group(5),
-                'instrument': 'OPT'
-            }
-        
-        # NIFTY24DECFUT format
-        fut_match = re.match(r'^(.+?)(\d{2})(\w{3})FUT$', symbol)
-        if fut_match:
-            return {
-                'underlying': fut_match.group(1),
-                'year': '20' + fut_match.group(2),
-                'month': fut_match.group(3),
-                'instrument': 'FUT'
-            }
-    
-    return None
+def parse_fo_symbol(symbol: str, broker: str) -> dict | None:
+    """Delegate to :func:`services.fo_symbol_utils.parse_fo_symbol`."""
+
+    return _shared_parse_fo_symbol(symbol, broker)
 
 
-def format_fo_symbol(components: dict, to_broker: str) -> str:
-    """Format symbol components for target broker."""
-    if not components:
-        return None
-    
-    to_broker = to_broker.lower()
-    
-    if to_broker == 'dhan':
-        if components['instrument'] == 'OPT':
-            return f"{components['underlying']}-{components['month']}{components['year']}-{components['strike']}-{components['option_type']}"
-        elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}-{components['month']}{components['year']}-FUT"
-    
-    elif to_broker in ['zerodha', 'aliceblue', 'fyers', 'finvasia']:
-        year_short = components['year'][-2:]  # Get last 2 digits
-        if components['instrument'] == 'OPT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}{components['strike']}{components['option_type']}"
-        elif components['instrument'] == 'FUT':
-            return f"{components['underlying']}{year_short}{components['month'].upper()}FUT"
-    
-    return None
+def format_fo_symbol(components: dict, to_broker: str) -> str | None:
+    """Delegate to :func:`services.fo_symbol_utils.format_fo_symbol`."""
+
+    return _shared_format_fo_symbol(components, to_broker)
 
 
 def convert_symbol_between_brokers(symbol: str, from_broker: str, to_broker: str, instrument_type: str = None) -> str:
@@ -1382,23 +1317,37 @@ def get_symbol_for_broker(
             return result
 
         # Try parsing and converting from different broker formats
+        tried_symbols: set[str] = set()
         for source_broker in ['dhan', 'zerodha', 'aliceblue', 'fyers', 'finvasia']:
-            if source_broker == broker:
+            components = parse_fo_symbol(original_symbol, source_broker)
+            if not components:
                 continue
 
-            components = parse_fo_symbol(original_symbol, source_broker)
-            if components:
-                converted_symbol = format_fo_symbol(components, broker)
-                if converted_symbol:
-                    result = _direct_symbol_lookup(converted_symbol, broker, exchange_hint)
-                    if result and "lot_size" in result:
-                        log.info(
-                            "Found F&O mapping via conversion: %s -> %s, lot size: %s",
-                            original_symbol,
-                            converted_symbol,
-                            result["lot_size"],
-                        )
-                        return result
+            candidate_symbols: list[str] = []
+
+            converted_symbol = format_fo_symbol(components, broker)
+            if converted_symbol:
+                candidate_symbols.append(converted_symbol)
+
+            zerodha_symbol = format_fo_symbol(components, "zerodha")
+            if zerodha_symbol:
+                candidate_symbols.append(zerodha_symbol)
+
+            for candidate in candidate_symbols:
+                if not candidate or candidate in tried_symbols:
+                    continue
+
+                tried_symbols.add(candidate)
+
+                result = _direct_symbol_lookup(candidate, broker, exchange_hint)
+                if result and "lot_size" in result:
+                    log.info(
+                        "Found F&O mapping via conversion: %s -> %s, lot size: %s",
+                        original_symbol,
+                        candidate,
+                        result["lot_size"],
+                    )
+                    return result
 
         # Try with root symbol lookup for F&O
         root_symbol = extract_root_symbol(original_symbol)
