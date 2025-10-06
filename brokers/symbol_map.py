@@ -1527,7 +1527,7 @@ def get_symbol_for_broker(
     upper_symbol = original_symbol.upper()
 
     # For F&O symbols, try different conversion approaches
-    if re.search(r'(FUT|CE|PE), upper_symbol):
+    if re.search(r'(FUT|CE|PE)$', upper_symbol):
         # Try direct lookup first
         result = _direct_symbol_lookup(original_symbol, broker, exchange_hint)
         if result and "lot_size" in result:
