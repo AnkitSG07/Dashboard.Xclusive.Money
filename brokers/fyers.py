@@ -90,10 +90,13 @@ class FyersBroker(BrokerBase):
     def _format_symbol_for_fyers(self, tradingsymbol, exchange):
         """Format symbol according to Fyers requirements.
         
+        Enhanced to handle weekly expiry symbols using symbol_map utilities.
+        
         Fyers expects format like:
         - NSE:SBIN-EQ for NSE equity
         - BSE:SBIN-EQ for BSE equity  
-        - NSE:NIFTY24DEC24000CE for F&O (no -EQ suffix)
+        - NSE:NIFTY24DEC24000CE for F&O monthly (no -EQ suffix)
+        - NSE:NIFTY25O0719400CE for F&O weekly
         - MCX:GOLD23NOVFUT for commodity derivatives
         """
         if not tradingsymbol:
@@ -148,7 +151,28 @@ class FyersBroker(BrokerBase):
         # Determine if it's an F&O symbol
         is_fo = any(suffix in symbol for suffix in ["FUT", "CE", "PE"])
 
-        # Attempt to use the precomputed symbol map for equity lookups
+        # For F&O symbols, try to use symbol_map conversion
+        if is_fo:
+            lookup_exchange = exchange
+            if lookup_exchange in {"NSE_EQ", "BSE_EQ"}:
+                lookup_exchange = lookup_exchange.split("_", 1)[0]
+            elif lookup_exchange in {"NFO", "BFO"}:
+                # Keep as-is for lookup
+                pass
+            
+            try:
+                # Try to get the properly formatted Fyers symbol from symbol_map
+                mapping = symbol_map.get_symbol_for_broker(
+                    symbol, self.BROKER, lookup_exchange
+                )
+                if mapping and mapping.get("symbol"):
+                    fyers_symbol = mapping["symbol"]
+                    logger.debug(f"Using symbol_map Fyers format: {symbol} -> {fyers_symbol}")
+                    return fyers_symbol
+            except Exception as e:
+                logger.debug(f"symbol_map lookup failed for {symbol}: {e}, using fallback")
+        
+        # Fallback: Attempt to use the precomputed symbol map for equity lookups
         if not is_fo:
             lookup_exchange = exchange
             if lookup_exchange in {"NSE_EQ", "BSE_EQ"}:
@@ -239,7 +263,7 @@ class FyersBroker(BrokerBase):
             else:
                 limit_price = 0
 
-            # Format symbol for Fyers
+            # Format symbol for Fyers (will use symbol_map for weekly symbols)
             symbol = self._format_symbol_for_fyers(tradingsymbol, exchange)
             
             # Log for debugging
