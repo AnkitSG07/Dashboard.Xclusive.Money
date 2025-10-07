@@ -17,6 +17,7 @@ from datetime import datetime, date
 from prometheus_client import Counter
 
 from brokers.factory import get_broker_client
+from brokers.base import DEFAULT_TIMEOUT as BROKER_DEFAULT_TIMEOUT
 from brokers import symbol_map
 import redis
 from sqlalchemy import func
@@ -584,13 +585,17 @@ def consume_webhook_events(
     """Consume events from *stream* using a consumer group and place orders."""
     
     max_workers = max_workers or DEFAULT_MAX_WORKERS
+    broker_http_timeout = float(
+        os.getenv("BROKER_TIMEOUT", BROKER_DEFAULT_TIMEOUT)
+    )
     if order_timeout is None:
-        order_timeout = float(
-            os.getenv(
-                "ORDER_CONSUMER_TIMEOUT",
-                os.getenv("BROKER_TIMEOUT", "20"),
-            )
-        )
+        env_timeout = os.getenv("ORDER_CONSUMER_TIMEOUT")
+        if env_timeout is not None:
+            order_timeout = float(env_timeout)
+        else:
+            order_timeout = broker_http_timeout
+    else:
+        order_timeout = float(order_timeout)
 
     if redis_client is None:
         redis_client = get_redis_client()
