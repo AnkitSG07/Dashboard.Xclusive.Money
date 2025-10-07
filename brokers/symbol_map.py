@@ -39,20 +39,31 @@ CACHE_DIR = Path(
 CACHE_DIR.mkdir(exist_ok=True)
 CACHE_MAX_AGE = int(os.getenv("SYMBOL_MAP_CACHE_MAX_AGE", "86400"))  # seconds
 
-# Fyers weekly expiry month codes mapping
+# Fyers weekly expiry month codes mapping sourced from the scrip master feed.
+#
+# Weekly contracts use a dedicated set of single-letter month identifiers that
+# differ from the alphabetical codes used in legacy documentation. The values
+# below intentionally match the mapping used throughout
+# ``services.fo_symbol_utils`` so that all symbol normalisers treat Fyers
+# weeklies consistently.
 FYERS_MONTH_CODES = {
-    'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
-    'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
-    'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
-    # Weekly expiries use different codes
-    'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
-    'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
-    'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
+    'J': 'JAN',
+    'F': 'FEB',
+    'M': 'MAR',
+    'A': 'APR',
+    'Y': 'MAY',
+    'U': 'JUN',
+    'L': 'JUL',
+    'G': 'AUG',
+    'S': 'SEP',
+    'O': 'OCT',
+    'N': 'NOV',
+    'D': 'DEC',
 }
 
 # Reverse mapping for canonical month to Fyers weekly code
-CANONICAL_TO_FYERS_WEEKLY = {v: k for k, v in FYERS_MONTH_CODES.items() 
-                             if k in 'MNOPQRSTUVWX'}
+FYERS_WEEKLY_CODE_LETTERS = frozenset(FYERS_MONTH_CODES.keys())
+
 
 
 def parse_fyers_weekly_code(code: str) -> dict | None:
@@ -60,7 +71,7 @@ def parse_fyers_weekly_code(code: str) -> dict | None:
     
     Format: YYMDD where:
     - YY = year (25 = 2025)
-    - M = month code (O = October for weekly, V = October for monthly)
+    - Letter = Fyers month code (for example ``O`` → October, ``N`` → November)
     - DD = day (07)
     
     Args:
@@ -90,7 +101,7 @@ def parse_fyers_weekly_code(code: str) -> dict | None:
         'year': year,
         'month': canonical_month,
         'day': day,
-        'is_weekly': month_code in 'MNOPQRSTUVWX'
+        'is_weekly': month_code in FYERS_WEEKLY_CODE_LETTERS
     }
 
 
