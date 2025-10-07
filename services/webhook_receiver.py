@@ -25,6 +25,7 @@ from .fo_symbol_utils import (
     is_fo_symbol,
     format_dhan_option_symbol,
     format_dhan_future_symbol,
+    parse_fo_symbol,
 )
 from brokers import symbol_map
 
@@ -111,6 +112,45 @@ def get_lot_size_from_symbol_map(symbol: str, exchange: str = None) -> int:
                         logger.debug(
                             "Invalid lot size %s for %s from broker %s", lot_size, symbol, broker
                         )
+
+        if is_fo_symbol(symbol):
+            parsed_components = None
+            for broker in brokers_to_try:
+                parsed_components = parse_fo_symbol(symbol, broker)
+                if parsed_components and parsed_components.get("underlying"):
+                    break
+
+            underlying_symbol = (
+                parsed_components.get("underlying").strip().upper()
+                if parsed_components and parsed_components.get("underlying")
+                else None
+            )
+
+            if underlying_symbol:
+                for broker in brokers_to_try:
+                    mapping = symbol_map.get_symbol_for_broker_lazy(
+                        underlying_symbol, broker, exchange_hint
+                    )
+
+                    if mapping and "lot_size" in mapping:
+                        lot_size = mapping["lot_size"]
+                        if lot_size:
+                            try:
+                                logger.info(
+                                    "Using underlying %s lot size %s for %s from broker %s",
+                                    underlying_symbol,
+                                    lot_size,
+                                    symbol,
+                                    broker,
+                                )
+                                return int(float(lot_size))
+                            except (ValueError, TypeError):
+                                logger.debug(
+                                    "Invalid fallback lot size %s for %s from broker %s",
+                                    lot_size,
+                                    underlying_symbol,
+                                    broker,
+                                )
 
         logger.warning(f"Could not find lot size for symbol {symbol} in symbol map")
         return None
