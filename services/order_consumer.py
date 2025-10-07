@@ -42,6 +42,87 @@ from .lot_size import normalize_lot_size
 
 log = logging.getLogger(__name__)
 
+def _fallback_lot_size_from_root(
+    symbol: str, broker_name: str, exchange_hint: str | None
+) -> int | None:
+    """Infer a lot size by inspecting existing entries for the same root symbol.
+
+    This acts as a safety net when we cannot find an exact symbol match in the
+    symbol map (for example very long dated contracts that are absent from the
+    broker master files). We look through the cached aliases for the root
+    symbol, prefer lot sizes that belong to the requested broker and fall back
+    to any other broker data if required. When multiple candidates are
+    available, the smallest positive lot size is returned which reflects the
+    current practice of exchanges gradually reducing contract sizes.
+    """
+
+    if not symbol or not is_fo_symbol(symbol):
+        return None
+
+    root_symbol = symbol_map.extract_root_symbol(symbol)
+    if not root_symbol:
+        return None
+
+    try:
+        symbol_map.ensure_symbol_slice(symbol, exchange_hint)
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+    mapping = symbol_map.SYMBOL_MAP.get(root_symbol)
+    if not mapping:
+        return None
+
+    exchange_aliases = mapping.get(symbol_map.SYMBOLS_KEY, {})
+
+    exchange_candidates: list[str] = []
+    if exchange_hint:
+        exchange_candidates.append(exchange_hint)
+        if exchange_hint == "NSE" and "NFO" not in exchange_candidates:
+            exchange_candidates.append("NFO")
+        elif exchange_hint == "BSE" and "BFO" not in exchange_candidates:
+            exchange_candidates.append("BFO")
+
+    for default_candidate in ("NFO", "BFO", "NSE", "BSE"):
+        if default_candidate not in exchange_candidates:
+            exchange_candidates.append(default_candidate)
+
+    broker_key = broker_name.lower()
+    candidate_sizes: list[int] = []
+
+    for exch in exchange_candidates:
+        aliases = exchange_aliases.get(exch)
+        if not aliases:
+            continue
+
+        for entry in aliases.values():
+            if not entry:
+                continue
+
+            broker_entry = entry.get(broker_key, {})
+            lot_value = broker_entry.get("lot_size") or broker_entry.get("lotSize")
+            normalized = normalize_lot_size(lot_value)
+            if normalized:
+                candidate_sizes.append(normalized)
+                continue
+
+            for other_broker, broker_data in entry.items():
+                if other_broker == broker_key or not broker_data:
+                    continue
+                lot_value = broker_data.get("lot_size") or broker_data.get("lotSize")
+                normalized = normalize_lot_size(lot_value)
+                if normalized:
+                    candidate_sizes.append(normalized)
+                    break
+
+        if candidate_sizes:
+            break
+
+    if not candidate_sizes:
+        return None
+
+    return min(candidate_sizes)
+
+
 def _lookup_lot_size_from_symbol_map(
     symbol: str,
     broker_name: str,
@@ -91,7 +172,20 @@ def _lookup_lot_size_from_symbol_map(
             )
             return None
 
-    return mapping.get("lot_size") or mapping.get("lotSize")
+    lot_size = mapping.get("lot_size") or mapping.get("lotSize")
+    if lot_size:
+        return lot_size
+
+    fallback = _fallback_lot_size_from_root(symbol, broker_name, exchange_hint)
+    if fallback:
+        log.info(
+            "Using fallback lot size %s for %s derived from existing symbol data",
+            fallback,
+            symbol,
+        )
+        return fallback
+
+    return None
 
 
 _ORIGINAL_LOT_SIZE_LOOKUP = _lookup_lot_size_from_symbol_map
