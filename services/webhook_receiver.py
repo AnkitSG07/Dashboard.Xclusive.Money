@@ -148,18 +148,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
         strike = fyers_weekly_opt.group(5)
         opt_type = fyers_weekly_opt.group(6)
         
-        # Fyers month codes (from symbol_map.py)
-        month_map = {
-            'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
-            'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
-            'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
-            # Weekly codes
-            'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
-            'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
-            'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
-        }
-        
-        month = month_map.get(month_code, month_code)
+        month = symbol_map.FYERS_MONTH_CODES.get(month_code, month_code)
         full_year = f"20{year_short}"
         
         normalized = format_dhan_option_symbol(
@@ -195,18 +184,7 @@ def normalize_fo_symbol(symbol: str, exchange: str | None = None) -> tuple[str, 
         month_code = fyers_weekly_fut.group(3)
         day = int(fyers_weekly_fut.group(4))
         
-        # Fyers month codes (same as above)
-        month_map = {
-            'A': 'JAN', 'B': 'FEB', 'C': 'MAR', 'D': 'APR',
-            'E': 'MAY', 'F': 'JUN', 'G': 'JUL', 'H': 'AUG',
-            'I': 'SEP', 'J': 'OCT', 'K': 'NOV', 'L': 'DEC',
-            # Weekly codes
-            'M': 'JAN', 'N': 'FEB', 'O': 'MAR', 'P': 'APR',
-            'Q': 'MAY', 'R': 'JUN', 'S': 'JUL', 'T': 'AUG',
-            'U': 'SEP', 'V': 'OCT', 'W': 'NOV', 'X': 'DEC'
-        }
-        
-        month = month_map.get(month_code, month_code)
+        month = symbol_map.FYERS_MONTH_CODES.get(month_code, month_code)
         full_year = f"20{year_short}"
         
         normalized = format_dhan_future_symbol(
