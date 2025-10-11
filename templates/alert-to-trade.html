@@ -1,0 +1,1950 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeEdge Pro - Revolutionary Pine Script Strategy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #1e1e1e;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        @keyframes marquee-vertical {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(calc(-50%));
+            }
+        }
+        
+        .rotating-text {
+            animation: marquee-vertical 10s linear infinite;
+        }
+        
+        .scroll-container {
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Responsive Design: Show/Hide Desktop vs Mobile */
+        .desktop-only {
+            display: block;
+        }
+        .mobile-only {
+            display: none;
+        }
+        
+        /* Mobile breakpoint - switch to mobile design */
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none;
+            }
+            .mobile-only {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== DESKTOP VERSION ========== -->
+<div class="desktop-only">
+    <!-- Discount Banner -->
+    <div style="width: 100%; height: 25px; background: linear-gradient(0deg, rgba(1,197,227,1) 0%, rgba(1,227,189,1) 100%); display: flex; align-items: center; justify-content: center;">
+        <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 12px; white-space: nowrap;">
+            Get Instant 30% Discount. Use Code : GET30
+        </p>
+    </div>
+
+    <!-- Header -->
+    <header style="position: absolute; top: 25px; left: 0; right: 0; z-index: 10; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background-color: rgba(35,48,82,0.6);">
+        <img style="width: 117px; height: 32px;" alt="TradeEdge Pro Logo" src="/figmaAssets/vector.svg">
+        
+        <div style="display: flex; align-items: center; gap: 24px;">
+            <button style="padding: 8px 24px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px; white-space: nowrap;">
+                    Try For Free
+                </span>
+            </button>
+            <img style="width: 32px; height: 32px; cursor: pointer;" alt="Menu" src="/figmaAssets/frame-7.svg">
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <div style="position: relative; width: 100%; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); padding-top: 64px; padding-bottom: 32px;">
+        <img style="position: absolute; top: 150px; left: 0; width: 100%; height: 354px; opacity: 0.5; z-index: 0;" alt="Background" src="/figmaAssets/group-122.png">
+        
+        <section style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 48px 32px; z-index: 1;">
+            <!-- TradeEdge Pro Branding -->
+            <div style="display: flex; align-items: flex-start; gap: 24px;">
+                <img style="width: 46px; height: 48px; margin-top: 5px;" alt="TradeEdge Icon" src="/figmaAssets/subtract.svg">
+                
+                <h1 style="font-size: 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: white; line-height: 1.2;">
+                    TradeEdge
+                </h1>
+                
+                <span style="display: inline-block; margin-top: 4px; padding: 12px 16px; background-color: #00c4e2; border-radius: 32px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; font-size: 36px; white-space: nowrap;">
+                        Pro
+                    </span>
+                </span>
+            </div>
+
+            <p style="max-width: 580px; font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 24px; text-align: center; line-height: 1.4;">
+                A revolutionary Pine Script strategy designed specifically for
+            </p>
+
+            <!-- Rotating Trader Types -->
+            <div style="height: 44px; width: 346px; overflow: hidden; position: relative;">
+                <div class="rotating-text" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Retail Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Algorithmic Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Intra-day Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Swing Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Retail Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Algorithmic Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Intra-day Traders
+                    </div>
+                    <div style="height: 44px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 36px; text-align: center; white-space: nowrap; display: flex; align-items: center; justify-content: center;">
+                        Swing Traders
+                    </div>
+                </div>
+            </div>
+
+            <p style="max-width: 581px; font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 24px; text-align: center; line-height: 1.4;">
+                who demand consistent, reliable performance across any market, any time-frame & any instrument.
+            </p>
+        </section>
+
+        <!-- Badge -->
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; padding-bottom: 32px; z-index: 1;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 32px; border-radius: 32px; background: linear-gradient(0deg, rgba(1,197,227,1) 0%, rgba(1,227,189,1) 100%);">
+                <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 24px; white-space: nowrap;">
+                    Works on every chart used in trading
+                </p>
+            </div>
+        </div>
+    </div>
+
+            <h1 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; max-width: 672px;">
+                The Only TradingView Strategy That Actually Works
+            </h1>
+
+            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.6; max-width: 672px;">
+                Stop wasting time and money on strategies that promise millions but deliver losses. TradeEdge Pro is the battle-tested, non-repainting Pine Script that real traders use to generate consistent profits across stocks, crypto, and forex.
+            </p>
+
+            <div style="display: flex; align-items: center; gap: 16px; margin-top: 16px;">
+                <button style="padding: 12px 32px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px;">
+                        Try For Free
+                    </span>
+                </button>
+                <button style="padding: 12px 32px; background-color: transparent; border: 2px solid white; border-radius: 8px; cursor: pointer;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px;">
+                        View Demo
+                    </span>
+                </button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+                <span style="font-family: 'Inter', sans-serif; color: #a6a6a6; font-size: 14px;">
+                    Trusted by 10,000+ traders
+                </span>
+                <div style="display: flex; margin-left: -8px;">
+                    <img style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1e1e1e; margin-left: -8px;" src="/figmaAssets/unsplash-eirp4ptz3cu.png" alt="Trader 1">
+                    <img style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1e1e1e; margin-left: -8px;" src="/figmaAssets/unsplash-eirp4ptz3cu-1.png" alt="Trader 2">
+                    <img style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1e1e1e; margin-left: -8px;" src="/figmaAssets/unsplash-eirp4ptz3cu-2.png" alt="Trader 3">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1e1e1e; background-color: #00c4e2; display: flex; align-items: center; justify-content: center; margin-left: -8px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 10px;">+5K</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Backtest Carousel -->
+        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <button style="position: absolute; left: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-183.svg" alt="Previous">
+            </button>
+
+            <div style="width: 100%; max-width: 882px; height: 524px; background-color: #a6a6a6; border-radius: 32px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                    Backtest Image 1
+                </span>
+            </div>
+
+            <button style="position: absolute; right: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-120.svg" alt="Next">
+            </button>
+        </div>
+
+        <!-- Carousel Controls -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+            <div style="display: flex; gap: 8px;">
+                <div style="width: 12px; height: 12px; background-color: #00c4e2; border-radius: 50%;"></div>
+                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
+                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
+                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
+            </div>
+
+            <button style="width: 40px; height: 40px; background-color: #303030; border-radius: 20px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <img style="width: 24px; height: 24px;" src="/figmaAssets/play-pause.svg" alt="Play/Pause">
+            </button>
+        </div>
+
+        <!-- Stats -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 32px; margin-top: 16px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 24px;">89%</span>
+                <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;">Win Rate</span>
+            </div>
+            <div style="width: 1px; height: 48px; background-color: #a6a6a6;"></div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 24px;">$47K+</span>
+                <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;">Avg. Profit</span>
+            </div>
+            <div style="width: 1px; height: 48px; background-color: #a6a6a6;"></div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 24px;">10K+</span>
+                <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;">Active Users</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Traders Choose TradeEdge Pro -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(15,35,45,1) 0%, rgba(20,40,50,1) 100%); padding: 64px 32px;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 48px;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                Why Traders Choose TradeEdge
+            </h2>
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; background-color: #00c4e2; border-radius: 16px;">
+                <span style="font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; white-space: nowrap;">
+                    Pro
+                </span>
+            </span>
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                ?
+            </h2>
+        </div>
+
+        <div style="max-width: 1200px; margin: 0 auto; background: rgba(10,25,35,0.6); border-radius: 16px; border: 2px solid rgba(0,196,226,0.3); padding: 40px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px;">
+                <!-- Feature 1 -->
+                <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/language.svg" alt="Universal Strategy">
+                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Universal Strategy
+                            </h3>
+                            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                                Works on US stocks, Indian equity, crypto, forex, commodities - any market
+                            </p>
+                        </div>
+                    </div>
+                    <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-top: 24px;"></div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/frame-11.svg" alt="Alert2Trade Integration">
+                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Alert2Trade Integration
+                            </h3>
+                            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                                Seamless automation with 99.5% reliability
+                            </p>
+                        </div>
+                    </div>
+                    <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-top: 24px;"></div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/frame-9.svg" alt="Universal Strategy">
+                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Universal Strategy
+                            </h3>
+                            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                                Works across multiple budgets in day-swing trading
+                            </p>
+                        </div>
+                    </div>
+                    <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-top: 24px;"></div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/frame-12.svg" alt="Memory Optimized">
+                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Memory Optimized
+                            </h3>
+                            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                                Memory-light for seamless, multi-timeframe analysis
+                            </p>
+                        </div>
+                    </div>
+                    <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-top: 24px;"></div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div style="display: flex; align-items: start; gap: 12px;">
+                    <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/frame-10.svg" alt="Non-Repainting Algorithm">
+                    <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                        <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                            Non-Repainting Algorithm
+                        </h3>
+                        <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                            What you see in back-test is what you get live
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div style="display: flex; align-items: start; gap: 12px;">
+                    <img style="width: 36px; height: 36px; margin-top: 4px;" src="/figmaAssets/frame-13.svg" alt="Real-World Backtesting">
+                    <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                        <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                            Real-World Backtesting
+                        </h3>
+                        <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                            Includes slippage, commissions, and realistic fill modeling
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TradeEdge Pro Features Carousel -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(20,40,50,1) 0%, rgba(15,30,40,1) 100%); padding: 64px 32px;">
+        <header style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 32px;">
+            <h2 style="font-size: 28px; font-family: 'Inter', sans-serif; font-weight: 600; color: white;">
+                TradeEdge
+            </h2>
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; background-color: #00c4e2; border-radius: 16px;">
+                <span style="font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; white-space: nowrap;">
+                    Pro
+                </span>
+            </span>
+            <h2 style="font-size: 28px; font-family: 'Inter', sans-serif; font-weight: 600; color: white;">
+                Features
+            </h2>
+        </header>
+
+        <div style="position: relative; max-width: 1400px; margin: 0 auto;">
+            <div class="scroll-container" style="display: flex; gap: 24px; padding: 0 32px; overflow-x: auto;">
+                <!-- Feature Card 1 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: -25px; width: 480px; height: 344px; margin-left: -65px;" src="/figmaAssets/image-8-1.png" alt="Smart Auto Signals">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        Smart Auto Signals
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Get real-time buy and sell signals powered by advanced algorithms. Never miss a profitable trade opportunity again.
+                    </p>
+                </div>
+
+                <!-- Feature Card 2 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: -10px; width: 438px; height: 313px; margin-left: -38px;" src="/figmaAssets/image-8-1-2.png" alt="Auto Exit Signals">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        Auto Exit Signals
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Know exactly when to exit for maximum profit. Our system calculates optimal take-profit and stop-loss levels automatically.
+                    </p>
+                </div>
+
+                <!-- Feature Card 3 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: 26px; width: 338px; height: 242px; margin-left: 6px; object-fit: cover;" src="/figmaAssets/image-8-1-4.png" alt="Realtime Trend Chatcher">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        Realtime Trend Chatcher
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Catch every major trend before it's too late. TradeEdge Pro identifies trend reversals with 89% accuracy.
+                    </p>
+                </div>
+
+                <!-- Feature Card 4 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: 13px; width: 374px; height: 267px; margin-left: -12px; object-fit: cover;" src="/figmaAssets/image-8-1-1.png" alt="AI Breakout Levels">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        AI Breakout Levels
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Spot breakout opportunities instantly. AI-powered analysis detects key support and resistance levels.
+                    </p>
+                </div>
+
+                <!-- Feature Card 5 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: 26px; width: 337px; height: 241px; margin-left: 6px; object-fit: cover;" src="/figmaAssets/image-8-1-3.png" alt="Reversals Detector">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        Reversals Detector
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Identify market reversals before they happen. Advanced pattern recognition keeps you ahead of the market.
+                    </p>
+                </div>
+
+                <!-- Feature Card 6 -->
+                <div style="flex-shrink: 0; width: 365px; background: transparent; border-radius: 12px; border: 2px solid #00c4e2; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="width: 349px; height: 300px; background-color: #233052; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px;">
+                        <img style="margin-top: 26px; width: 338px; height: 242px; margin-left: 6px; object-fit: cover;" src="/figmaAssets/image-8-1-5.png" alt="Support and Resistance Blocks">
+                    </div>
+                    <h3 style="margin-left: 4px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; margin-bottom: 8px;">
+                        Support and Resistance Blocks
+                    </h3>
+                    <p style="margin-left: 4px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; line-height: 1.4;">
+                        Visualize key price levels with automatic support and resistance blocks for smarter trading decisions.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navigation Arrows -->
+            <button style="position: absolute; top: 50%; transform: translateY(-50%); left: 0; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-183.svg" alt="Previous">
+            </button>
+            <button style="position: absolute; top: 50%; transform: translateY(-50%); right: 0; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-120.svg" alt="Next">
+            </button>
+
+            <!-- Progress Bar -->
+            <div style="width: 100%; max-width: 768px; height: 4px; background-color: #155059; border-radius: 2px; margin: 32px auto 0;">
+                <div style="width: 299.9px; height: 4px; background-color: #00c4e2; border-radius: 2px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TradeEdge Pro Explained Videos -->
+    <div style="width: 100%; background-color: #1e1e1e; padding: 64px 32px;">
+        <header style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 32px;">
+            <h2 style="font-size: 28px; font-family: 'Inter', sans-serif; font-weight: 600; color: white;">
+                TradeEdge
+            </h2>
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; background-color: #00c4e2; border-radius: 16px;">
+                <span style="font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; white-space: nowrap;">
+                    Pro
+                </span>
+            </span>
+            <h2 style="font-size: 28px; font-family: 'Inter', sans-serif; font-weight: 600; color: white;">
+                Explained
+            </h2>
+        </header>
+
+        <div style="position: relative; max-width: 1024px; margin: 0 auto;">
+            <div class="scroll-container" style="display: flex; gap: 16px; padding: 0 16px; overflow-x: auto;">
+                <!-- Video Card 1 -->
+                <div style="flex-shrink: 0; width: 244px; height: 415px; background: transparent; border-radius: 12px; border: 2px solid #a6a6a6; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="position: relative; width: 100%; height: 100%; background-color: #1e1e1e; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; top: 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: #a6a6a6; font-size: 24px;">
+                            Video - 1
+                        </div>
+                        <img style="width: 80px; height: 80px; cursor: pointer;" src="/figmaAssets/play-arrow-filled.svg" alt="Play">
+                    </div>
+                </div>
+
+                <!-- Video Card 2 -->
+                <div style="flex-shrink: 0; width: 244px; height: 415px; background: transparent; border-radius: 12px; border: 2px solid #a6a6a6; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="position: relative; width: 100%; height: 100%; background-color: #1e1e1e; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; top: 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: #a6a6a6; font-size: 24px;">
+                            Video - 2
+                        </div>
+                        <img style="width: 80px; height: 80px; cursor: pointer;" src="/figmaAssets/play-arrow-filled.svg" alt="Play">
+                    </div>
+                </div>
+
+                <!-- Video Card 3 -->
+                <div style="flex-shrink: 0; width: 244px; height: 415px; background: transparent; border-radius: 12px; border: 2px solid #a6a6a6; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="position: relative; width: 100%; height: 100%; background-color: #1e1e1e; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; top: 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: #a6a6a6; font-size: 24px;">
+                            Video - 3
+                        </div>
+                        <img style="width: 80px; height: 80px; cursor: pointer;" src="/figmaAssets/play-arrow-filled.svg" alt="Play">
+                    </div>
+                </div>
+
+                <!-- Video Card 4 -->
+                <div style="flex-shrink: 0; width: 244px; height: 415px; background: transparent; border-radius: 12px; border: 2px solid #a6a6a6; padding: 8px; backdrop-filter: blur(2px);">
+                    <div style="position: relative; width: 100%; height: 100%; background-color: #1e1e1e; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div style="position: absolute; top: 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: #a6a6a6; font-size: 24px;">
+                            Video - 4
+                        </div>
+                        <img style="width: 80px; height: 80px; cursor: pointer;" src="/figmaAssets/play-arrow-filled.svg" alt="Play">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Arrows -->
+            <button style="position: absolute; top: 50%; transform: translateY(-50%); left: 0; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-183.svg" alt="Previous">
+            </button>
+            <button style="position: absolute; top: 50%; transform: translateY(-50%); right: 0; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-120.svg" alt="Next">
+            </button>
+
+            <!-- Progress Bar -->
+            <div style="width: 100%; max-width: 900px; height: 4px; background-color: #155059; border-radius: 2px; margin: 24px auto 0; padding: 0 56px;">
+                <div style="width: 299.9px; height: 4px; background-color: #00c4e2; border-radius: 2px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Who Is This For Section -->
+    <div style="width: 100%; background-color: #1e1e1e; padding: 64px 32px;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center; margin-bottom: 32px;">
+            Who is this for?
+        </h2>
+
+        <p style="font-size: 24px; font-family: 'Open Sans', sans-serif; color: white; text-align: center; max-width: 912px; margin: 0 auto 48px;">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+        </p>
+
+        <div style="width: 100%; max-width: 914px; height: 184px; position: relative; margin: 0 auto;">
+            <!-- Trader Icons -->
+            <div style="position: absolute; top: 24px; left: 64px; width: 82px; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                <img style="width: 80px; height: 80px;" src="/figmaAssets/frame-163-1.svg" alt="Retail">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; text-align: center; white-space: nowrap;">
+                    Retail
+                </div>
+            </div>
+
+            <div style="position: absolute; top: 24px; left: 295px; width: 82px; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                <img style="width: 80px; height: 80px;" src="/figmaAssets/frame-164.svg" alt="Algorithmic">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; text-align: center; white-space: nowrap;">
+                    Algorithmic
+                </div>
+            </div>
+
+            <div style="position: absolute; top: 24px; left: 536px; width: 82px; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                <img style="width: 80px; height: 80px;" src="/figmaAssets/frame-166.svg" alt="Intra-Day">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; text-align: center; white-space: nowrap;">
+                    Intra-Day
+                </div>
+            </div>
+
+            <div style="position: absolute; top: 24px; left: 767px; width: 82px; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                <img style="width: 80px; height: 80px;" src="/figmaAssets/frame-165.svg" alt="Swing">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; text-align: center; white-space: nowrap;">
+                    Swing
+                </div>
+            </div>
+
+            <img style="position: absolute; top: 0; left: 0; width: 913px; height: 172px;" src="/figmaAssets/rectangle-71.svg" alt="Rectangle">
+
+            <div style="position: absolute; top: 155px; left: 50%; transform: translateX(-50%); font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px; text-align: center;">
+                TRADERS
+            </div>
+        </div>
+    </div>
+
+    <!-- How Does TradeEdge Pro Work Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(15,35,45,1) 0%, rgba(20,40,50,1) 100%); padding: 64px 32px;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 48px;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                How Does TradeEdge
+            </h2>
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; background-color: #00c4e2; border-radius: 16px;">
+                <span style="font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; white-space: nowrap;">
+                    Pro
+                </span>
+            </span>
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                Work ?
+            </h2>
+        </div>
+
+        <div style="max-width: 1000px; margin: 0 auto;">
+            <div style="width: 100%; height: 500px; background-color: #a6a6a6; border-radius: 32px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                    Video Tutorial
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Follow 5 Simple Steps Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(20,40,50,1) 0%, rgba(15,30,40,1) 100%); padding: 64px 32px;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center; margin-bottom: 48px;">
+            Follow 5 Simple Steps
+        </h2>
+
+        <div style="max-width: 1000px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
+                    Step 1 : Add to your TradingView
+                </h3>
+                <div style="width: 100%; max-width: 800px; height: 400px; background-color: #a6a6a6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Step - 1 : Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Run comprehensive backtests with real-world slippage and commission modeling to verify performance.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Why TradeEdge Pro Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); padding: 64px 32px; position: relative;">
+        <div style="position: absolute; top: 210px; left: -200px; width: 400px; height: 400px; background: rgba(0,196,226,0.4); border-radius: 200px; filter: blur(170px);"></div>
+        <div style="position: absolute; top: 420px; right: -200px; width: 240px; height: 240px; background: rgba(1,227,189,0.4); border-radius: 120px; filter: blur(150px);"></div>
+
+        <div style="position: relative; z-index: 1;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 48px;">
+                <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                    Why
+                </h2>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                        TradeEdge
+                    </h2>
+                    <span style="background-color: #00c4e2; border-radius: 16px; padding: 8px 12px;">
+                        <span style="font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; white-space: nowrap;">
+                            Pro
+                        </span>
+                    </span>
+                </div>
+                <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; text-align: center;">
+                    ?
+                </h2>
+            </div>
+
+            <div style="max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 106px;">
+                <!-- Without TradeEdge Pro -->
+                <div style="display: flex; gap: 40px;">
+                    <img style="width: 120px; height: 119px; margin-top: 11px; flex-shrink: 0;" src="/figmaAssets/frame-167.svg" alt="Without TradeEdge Pro">
+
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ff5b6f; font-size: 24px; white-space: nowrap;">
+                            Without TradeEdge Pro
+                        </h3>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/union.svg" alt="Cross">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Emotional trading, frequent losses
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/union.svg" alt="Cross">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Wrong timing, miss winning trades
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/union.svg" alt="Cross">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Blind trading setup, getting trapped
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/union.svg" alt="Cross">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Struggling to find profitable setups
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- With TradeEdge Pro -->
+                <div style="display: flex; gap: 40px;">
+                    <img style="width: 120px; height: 117px; margin-top: 12px; flex-shrink: 0;" src="/figmaAssets/frame-168.svg" alt="With TradeEdge Pro">
+
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #16a34a; font-size: 24px; white-space: nowrap;">
+                            With TradeEdge Pro
+                        </h3>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/vector-2.svg" alt="Check">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Emotion-free trading, higher profits
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/vector-2.svg" alt="Check">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Precise entry timing, higher success
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/vector-2.svg" alt="Check">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Trading with data driven confidence
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <img style="width: 16px; height: 16px; flex-shrink: 0;" src="/figmaAssets/vector-2.svg" alt="Check">
+                                <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 16px; line-height: 1.4;">
+                                    Multiple pre-built profitable setups
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Tutorial Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); padding: 64px 32px;">
+        <div style="max-width: 1000px; margin: 0 auto;">
+            <div style="width: 100%; height: 500px; background-color: #a6a6a6; border-radius: 32px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                    Video Tutorial
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explore Our Plans Pricing Section -->
+    <div style="width: 100%; background-color: #1e1e1e; padding: 64px 32px;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 48px; text-align: center; margin-bottom: 48px;">
+            Explore Our Plans
+        </h2>
+
+        <div style="display: flex; justify-content: center; gap: 40px; max-width: 1200px; margin: 0 auto;">
+            <!-- Starter Plan -->
+            <article style="width: 343px; margin-top: 24px;">
+                <div style="position: relative;">
+                    <span style="position: absolute; top: -24px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 16px; background-color: #00e2bc; border-radius: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 12px; text-align: center;">
+                            STARTER PLAN
+                        </span>
+                    </span>
+
+                    <div style="margin-top: 12px; background: transparent; border-radius: 16px; border: 2px solid #00e2bc; padding: 24px; backdrop-filter: blur(2px);">
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <img style="width: 32px; height: 32px;" src="/figmaAssets/badges.svg" alt="Badge">
+                                <h3 style="flex: 1; color: white; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 24px;">
+                                    Monthly Access
+                                </h3>
+                            </div>
+
+                            <div style="display: flex; align-items: baseline; gap: 4px;">
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 32px;">
+                                    ₹ 499.
+                                </span>
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                    00
+                                </span>
+                                <span style="margin-left: 8px; font-family: 'Inter', sans-serif; color: white; font-size: 16px;">
+                                    / month
+                                </span>
+                            </div>
+
+                            <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #00e2bc; font-size: 14px;">
+                                Get 7 days free trial included
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; margin-left: 8px; margin-right: 8px; position: relative;">
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; background-color: #00e2bc; border-radius: 16px;">
+                            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 14px; text-align: center;">
+                                No questions asked 30 days refund
+                            </span>
+                        </span>
+
+                        <div style="margin-top: 8px; background: rgba(0,226,188,0.2); border-radius: 8px; padding: 0; position: relative; overflow: hidden;">
+                            <div style="position: absolute; bottom: 56px; left: -128px; width: 256px; height: 256px; background: rgba(0,226,188,0.4); border-radius: 128px; filter: blur(50px);"></div>
+                            <div style="position: absolute; bottom: -109px; right: -128px; width: 256px; height: 256px; background: rgba(0,226,188,0.4); border-radius: 128px; filter: blur(50px);"></div>
+
+                            <div style="position: relative; z-index: 10; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+                                <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Get complete access of <span style="font-weight: 700;">TradeEdge Pro</span>
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <button style="width: 100%; padding: 8px 12px; background-color: #00e2bc; border-radius: 8px; border: none; cursor: pointer;">
+                                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
+                                        START 7-DAY FREE TRIAL →
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Most Popular Plan -->
+            <article style="width: 343px;">
+                <img style="margin-left: 160px; width: 24px; height: 24px; margin-bottom: 0;" src="/figmaAssets/frame.svg" alt="Frame">
+
+                <div style="position: relative;">
+                    <span style="position: absolute; top: -24px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 16px; background-color: #00c4e2; border-radius: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 12px; text-align: center;">
+                            MOST POPULAR
+                        </span>
+                    </span>
+
+                    <div style="margin-top: 12px; background: transparent; border-radius: 16px; border: 2px solid #00c4e2; padding: 24px; backdrop-filter: blur(2px);">
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <img style="width: 32px; height: 32px;" src="/figmaAssets/badges.svg" alt="Badge">
+                                <h3 style="flex: 1; color: white; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 24px;">
+                                    Quarterly Access
+                                </h3>
+                            </div>
+
+                            <div style="display: flex; align-items: baseline; gap: 4px;">
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 32px;">
+                                    ₹ 1,099.
+                                </span>
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                    00
+                                </span>
+                                <span style="margin-left: 8px; font-family: 'Inter', sans-serif; color: white; font-size: 16px;">
+                                    / 90 days
+                                </span>
+                            </div>
+
+                            <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #00c4e2; font-size: 14px;">
+                                Get 30 days free trial included
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; margin-left: 8px; margin-right: 8px; position: relative;">
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; background-color: #00c4e2; border-radius: 16px;">
+                            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 14px; text-align: center;">
+                                No questions asked 30 days refund
+                            </span>
+                        </span>
+
+                        <div style="margin-top: 8px; background: rgba(0,196,226,0.2); border-radius: 8px; padding: 0; position: relative; overflow: hidden;">
+                            <div style="position: absolute; bottom: 56px; left: -128px; width: 256px; height: 256px; background: rgba(0,196,226,0.4); border-radius: 128px; filter: blur(50px);"></div>
+                            <div style="position: absolute; bottom: -109px; right: -128px; width: 256px; height: 256px; background: rgba(0,196,226,0.4); border-radius: 128px; filter: blur(50px);"></div>
+
+                            <div style="position: relative; z-index: 10; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+                                <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Get complete access of <span style="font-weight: 700;">TradeEdge Pro</span>
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <button style="width: 100%; padding: 8px 12px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+                                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
+                                        START 30-DAY FREE TRIAL →
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Best Value Plan -->
+            <article style="width: 343px; margin-top: 24px;">
+                <div style="position: relative;">
+                    <span style="position: absolute; top: -24px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 16px; background-color: #d56cff; border-radius: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 12px; text-align: center;">
+                            BEST VALUE
+                        </span>
+                    </span>
+
+                    <div style="margin-top: 12px; background: transparent; border-radius: 16px; border: 2px solid #d56cff; padding: 24px; backdrop-filter: blur(2px);">
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <img style="width: 32px; height: 32px;" src="/figmaAssets/badges.svg" alt="Badge">
+                                <h3 style="flex: 1; color: white; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 24px;">
+                                    Lifetime Access
+                                </h3>
+                            </div>
+
+                            <div style="display: flex; align-items: baseline; gap: 4px;">
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 32px;">
+                                    ₹ 4,999.
+                                </span>
+                                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                    00
+                                </span>
+                                <span style="margin-left: 8px; font-family: 'Inter', sans-serif; color: white; font-size: 16px;">
+                                    One-Time
+                                </span>
+                            </div>
+
+                            <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #d56cff; font-size: 14px;">
+                                Unlimited access for life
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; margin-left: 8px; margin-right: 8px; position: relative;">
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 10; display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; background-color: #d56cff; border-radius: 16px;">
+                            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 14px; text-align: center;">
+                                No questions asked 30 days refund
+                            </span>
+                        </span>
+
+                        <div style="margin-top: 8px; background: rgba(190,120,255,0.2); border-radius: 8px; padding: 0; position: relative; overflow: hidden;">
+                            <div style="position: absolute; bottom: 56px; left: -128px; width: 256px; height: 256px; background: rgba(190,120,255,0.4); border-radius: 128px; filter: blur(50px);"></div>
+                            <div style="position: absolute; bottom: -109px; right: -128px; width: 256px; height: 256px; background: rgba(190,120,255,0.4); border-radius: 128px; filter: blur(50px);"></div>
+
+                            <div style="position: relative; z-index: 10; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+                                <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Get complete access of <span style="font-weight: 700;">TradeEdge Pro</span>
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                    <li style="display: flex; gap: 9px;">
+                                        <img style="margin-top: 5px; width: 13px; height: 10px; flex-shrink: 0;" src="/figmaAssets/frame-23.svg" alt="Check">
+                                        <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.4;">
+                                            Lorem ipsum dolor sit amet
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <button style="width: 100%; padding: 8px 12px; background-color: #d56cff; border-radius: 8px; border: none; cursor: pointer;">
+                                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
+                                        GET LIFETIME ACCESS →
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- Safe and Secure Checkout -->
+        <div style="max-width: 1200px; margin: 48px auto 0; background: transparent; border-radius: 8px; border: 2px solid #d9d9d9; padding: 24px; backdrop-filter: blur(2px);">
+            <div style="display: flex; flex-direction: column; gap: 24px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px;">
+                    Safe and Secure Checkout
+                </h3>
+
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        Payments are processed by
+                    </span>
+                    <img style="width: 22px; height: 25px;" src="/figmaAssets/vector-4.svg" alt="RazorPay">
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        RazorPay
+                    </span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <img style="width: 241px; height: 64px;" src="/figmaAssets/vector-6.svg" alt="Payment methods">
+                    <img style="width: 395px; height: 48px;" src="/figmaAssets/group-220.png" alt="Security badges">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hear From Our Customers (Testimonials) -->
+    <div style="width: 100%; background-color: #1e1e1e; padding: 64px 32px;">
+        <h2 style="text-align: center; font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px; margin-bottom: 32px;">
+            Hear From Our Customers
+        </h2>
+
+        <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+            <!-- Testimonial 1 -->
+            <div style="background-color: #1e1e1e; border-radius: 8px; border: 2px solid #a6a6a6; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; gap: 16px;">
+                    <img style="width: 78px; height: 78px; border-radius: 80px;" src="/figmaAssets/unsplash-eirp4ptz3cu.png" alt="Rajesh Kumar">
+
+                    <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                        <div style="display: inline-flex; align-items: center; gap: 8px;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Rajesh Kumar
+                            </h3>
+                            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                <div style="width: 4px; height: 4px; background-color: #a6a6a6; border-radius: 2px;"></div>
+                                <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 14px;">
+                                    3rd
+                                </span>
+                            </div>
+                        </div>
+
+                        <p style="font-family: 'Open Sans', sans-serif; color: #d9d9d9; font-size: 16px;">
+                            Algorithmic Trader, Mumbai
+                        </p>
+
+                        <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 14px;">
+                            5d
+                        </span>
+                    </div>
+
+                    <img style="width: 24px; height: 24px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Menu">
+                </div>
+
+                <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 18px; line-height: 1.6;">
+                    Finally found a strategy that works exactly the same in live trading as in backtests. No more repainting nightmares!
+                </p>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid #a6a6a6;">
+                    <div style="display: flex; align-items: center; gap: 24px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img style="width: 24px; height: 24px;" src="/figmaAssets/frame-173-1.svg" alt="Like">
+                            <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px;">
+                                358
+                            </span>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img style="width: 24px; height: 24px;" src="/figmaAssets/frame-7.svg" alt="Comment">
+                            <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px;">
+                                5 Comments
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <img style="width: 20px; height: 20px; cursor: pointer;" src="/figmaAssets/americas.svg" alt="Share">
+                        <img style="width: 20px; height: 20px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Share">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Testimonial 2 -->
+            <div style="background-color: #1e1e1e; border-radius: 8px; border: 2px solid #a6a6a6; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; gap: 16px;">
+                    <img style="width: 78px; height: 78px; border-radius: 80px;" src="/figmaAssets/unsplash-eirp4ptz3cu-1.png" alt="Sarah Chen">
+
+                    <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                        <div style="display: inline-flex; align-items: center; gap: 8px;">
+                            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px;">
+                                Sarah Chen
+                            </h3>
+                            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                <div style="width: 4px; height: 4px; background-color: #a6a6a6; border-radius: 2px;"></div>
+                                <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 14px;">
+                                    3rd
+                                </span>
+                            </div>
+                        </div>
+
+                        <p style="font-family: 'Open Sans', sans-serif; color: #d9d9d9; font-size: 16px;">
+                            Crypto Trader, Singapore
+                        </p>
+
+                        <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 14px;">
+                            2w
+                        </span>
+                    </div>
+
+                    <img style="width: 24px; height: 24px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Menu">
+                </div>
+
+                <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 18px; line-height: 1.6;">
+                    Switched from losing $2,000/month on failed TradingView strategies to consistent $8,000 profits with TradeEdge Pro.
+                </p>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid #a6a6a6;">
+                    <div style="display: flex; align-items: center; gap: 24px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img style="width: 24px; height: 24px;" src="/figmaAssets/frame-173-1.svg" alt="Like">
+                            <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px;">
+                                1058
+                            </span>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img style="width: 24px; height: 24px;" src="/figmaAssets/frame-7.svg" alt="Comment">
+                            <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 16px;">
+                                63 Comments
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <img style="width: 20px; height: 20px; cursor: pointer;" src="/figmaAssets/americas.svg" alt="Share">
+                        <img style="width: 20px; height: 20px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Share">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); padding: 64px 32px;">
+        <h2 style="max-width: 400px; margin: 0 auto 48px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 28px; text-align: center;">
+            Frequently Asked Questions
+        </h2>
+        
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="margin-bottom: 16px; padding: 24px; background-color: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(0,196,226,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        How do I get started with TradeEdge Pro?
+                    </h3>
+                    <span style="color: #00c4e2; font-size: 24px; cursor: pointer;">+</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px; padding: 24px; background-color: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(0,196,226,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        Does it work on all timeframes and instruments?
+                    </h3>
+                    <span style="color: #00c4e2; font-size: 24px; cursor: pointer;">+</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px; padding: 24px; background-color: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(0,196,226,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        Is there a money-back guarantee?
+                    </h3>
+                    <span style="color: #00c4e2; font-size: 24px; cursor: pointer;">+</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px; padding: 24px; background-color: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(0,196,226,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">
+                        What kind of support do you provide?
+                    </h3>
+                    <span style="color: #00c4e2; font-size: 24px; cursor: pointer;">+</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- What is Xclusive MONEY Section -->
+    <div style="width: 100%; background: linear-gradient(180deg, rgba(15,35,45,1) 0%, rgba(20,40,50,1) 100%); padding: 80px 32px;">
+        <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 32px; margin-bottom: 16px;">
+                What is
+            </h2>
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 48px; margin-bottom: 8px;">
+                Xclusive
+            </h2>
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 48px; margin-bottom: 24px;">
+                MONEY
+            </h2>
+            <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 18px; max-width: 800px; margin: 0 auto 64px; line-height: 1.6;">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 64px;">
+                <!-- TradeEdge Pro Card -->
+                <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 16px; padding: 24px; text-align: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px; margin-bottom: 16px;">
+                        TradeEdge <span style="color: #00c4e2;">Pro</span>
+                    </h3>
+                    <div style="width: 100%; height: 200px; background-color: #a6a6a6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 20px;">
+                            TradeEdge Pro<br/>Image
+                        </span>
+                    </div>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; line-height: 1.6;">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+                    </p>
+                </div>
+
+                <!-- Alert2Trade Card -->
+                <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 16px; padding: 24px; text-align: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px; margin-bottom: 16px;">
+                        Alert2Trade
+                    </h3>
+                    <div style="width: 100%; height: 200px; background-color: #a6a6a6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 20px;">
+                            Alert2Trade<br/>Image
+                        </span>
+                    </div>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; line-height: 1.6;">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+                    </p>
+                </div>
+
+                <!-- TradeSync Card -->
+                <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 16px; padding: 24px; text-align: center;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px; margin-bottom: 16px;">
+                        TradeSync
+                    </h3>
+                    <div style="width: 100%; height: 200px; background-color: #a6a6a6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 20px;">
+                            TradeSync<br/>Image
+                        </span>
+                    </div>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; line-height: 1.6;">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Join Us On Section -->
+            <div style="max-width: 600px; margin: 0 auto; padding: 32px; background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 16px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 28px; margin-bottom: 24px;">
+                    Join Us On
+                </h3>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 24px;">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Facebook">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Discord">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="Instagram">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="LinkedIn">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="X">
+                    <img style="width: 32px; height: 32px; cursor: pointer;" src="/figmaAssets/frame-7.svg" alt="YouTube">
+                </div>
+            </div>
+
+            <!-- Useful Links Expandable -->
+            <div style="max-width: 600px; margin: 48px auto 0; padding: 24px; background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">
+                        Useful Links
+                    </h3>
+                    <span style="color: #00c4e2; font-size: 24px;">+</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final CTA Section -->
+    <div style="width: 100%; background-color: #1e1e1e; padding: 80px 32px;">
+        <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 42px; margin-bottom: 24px; line-height: 1.2;">
+                Ready to Transform Your Trading?
+            </h2>
+            <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 20px; margin-bottom: 40px; line-height: 1.6;">
+                Join thousands of successful traders using TradeEdge Pro to achieve consistent profitability
+            </p>
+            <button style="padding: 20px 60px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border-radius: 12px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 20px;">
+                Get Started Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Social Media Section -->
+    <div style="display: flex; justify-content: center; padding: 48px 32px; background-color: #1e1e1e;">
+        <div style="width: 563px; padding: 24px; background: transparent; border-radius: 12px; border: 1px solid #00c4e2; backdrop-filter: blur(2px); text-align: center;">
+            <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 28px; margin-bottom: 24px;">
+                Join Us On
+            </h3>
+            <img style="width: 499px; height: 48px; margin: 0 auto; display: block;" src="/figmaAssets/frame-193.svg" alt="Social Media Icons">
+        </div>
+    </div>
+
+    <!-- Useful Links Section -->
+    <div style="display: flex; flex-direction: column; max-width: 608px; margin: 0 auto; padding: 32px;">
+        <div style="width: 100%; height: 1px; background-color: white; margin-bottom: 20px;"></div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <p style="font-family: 'Inter', sans-serif; color: white; font-size: 20px;">
+                Useful Links
+            </p>
+            <img style="width: 24px; height: 24px; cursor: pointer;" src="/figmaAssets/add.svg" alt="Expand">
+        </div>
+        
+        <div style="width: 100%; height: 1px; background-color: white;"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer style="background-color: #1e1e1e; padding: 48px 32px; text-align: center;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px; margin-bottom: 32px; text-align: left;">
+                <div>
+                    <h4 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 16px; margin-bottom: 16px;">
+                        Product
+                    </h4>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Features
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Pricing
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; cursor: pointer;">
+                        FAQ
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 16px; margin-bottom: 16px;">
+                        Support
+                    </h4>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Documentation
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Contact Us
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; cursor: pointer;">
+                        Community
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 16px; margin-bottom: 16px;">
+                        Legal
+                    </h4>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Privacy Policy
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; margin-bottom: 8px; cursor: pointer;">
+                        Terms of Service
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #888888; font-size: 14px; cursor: pointer;">
+                        Refund Policy
+                    </p>
+                </div>
+            </div>
+            
+            <div style="width: 100%; height: 1px; background-color: rgba(255,255,255,0.1); margin: 32px 0;"></div>
+            
+            <p style="font-family: 'Inter', sans-serif; color: #888888; font-size: 14px;">
+                © 2024 TradeEdge Pro. All rights reserved. | Designed for professional traders worldwide
+            </p>
+        </div>
+    </footer>
+
+</div>
+
+<!-- ========== MOBILE VERSION ========== -->
+<div class="mobile-only">
+    <!-- Mobile Status Bar -->
+    <div style="width: 100%; background-color: #1e1e1e; height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 5px 16px;">
+        <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 12px;">5:30 PM</span>
+        <div style="display: flex; gap: 8px;">
+            <span style="color: white;">📶</span>
+            <span style="color: white;">🔋</span>
+        </div>
+    </div>
+
+    <!-- Mobile Header -->
+    <header style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px; background-color: rgba(35,48,82,0.6);">
+        <img style="width: 100px; height: 28px;" alt="TradeEdge Pro Logo" src="/figmaAssets/vector.svg">
+        <img style="width: 24px; height: 24px; cursor: pointer;" alt="Menu" src="/figmaAssets/frame-7.svg">
+    </header>
+
+    <!-- Mobile Hero Section -->
+    <div style="padding: 24px 16px; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); text-align: center;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            <img style="width: 20px; height: 21px;" src="/figmaAssets/subtract.svg" alt="Icon">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">TradeEdge</span>
+            <span style="padding: 4px 8px; background-color: #00c4e2; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; font-size: 16px;">Pro</span>
+        </div>
+
+        <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px; margin-bottom: 12px;">
+            A revolutionary Pine Script strategy designed specifically for
+        </p>
+
+        <!-- Mobile Rotating Trader Types -->
+        <div style="height: 30px; overflow: hidden; margin-bottom: 12px;">
+            <div class="rotating-text" style="display: flex; flex-direction: column;">
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Retail Traders</div>
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Algorithmic Traders</div>
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Intra-day Traders</div>
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Swing Traders</div>
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Retail Traders</div>
+                <div style="height: 30px; font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 24px; text-align: center; display: flex; align-items: center; justify-content: center;">Algorithmic Traders</div>
+            </div>
+        </div>
+
+        <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px; margin-bottom: 20px;">
+            who demand consistent, reliable performance across any market, any time-frame & any instrument.
+        </p>
+
+        <div style="padding: 8px 16px; background: linear-gradient(0deg, rgba(1,197,227,1) 0%, rgba(1,227,189,1) 100%); border-radius: 20px; display: inline-block; margin-bottom: 20px;">
+            <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 12px;">Works on every chart used in trading</p>
+        </div>
+
+        <button style="width: 100%; padding: 12px; background-color: #00c4e2; border: none; border-radius: 8px; margin-bottom: 12px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px;">Try For Free</span>
+        </button>
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-family: 'Inter', sans-serif; color: #a6a6a6; font-size: 12px;">Trusted by 10,000+ traders</span>
+            <div style="display: flex; margin-left: -4px;">
+                <img style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #1e1e1e; margin-left: -4px;" src="/figmaAssets/unsplash-eirp4ptz3cu.png" alt="T1">
+                <img style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #1e1e1e; margin-left: -4px;" src="/figmaAssets/unsplash-eirp4ptz3cu-1.png" alt="T2">
+                <img style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #1e1e1e; margin-left: -4px;" src="/figmaAssets/unsplash-eirp4ptz3cu-2.png" alt="T3">
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Backtest Carousel -->
+    <div style="padding: 24px 16px; background-color: #1e1e1e;">
+        <div style="width: 100%; height: 204px; background-color: #a6a6a6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 32px;">Backtest Image 1</span>
+        </div>
+
+        <!-- Mobile Carousel Controls -->
+        <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;">
+            <div style="width: 8px; height: 8px; background-color: #00c4e2; border-radius: 50%;"></div>
+            <div style="width: 8px; height: 8px; background-color: #a6a6a6; border-radius: 50%;"></div>
+            <div style="width: 8px; height: 8px; background-color: #a6a6a6; border-radius: 50%;"></div>
+            <div style="width: 8px; height: 8px; background-color: #a6a6a6; border-radius: 50%;"></div>
+        </div>
+
+        <!-- Mobile Stats -->
+        <div style="display: flex; justify-content: space-around; align-items: center;">
+            <div style="text-align: center;">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 20px;">89%</div>
+                <div style="font-family: 'Inter', sans-serif; color: white; font-size: 12px;">Win Rate</div>
+            </div>
+            <div style="width: 1px; height: 32px; background-color: #a6a6a6;"></div>
+            <div style="text-align: center;">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 20px;">$47K+</div>
+                <div style="font-family: 'Inter', sans-serif; color: white; font-size: 12px;">Avg. Profit</div>
+            </div>
+            <div style="width: 1px; height: 32px; background-color: #a6a6a6;"></div>
+            <div style="text-align: center;">
+                <div style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 20px;">10K+</div>
+                <div style="font-family: 'Inter', sans-serif; color: white; font-size: 12px;">Active Users</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile TradeEdge Pro Badge -->
+    <div style="padding: 24px 16px; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%); text-align: center;">
+        <div style="padding: 6px 20px; background: linear-gradient(0deg, rgba(1,197,227,1) 0%, rgba(1,227,189,1) 100%); border-radius: 20px; display: inline-block;">
+            <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px;">TradeEdge Pro Lifetime</p>
+        </div>
+    </div>
+
+    <!-- Mobile Key Features -->
+    <div style="padding: 24px 16px; background-color: #1e1e1e;">
+        <div style="background: rgba(0,196,226,0.1); border-radius: 12px; border: 1px solid rgba(0,196,226,0.3); padding: 20px;">
+            <!-- Feature 1 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/language.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">Universal Strategy</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">Works on US stocks, Indian equity, crypto, forex, commodities - any market</p>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-bottom: 16px;"></div>
+
+            <!-- Feature 2 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/frame-11.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">Alert2Trade Integration</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">Seamless automation with 99.9% reliability</p>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-bottom: 16px;"></div>
+
+            <!-- Feature 3 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/frame-9.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">All Timeframes</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">From 1-minute scalping to daily swing trading</p>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-bottom: 16px;"></div>
+
+            <!-- Feature 4 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/frame-12.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">Memory Optimized</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">Never crashes, even on complex multi-timeframe analysis</p>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-bottom: 16px;"></div>
+
+            <!-- Feature 5 -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/frame-10.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">Non-Repainting Algorithm</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">What you see in back-test is what you get live</p>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(0,196,226,0.3); margin-bottom: 16px;"></div>
+
+            <!-- Feature 6 -->
+            <div style="display: flex; gap: 12px;">
+                <img style="width: 28px; height: 28px; flex-shrink: 0;" src="/figmaAssets/frame-13.svg" alt="Icon">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 4px;">Real-World Backtesting</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px;">Includes slippage, commissions, and realistic fill modeling</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Why TradeEdge Pro -->
+    <div style="padding: 32px 16px; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%);">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">Why </span>
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">TradeEdge </span>
+            <span style="padding: 4px 8px; background-color: #00c4e2; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; font-size: 16px;">Pro</span>
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">?</span>
+        </div>
+
+        <!-- Without TradeEdge Pro -->
+        <div style="background: rgba(255,91,111,0.1); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <img style="width: 40px; height: 40px; flex-shrink: 0;" src="/figmaAssets/frame-167.svg" alt="Without">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ff5b6f; font-size: 16px; align-self: center;">Without TradeEdge Pro</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #ff5b6f; font-size: 14px;">✗</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Emotional trading, frequent losses</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #ff5b6f; font-size: 14px;">✗</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Wrong timing, miss winning trades</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #ff5b6f; font-size: 14px;">✗</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Blind trading setup, getting trapped</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #ff5b6f; font-size: 14px;">✗</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Struggling to find profitable setups</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- With TradeEdge Pro -->
+        <div style="background: rgba(22,163,74,0.1); border-radius: 12px; padding: 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <img style="width: 40px; height: 40px; flex-shrink: 0;" src="/figmaAssets/frame-168.svg" alt="With">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #16a34a; font-size: 16px; align-self: center;">With TradeEdge Pro</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #16a34a; font-size: 14px;">✓</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Emotion-free trading, higher profits</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #16a34a; font-size: 14px;">✓</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Precise entry timing, higher success</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #16a34a; font-size: 14px;">✓</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Trading with data driven confidence</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="color: #16a34a; font-size: 14px;">✓</span>
+                    <span style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 14px;">Multiple pre-built profitable setups</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Explore Our Plans -->
+    <div style="padding: 32px 16px; background-color: #1e1e1e;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 24px; text-align: center; margin-bottom: 24px;">Explore Our Plans</h2>
+
+        <!-- Monthly Plan Mobile -->
+        <div style="margin-bottom: 24px;">
+            <div style="text-align: center; margin-bottom: -12px;">
+                <span style="background-color: #00e2bc; padding: 4px 12px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 10px; display: inline-block;">STARTER PLAN</span>
+            </div>
+            <div style="background: transparent; border: 2px solid #00e2bc; border-radius: 12px; padding: 16px;">
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <img style="width: 24px; height: 24px;" src="/figmaAssets/badges.svg" alt="Badge">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">Monthly Access</h3>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px;">₹ 499.</span>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">00</span>
+                    <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;"> / month</span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #00e2bc; font-size: 12px; margin-bottom: 12px;">Get 7 days free trial included</p>
+            </div>
+            <div style="text-align: center; margin-top: -8px; margin-bottom: 8px;">
+                <span style="background-color: #00e2bc; padding: 4px 10px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 11px; display: inline-block;">No questions asked 30 days refund</span>
+            </div>
+            <div style="background: rgba(0,226,188,0.2); border-radius: 8px; padding: 16px;">
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <button style="width: 100%; padding: 10px; background-color: #00e2bc; border: none; border-radius: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">START 7-DAY FREE TRIAL →</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quarterly Plan Mobile -->
+        <div style="margin-bottom: 24px;">
+            <div style="text-align: center; margin-bottom: -12px;">
+                <span style="background-color: #00c4e2; padding: 4px 12px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 10px; display: inline-block;">MOST POPULAR</span>
+            </div>
+            <div style="background: transparent; border: 2px solid #00c4e2; border-radius: 12px; padding: 16px;">
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <img style="width: 24px; height: 24px;" src="/figmaAssets/badges.svg" alt="Badge">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">Quarterly Access</h3>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px;">₹ 1,099.</span>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">00</span>
+                    <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;"> / 90 days</span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #00c4e2; font-size: 12px; margin-bottom: 12px;">Get 30 days free trial included</p>
+            </div>
+            <div style="text-align: center; margin-top: -8px; margin-bottom: 8px;">
+                <span style="background-color: #00c4e2; padding: 4px 10px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 11px; display: inline-block;">No questions asked 30 days refund</span>
+            </div>
+            <div style="background: rgba(0,196,226,0.2); border-radius: 8px; padding: 16px;">
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <button style="width: 100%; padding: 10px; background-color: #00c4e2; border: none; border-radius: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">START 30-DAY FREE TRIAL →</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Lifetime Plan Mobile -->
+        <div style="margin-bottom: 24px;">
+            <div style="text-align: center; margin-bottom: -12px;">
+                <span style="background-color: #d56cff; padding: 4px 12px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 10px; display: inline-block;">BEST VALUE</span>
+            </div>
+            <div style="background: transparent; border: 2px solid #d56cff; border-radius: 12px; padding: 16px;">
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <img style="width: 24px; height: 24px;" src="/figmaAssets/badges.svg" alt="Badge">
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px;">Lifetime Access</h3>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 28px;">₹ 4,999.</span>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px;">00</span>
+                    <span style="font-family: 'Inter', sans-serif; color: white; font-size: 14px;"> One-Time</span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; font-weight: 700; color: #d56cff; font-size: 12px; margin-bottom: 12px;">Unlimited access for life</p>
+            </div>
+            <div style="text-align: center; margin-top: -8px; margin-bottom: 8px;">
+                <span style="background-color: #d56cff; padding: 4px 10px; border-radius: 12px; font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 11px; display: inline-block;">No questions asked 30 days refund</span>
+            </div>
+            <div style="background: rgba(190,120,255,0.2); border-radius: 8px; padding: 16px;">
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
+                <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
+                <button style="width: 100%; padding: 10px; background-color: #d56cff; border: none; border-radius: 8px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">GET LIFETIME ACCESS →</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile How Does TradeEdge Pro Work Section -->
+    <div style="padding: 40px 16px; background: linear-gradient(180deg, rgba(15,35,45,1) 0%, rgba(20,40,50,1) 100%);">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 24px; flex-wrap: wrap;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; text-align: center;">
+                How Does TradeEdge
+            </h2>
+            <span style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; background-color: #00c4e2; border-radius: 12px;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #233052; font-size: 16px;">
+                    Pro
+                </span>
+            </span>
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; text-align: center;">
+                Work ?
+            </h2>
+        </div>
+
+        <div style="width: 100%; height: 250px; background-color: #a6a6a6; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 24px; text-align: center;">
+                Video Tutorial
+            </span>
+        </div>
+    </div>
+
+    <!-- Mobile Follow 5 Simple Steps Section -->
+    <div style="padding: 40px 16px; background: linear-gradient(180deg, rgba(20,40,50,1) 0%, rgba(15,30,40,1) 100%);">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; text-align: center; margin-bottom: 24px;">
+            Follow 5 Simple Steps
+        </h2>
+
+        <div style="text-align: center;">
+            <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px; margin-bottom: 12px;">
+                Step 1 : Add to your TradingView
+            </h3>
+            <div style="width: 100%; height: 200px; background-color: #a6a6a6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 20px; text-align: center;">
+                    Step - 1 : Image
+                </span>
+            </div>
+            <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 12px; line-height: 1.4;">
+                Run comprehensive backtests with real-world slippage and commission modeling to verify performance.
+            </p>
+        </div>
+    </div>
+
+    <!-- Mobile Testimonials -->
+    <div style="padding: 32px 16px; background-color: #1e1e1e;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; text-align: center; margin-bottom: 20px;">Hear From Our Customers</h2>
+        
+        <div style="background-color: #1e1e1e; border: 2px solid #a6a6a6; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <img style="width: 48px; height: 48px; border-radius: 50%;" src="/figmaAssets/unsplash-eirp4ptz3cu.png" alt="Rajesh Kumar">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px;">Rajesh Kumar</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #d9d9d9; font-size: 13px;">Algorithmic Trader</p>
+                    <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 11px;">5d</span>
+                </div>
+            </div>
+            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.5; margin-bottom: 12px;">
+                Finally found a strategy that works exactly the same in live trading as in backtests. No more repainting nightmares!
+            </p>
+            <div style="border-top: 1px solid #a6a6a6; padding-top: 12px; display: flex; justify-content: space-between;">
+                <div style="display: flex; gap: 16px;">
+                    <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">❤ 358</span>
+                    <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">💬 5</span>
+                </div>
+                <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">🔗 Share</span>
+            </div>
+        </div>
+
+        <div style="background-color: #1e1e1e; border: 2px solid #a6a6a6; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <img style="width: 48px; height: 48px; border-radius: 50%;" src="/figmaAssets/unsplash-eirp4ptz3cu-1.png" alt="Sarah Chen">
+                <div>
+                    <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px;">Sarah Chen</h3>
+                    <p style="font-family: 'Open Sans', sans-serif; color: #d9d9d9; font-size: 13px;">Crypto Trader</p>
+                    <span style="font-family: 'Open Sans', sans-serif; color: #a6a6a6; font-size: 11px;">2w</span>
+                </div>
+            </div>
+            <p style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.5; margin-bottom: 12px;">
+                Switched from losing $2,000/month on failed TradingView strategies to consistent $8,000 profits with TradeEdge Pro.
+            </p>
+            <div style="border-top: 1px solid #a6a6a6; padding-top: 12px; display: flex; justify-content: space-between;">
+                <div style="display: flex; gap: 16px;">
+                    <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">❤ 1058</span>
+                    <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">💬 63</span>
+                </div>
+                <span style="font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">🔗 Share</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile FAQ -->
+    <div style="padding: 32px 16px; background: linear-gradient(180deg, rgba(35,48,82,1) 0%, rgba(30,30,30,1) 100%);">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #00c4e2; font-size: 20px; text-align: center; margin-bottom: 20px;">Frequently Asked Questions</h2>
+        
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 14px;">Does this work with my broker?</span>
+                <span style="color: #00c4e2; font-size: 20px;">+</span>
+            </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 14px;">What if I'm new to Pine Script?</span>
+                <span style="color: #00c4e2; font-size: 20px;">+</span>
+            </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 14px;">How is this different from other strategies?</span>
+                <span style="color: #00c4e2; font-size: 20px;">+</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile What is Xclusive MONEY Section -->
+    <div style="padding: 40px 16px; background: linear-gradient(180deg, rgba(15,35,45,1) 0%, rgba(20,40,50,1) 100%);">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; text-align: center; margin-bottom: 8px;">What is</h2>
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 28px; text-align: center; margin-bottom: 4px;">Xclusive</h2>
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 28px; text-align: center; margin-bottom: 16px;">MONEY</h2>
+        <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 13px; text-align: center; margin-bottom: 32px; line-height: 1.5;">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        </p>
+
+        <!-- Mobile Product Cards -->
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px;">
+            <!-- TradeEdge Pro Card -->
+            <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 12px; padding: 16px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px; text-align: center; margin-bottom: 12px;">
+                    TradeEdge <span style="color: #00c4e2;">Pro</span>
+                </h3>
+                <div style="width: 100%; height: 150px; background-color: #a6a6a6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 16px; text-align: center;">
+                        TradeEdge Pro<br/>Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 12px; text-align: center; line-height: 1.4;">
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.
+                </p>
+            </div>
+
+            <!-- Alert2Trade Card -->
+            <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 12px; padding: 16px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px; text-align: center; margin-bottom: 12px;">
+                    Alert2Trade
+                </h3>
+                <div style="width: 100%; height: 150px; background-color: #a6a6a6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 16px; text-align: center;">
+                        Alert2Trade<br/>Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 12px; text-align: center; line-height: 1.4;">
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.
+                </p>
+            </div>
+
+            <!-- TradeSync Card -->
+            <div style="background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 12px; padding: 16px;">
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 18px; text-align: center; margin-bottom: 12px;">
+                    TradeSync
+                </h3>
+                <div style="width: 100%; height: 150px; background-color: #a6a6a6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 16px; text-align: center;">
+                        TradeSync<br/>Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 12px; text-align: center; line-height: 1.4;">
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.
+                </p>
+            </div>
+        </div>
+
+        <!-- Mobile Join Us On Section -->
+        <div style="padding: 24px; background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 12px; margin-bottom: 24px;">
+            <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 20px; text-align: center; margin-bottom: 16px;">
+                Join Us On
+            </h3>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+                <span style="font-size: 24px;">📘</span>
+                <span style="font-size: 24px;">🎮</span>
+                <span style="font-size: 24px;">📷</span>
+                <span style="font-size: 24px;">💼</span>
+                <span style="font-size: 24px;">✖️</span>
+                <span style="font-size: 24px;">▶️</span>
+            </div>
+        </div>
+
+        <!-- Mobile Useful Links -->
+        <div style="padding: 20px; background: rgba(10,25,35,0.6); border: 2px solid rgba(0,196,226,0.3); border-radius: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px;">Useful Links</span>
+                <span style="color: #00c4e2; font-size: 20px;">+</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile CTA -->
+    <div style="padding: 32px 16px; background-color: #1e1e1e; text-align: center;">
+        <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 24px; margin-bottom: 16px;">Ready to Transform Your Trading?</h2>
+        <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-bottom: 20px;">Join thousands of successful traders using TradeEdge Pro</p>
+        <button style="width: 100%; padding: 14px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border: none; border-radius: 8px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px;">Get Started Now</span>
+        </button>
+    </div>
+
+    <!-- Mobile Footer -->
+    <footer style="padding: 24px 16px; background-color: #233052; text-align: center;">
+        <div style="margin-bottom: 16px;">
+            <h3 style="font-family: 'Inter', sans-serif; font-weight: 700; color: #00c4e2; font-size: 18px; margin-bottom: 12px;">Join Us On</h3>
+            <div style="display: flex; justify-content: center; gap: 16px;">
+                <span style="font-size: 24px;">📘</span>
+                <span style="font-size: 24px;">🐦</span>
+                <span style="font-size: 24px;">📷</span>
+                <span style="font-size: 24px;">💼</span>
+                <span style="font-size: 24px;">▶️</span>
+            </div>
+        </div>
+        
+        <div style="border-top: 1px solid white; padding-top: 16px; margin-top: 16px;">
+            <p style="font-family: 'Inter', sans-serif; color: #888888; font-size: 12px;">© 2024 TradeEdge Pro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Mobile Bottom CTA Bar -->
+    <div style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(35,48,82,0.95); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 11px;">Explore our plans and get</p>
+            <p style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 13px;">Up to 30 Days Free Trial</p>
+        </div>
+        <button style="padding: 10px 20px; background-color: #01c5e3; border: none; border-radius: 8px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 14px;">Explore Plans</span>
+        </button>
+    </div>
+</div>
+
+</body>
+</html>
