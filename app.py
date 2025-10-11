@@ -16,7 +16,19 @@ except Exception:  # pragma: no cover - fallback if import fails
         return {}
     def get_symbol_by_token(token: str, broker: str) -> str:
         return None
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory, Response
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    session,
+    redirect,
+    url_for,
+    flash,
+    send_from_directory,
+    Response,
+    abort,
+)
 from flask_migrate import Migrate
 from dhanhq import dhanhq
 import os
@@ -34,6 +46,7 @@ import requests
 from bs4 import BeautifulSoup
 import tempfile
 import shutil
+from pathlib import Path
 from functools import wraps
 from werkzeug.utils import secure_filename
 import random
@@ -218,6 +231,64 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 PROFILE_IMAGE_DIR = os.path.join(DATA_DIR, "profile_images")
 os.makedirs(PROFILE_IMAGE_DIR, exist_ok=True)
+
+FIGMA_ASSET_ALIASES = {
+    "add.svg": "add.png",
+    "americas.svg": "Americas.png",
+    "badges.svg": "Badges.png",
+    "frame-10.svg": "Frame 10.png",
+    "frame-11.svg": "Frame 11.png",
+    "frame-12.svg": "Frame 12.png",
+    "frame-120.svg": "Frame 120.png",
+    "frame-13.svg": "Frame 13.png",
+    "frame-163-1.svg": "Frame 163-1.png",
+    "frame-164.svg": "Frame 164.png",
+    "frame-165.svg": "Frame 165.png",
+    "frame-166.svg": "Frame 166.png",
+    "frame-167.svg": "Frame 167.png",
+    "frame-168.svg": "Frame 168.png",
+    "frame-173-1.svg": "Frame 173-1.png",
+    "frame-183.svg": "Frame 183.png",
+    "frame-193.svg": "Frame 193.png",
+    "frame-23.svg": "Frame 23.png",
+    "frame-7.svg": "Frame 7.png",
+    "frame-9.svg": "Frame 9.png",
+    "frame.svg": "Frame.png",
+    "group-122.png": "group-122.png",
+    "group-220.png": "group-220.png",
+    "image-8-1-1.png": "image 8 1-1.png",
+    "image-8-1-2.png": "image 8 1-2.png",
+    "image-8-1-3.png": "image 8 1-3.png",
+    "image-8-1-4.png": "image 8 1-4.png",
+    "image-8-1-5.png": "image 8 1-5.png",
+    "image-8-1.png": "image 8 1.png",
+    "language.svg": "language.png",
+    "play-arrow-filled.svg": "play_arrow_filled.png",
+    "play-pause.svg": "Play-Pause.png",
+    "rectangle-71.svg": "rectangle-71.png",
+    "subtract.svg": "Subtract.png",
+    "union.svg": "Union.png",
+    "unsplash-eirp4ptz3cu-1.png": "unsplash_EIrp4pTz3cU-1.png",
+    "unsplash-eirp4ptz3cu-2.png": "unsplash_EIrp4pTz3cU-2.png",
+    "unsplash-eirp4ptz3cu.png": "unsplash_EIrp4pTz3cU.png",
+    "vector-2.svg": "Vector-2.png",
+    "vector-4.svg": "Vector-4.png",
+    "vector-6.svg": "vector-6.png",
+    "vector.svg": "Vector.png",
+}
+
+
+@app.route("/figmaAssets/<path:filename>")
+def figma_assets(filename: str):
+    """Serve legacy figma asset URLs from the consolidated static assets folder."""
+    asset_dir = Path(app.static_folder or "static") / "assets"
+    safe_name = Path(filename).name
+    mapped_name = FIGMA_ASSET_ALIASES.get(safe_name, safe_name)
+    candidate = asset_dir / mapped_name
+    if not candidate.exists():
+        abort(404, description="Asset not found")
+    return send_from_directory(candidate.parent, candidate.name)
+
 app.config["PROFILE_IMAGE_DIR"] = PROFILE_IMAGE_DIR
 
 import logging
