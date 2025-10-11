@@ -59,6 +59,84 @@
                 display: block;
             }
         }
+
+        .carousel-track-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 882px;
+            height: 524px;
+            border-radius: 32px;
+            overflow: hidden;
+        }
+
+        .carousel-slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #a6a6a6;
+            border-radius: 32px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .carousel-slide.active {
+            opacity: 1;
+        }
+
+        .carousel-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .carousel-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #a6a6a6;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .carousel-dot.active {
+            background-color: #00c4e2;
+        }
+
+        .step-carousel-wrapper {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 520px;
+        }
+
+        .step-slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 16px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .step-slide.active {
+            opacity: 1;
+        }
+
+        .step-image {
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background-color: #a6a6a6;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -164,32 +242,49 @@
         </header>
 
         <!-- Backtest Carousel -->
-        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-            <button style="position: absolute; left: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
+        <div id="backtest-carousel" style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <button type="button" data-carousel-btn="prev" aria-label="Previous backtest" style="position: absolute; left: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
                 <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-183.svg" alt="Previous">
             </button>
 
-            <div style="width: 100%; max-width: 882px; height: 524px; background-color: #a6a6a6; border-radius: 32px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
-                    Backtest Image 1
-                </span>
+            <div class="carousel-track-wrapper">
+                <div class="carousel-slide active" data-carousel-slide>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Backtest Image 1
+                    </span>
+                </div>
+                <div class="carousel-slide" data-carousel-slide>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Backtest Image 2
+                    </span>
+                </div>
+                <div class="carousel-slide" data-carousel-slide>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Backtest Image 3
+                    </span>
+                </div>
+                <div class="carousel-slide" data-carousel-slide>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Backtest Image 4
+                    </span>
+                </div>
+                <div class="carousel-slide" data-carousel-slide>
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Backtest Image 5
+                    </span>
+                </div>
             </div>
 
-            <button style="position: absolute; right: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
+            <button type="button" data-carousel-btn="next" aria-label="Next backtest" style="position: absolute; right: 16px; width: 40px; height: 40px; background: none; border: none; cursor: pointer; z-index: 2;">
                 <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-120.svg" alt="Next">
             </button>
         </div>
 
         <!-- Carousel Controls -->
-        <div style="display: flex; align-items: center; justify-content: center; gap: 16px;">
-            <div style="display: flex; gap: 8px;">
-                <div style="width: 12px; height: 12px; background-color: #00c4e2; border-radius: 50%;"></div>
-                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
-                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
-                <div style="width: 12px; height: 12px; background-color: #a6a6a6; border-radius: 50%;"></div>
-            </div>
+        <div data-carousel-controls style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+            <div class="carousel-dots" data-carousel-dots></div>
 
-            <button style="width: 40px; height: 40px; background-color: #303030; border-radius: 20px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            <button type="button" data-carousel-play style="width: 40px; height: 40px; background-color: #303030; border-radius: 20px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                 <img style="width: 24px; height: 24px;" src="/figmaAssets/play-pause.svg" alt="Play/Pause">
             </button>
         </div>
@@ -589,20 +684,88 @@
             Follow 5 Simple Steps
         </h2>
 
-        <div style="max-width: 1000px; margin: 0 auto;">
-            <div style="text-align: center; margin-bottom: 24px;">
+        <div id="step-carousel" class="step-carousel-wrapper">
+            <button type="button" data-step-btn="prev" aria-label="Previous step" style="position: absolute; top: 50%; transform: translateY(-50%); left: -56px; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-183.svg" alt="Previous">
+            </button>
+
+            <button type="button" data-step-btn="next" aria-label="Next step" style="position: absolute; top: 50%; transform: translateY(-50%); right: -56px; width: 40px; height: 40px; background: transparent; border: none; cursor: pointer;">
+                <img style="width: 40px; height: 40px;" src="/figmaAssets/frame-120.svg" alt="Next">
+            </button>
+
+            <div class="step-slide active" data-step-slide>
                 <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
                     Step 1 : Add to your TradingView
                 </h3>
-                <div style="width: 100%; max-width: 800px; height: 400px; background-color: #a6a6a6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                <div class="step-image">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
                         Step - 1 : Image
                     </span>
                 </div>
-                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px;">
                     Run comprehensive backtests with real-world slippage and commission modeling to verify performance.
                 </p>
             </div>
+
+            <div class="step-slide" data-step-slide>
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
+                    Step 2 : Configure Alerts
+                </h3>
+                <div class="step-image">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Step - 2 : Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px;">
+                    Configure trading alerts with precision triggers tailored to your preferred instruments.
+                </p>
+            </div>
+
+            <div class="step-slide" data-step-slide>
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
+                    Step 3 : Connect Alert2Trade
+                </h3>
+                <div class="step-image">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Step - 3 : Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px;">
+                    Link your Alert2Trade account to automate order routing with enterprise reliability.
+                </p>
+            </div>
+
+            <div class="step-slide" data-step-slide>
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
+                    Step 4 : Monitor Trades
+                </h3>
+                <div class="step-image">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Step - 4 : Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px;">
+                    Track live executions and strategy performance across every connected broker.
+                </p>
+            </div>
+
+            <div class="step-slide" data-step-slide>
+                <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 20px; margin-bottom: 16px;">
+                    Step 5 : Optimize & Scale
+                </h3>
+                <div class="step-image">
+                    <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: #707070; font-size: 48px; text-align: center;">
+                        Step - 5 : Image
+                    </span>
+                </div>
+                <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-top: 16px; max-width: 600px;">
+                    Use insights from TradeEdge analytics to refine your strategy and increase allocation confidently.
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 32px;">
+            <div class="carousel-dots" data-step-dots></div>
         </div>
     </div>
 
@@ -798,7 +961,7 @@
                                     </li>
                                 </ul>
 
-                                <button style="width: 100%; padding: 8px 12px; background-color: #00e2bc; border-radius: 8px; border: none; cursor: pointer;">
+                                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 8px 12px; background-color: #00e2bc; border-radius: 8px; border: none; cursor: pointer;">
                                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
                                         START 7-DAY FREE TRIAL →
                                     </span>
@@ -880,7 +1043,7 @@
                                     </li>
                                 </ul>
 
-                                <button style="width: 100%; padding: 8px 12px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+                                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 8px 12px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
                                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
                                         START 30-DAY FREE TRIAL →
                                     </span>
@@ -960,7 +1123,7 @@
                                     </li>
                                 </ul>
 
-                                <button style="width: 100%; padding: 8px 12px; background-color: #d56cff; border-radius: 8px; border: none; cursor: pointer;">
+                                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 8px 12px; background-color: #d56cff; border-radius: 8px; border: none; cursor: pointer;">
                                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px; text-align: center; white-space: nowrap;">
                                         GET LIFETIME ACCESS →
                                     </span>
@@ -1266,7 +1429,7 @@
             <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 20px; margin-bottom: 40px; line-height: 1.6;">
                 Join thousands of successful traders using TradeEdge Pro to achieve consistent profitability
             </p>
-            <button style="padding: 20px 60px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border-radius: 12px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 20px;">
+            <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="padding: 20px 60px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border-radius: 12px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 20px;">
                 Get Started Now
             </button>
         </div>
@@ -1604,7 +1767,7 @@
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
                 <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
-                <button style="width: 100%; padding: 10px; background-color: #00e2bc; border: none; border-radius: 8px;">
+                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 10px; background-color: #00e2bc; border: none; border-radius: 8px;">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">START 7-DAY FREE TRIAL →</span>
                 </button>
             </div>
@@ -1634,7 +1797,7 @@
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
                 <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
-                <button style="width: 100%; padding: 10px; background-color: #00c4e2; border: none; border-radius: 8px;">
+                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 10px; background-color: #00c4e2; border: none; border-radius: 8px;">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">START 30-DAY FREE TRIAL →</span>
                 </button>
             </div>
@@ -1664,7 +1827,7 @@
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Get complete access of <strong>TradeEdge Pro</strong></div>
                 <div style="margin-bottom: 12px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
                 <div style="margin-bottom: 16px; font-family: 'Open Sans', sans-serif; color: white; font-size: 13px;">✓ Lorem ipsum dolor sit amet</div>
-                <button style="width: 100%; padding: 10px; background-color: #d56cff; border: none; border-radius: 8px;">
+                <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 10px; background-color: #d56cff; border: none; border-radius: 8px;">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 14px;">GET LIFETIME ACCESS →</span>
                 </button>
             </div>
@@ -1873,7 +2036,7 @@
     <div style="padding: 32px 16px; background-color: #1e1e1e; text-align: center;">
         <h2 style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 24px; margin-bottom: 16px;">Ready to Transform Your Trading?</h2>
         <p style="font-family: 'Open Sans', sans-serif; color: #cccccc; font-size: 14px; margin-bottom: 20px;">Join thousands of successful traders using TradeEdge Pro</p>
-        <button style="width: 100%; padding: 14px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border: none; border-radius: 8px;">
+        <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 14px; background: linear-gradient(90deg, #00c4e2 0%, #01e3bd 100%); border: none; border-radius: 8px;">
             <span style="font-family: 'Inter', sans-serif; font-weight: 700; color: black; font-size: 16px;">Get Started Now</span>
         </button>
     </div>
@@ -1902,11 +2065,229 @@
             <p style="font-family: 'Open Sans', sans-serif; font-weight: 600; color: white; font-size: 11px;">Explore our plans and get</p>
             <p style="font-family: 'Inter', sans-serif; font-weight: 700; color: white; font-size: 13px;">Up to 30 Days Free Trial</p>
         </div>
-        <button style="padding: 10px 20px; background-color: #01c5e3; border: none; border-radius: 8px;">
+        <button type="button" data-navigate="{{ url_for('alert_to_trade_start') }}" style="padding: 10px 20px; background-color: #01c5e3; border: none; border-radius: 8px;">
             <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 14px;">Explore Plans</span>
         </button>
     </div>
 </div>
+
+<script>
+(function () {
+    function initBacktestCarousel() {
+        const container = document.getElementById('backtest-carousel');
+        if (!container) {
+            return;
+        }
+
+        const slides = Array.from(container.querySelectorAll('[data-carousel-slide]'));
+        if (!slides.length) {
+            return;
+        }
+
+        const prevButton = container.querySelector('[data-carousel-btn="prev"]');
+        const nextButton = container.querySelector('[data-carousel-btn="next"]');
+        const controls = container.parentElement.querySelector('[data-carousel-controls]');
+        const dotsContainer = controls ? controls.querySelector('[data-carousel-dots]') : null;
+        const playButton = controls ? controls.querySelector('[data-carousel-play]') : null;
+
+        let currentIndex = slides.findIndex(function (slide) {
+            return slide.classList.contains('active');
+        });
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        let autoplayTimer = null;
+        let isPlaying = true;
+        const dotButtons = [];
+
+        function updateActiveSlide() {
+            slides.forEach(function (slide, index) {
+                slide.classList.toggle('active', index === currentIndex);
+            });
+            dotButtons.forEach(function (dot, index) {
+                dot.classList.toggle('active', index === currentIndex);
+            });
+        }
+
+        function goToSlide(index) {
+            const total = slides.length;
+            currentIndex = (index + total) % total;
+            updateActiveSlide();
+        }
+
+        function stopTimer() {
+            if (autoplayTimer) {
+                clearInterval(autoplayTimer);
+                autoplayTimer = null;
+            }
+        }
+
+        function startTimer() {
+            stopTimer();
+            if (!isPlaying) {
+                return;
+            }
+            autoplayTimer = setInterval(function () {
+                goToSlide(currentIndex + 1);
+            }, 5000);
+        }
+
+        function updatePlayButton() {
+            if (!playButton) {
+                return;
+            }
+            playButton.setAttribute('aria-label', isPlaying ? 'Pause slideshow' : 'Play slideshow');
+            playButton.setAttribute('data-playing', isPlaying ? 'true' : 'false');
+        }
+
+        function restartAutoplay() {
+            if (isPlaying) {
+                startTimer();
+            }
+        }
+
+        if (dotsContainer) {
+            dotsContainer.innerHTML = '';
+            slides.forEach(function (_, index) {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'carousel-dot' + (index === currentIndex ? ' active' : '');
+                dot.setAttribute('aria-label', 'Go to slide ' + (index + 1));
+                dot.addEventListener('click', function () {
+                    goToSlide(index);
+                    restartAutoplay();
+                });
+                dotsContainer.appendChild(dot);
+                dotButtons.push(dot);
+            });
+        }
+
+        if (prevButton) {
+            prevButton.addEventListener('click', function () {
+                goToSlide(currentIndex - 1);
+                restartAutoplay();
+            });
+        }
+
+        if (nextButton) {
+            nextButton.addEventListener('click', function () {
+                goToSlide(currentIndex + 1);
+                restartAutoplay();
+            });
+        }
+
+        if (playButton) {
+            playButton.addEventListener('click', function () {
+                isPlaying = !isPlaying;
+                if (isPlaying) {
+                    startTimer();
+                } else {
+                    stopTimer();
+                }
+                updatePlayButton();
+            });
+        }
+
+        updateActiveSlide();
+        updatePlayButton();
+        startTimer();
+    }
+
+    function initStepCarousel() {
+        const container = document.getElementById('step-carousel');
+        if (!container) {
+            return;
+        }
+
+        const slides = Array.from(container.querySelectorAll('[data-step-slide]'));
+        if (!slides.length) {
+            return;
+        }
+
+        const prevButton = container.querySelector('[data-step-btn="prev"]');
+        const nextButton = container.querySelector('[data-step-btn="next"]');
+        const dotsContainer = document.querySelector('[data-step-dots]');
+        const dotButtons = [];
+        let currentIndex = slides.findIndex(function (slide) {
+            return slide.classList.contains('active');
+        });
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        function updateActiveSlide() {
+            slides.forEach(function (slide, index) {
+                slide.classList.toggle('active', index === currentIndex);
+            });
+            dotButtons.forEach(function (dot, index) {
+                dot.classList.toggle('active', index === currentIndex);
+            });
+        }
+
+        function goToStep(index) {
+            const total = slides.length;
+            currentIndex = (index + total) % total;
+            updateActiveSlide();
+        }
+
+        if (dotsContainer) {
+            dotsContainer.innerHTML = '';
+            slides.forEach(function (_, index) {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'carousel-dot' + (index === currentIndex ? ' active' : '');
+                dot.setAttribute('aria-label', 'Go to step ' + (index + 1));
+                dot.addEventListener('click', function () {
+                    goToStep(index);
+                });
+                dotsContainer.appendChild(dot);
+                dotButtons.push(dot);
+            });
+        }
+
+        if (prevButton) {
+            prevButton.addEventListener('click', function () {
+                goToStep(currentIndex - 1);
+            });
+        }
+
+        if (nextButton) {
+            nextButton.addEventListener('click', function () {
+                goToStep(currentIndex + 1);
+            });
+        }
+
+        updateActiveSlide();
+    }
+
+    function initNavigateButtons() {
+        const buttons = document.querySelectorAll('[data-navigate]');
+        buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                const target = button.getAttribute('data-navigate');
+                if (!target) {
+                    return;
+                }
+                if (target.startsWith('#')) {
+                    const element = document.querySelector(target);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                    }
+                } else {
+                    window.location.href = target;
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initBacktestCarousel();
+        initStepCarousel();
+        initNavigateButtons();
+    });
+})();
+</script>
 
 </body>
 </html>
