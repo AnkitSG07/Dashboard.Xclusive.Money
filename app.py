@@ -1937,7 +1937,8 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if not session.get("user"):
-            return redirect(url_for("auth.login"))
+            login_url = url_for("auth.login", next=request.url)
+            return redirect(login_url)
         return view(*args, **kwargs)
     return wrapped
 
@@ -7338,6 +7339,22 @@ def profile_image_file(filename):
 @app.route('/')
 def home():
     return render_template("index.html")
+
+@app.route("/alert-to-trade")
+def alert_to_trade():
+    """Landing page for the alert-to-trade flow."""
+
+    return render_template("alert-to-trade.html")
+
+@app.route("/alert-to-trade/start")
+def alert_to_trade_start():
+    """Redirect visitors to the correct start point for alert-to-trade."""
+
+    if session.get("user"):
+        return redirect(url_for("demat_strategies"))
+
+    target = url_for("demat_strategies")
+    return redirect(url_for("auth.login", next=target))
 
 @app.route('/dhan-dashboard')
 @login_required
