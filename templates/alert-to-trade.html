@@ -78,11 +78,11 @@
         <img style="width: 117px; height: 32px;" alt="TradeEdge Pro Logo" src="/figmaAssets/vector.svg">
         
         <div style="display: flex; align-items: center; gap: 24px;">
-            <button style="padding: 8px 24px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+            <a href="{{ url_for('alert_to_trade_start') }}" style="padding: 8px 24px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
                 <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px; white-space: nowrap;">
                     Try For Free
                 </span>
-            </button>
+            </a>
             <img style="width: 32px; height: 32px; cursor: pointer;" alt="Menu" src="/figmaAssets/frame-7.svg">
         </div>
     </header>
@@ -165,11 +165,11 @@
             </p>
 
             <div style="display: flex; align-items: center; gap: 16px; margin-top: 16px;">
-                <button style="padding: 12px 32px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer;">
+                <a href="{{ url_for('alert_to_trade_start') }}" style="padding: 12px 32px; background-color: #00c4e2; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px;">
                         Try For Free
                     </span>
-                </button>
+                </a>
                 <button style="padding: 12px 32px; background-color: transparent; border: 2px solid white; border-radius: 8px; cursor: pointer;">
                     <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 16px;">
                         View Demo
@@ -1434,9 +1434,9 @@
             <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 12px;">Works on every chart used in trading</p>
         </div>
 
-        <button style="width: 100%; padding: 12px; background-color: #00c4e2; border: none; border-radius: 8px; margin-bottom: 12px;">
+        <a href="{{ url_for('alert_to_trade_start') }}" style="width: 100%; padding: 12px; background-color: #00c4e2; border: none; border-radius: 8px; margin-bottom: 12px; display: inline-block; text-decoration: none;">
             <span style="font-family: 'Inter', sans-serif; font-weight: 600; color: black; font-size: 16px;">Try For Free</span>
-        </button>
+        </a>
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
             <span style="font-family: 'Inter', sans-serif; color: #a6a6a6; font-size: 12px;">Trusted by 10,000+ traders</span>
