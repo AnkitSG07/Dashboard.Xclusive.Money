@@ -22,15 +22,17 @@ def _verify_token(token: str, max_age: int = 3600) -> str | None:
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    next_url = request.args.get('next')
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        next_url = request.form.get('next') or next_url
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
             session['user'] = user.email
-            return redirect(url_for('summary'))
-        return render_template('log-in.html', error='Invalid credentials')
-    return render_template('log-in.html')
+            return redirect(next_url or url_for('summary'))
+        return render_template('log-in.html', error='Invalid credentials', next=next_url)
+    return render_template('log-in.html', next=next_url)
 
 @auth_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
