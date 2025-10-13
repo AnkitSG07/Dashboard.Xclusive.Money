@@ -1,0 +1,278 @@
+:root {
+  --marketplace-bg: #040b16;
+  --marketplace-card-start: #0f172a;
+  --marketplace-card-end: #111827;
+  --marketplace-accent: #3b82f6;
+  --marketplace-accent-soft: rgba(59, 130, 246, 0.25);
+  --marketplace-text: #e2e8f0;
+  --marketplace-muted: #94a3b8;
+  --marketplace-highlight: #38bdf8;
+  --marketplace-success: #22d3ee;
+  --marketplace-danger: #f87171;
+}
+
+.marketplace-page {
+  color: var(--marketplace-text);
+}
+
+.marketplace-hero {
+  background: radial-gradient(circle at top left, #1f3b6d 0%, #0b1729 55%, #030712 100%);
+  border-radius: 1.5rem;
+  padding: 2rem 2.25rem;
+  box-shadow: 0 24px 60px rgba(8, 47, 73, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.marketplace-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 55%);
+  pointer-events: none;
+}
+
+.marketplace-hero .badge-market {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(59, 130, 246, 0.5));
+  color: #f8fafc;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.strategy-grid .card {
+  height: 100%;
+}
+
+.strategy-card {
+  background: linear-gradient(155deg, var(--marketplace-card-start), var(--marketplace-card-end));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 1.25rem;
+  color: var(--marketplace-text);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.35);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  overflow: hidden;
+}
+
+.strategy-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(148, 163, 184, 0.3);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.45);
+}
+
+.strategy-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.strategy-header {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.strategy-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: var(--marketplace-accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--marketplace-accent);
+  font-weight: 700;
+  font-size: 1.35rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.strategy-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.strategy-meta {
+  flex: 1;
+}
+
+.strategy-meta .card-title {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.strategy-meta .author {
+  color: var(--marketplace-muted);
+  font-size: 0.85rem;
+}
+
+.badge-featured {
+  background: linear-gradient(135deg, rgba(217, 70, 239, 0.95), rgba(59, 130, 246, 0.85));
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.strategy-description {
+  color: var(--marketplace-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.badge-tag {
+  background: rgba(59, 130, 246, 0.14);
+  color: #cbd5f5;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+.strategy-stats .stat {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  height: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.strategy-stats .stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--marketplace-muted);
+  margin-bottom: 0.35rem;
+}
+
+.strategy-stats .stat-value {
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: #f8fafc;
+}
+
+.strategy-card .btn-outline-light {
+  border-color: rgba(148, 163, 184, 0.4);
+  color: var(--marketplace-text);
+}
+
+.strategy-card .btn-outline-light:hover,
+.strategy-card .btn-outline-light:focus {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.55);
+  color: #f8fafc;
+}
+
+.strategy-card .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: none;
+  box-shadow: 0 12px 25px rgba(37, 99, 235, 0.35);
+}
+
+.strategy-card .btn-primary:focus,
+.strategy-card .btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.strategy-card .btn-primary:disabled {
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.strategy-card .btn-outline-primary {
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #bae6fd;
+}
+
+.strategy-card .btn-outline-primary:hover,
+.strategy-card .btn-outline-primary:focus {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.9);
+  color: #e0f2fe;
+}
+
+.strategy-card .stat-value.negative {
+  color: var(--marketplace-danger);
+}
+
+.strategy-card .stat-value.positive {
+  color: var(--marketplace-success);
+}
+
+.empty-marketplace-state {
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 1.25rem;
+  padding: 3rem;
+  text-align: center;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  color: var(--marketplace-muted);
+}
+
+.modal.strategy-detail-modal .modal-content {
+  background: #0f172a;
+  color: var(--marketplace-text);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 32px 70px rgba(15, 23, 42, 0.55);
+}
+
+.modal.strategy-detail-modal .modal-header,
+.modal.strategy-detail-modal .modal-footer {
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.modal.strategy-detail-modal .modal-header .strategy-icon {
+  width: 60px;
+  height: 60px;
+}
+
+.modal.strategy-detail-modal .modal-body p {
+  color: var(--marketplace-muted);
+}
+
+.modal.strategy-detail-modal .metric-card {
+  background: rgba(30, 41, 59, 0.85);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  height: 100%;
+}
+
+.modal.strategy-detail-modal .metric-card .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--marketplace-muted);
+  margin-bottom: 0.45rem;
+}
+
+.modal.strategy-detail-modal .metric-card .value {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.modal.strategy-detail-modal .badge-tag {
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #dbeafe;
+}
+
+.modal.strategy-detail-modal ol {
+  color: var(--marketplace-muted);
+}
+
+@media (max-width: 767.98px) {
+  .marketplace-hero {
+    padding: 1.75rem;
+  }
+
+  .strategy-card {
+    border-radius: 1rem;
+  }
+}
