@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from flask_mail import Message
@@ -26,12 +28,23 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        remember_raw = request.form.get('remember_me')
+        remember = False
+        if remember_raw:
+            remember = remember_raw.lower() not in {'0', 'false', 'off', 'no'}
         next_url = request.form.get('next') or next_url
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            if remember:
+                session.permanent = True
+                lifetime = current_app.config.get('REMEMBER_ME_DURATION', timedelta(days=30))
+                current_app.permanent_session_lifetime = lifetime
+            else:
+                session.permanent = False
             session['user'] = user.email
             return redirect(next_url or url_for('summary'))
-        return render_template('log-in.html', error='Invalid credentials', next=next_url)
+        flash('Invalid credentials', 'error')
+        return render_template('log-in.html', next=next_url)
     return render_template('log-in.html', next=next_url)
 
 @auth_bp.route('/signup', methods=['GET', 'POST'])
