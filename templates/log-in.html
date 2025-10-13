@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -22,22 +23,19 @@
         <title>Xclusive Money</title>
         
         <!-- Styles -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
         <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='fontawesome-all.min.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='swiper.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='styles1.css') }}" rel="stylesheet">
-        <link href="{{ url_for('static', filename='login-dark.css') }}" rel="stylesheet">
         
         <!-- Favicon  -->
         <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}">
     </head>
-    <body class="login-dark-body" data-bs-spy="scroll" data-bs-target="#navbarExample">
-
+    <body data-bs-spy="scroll" data-bs-target="#navbarExample">
+        
         <!-- Navigation -->
-        <nav id="navbarExample" class="navbar navbar-expand-lg fixed-top login-navbar" aria-label="Main navigation">
+        <nav id="navbarExample" class="navbar navbar-expand-lg fixed-top navbar-light" aria-label="Main navigation">
             <div class="container">
 
                 <!-- Image Logo -->
@@ -50,7 +48,7 @@
         </nav> <!-- Fixed: Added closing nav tag -->
 
         <!-- Header -->
-        <header class="ex-header login-gradient-header">
+        <header class="ex-header">
             <div class="container">
                 <div class="row">
                     <div class="col-xl-10 offset-xl-1">
@@ -67,15 +65,11 @@
             <div class="container">
                 <div class="row">
                     <div class="col-xl-6 offset-xl-3">
-                        <div class="text-box login-card mt-5 mb-5">
-                             <p class="mb-4">You don't have a password? Then please <a class="accent-link" href="{{ url_for('auth.signup') }}">Sign Up</a></p>
+                        <div class="text-box mt-5 mb-5">
+                             <p class="mb-4">You don't have a password? Then please <a class="blue" href="{{ url_for('auth.signup') }}">Sign Up</a></p>
 
                             <!-- Log In Form -->
                             <form method="post" action="{{ url_for('auth.login') }}">
-                                <input type="hidden" name="next" value="{{ next or '' }}">
-                                {% if error %}
-                                <div class="alert alert-danger" role="alert">{{ error }}</div>
-                                {% endif %}
                                 <div class="mb-4 form-floating">
                                     <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com" required>
                                     <label for="floatingInput">Email address</label>
@@ -88,8 +82,8 @@
                                     <input type="checkbox" class="form-check-input" id="exampleCheck1">
                                     <label class="form-check-label" for="exampleCheck1">I agree with the site's stated <a href="privacy.html">Privacy Policy</a> and <a href="terms.html">Terms & Conditions</a></label>
                                 </div>
-                                                                <button type="submit" class="form-control-submit-button login-cta">Log in</button>
-                                <p class="mt-3"><a class="accent-link" href="{{ url_for('auth.request_password_reset') }}">Forgot password?</a></p>
+                                <button type="submit" class="form-control-submit-button">Log in</button>
+                                <p class="mt-3"><a class="blue" href="{{ url_for('auth.request_password_reset') }}">Forgot password?</a></p>
                             </form>
                             <!-- end of log in form -->
 
@@ -102,7 +96,7 @@
 
 
         <!-- Footer -->
-        <div class="footer login-footer">
+        <div class="footer">
             <div class="container">
                 <div class="row">
                     <div class="col-lg-12">
@@ -213,7 +207,5 @@
         </script>
     </body>
 </html>
-
-
 
 
