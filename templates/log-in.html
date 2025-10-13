@@ -282,23 +282,26 @@
 
                 <!-- Login Form -->
                 <form method="post" action="{{ url_for('auth.login') }}" id="loginForm" novalidate aria-label="Login form">
+                    {% if next %}
+                        <input type="hidden" name="next" value="{{ next }}">
+                    {% endif %}
                     
                     <!-- Email Input -->
                     <div style="margin-bottom: 24px;">
                         <label for="floatingInput" style="display: block; font-family: 'Inter', sans-serif; font-weight: 600; color: white; font-size: 14px; margin-bottom: 8px;">
                             Email Address <span style="color: #ff5b6f;" aria-label="required">*</span>
                         </label>
-                        <input 
-                            type="email" 
-                            name="email" 
-                            id="floatingInput" 
-                            placeholder="name@example.com" 
-                            required
-                            autocomplete="email"
-                            aria-required="true"
-                            aria-describedby="emailError"
-                            style="width: 100%; padding: 12px 16px; background-color: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; outline: none; transition: all 0.3s ease;">
-                        <span id="emailError" class="error-message" role="alert"></span>
+                        <input
+                            type="email"
+                            name="email"
+                            id="floatingInput"
+                            placeholder="name@example.com"
+                            required␊
+                            autocomplete="email"␊
+                            aria-required="true"␊
+                            aria-describedby="floatingInputError"
+                            style="width: 100%; padding: 12px 16px; background-color: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; outline: none; transition: all 0.3s ease;">␊
+                        <span id="floatingInputError" class="error-message" role="alert"></span>
                     </div>
 
                     <!-- Password Input -->
@@ -308,16 +311,16 @@
                         </label>
                         <div style="position: relative;">
                             <input 
-                                type="password" 
-                                name="password" 
-                                id="floatingPassword" 
-                                placeholder="Enter your password" 
-                                required
-                                autocomplete="current-password"
-                                aria-required="true"
-                                aria-describedby="passwordError"
-                                minlength="6"
-                                style="width: 100%; padding: 12px 16px; padding-right: 48px; background-color: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; outline: none; transition: all 0.3s ease;">
+                            type="password"
+                            name="password"
+                            id="floatingPassword"
+                            placeholder="Enter your password"
+                            required
+                            autocomplete="current-password"
+                            aria-required="true"
+                            aria-describedby="floatingPasswordError"
+                            minlength="5"
+                            style="width: 100%; padding: 12px 16px; padding-right: 48px; background-color: rgba(255,255,255,0.05); border: 1px solid rgba(0,196,226,0.3); border-radius: 8px; font-family: 'Open Sans', sans-serif; color: white; font-size: 16px; outline: none; transition: all 0.3s ease;">
                             <button 
                                 type="button" 
                                 id="togglePassword" 
@@ -326,7 +329,7 @@
                                 👁️
                             </button>
                         </div>
-                        <span id="passwordError" class="error-message" role="alert"></span>
+                        <span id="floatingPasswordError" class="error-message" role="alert"></span>
                     </div>
 
                     <!-- Remember Me & Terms Checkbox -->
@@ -346,15 +349,15 @@
                             <input 
                                 type="checkbox" 
                                 id="exampleCheck1"
-                                required
-                                aria-required="true"
-                                aria-describedby="termsError"
-                                style="width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #00c4e2;">
+                                required␊
+                                aria-required="true"␊
+                                aria-describedby="exampleCheck1Error"
+                                style="width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #00c4e2;">␊
                             <label for="exampleCheck1" style="font-family: 'Open Sans', sans-serif; color: white; font-size: 14px; line-height: 1.5;">
                                 I agree with the site's stated <a href="privacy.html" style="color: #00c4e2; text-decoration: none;">Privacy Policy</a> and <a href="terms.html" style="color: #00c4e2; text-decoration: none;">Terms & Conditions</a> <span style="color: #ff5b6f;" aria-label="required">*</span>
                             </label>
                         </div>
-                        <span id="termsError" class="error-message" role="alert"></span>
+                        <span id="exampleCheck1Error" class="error-message" role="alert"></span>
                     </div>
 
                     <!-- Submit Button -->
@@ -487,16 +490,21 @@
 
             // Validation patterns
             const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const minPasswordLength = 6;
+            const minPasswordLength = (passwordInput && passwordInput.minLength > 0)
+                ? passwordInput.minLength
+                : 6;
 
             // Show error message
             function showError(inputId, message) {
                 const errorElement = document.getElementById(inputId + 'Error');
-                const inputElement = document.getElementById(inputId.replace('Error', ''));
-                
-                if (errorElement && inputElement) {
+                const inputElement = document.getElementById(inputId);
+
+                if (errorElement) {
                     errorElement.textContent = message;
                     errorElement.classList.add('show');
+                }
+
+                if (inputElement) {
                     inputElement.classList.add('input-error');
                     inputElement.classList.remove('input-success');
                     inputElement.setAttribute('aria-invalid', 'true');
@@ -506,13 +514,18 @@
             // Clear error message
             function clearError(inputId) {
                 const errorElement = document.getElementById(inputId + 'Error');
-                const inputElement = document.getElementById(inputId.replace('Error', ''));
-                
-                if (errorElement && inputElement) {
+                const inputElement = document.getElementById(inputId);
+
+                if (errorElement) {
                     errorElement.textContent = '';
                     errorElement.classList.remove('show');
+                }
+
+                if (inputElement) {
                     inputElement.classList.remove('input-error');
-                    inputElement.classList.add('input-success');
+                    if (inputElement.type !== 'checkbox') {
+                        inputElement.classList.add('input-success');
+                    }
                     inputElement.setAttribute('aria-invalid', 'false');
                 }
             }
@@ -543,7 +556,7 @@
                 const email = emailInput.value.trim();
                 
                 if (!email) {
-                    showError('floatingInput', 'Email address is required');
+                    showError('floatingInput', 'Email address is required');␊
                     return false;
                 }
                 
@@ -566,7 +579,7 @@
                 }
                 
                 if (password.length < minPasswordLength) {
-                    showError('floatingPassword', 'Password must be at least ' + minPasswordLength + ' characters');
+                    showError('floatingPassword', 'Password must be at least ' + minPasswordLength + ' characters');␊
                     return false;
                 }
                 
@@ -577,13 +590,13 @@
             // Validate terms checkbox
             function validateTerms() {
                 if (!termsCheckbox.checked) {
-                    showError('terms', 'You must agree to the Terms & Conditions');
-                    return false;
-                }
-                
-                clearError('terms');
-                return true;
-            }
+                    showError('exampleCheck1', 'You must agree to the Terms & Conditions');
+                    return false;␊
+                }␊
+
+                clearError('exampleCheck1');
+                return true;␊
+            }␊
 
             // Real-time validation
             if (emailInput) {
@@ -776,3 +789,4 @@
 
 </body>
 </html>
+
