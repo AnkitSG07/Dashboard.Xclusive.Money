@@ -1,27 +1,361 @@
 {% extends "demat-trading.html" %}
 {% block title %}Strategy Marketplace{% endblock %}
+{% block style %}
+<link rel="stylesheet" href="{{ url_for('static', filename='strategy-marketplace.css') }}">
+{% endblock %}
 {% block content %}
-<h2>Strategy Marketplace</h2>
-<table class="table" id="market-table">
-  <thead><tr><th>Icon</th><th>Name</th><th>Owner</th><th></th></tr></thead>
-  <tbody>
+<div class="marketplace-page">
+  <div class="marketplace-hero mb-5">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between position-relative">
+      <div class="pe-md-4">
+        <h2 class="mb-2 text-white">Strategy Marketplace</h2>
+        <p class="mb-0 text-white-50 lead">Discover, evaluate, and deploy curated trading systems from our community of systematic traders.</p>
+      </div>
+      <div class="mt-4 mt-md-0 text-md-end">
+        <div class="badge-market mb-2">Live Strategies</div>
+        <div class="text-white-50 small">{{ strategies|length }} strategies available</div>
+      </div>
+    </div>
+  </div>
+
+  {% if strategies %}
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 strategy-grid">
     {% for s in strategies %}
-    <tr>
-      <td>{% if s.icon %}<img src="{{ s.icon }}" alt="icon" width="24">{% endif %}</td>
-      <td>{{ s.name }}</td>
-      <td>{{ s.user.name or s.user.email }}</td>
-      <td><button class="btn btn-sm btn-primary subscribe-btn" data-id="{{ s.id }}">Subscribe</button></td>
-    </tr>
+    <div class="col">
+      <div class="card strategy-card h-100">
+        <div class="card-body">
+          <div class="strategy-header mb-3">
+            <div class="strategy-icon">
+              {% if s.icon %}
+              <img src="{{ s.icon }}" alt="{{ s.name }} icon">
+              {% else %}
+              <span class="placeholder-icon">{{ s.name[:1]|upper }}</span>
+              {% endif %}
+            </div>
+            <div class="strategy-meta">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <h5 class="card-title mb-0">{{ s.name }}</h5>
+                {% if s.is_featured %}
+                <span class="badge-featured">Featured</span>
+                {% endif %}
+              </div>
+              <div class="author">by {{ s.author }}</div>
+            </div>
+          </div>
+
+          <p class="strategy-description mb-3">{{ s.description or 'No description available yet.' }}</p>
+
+          {% if s.tags %}
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            {% for tag in s.tags %}
+            <span class="badge-tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <div class="strategy-stats row g-3 mb-4">
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">Min Capital</div>
+                <div class="stat-value">
+                  {% if s.min_amount is not none %}
+                  ₹{{ '{:,.0f}'.format(s.min_amount) }}
+                  {% else %}
+                  Not specified
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">Subscribers</div>
+                <div class="stat-value">{{ s.subscribers }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">CAGR</div>
+                <div class="stat-value">{{ s.performance.cagr or '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">{{ s.performance.win_rate or '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">Avg Return</div>
+                <div class="stat-value">{{ s.performance.avg_return or '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat">
+                <div class="stat-label">Max Drawdown</div>
+                <div class="stat-value">{{ s.performance.max_drawdown or '—' }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-auto">
+            <button type="button"
+                    class="btn btn-outline-light btn-sm view-strategy-btn"
+                    data-id="{{ s.id }}"
+                    data-name="{{ s.name|e }}"
+                    data-author="{{ s.author|e }}"
+                    data-description="{{ s.description|default('', true)|e }}"
+                    data-min-amount="{{ s.min_amount if s.min_amount is not none else '' }}"
+                    data-tags='{{ s.tags|tojson }}'
+                    data-performance='{{ s.performance|tojson }}'
+                    data-config='{{ s.configuration_steps|tojson }}'
+                    data-subscribers="{{ s.subscribers }}"
+                    data-icon="{{ s.icon or '' }}">
+              View
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm backtest-btn" data-id="{{ s.id }}">Backtest</button>
+            <button type="button" class="btn btn-primary btn-sm subscribe-btn" data-id="{{ s.id }}">Deploy</button>
+          </div>
+        </div>
+      </div>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+  {% else %}
+  <div class="empty-marketplace-state">
+    <h5 class="mb-2">No public strategies yet</h5>
+    <p class="mb-0">Check back soon as authors publish strategies to the marketplace.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="modal fade strategy-detail-modal" id="strategyDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-3">
+          <div class="strategy-icon" data-field="icon"></div>
+          <div>
+            <h5 class="modal-title mb-1" data-field="name">Strategy Name</h5>
+            <div class="text-muted small" data-field="author">Author</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4">
+          <div class="text-uppercase small text-muted fw-semibold">Overview</div>
+          <p class="mb-0" data-field="description">Description goes here.</p>
+        </div>
+        <div class="mb-4">
+          <div class="text-uppercase small text-muted fw-semibold">Minimum Capital</div>
+          <div class="h5 mb-0" data-field="min-amount">—</div>
+        </div>
+        <div class="mb-4">
+          <div class="text-uppercase small text-muted fw-semibold">Performance</div>
+          <div class="row g-3" data-field="metrics"></div>
+        </div>
+        <div class="mb-4">
+          <div class="text-uppercase small text-muted fw-semibold">Segments &amp; Labels</div>
+          <div class="d-flex flex-wrap gap-2" data-field="tags"></div>
+        </div>
+        <div>
+          <div class="text-uppercase small text-muted fw-semibold">Configuration Steps</div>
+          <ol class="ps-3" data-field="config"></ol>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <div class="text-muted small">Subscribers: <span data-field="subscribers">0</span></div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-primary btn-sm backtest-btn" data-id="">Backtest</button>
+          <button type="button" class="btn btn-primary btn-sm subscribe-btn" data-id="">Deploy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts['strategy-marketplace'] = function() {
-  document.querySelectorAll('.subscribe-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      fetch(`/api/strategies/${btn.dataset.id}/subscribe`, {method:'POST'})
-        .then(r=>r.json()).then(d=>alert(d.message));
+  const initializeSubscribeButtons = (scope = document) => {
+    scope.querySelectorAll('.subscribe-btn').forEach(btn => {
+      if (btn.dataset.initialized === 'true') {
+        return;
+      }
+      btn.dataset.initialized = 'true';
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        const id = btn.dataset.id;
+        if (!id) {
+          return;
+        }
+        btn.disabled = true;
+        fetch(`/api/strategies/${id}/subscribe`, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            alert(data.message || data.error || 'Subscription updated');
+          })
+          .catch(err => {
+            console.error('Subscribe failed', err);
+            alert('Unable to complete subscription right now.');
+          })
+          .finally(() => {
+            btn.disabled = false;
+          });
+      });
+    });
+  };
+
+  const parseJSON = (value, fallback) => {
+    if (!value) {
+      return fallback;
+    }
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      console.warn('Failed to parse dataset JSON', err);
+      return fallback;
+    }
+  };
+
+  const formatCurrency = (value) => {
+    if (value === undefined || value === null || value === '') {
+      return '—';
+    }
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return value;
+    }
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: num >= 100000 ? 0 : 2,
+    }).format(num);
+  };
+
+  const modalElement = document.getElementById('strategyDetailModal');
+  const modalInstance = modalElement ? bootstrap.Modal.getOrCreateInstance(modalElement) : null;
+  const iconEl = modalElement?.querySelector('[data-field="icon"]');
+  const nameEl = modalElement?.querySelector('[data-field="name"]');
+  const authorEl = modalElement?.querySelector('[data-field="author"]');
+  const descriptionEl = modalElement?.querySelector('[data-field="description"]');
+  const minAmountEl = modalElement?.querySelector('[data-field="min-amount"]');
+  const metricsEl = modalElement?.querySelector('[data-field="metrics"]');
+  const tagsEl = modalElement?.querySelector('[data-field="tags"]');
+  const configEl = modalElement?.querySelector('[data-field="config"]');
+  const subscribersEl = modalElement?.querySelector('[data-field="subscribers"]');
+  const modalDeployBtn = modalElement?.querySelector('.modal-footer .subscribe-btn');
+  const modalBacktestBtn = modalElement?.querySelector('.modal-footer .backtest-btn');
+
+  document.querySelectorAll('.view-strategy-btn').forEach(btn => {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (!modalInstance || !modalElement) {
+        return;
+      }
+
+      const { id, name, author, description, minAmount, tags, performance, config, subscribers, icon } = btn.dataset;
+
+      if (iconEl) {
+        iconEl.innerHTML = '';
+        if (icon) {
+          const img = document.createElement('img');
+          img.src = icon;
+          img.alt = `${name || 'Strategy'} icon`;
+          iconEl.appendChild(img);
+        } else if (name) {
+          iconEl.textContent = name.slice(0, 1).toUpperCase();
+        }
+      }
+
+      if (nameEl) {
+        nameEl.textContent = name || '';
+      }
+      if (authorEl) {
+        authorEl.textContent = author ? `by ${author}` : '';
+      }
+      if (descriptionEl) {
+        descriptionEl.textContent = description || 'No description provided yet.';
+      }
+      if (minAmountEl) {
+        minAmountEl.textContent = formatCurrency(minAmount);
+      }
+
+      if (tagsEl) {
+        tagsEl.innerHTML = '';
+        const tagList = parseJSON(tags, []);
+        if (Array.isArray(tagList) && tagList.length) {
+          tagList.forEach(tag => {
+            const span = document.createElement('span');
+            span.className = 'badge-tag';
+            span.textContent = tag;
+            tagsEl.appendChild(span);
+          });
+        }
+      }
+
+      if (metricsEl) {
+        metricsEl.innerHTML = '';
+        const metrics = parseJSON(performance, {});
+        const metricConfig = [
+          { key: 'cagr', label: 'CAGR' },
+          { key: 'win_rate', label: 'Win Rate' },
+          { key: 'avg_return', label: 'Avg Return' },
+          { key: 'max_drawdown', label: 'Max Drawdown' },
+        ];
+        metricConfig.forEach(({ key, label }) => {
+          const value = metrics && metrics[key] ? metrics[key] : '—';
+          const wrapper = document.createElement('div');
+          wrapper.className = 'col-6';
+          wrapper.innerHTML = `
+            <div class="metric-card">
+              <div class="label">${label}</div>
+              <div class="value">${value}</div>
+            </div>
+          `;
+          metricsEl.appendChild(wrapper);
+        });
+      }
+
+      if (configEl) {
+        configEl.innerHTML = '';
+        const configSteps = parseJSON(config, []);
+        if (Array.isArray(configSteps) && configSteps.length) {
+          configSteps.forEach(step => {
+            const li = document.createElement('li');
+            li.innerHTML = `<strong>${step.title || 'Step'}:</strong> ${step.details || ''}`;
+            configEl.appendChild(li);
+          });
+        }
+      }
+
+      if (subscribersEl) {
+        subscribersEl.textContent = subscribers || '0';
+      }
+
+      if (modalDeployBtn) {
+        modalDeployBtn.dataset.id = id || '';
+      }
+
+      if (modalBacktestBtn) {
+        modalBacktestBtn.dataset.id = id || '';
+      }
+
+      modalInstance.show();
+    });
+  });
+
+  initializeSubscribeButtons();
+
+  document.querySelectorAll('.backtest-btn').forEach(btn => {
+    if (btn.dataset.backtestBound === 'true') {
+      return;
+    }
+    btn.dataset.backtestBound = 'true';
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      alert('Historical backtesting is coming soon to the marketplace.');
     });
   });
 };
