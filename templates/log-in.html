@@ -282,6 +282,7 @@
 
                 <!-- Login Form -->
                 <form method="post" action="{{ url_for('auth.login') }}" id="loginForm" novalidate aria-label="Login form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {% if next %}
                         <input type="hidden" name="next" value="{{ next }}">
                     {% endif %}
@@ -789,4 +790,5 @@
 
 </body>
 </html>
+
 
