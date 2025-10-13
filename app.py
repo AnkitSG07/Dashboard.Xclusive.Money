@@ -38,6 +38,7 @@ from flask_cors import CORS
 from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from sqlalchemy.orm import joinedload
 from flask_wtf import CSRFProtect
 import io
 from datetime import datetime, timedelta, date
@@ -7457,8 +7458,109 @@ def strategy_performance(strategy_id):
 @app.route("/strategy-marketplace")
 @login_required
 def strategy_marketplace():
-    strategies = Strategy.query.filter_by(is_public=True, is_active=True).all()
-    return render_template("strategy-marketplace.html", strategies=strategies)
+    strategies = (
+        Strategy.query.filter_by(is_public=True, is_active=True)
+        .options(joinedload(Strategy.user), joinedload(Strategy.subscriptions))
+        .all()
+    )
+
+    def _split_csv(value) -> list[str]:
+        if not value:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            return [str(v).strip() for v in value if str(v).strip()]
+        return [part.strip() for part in str(value).split(",") if part.strip()]
+
+    def _to_float(value):
+        try:
+            if value in (None, "", "-", "NA"):
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    marketplace_strategies: list[dict] = []
+
+    for strategy in strategies:
+        tags: list[str] = []
+        for attr in (strategy.asset_class, strategy.style):
+            if attr:
+                tags.append(attr)
+        tags.extend(_split_csv(strategy.brokers))
+
+        latest_log = (
+            StrategyLog.query.filter_by(strategy_id=strategy.id)
+            .order_by(StrategyLog.timestamp.desc())
+            .first()
+        )
+        raw_performance = (
+            latest_log.performance
+            if latest_log and isinstance(latest_log.performance, dict)
+            else {}
+        )
+
+        def _perf_value(*keys):
+            for key in keys:
+                value = raw_performance.get(key) if raw_performance else None
+                if value not in (None, "", "-", "NA"):
+                    return value
+            return None
+
+        performance_metrics = {
+            "cagr": _perf_value("cagr", "CAGR"),
+            "win_rate": _perf_value("win_rate", "winRate", "win_rate_percent"),
+            "avg_return": _perf_value(
+                "avg_return",
+                "avgReturn",
+                "avg_monthly_return",
+                "avgMonthlyReturn",
+            ),
+            "max_drawdown": _perf_value("max_drawdown", "maxDrawdown"),
+        }
+
+        min_amount = _perf_value("min_capital", "minCapital", "min_investment", "minInvestment")
+        min_amount_float = _to_float(min_amount) or _to_float(strategy.risk_max_allocation)
+
+        configuration_steps = [
+            {
+                "title": "Broker access",
+                "details": ", ".join(_split_csv(strategy.brokers))
+                or "Connect at least one supported broker account.",
+            },
+            {
+                "title": "Allowed tickers",
+                "details": strategy.allowed_tickers
+                or "Deploy to any ticker permitted by the strategy rules.",
+            },
+            {
+                "title": "Execution schedule",
+                "details": strategy.schedule
+                or "Runs whenever new signals are received.",
+            },
+        ]
+
+        marketplace_strategies.append(
+            {
+                "id": strategy.id,
+                "name": strategy.name,
+                "icon": strategy.icon,
+                "author": (strategy.user.name or strategy.user.email)
+                if strategy.user
+                else "Unknown",
+                "description": strategy.description or "",
+                "tags": tags,
+                "min_amount": min_amount_float,
+                "performance": performance_metrics,
+                "raw_performance": raw_performance,
+                "configuration_steps": configuration_steps,
+                "subscribers": len(strategy.subscriptions or []),
+                "is_featured": bool(
+                    performance_metrics.get("cagr") or len(tags) >= 3 or len(strategy.subscriptions or []) > 0
+                ),
+            }
+        )
+
+    return render_template("strategy-marketplace.html", strategies=marketplace_strategies)
     
 @app.route('/demat-subscriptions')
 @login_required
