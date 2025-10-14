@@ -1,0 +1,1301 @@
+// A revolutionary Pine Script strategy designed specifically for
+color: white;
+ font-size: 24px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 48px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Retail Traders
+color: #01C5E3;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Retail Traders
+color: #01C5E3;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Algorithmic Traders
+color: #01C5E3;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Intra-day Traders
+color: #01C5E3;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Swing Traders
+color: #01C5E3;
+ font-size: 36px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// who demand consistent, reliable performance across any market, any time-frame & any instrument.
+color: white;
+ font-size: 24px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// The Only TradingView Strategy That Actually Works
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Real Backtested Results
+color: #01C5E3;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Backtest Image 1
+color: #707070;
+ font-size: 48px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Universal Strategy
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Works on US stocks, Indian equity, crypto, forex, commodities - any market
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Real-World Backtesting
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Includes slippage, commissions, and realistic fill modeling
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Universal Strategy
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// From 1-minute scalping to daily swing trading
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Non-Repainting Algorithm
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// What you see in back-test is what you get live
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Alert2Trade Integration
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Seamless automation with 99.9% reliability
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Memory Optimized
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Never crashes, even on complex multi-timeframe analysis
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Why Traders Choose
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// ?
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// How Does
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Work ?
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Video Tutorial
+color: #707070;
+ font-size: 48px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Step 1 : Add to your TradingView
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Run comprehensive backtests with real-world slippage and commission modelling to verify performance.
+color: white;
+ font-size: 18px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Follow 5 Simple Steps
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Features
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Smart Auto Signals
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// AI Breakout Levels
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Auto Exit Signals
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Reversals Detector
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Realtime Trend Chatcher
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Support and Resistance Blocks
+color: #01C5E3;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat cupidatat non proident.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Explained
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Video - 1
+color: #A6A6A6;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Video - 2
+color: #A6A6A6;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Video - 3
+color: #A6A6A6;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Video - 4
+color: #A6A6A6;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Who is this for?
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+color: white;
+ font-size: 24px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Retail
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Algorithmic
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Swing
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Intra-Day
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TRADERS
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Why
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// ?
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Without TradeEdge Pro
+color: #FF5B6F;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Emotional trading, frequent losses
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Wrong timing, miss winning trades
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Blind trading setup, getting trapped
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Struggling to find profitable setups
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// With TradeEdge Pro
+color: #16A34A;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Emotion-free trading, higher profits
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Precise entry timing, higher success
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Trading with data driven confidence
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Multiple pre-built profitable setups
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Explore Our Plans
+color: white;
+ font-size: 48px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Monthly Access
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// ₹ 499.
+color: white;
+ font-size: 32px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 00
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// / month
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Get 7 days free trial included
+color: #01E3BD;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Get complete access of 
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// TradeEdge Pro
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// START 7-DAY FREE TRIAL →
+color: black;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// No questions asked 30 days refund
+color: black;
+ font-size: 14px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// STARTER PLAN
+color: black;
+ font-size: 12px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Quarterly Access
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// ₹ 1,099.
+color: white;
+ font-size: 32px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 00
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// / 90 days
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Get 30 days free trial included
+color: #01C5E3;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Get complete access of 
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// TradeEdge Pro
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// START 30-DAY FREE TRIAL →
+color: black;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// No questions asked 30 days refund
+color: black;
+ font-size: 14px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// MOST POPULAR
+color: black;
+ font-size: 12px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Lifetime Access
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// ₹ 4,999.
+color: white;
+ font-size: 32px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 00
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// One-Time
+color: white;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Unlimited access for life
+color: #D56DFF;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Get complete access of 
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// TradeEdge Pro
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// GET LIFETIME ACCESS →
+color: black;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// No questions asked 30 days refund
+color: black;
+ font-size: 14px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// BEST VALUE
+color: black;
+ font-size: 12px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Safe and Secure Checkout
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Payments are processed by
+color: white;
+ font-size: 18px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// RazorPay
+color: white;
+ font-size: 18px;
+ font-family: Open Sans;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Hear From Our Customers
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Finally found a strategy that works exactly the same in live trading as in backtests. No more repainting nightmares!
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Algorithmic Trader, Mumbai
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Rajesh Kumar
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 5d
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 358
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 5 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Switched from losing $2,000/month on failed TradingView strategies to consistent $8,000 profits with TradeEdge Pro.
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Crypto Trader, Singapore
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Sarah Chen
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 2w
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 1,058
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 63 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// The Alert2Trade integration is flawless. My trades execute instantly without any delays or missed signals.
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Day Trader, Chicago
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Michael Torres
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 3w
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 691
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 33 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Love how it works across all my markets - stocks, crypto, forex. One strategy for everything!
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Swing Trader, Delhi
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Priya Sharma
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 2mo
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 409
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 22 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Memory issues used to crash my complex strategies. TradeEdge Pro handles everything smoothly.
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Prop Trader, London
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// David Wilson
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 2mo
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 1,952
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 119 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// The Alert2Trade integration is flawless. My trades execute instantly without any delays or missed signals.
+color: white;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Portfolio Manager, New York
+color: #D9D9D9;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Lisa Martinez
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// 3rd
+color: #A6A6A6;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 3mo
+color: white;
+ font-size: 14px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 703
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// 46 comments
+color: #A6A6A6;
+ font-size: 20px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Frequently Asked Questions
+color: #01C5E3;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Get Instant 30% Discount. Use Code : GET30
+color: black;
+ font-size: 12px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Works on every chart used in trading
+color: black;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Does this work with my broker?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// What if I'm new to Pine Script?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// How is this different from other TradingView strategies?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Can I use this for crypto trading?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// What about risk management?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Is there a money-back guarantee?
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// What is
+color: white;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Pro
+color: #233052;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeEdge Pro Image
+color: #707070;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Alert2Trade
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Alert2Trade Image
+color: #707070;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// TradeSync
+color: white;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// TradeSync Image
+color: #707070;
+ font-size: 24px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
+---
+// Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+color: white;
+ font-size: 16px;
+ font-family: Open Sans;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Join Us On
+color: #01C5E3;
+ font-size: 28px;
+ font-family: Inter;
+ font-weight: 700;
+ word-wrap: break-word
+---
+// Useful Links
+color: white;
+ font-size: 20px;
+ font-family: Inter;
+ font-weight: 400;
+ word-wrap: break-word
+---
+// Try For Free
+color: black;
+ font-size: 16px;
+ font-family: Inter;
+ font-weight: 600;
+ word-wrap: break-word
