@@ -206,6 +206,10 @@
     color: var(--summary-green);
   }
 
+  .summary-stat-negative {
+    color: var(--summary-red);
+  }
+
   .summary-transaction {
     display: flex;
     align-items: center;
@@ -293,7 +297,7 @@
             </svg>
           </div>
         </div>
-        <p class="summary-stat-value">₹28,47,650</p>
+        <p class="summary-stat-value">{{ format_currency(overview.total_portfolio_value) }}</p>
       </div>
 
       <div class="summary-card">
@@ -307,7 +311,7 @@
             </svg>
           </div>
         </div>
-        <p class="summary-stat-value">₹24,50,000</p>
+        <p class="summary-stat-value">{{ format_currency(overview.total_investment) }}</p>
       </div>
 
       <div class="summary-card">
@@ -320,8 +324,13 @@
             </svg>
           </div>
         </div>
-        <p class="summary-stat-value summary-stat-positive">₹3,97,650</p>
-        <p class="summary-stat-footnote summary-stat-positive">+16.23%</p>
+        {% set gain_positive = overview.total_gain_loss >= 0 %}
+        <p class="summary-stat-value {{ 'summary-stat-positive' if gain_positive else 'summary-stat-negative' }}">
+          {{ format_currency(overview.total_gain_loss) }}
+        </p>
+        <p class="summary-stat-footnote {{ 'summary-stat-positive' if overview.total_gain_loss_percent >= 0 else 'summary-stat-negative' }}">
+          {{ format_percentage(overview.total_gain_loss_percent) }}
+        </p>
       </div>
 
       <div class="summary-card">
@@ -334,8 +343,13 @@
             </svg>
           </div>
         </div>
-        <p class="summary-stat-value summary-stat-positive">₹12,450</p>
-        <p class="summary-stat-footnote summary-stat-positive">+0.44%</p>
+        {% set today_positive = overview.today_gain_loss >= 0 %}
+        <p class="summary-stat-value {{ 'summary-stat-positive' if today_positive else 'summary-stat-negative' }}">
+          {{ format_currency(overview.today_gain_loss) }}
+        </p>
+        <p class="summary-stat-footnote {{ 'summary-stat-positive' if overview.today_gain_loss_percent >= 0 else 'summary-stat-negative' }}">
+          {{ format_percentage(overview.today_gain_loss_percent) }}
+        </p>
       </div>
     </section>
 
@@ -345,83 +359,54 @@
         <a href="/account-config">Manage Accounts</a>
       </div>
       <div class="summary-grid summary-grid-3">
-        <div class="summary-card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div style="width:40px; height:40px; border-radius:10px; background:rgba(234,88,12,0.10); display:flex; align-items:center; justify-content:center;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
+        {% set account_palette = [
+          {'bg': 'rgba(234,88,12,0.10)', 'stroke': '#EA580C'},
+          {'bg': 'rgba(37,99,235,0.10)', 'stroke': 'var(--summary-blue)'},
+          {'bg': 'rgba(124,58,237,0.10)', 'stroke': 'var(--summary-purple)'}
+        ] %}
+        {% if account_summaries %}
+          {% for account in account_summaries %}
+            {% set palette = account_palette[loop.index0 % (account_palette|length)] %}
+            <div class="summary-card">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ palette.stroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <p style="margin:0; font-weight:700;">{{ account.broker or 'Account' }}</p>
+                    <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ account.client_id }}</p>
+                  </div>
+                </div>
+                <span style="background:rgba(5,150,105,0.10); color:{{ account.status_color }}; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;">{{ account.status_label }}</span>
               </div>
-              <div>
-                <p style="margin:0; font-weight:700;">Zerodha</p>
-                <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">ZD1234</p>
-              </div>
-            </div>
-            <span style="background:rgba(5,150,105,0.10); color:var(--summary-green); padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;">active</span>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:10px;">
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Portfolio Value</span><span style="font-weight:700;">₹12,45,000</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Gain/Loss</span>
-              <span style="font-weight:700; color:var(--summary-green);">₹1,45,000 <span style="font-size:11px; margin-left:4px;">+13.2%</span></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div style="width:40px; height:40px; border-radius:10px; background:rgba(37,99,235,0.10); display:flex; align-items:center; justify-content:center;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--summary-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-              </div>
-              <div>
-                <p style="margin:0; font-weight:700;">Dhan</p>
-                <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">DH5678</p>
-              </div>
-            </div>
-            <span style="background:rgba(5,150,105,0.10); color:var(--summary-green); padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;">active</span>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:10px;">
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Portfolio Value</span><span style="font-weight:700;">₹8,56,000</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Gain/Loss</span>
-              <span style="font-weight:700; color:var(--summary-green);">₹1,56,000 <span style="font-size:11px; margin-left:4px;">+22.3%</span></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div style="width:40px; height:40px; border-radius:10px; background:rgba(124,58,237,0.10); display:flex; align-items:center; justify-content:center;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--summary-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-              </div>
-              <div>
-                <p style="margin:0; font-weight:700;">Angel One</p>
-                <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">AO9012</p>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; font-size:14px;">
+                  <span style="color:var(--summary-muted)">Portfolio Value</span>
+                  <span style="font-weight:700;">{{ format_currency(account.portfolio_value) }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:14px;">
+                  <span style="color:var(--summary-muted)">Gain/Loss</span>
+                  {% set account_positive = account.gain_loss >= 0 %}
+                  <span style="font-weight:700; color:{{ 'var(--summary-green)' if account_positive else 'var(--summary-red)' }};">
+                    {{ format_currency(account.gain_loss) }}
+                    <span style="font-size:11px; margin-left:4px;">{{ format_percentage(account.gain_loss_percent) }}</span>
+                  </span>
+                </div>
+                {% if account.error %}
+                  <p class="summary-stat-footnote" style="color:var(--summary-red);">{{ account.error }}</p>
+                {% endif %}
               </div>
             </div>
-            <span style="background:rgba(5,150,105,0.10); color:var(--summary-green); padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;">active</span>
+          {% endfor %}
+        {% else %}
+          <div class="summary-card summary-card--muted" style="grid-column:1/-1;">
+            <p style="margin:0; font-weight:600;">No connected accounts</p>
+            <p class="summary-stat-footnote" style="margin-top:6px;">Connect a broker account to view portfolio insights.</p>
           </div>
-          <div style="display:flex; flex-direction:column; gap:10px;">
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Portfolio Value</span><span style="font-weight:700;">₹7,46,650</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;">
-              <span style="color:var(--summary-muted)">Gain/Loss</span>
-              <span style="font-weight:700; color:var(--summary-green);">₹96,650 <span style="font-size:11px; margin-left:4px;">+14.9%</span></span>
-            </div>
-          </div>
-        </div>
+        {% endif %}
       </div>
     </section>
 
@@ -441,16 +426,25 @@
 
       <div style="margin:8px 0 16px 0;">
         <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:2px;">
-          <p style="margin:0; font-size:28px; font-weight:800;">+0.4%</p>
-          <span style="display:inline-flex; align-items:center; gap:6px; color:var(--summary-green); font-size:13px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--summary-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
-            </svg>
-            vs benchmark
+          <p style="margin:0; font-size:28px; font-weight:800;">{{ format_percentage(performance_summary.today_return_percent) }}</p>
+          {% set benchmark_delta = performance_summary.today_return_percent - performance_summary.benchmark_return_percent %}
+          {% set delta_positive = benchmark_delta >= 0 %}
+          <span style="display:inline-flex; align-items:center; gap:6px; color:{{ 'var(--summary-green)' if delta_positive else 'var(--summary-red)' }}; font-size:13px;">
+            {% if delta_positive %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--summary-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+            {% else %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--summary-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="1 6 10.5 15.5 15.5 10.5 23 18"></polyline>
+                <polyline points="7 18 1 18 1 12"></polyline>
+              </svg>
+            {% endif %}
+            {{ format_percentage(benchmark_delta) }} vs benchmark
           </span>
         </div>
-        <p style="margin:0; color:var(--summary-muted); font-size:12px;">Portfolio return for 1D</p>
+        <p style="margin:0; color:var(--summary-muted); font-size:12px;">Portfolio return for 1D (benchmark {{ format_percentage(performance_summary.benchmark_return_percent) }})</p>
       </div>
 
       <div style="height:240px; border:1px dashed var(--summary-border); border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--summary-muted); margin:0 0 18px 0;">
@@ -458,18 +452,13 @@
       </div>
 
       <div class="summary-grid summary-grid-3" style="gap:12px;">
-        <div class="summary-card--muted">
-          <p style="margin:0; font-size:22px; font-weight:800; color:var(--summary-green);">+24.3%</p>
-          <p style="margin:4px 0 0 0; color:var(--summary-muted); font-size:12px;">1 Year</p>
-        </div>
-        <div class="summary-card--muted">
-          <p style="margin:0; font-size:22px; font-weight:800; color:var(--summary-blue);">+18.7%</p>
-          <p style="margin:4px 0 0 0; color:var(--summary-muted); font-size:12px;">6 Months</p>
-        </div>
-        <div class="summary-card--muted">
-          <p style="margin:0; font-size:22px; font-weight:800; color:var(--summary-purple);">+12.4%</p>
-          <p style="margin:4px 0 0 0; color:var(--summary-muted); font-size:12px;">3 Months</p>
-        </div>
+        {% for period in performance_summary.periods %}
+          {% set period_color = period.color if period.value >= 0 else 'var(--summary-red)' %}
+          <div class="summary-card--muted">
+            <p style="margin:0; font-size:22px; font-weight:800; color:{{ period_color }};">{{ format_percentage(period.value) }}</p>
+            <p style="margin:4px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ period.label }}</p>
+          </div>
+        {% endfor %}
       </div>
     </section>
 
@@ -490,48 +479,31 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <div>
-                    <p style="margin:0; font-weight:700;">RELIANCE</p>
-                    <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">Reliance Industries</p>
-                  </div>
-                </td>
-                <td style="text-align:right">150</td>
-                <td style="text-align:right; font-weight:700;">₹4,01,745</td>
-                <td style="text-align:right;">
-                  <span style="color:var(--summary-green); font-weight:700;">₹34,170</span>
-                  <p style="margin:2px 0 0 0; color:var(--summary-green); font-size:12px;">+9.3%</p>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <div>
-                    <p style="margin:0; font-weight:700;">TCS</p>
-                    <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">Tata Consultancy</p>
-                  </div>
-                </td>
-                <td style="text-align:right">80</td>
-                <td style="text-align:right; font-weight:700;">₹2,76,496</td>
-                <td style="text-align:right;">
-                  <span style="color:var(--summary-green); font-weight:700;">₹16,436</span>
-                  <p style="margin:2px 0 0 0; color:var(--summary-green); font-size:12px;">+6.3%</p>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <div>
-                    <p style="margin:0; font-weight:700;">INFY</p>
-                    <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">Infosys Limited</p>
-                  </div>
-                </td>
-                <td style="text-align:right">120</td>
-                <td style="text-align:right; font-weight:700;">₹1,88,136</td>
-                <td style="text-align:right;">
-                  <span style="color:var(--summary-green); font-weight:700;">₹14,106</span>
-                  <p style="margin:2px 0 0 0; color:var(--summary-green); font-size:12px;">+8.1%</p>
-                </td>
-              </tr>
+              {% if top_holdings %}
+                {% for holding in top_holdings %}
+                  {% set pnl_positive = holding.pnl >= 0 %}
+                  <tr>
+                    <td>
+                      <div>
+                        <p style="margin:0; font-weight:700;">{{ holding.symbol }}</p>
+                        <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ holding.sector or '—' }}</p>
+                      </div>
+                    </td>
+                    <td style="text-align:right">{{ format_quantity(holding.quantity) }}</td>
+                    <td style="text-align:right; font-weight:700;">{{ format_currency(holding.market_value) }}</td>
+                    <td style="text-align:right;">
+                      <span style="color:{{ 'var(--summary-green)' if pnl_positive else 'var(--summary-red)' }}; font-weight:700;">{{ format_currency(holding.pnl) }}</span>
+                      <p style="margin:2px 0 0 0; color:{{ 'var(--summary-green)' if pnl_positive else 'var(--summary-red)' }}; font-size:12px;">{{ format_percentage(holding.pnl_percent) }}</p>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="4" style="text-align:center; padding:24px 8px; color:var(--summary-muted);">
+                    No holdings available. Connect an account or refresh your positions.
+                  </td>
+                </tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -543,65 +515,23 @@
           <a href="#">View Details</a>
         </div>
 
-        <div style="margin-bottom:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:999px; background:var(--summary-blue); display:inline-block"></span>
-              <span>Information Technology</span>
+        {% if sector_allocation %}
+          {% for sector in sector_allocation %}
+            <div style="margin-bottom:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:12px; height:12px; border-radius:999px; background:{{ sector.color }}; display:inline-block"></span>
+                  <span>{{ sector.label }}</span>
+                </div>
+                <span style="font-weight:700;">{{ format_percentage(sector.percent) }}</span>
+              </div>
+              <div class="summary-progress"><span style="width:{{ sector.percent }}%; background:{{ sector.color }};"></span></div>
+              <p class="summary-stat-footnote" style="margin:6px 0 0 0;">{{ format_currency(sector.amount) }}</p>
             </div>
-            <span style="font-weight:700;">28.5%</span>
-          </div>
-          <div class="summary-progress"><span style="width:28.5%; background:var(--summary-blue);"></span></div>
-          <p class="summary-stat-footnote" style="margin:6px 0 0 0;">₹8,11,781</p>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:999px; background:var(--summary-green); display:inline-block"></span>
-              <span>Financial Services</span>
-            </div>
-            <span style="font-weight:700;">24.2%</span>
-          </div>
-          <div class="summary-progress"><span style="width:24.2%; background:var(--summary-green);"></span></div>
-          <p class="summary-stat-footnote" style="margin:6px 0 0 0;">₹6,89,211</p>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:999px; background:#eab308; display:inline-block"></span>
-              <span>Oil &amp; Gas</span>
-            </div>
-            <span style="font-weight:700;">18.3%</span>
-          </div>
-          <div class="summary-progress"><span style="width:18.3%; background:#eab308;"></span></div>
-          <p class="summary-stat-footnote" style="margin:6px 0 0 0;">₹5,21,120</p>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:999px; background:var(--summary-purple); display:inline-block"></span>
-              <span>Consumer Goods</span>
-            </div>
-            <span style="font-weight:700;">12.1%</span>
-          </div>
-          <div class="summary-progress"><span style="width:12.1%; background:var(--summary-purple);"></span></div>
-          <p class="summary-stat-footnote" style="margin:6px 0 0 0;">₹3,44,566</p>
-        </div>
-
-        <div>
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="width:12px; height:12px; border-radius:999px; background:var(--summary-red); display:inline-block"></span>
-              <span>Healthcare</span>
-            </div>
-            <span style="font-weight:700;">8.7%</span>
-          </div>
-          <div class="summary-progress"><span style="width:8.7%; background:var(--summary-red);"></span></div>
-          <p class="summary-stat-footnote" style="margin:6px 0 0 0;">₹2,47,746</p>
-        </div>
+          {% endfor %}
+        {% else %}
+          <p class="summary-stat-footnote" style="margin:0;">No sector allocation data available.</p>
+        {% endif %}
       </div>
     </section>
 
@@ -612,82 +542,52 @@
       </div>
 
       <div>
-        <div class="summary-transaction">
-          <div class="info">
-            <div style="width:40px; height:40px; border-radius:999px; background:rgba(5,150,105,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--summary-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="7" y1="7" x2="17" y2="17"></line>
-                <polyline points="17 7 17 17 7 17"></polyline>
-              </svg>
-            </div>
-            <div style="min-width:0;">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <p style="margin:0; font-weight:700;">WIPRO</p>
-                <span class="summary-pill">Buy</span>
+        {% if recent_transactions %}
+          {% for txn in recent_transactions %}
+            {% set action = txn.action or '' %}
+            {% set is_buy = action == 'BUY' %}
+            {% set is_sell = action == 'SELL' %}
+            {% set is_dividend = not is_buy and not is_sell %}
+            {% set icon_bg = 'rgba(5,150,105,0.10)' if is_buy else ('rgba(220,38,38,0.10)' if is_sell else 'rgba(37,99,235,0.10)') %}
+            {% set icon_color = 'var(--summary-green)' if is_buy else ('var(--summary-red)' if is_sell else 'var(--summary-blue)') %}
+            <div class="summary-transaction">
+              <div class="info">
+                <div style="width:40px; height:40px; border-radius:999px; background:{{ icon_bg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  {% if is_sell %}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="7" y1="17" x2="17" y2="7"></line>
+                      <polyline points="7 7 17 7 17 17"></polyline>
+                    </svg>
+                  {% elif is_buy %}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="7" y1="7" x2="17" y2="17"></line>
+                      <polyline points="17 7 17 17 7 17"></polyline>
+                    </svg>
+                  {% else %}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M6 3h12"></path>
+                      <path d="M6 8h12"></path>
+                      <path d="M6 13a5 5 0 0 0 5 5h1l-6 3"></path>
+                    </svg>
+                  {% endif %}
+                </div>
+                <div style="min-width:0;">
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <p style="margin:0; font-weight:700;">{{ txn.symbol or '—' }}</p>
+                    {% set pill_class = 'summary-pill summary-pill--sell' if is_sell else ('summary-pill summary-pill--dividend' if is_dividend else 'summary-pill') %}
+                    <span class="{{ pill_class }}">{{ action.title() if action else 'Trade' }}</span>
+                  </div>
+                  <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ format_quantity(txn.quantity) }} shares @ {{ format_currency(txn.price) }} • {{ txn.broker or '—' }}
+                  </p>
+                </div>
               </div>
-              <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">50 shares @ ₹445.20 • Zerodha</p>
+              <p class="summary-value">{{ format_currency(txn.value) }}</p>
             </div>
-          </div>
-          <p class="summary-value">₹22,260</p>
-        </div>
-
-        <div class="summary-transaction">
-          <div class="info">
-            <div style="width:40px; height:40px; border-radius:999px; background:rgba(220,38,38,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--summary-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="7" y1="17" x2="17" y2="7"></line>
-                <polyline points="7 7 17 7 17 17"></polyline>
-              </svg>
-            </div>
-            <div style="min-width:0;">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <p style="margin:0; font-weight:700;">BHARTIARTL</p>
-                <span class="summary-pill summary-pill--sell">Sell</span>
-              </div>
-              <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">30 shares @ ₹1156.75 • Dhan</p>
-            </div>
-          </div>
-          <p class="summary-value">₹34,703</p>
-        </div>
-
-        <div class="summary-transaction">
-          <div class="info">
-            <div style="width:40px; height:40px; border-radius:999px; background:rgba(5,150,105,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--summary-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="7" y1="7" x2="17" y2="17"></line>
-                <polyline points="17 7 17 17 7 17"></polyline>
-              </svg>
-            </div>
-            <div style="min-width:0;">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <p style="margin:0; font-weight:700;">MARUTI</p>
-                <span class="summary-pill">Buy</span>
-              </div>
-              <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">10 shares @ ₹10,450.30 • Angel One</p>
-            </div>
-          </div>
-          <p class="summary-value">₹1,04,503</p>
-        </div>
-
-        <div class="summary-transaction">
-          <div class="info">
-            <div style="width:40px; height:40px; border-radius:999px; background:rgba(37,99,235,0.10); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--summary-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 3h12"></path>
-                <path d="M6 8h12"></path>
-                <path d="M6 13a5 5 0 0 0 5 5h1l-6 3"></path>
-              </svg>
-            </div>
-            <div style="min-width:0;">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <p style="margin:0; font-weight:700;">TCS</p>
-                <span class="summary-pill summary-pill--dividend">Dividend</span>
-              </div>
-              <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">80 shares @ ₹25.00 • Dhan</p>
-            </div>
-          </div>
-          <p class="summary-value">₹2,000</p>
-        </div>
+          {% endfor %}
+        {% else %}
+          <p class="summary-stat-footnote" style="margin:0;">No recent transactions found.</p>
+        {% endif %}
       </div>
     </section>
   </div>
