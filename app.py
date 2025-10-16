@@ -75,7 +75,8 @@ from models import (
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from services.trade_copier import poll_and_copy_trades, copy_order
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_, text, inspect
+from sqlalchemy import or_, text, inspect, cast
+from sqlalchemy.types import DateTime as SADateTime
 import re
 from blueprints.auth import auth_bp
 from blueprints.api import api_bp, login_required_api, _get_dashboard_snapshot
@@ -7880,7 +7881,7 @@ def summary():
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_trades = (
         Trade.query.filter_by(user_id=user.id)
-        .filter(Trade.timestamp >= today_start)
+        .filter(cast(Trade.timestamp, SADateTime) >= today_start)
         .all()
         if user
         else []
@@ -7993,7 +7994,7 @@ def summary():
 
     recent_trades = (
         Trade.query.filter_by(user_id=user.id)
-        .order_by(Trade.timestamp.desc())
+        .order_by(cast(Trade.timestamp, SADateTime).desc())
         .limit(5)
         .all()
         if user
@@ -8124,9 +8125,14 @@ def admin_dashboard():
     unique_brokers = {acc.broker for acc in accounts if acc.broker}
 
     today = date.today()
-    start_today = today.strftime('%Y-%m-%d')
-    end_today = (today + timedelta(days=1)).strftime('%Y-%m-%d')
-    trades_today = Trade.query.filter(Trade.timestamp >= start_today, Trade.timestamp < end_today).count()
+    start_today = datetime.combine(today, datetime.min.time())
+    end_today = start_today + timedelta(days=1)
+    trades_today = (
+        Trade.query.filter(
+            cast(Trade.timestamp, SADateTime) >= start_today,
+            cast(Trade.timestamp, SADateTime) < end_today,
+        ).count()
+    )
     active_users = User.query.filter(User.last_login >= start_today).count()
     failed_trades = Trade.query.filter_by(status='Failed').count()
     metrics = {
@@ -8144,11 +8150,15 @@ def admin_dashboard():
     signup_counts = []
     for i in range(5):
         day = today - timedelta(days=4 - i)
-        start = day.strftime('%Y-%m-%d')
-        end = (day + timedelta(days=1)).strftime('%Y-%m-%d')
+        start = datetime.combine(day, datetime.min.time())
+        end = start + timedelta(days=1)
         labels.append(day.strftime('%a'))
-        trade_counts.append(Trade.query.filter(Trade.timestamp >= start,
-                                               Trade.timestamp < end).count())
+        trade_counts.append(
+            Trade.query.filter(
+                cast(Trade.timestamp, SADateTime) >= start,
+                cast(Trade.timestamp, SADateTime) < end,
+            ).count()
+        )
         signup_counts.append(User.query.filter(User.subscription_start >= start,
                                               User.subscription_start < end).count())
 
