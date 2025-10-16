@@ -1,116 +1,501 @@
 {% extends "layout.html" %}
-{% block title %}Dashboard Summary - DhanBot{% endblock %}
+
+{% block title %}Dashboard Summary{% endblock %}
+
+{% block head %}
+  <!-- Tiny in-file CSS for layout/responsive only; everything else is inline styles -->
+  <style>
+    :root{
+      --bg:#F5F7FB; --card:#fff; --border:#E6E9F2; --text:#111827; --muted:#6B7280;
+      --primary:#4F46E5; --green:#059669; --red:#DC2626; --purple:#7C3AED; --blue:#2563EB;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans','Liberation Sans',sans-serif;color:var(--text)}
+    .container{max-width:1280px;margin:0 auto;padding:48px 32px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+    @media (max-width:1024px){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:640px){.container{padding:32px 16px}.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}}
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;background:#fff}
+    .chip.is-active{background:rgba(79,70,229,0.08);border-color:#dfe2f7}
+    .progress{height:8px;border-radius:999px;background:#EEF2FF;position:relative;overflow:hidden}
+    .progress>span{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+    table{border-collapse:collapse;width:100%}
+    th,td{padding:12px 8px}
+    thead th{font-weight:600;color:var(--muted);text-align:left;border-bottom:1px solid var(--border)}
+    tbody td{border-bottom:1px solid #F1F3F8}
+  </style>
+{% endblock %}
 
 {% block content %}
-<!-- Link to your new stylesheet -->
-<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  <main class="container">
 
-<div class="background-shapes">
-    <div class="shape shape1"></div>
-    <div class="shape shape2"></div>
-</div>
-
-<div class="container">
-    <!-- Header Module -->
-    <header class="header-module glass-panel animated-reveal">
-        <div class="header-top">
-            <h1 class="header-title">Welcome, {{ display_name or 'User' }} 👋</h1>
-            <div class="header-actions">
-                <a class="btn btn-primary" href="/copy-trading">
-                    <i class="bi bi-people-fill"></i> Copy Trading
-                </a>
+    <!-- HEADER CARD -->
+    <section style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px 32px;box-shadow:0 2px 10px rgba(28,31,43,0.03);margin-bottom:28px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;">
+              <!-- LayoutDashboard icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+              </svg>
             </div>
+            <h1 style="margin:0;font-size:32px;line-height:38px;font-weight:800;letter-spacing:-0.3px;">Dashboard Summary</h1>
+          </div>
+          <p style="margin:0 0 0 40px;color:var(--muted);font-size:16px;">
+            Overview of your trading activities and account performance.
+          </p>
         </div>
-        <div class="stats-bar">
-            <div class="stat-item">
-                <p class="stat-label">Plan Name</p>
-                <h2 class="stat-value">{{ plan_name or 'N/A' }}</h2>
-            </div>
-            <div class="stat-item">
-                <p class="stat-label">Days Remaining</p>
-                <h2 class="stat-value {% if days_remaining and days_remaining <= 7 %}danger{% endif %}">{{ days_remaining or '0' }} Days</h2>
-                {% if days_remaining and days_remaining <= 7 %}
-                <div class="stat-footer">
-                    <a href="/subscriptions">Renew</a>
-                </div>
-                {% endif %}
-            </div>
-            <div class="stat-item">
-                <p class="stat-label">Validity</p>
-                <h2 class="stat-value">{{ expiry_date or 'N/A' }}</h2>
-            </div>
-        </div>
-    </header>
+      </div>
+    </section>
 
-    <div class="main-grid">
-        <!-- Left Column: Status Modules -->
-        <div class="left-column" style="display: flex; flex-direction: column; gap: var(--space-6);">
-            {% if strategies %}
-            <div class="glass-panel animated-reveal">
-                <h3 class="section-title">Strategies</h3>
-                {% for s in strategies %}
-                <div class="list-item">
-                    <div class="item-main-info">
-                        <p class="title">{{ s.name }}</p>
-                        <p class="subtitle pnl {% if s.pnl >= 0 %}positive{% else %}negative{% endif %}">7d P&L: {{ '%.2f'|format(s.pnl) }}</p>
-                    </div>
-                    <div class="item-meta-info">
-                        <span class="badge {% if s.is_active %}badge-success{% else %}badge-default{% endif %}">{{ 'Active' if s.is_active else 'Inactive' }}</span>
-                    </div>
-                </div>
-                {% endfor %}
+    <!-- TOP STATS GRID (4) -->
+    <section class="grid-4" style="margin-bottom:28px;">
+      <!-- Total Portfolio Value -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p style="margin:0;color:var(--muted);font-size:14px;">Total Portfolio Value</p>
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(5,150,105,0.10);display:flex;align-items:center;justify-content:center;">
+            <!-- Wallet -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 7H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"></path>
+              <path d="M16 3H7a2 2 0 0 0-2 2v2"></path>
+              <path d="M20 11h-6a2 2 0 0 0 0 4h6"></path>
+            </svg>
+          </div>
+        </div>
+        <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.4px;">₹28,47,650</p>
+      </div>
+
+      <!-- Total Investment -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p style="margin:0;color:var(--muted);font-size:14px;">Total Investment</p>
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(124,58,237,0.10);display:flex;align-items:center;justify-content:center;">
+            <!-- IndianRupee -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 3h12"></path><path d="M6 8h12"></path>
+              <path d="M6 13a5 5 0 0 0 5 5h1l-6 3"></path>
+            </svg>
+          </div>
+        </div>
+        <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.4px;">₹24,50,000</p>
+      </div>
+
+      <!-- Total Gain/Loss -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p style="margin:0;color:var(--muted);font-size:14px;">Total Gain/Loss</p>
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(5,150,105,0.10);display:flex;align-items:center;justify-content:center;">
+            <!-- ArrowUpRight -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="17" x2="17" y2="7"></line>
+              <polyline points="7 7 17 7 17 17"></polyline>
+            </svg>
+          </div>
+        </div>
+        <p style="margin:0;font-size:32px;font-weight:800;color:#059669;">₹3,97,650</p>
+        <p style="margin:6px 0 0 0;font-size:12px;color:#059669;">+16.23%</p>
+      </div>
+
+      <!-- Today's Gain/Loss -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p style="margin:0;color:var(--muted);font-size:14px;">Today's Gain/Loss</p>
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(5,150,105,0.10);display:flex;align-items:center;justify-content:center;">
+            <!-- ArrowUpRight -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="17" x2="17" y2="7"></line>
+              <polyline points="7 7 17 7 17 17"></polyline>
+            </svg>
+          </div>
+        </div>
+        <p style="margin:0;font-size:32px;font-weight:800;color:#059669;">₹12,450</p>
+        <p style="margin:6px 0 0 0;font-size:12px;color:#059669;">+0.44%</p>
+      </div>
+    </section>
+
+    <!-- ACCOUNT SUMMARY -->
+    <section style="margin-bottom:28px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <h2 style="margin:0;font-size:20px;font-weight:800;">Account Summary</h2>
+        <a href="/account-config" style="text-decoration:none;color:var(--primary);font-weight:600;font-size:14px;">Manage Accounts</a>
+      </div>
+
+      <div class="grid-3">
+        <!-- Zerodha -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:40px;border-radius:10px;background:rgba(234,88,12,0.10);display:flex;align-items:center;justify-content:center;">
+                <!-- Activity -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <p style="margin:0;font-weight:700;">Zerodha</p>
+                <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">ZD1234</p>
+              </div>
             </div>
-            {% endif %}
-            
-            {% if accounts %}
-            <div class="glass-panel animated-reveal">
-                <h3 class="section-title">Accounts</h3>
-                {% for acc in accounts %}
-                <div class="list-item">
-                    <div class="item-main-info">
-                        <p class="title">{{ acc.client_id }}</p>
-                        <p class="subtitle">{{ acc.broker }}</p>
-                    </div>
-                    <div class="item-meta-info">
-                        <span class="badge {% if acc.status == 'Active' %}badge-success{% else %}badge-default{% endif %}">{{ acc.status }}</span>
-                    </div>
-                </div>
-                {% endfor %}
+            <span style="background:rgba(5,150,105,0.10);color:#059669;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;">active</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Portfolio Value</span><span style="font-weight:700;">₹12,45,000</span>
             </div>
-            {% endif %}
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Gain/Loss</span>
+              <span style="font-weight:700;color:#059669;">₹1,45,000 <span style="font-size:11px;margin-left:4px;">+13.2%</span></span>
+            </div>
+          </div>
         </div>
 
-        <!-- Right Column: Activity Feed -->
-        <div class="right-column">
-            {% if recent_trades or notifications %}
-            <div class="glass-panel animated-reveal">
-                <h3 class="section-title">Activity Feed</h3>
-                {% if recent_trades %}
-                    {% for t in recent_trades %}
-                    <div class="list-item feed-item">
-                        <i class="bi {% if t.action == 'BUY' %}bi-graph-up-arrow{% else %}bi-graph-down-arrow{% endif %} feed-icon"></i>
-                        <div class="feed-content">
-                            <p class="message">Trade Executed</p>
-                            <p class="details">{{ t.action }} {{ t.symbol }} ({{ t.qty }} @ {{ '%.2f'|format(t.price) }})</p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% endif %}
-
-                {% if notifications %}
-                    {% for n in notifications %}
-                    <div class="list-item feed-item">
-                        <i class="bi bi-bell-fill feed-icon"></i>
-                        <div class="feed-content">
-                            <p class="message">{{ n.message }}</p>
-                        </div>
-                        <span class="feed-timestamp">{{ n.timestamp.strftime('%H:%M') }}</span>
-                    </div>
-                    {% endfor %}
-                {% endif %}
+        <!-- Dhan -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:40px;border-radius:10px;background:rgba(37,99,235,0.10);display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <p style="margin:0;font-weight:700;">Dhan</p>
+                <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">DH5678</p>
+              </div>
             </div>
-            {% endif %}
+            <span style="background:rgba(5,150,105,0.10);color:#059669;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;">active</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Portfolio Value</span><span style="font-weight:700;">₹8,56,000</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Gain/Loss</span>
+              <span style="font-weight:700;color:#059669;">₹1,56,000 <span style="font-size:11px;margin-left:4px;">+22.3%</span></span>
+            </div>
+          </div>
         </div>
-    </div>
-</div>
+
+        <!-- Angel One -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:40px;border-radius:10px;background:rgba(124,58,237,0.10);display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <p style="margin:0;font-weight:700;">Angel One</p>
+                <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">AO9012</p>
+              </div>
+            </div>
+            <span style="background:rgba(5,150,105,0.10);color:#059669;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;">active</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Portfolio Value</span><span style="font-weight:700;">₹7,46,650</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;">
+              <span style="color:var(--muted)">Gain/Loss</span>
+              <span style="font-weight:700;color:#059669;">₹96,650 <span style="font-size:11px;margin-left:4px;">+14.9%</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PORTFOLIO PERFORMANCE -->
+    <section style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);margin-bottom:28px;">
+      <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:12px;">
+        <h2 style="margin:0;font-size:20px;font-weight:800;">Portfolio Performance</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span class="chip is-active">1D</span>
+          <span class="chip">1W</span>
+          <span class="chip">1M</span>
+          <span class="chip">3M</span>
+          <span class="chip">6M</span>
+          <span class="chip">1Y</span>
+          <span class="chip">All</span>
+        </div>
+      </div>
+
+      <div style="margin:8px 0 16px 0;">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;">
+          <p style="margin:0;font-size:28px;font-weight:800;">+0.4%</p>
+          <span style="display:inline-flex;align-items:center;gap:6px;color:#059669;font-size:13px;">
+            <!-- TrendingUp -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+            vs benchmark
+          </span>
+        </div>
+        <p style="margin:0;color:var(--muted);font-size:12px;">Portfolio return for 1D</p>
+      </div>
+
+      <!-- Static placeholder chart (light weight) -->
+      <div style="height:240px;border:1px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin:0 0 18px 0;">
+        Inline chart placeholder (use your existing Recharts block here)
+      </div>
+
+      <div class="grid-3" style="gap:12px;">
+        <div style="text-align:center;padding:12px;border-radius:10px;background:#F3F4F7;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#059669;">+24.3%</p>
+          <p style="margin:4px 0 0 0;color:var(--muted);font-size:12px;">1 Year</p>
+        </div>
+        <div style="text-align:center;padding:12px;border-radius:10px;background:#F3F4F7;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#2563EB;">+18.7%</p>
+          <p style="margin:4px 0 0 0;color:var(--muted);font-size:12px;">6 Months</p>
+        </div>
+        <div style="text-align:center;padding:12px;border-radius:10px;background:#F3F4F7;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#7C3AED;">+12.4%</p>
+          <p style="margin:4px 0 0 0;color:var(--muted);font-size:12px;">3 Months</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TWO COLUMN: HOLDINGS + SECTOR -->
+    <section class="grid-2" style="margin-bottom:28px;">
+      <!-- Top Holdings -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+          <h2 style="margin:0;font-size:20px;font-weight:800;">Top Holdings</h2>
+          <a href="#" style="text-decoration:none;color:var(--primary);font-weight:600;font-size:14px;">View All</a>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Stock</th>
+                <th style="text-align:right">Qty</th>
+                <th style="text-align:right">Value</th>
+                <th style="text-align:right">P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div>
+                    <p style="margin:0;font-weight:700;">RELIANCE</p>
+                    <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">Reliance Industries</p>
+                  </div>
+                </td>
+                <td style="text-align:right">150</td>
+                <td style="text-align:right;font-weight:700;">₹4,01,745</td>
+                <td style="text-align:right;">
+                  <span style="color:#059669;font-weight:700;">₹34,170</span>
+                  <p style="margin:2px 0 0 0;color:#059669;font-size:12px;">+9.3%</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div>
+                    <p style="margin:0;font-weight:700;">TCS</p>
+                    <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">Tata Consultancy</p>
+                  </div>
+                </td>
+                <td style="text-align:right">80</td>
+                <td style="text-align:right;font-weight:700;">₹2,76,496</td>
+                <td style="text-align:right;">
+                  <span style="color:#059669;font-weight:700;">₹16,436</span>
+                  <p style="margin:2px 0 0 0;color:#059669;font-size:12px;">+6.3%</p>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div>
+                    <p style="margin:0;font-weight:700;">INFY</p>
+                    <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;">Infosys Limited</p>
+                  </div>
+                </td>
+                <td style="text-align:right">120</td>
+                <td style="text-align:right;font-weight:700;">₹1,88,136</td>
+                <td style="text-align:right;">
+                  <span style="color:#059669;font-weight:700;">₹14,106</span>
+                  <p style="margin:2px 0 0 0;color:#059669;font-size:12px;">+8.1%</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sector Allocation -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+          <h2 style="margin:0;font-size:20px;font-weight:800;">Sector Allocation</h2>
+          <a href="#" style="text-decoration:none;color:var(--primary);font-weight:600;font-size:14px;">View Details</a>
+        </div>
+
+        <!-- IT -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:12px;height:12px;border-radius:999px;background:#2563EB;display:inline-block"></span>
+              <span>Information Technology</span>
+            </div>
+            <span style="font-weight:700;">28.5%</span>
+          </div>
+          <div class="progress"><span style="width:28.5%;background:#2563EB;"></span></div>
+          <p style="margin:6px 0 0 0;color:var(--muted);font-size:12px;">₹8,11,781</p>
+        </div>
+
+        <!-- Financial Services -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:12px;height:12px;border-radius:999px;background:#059669;display:inline-block"></span>
+              <span>Financial Services</span>
+            </div>
+            <span style="font-weight:700;">24.2%</span>
+          </div>
+          <div class="progress"><span style="width:24.2%;background:#059669;"></span></div>
+          <p style="margin:6px 0 0 0;color:var(--muted);font-size:12px;">₹6,89,211</p>
+        </div>
+
+        <!-- Oil & Gas -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:12px;height:12px;border-radius:999px;background:#EAB308;display:inline-block"></span>
+              <span>Oil &amp; Gas</span>
+            </div>
+            <span style="font-weight:700;">18.3%</span>
+          </div>
+          <div class="progress"><span style="width:18.3%;background:#EAB308;"></span></div>
+          <p style="margin:6px 0 0 0;color:var(--muted);font-size:12px;">₹5,21,120</p>
+        </div>
+
+        <!-- Consumer Goods -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:12px;height:12px;border-radius:999px;background:#7C3AED;display:inline-block"></span>
+              <span>Consumer Goods</span>
+            </div>
+            <span style="font-weight:700;">12.1%</span>
+          </div>
+          <div class="progress"><span style="width:12.1%;background:#7C3AED;"></span></div>
+          <p style="margin:6px 0 0 0;color:var(--muted);font-size:12px;">₹3,44,566</p>
+        </div>
+
+        <!-- Healthcare -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:12px;height:12px;border-radius:999px;background:#DC2626;display:inline-block"></span>
+              <span>Healthcare</span>
+            </div>
+            <span style="font-weight:700;">8.7%</span>
+          </div>
+          <div class="progress"><span style="width:8.7%;background:#DC2626;"></span></div>
+          <p style="margin:6px 0 0 0;color:var(--muted);font-size:12px;">₹2,47,746</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECENT TRANSACTIONS -->
+    <section style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:0 2px 10px rgba(28,31,43,0.03);">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <h2 style="margin:0;font-size:20px;font-weight:800;">Recent Transactions</h2>
+        <a href="#" style="text-decoration:none;color:var(--primary);font-weight:600;font-size:14px;">View All</a>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <!-- BUY -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+            <div style="width:40px;height:40px;border-radius:999px;background:rgba(5,150,105,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <!-- ArrowDownRight (buy) -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="7" y1="7" x2="17" y2="17"></line>
+                <polyline points="17 7 17 17 7 17"></polyline>
+              </svg>
+            </div>
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <p style="margin:0;font-weight:700;">WIPRO</p>
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:11px;background:#F1F4F8;">BUY</span>
+              </div>
+              <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">50 shares @ ₹445.20 • Zerodha</p>
+            </div>
+          </div>
+          <p style="margin:0;font-weight:700;white-space:nowrap;">₹22,260</p>
+        </div>
+
+        <!-- SELL -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+            <div style="width:40px;height:40px;border-radius:999px;background:rgba(220,38,38,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <!-- ArrowUpRight (sell) -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="7" y1="17" x2="17" y2="7"></line>
+                <polyline points="7 7 17 7 17 17"></polyline>
+              </svg>
+            </div>
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <p style="margin:0;font-weight:700;">BHARTIARTL</p>
+                <span style="border:1px solid #FAD1D1;color:#DC2626;padding:2px 6px;border-radius:6px;font-size:11px;background:#FFF5F5;">SELL</span>
+              </div>
+              <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">30 shares @ ₹1156.75 • Dhan</p>
+            </div>
+          </div>
+          <p style="margin:0;font-weight:700;white-space:nowrap;">₹34,703</p>
+        </div>
+
+        <!-- BUY -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+            <div style="width:40px;height:40px;border-radius:999px;background:rgba(5,150,105,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="7" y1="7" x2="17" y2="17"></line>
+                <polyline points="17 7 17 17 7 17"></polyline>
+              </svg>
+            </div>
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <p style="margin:0;font-weight:700;">MARUTI</p>
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:11px;background:#F1F4F8;">BUY</span>
+              </div>
+              <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">10 shares @ ₹10450.30 • Angel One</p>
+            </div>
+          </div>
+          <p style="margin:0;font-weight:700;white-space:nowrap;">₹1,04,503</p>
+        </div>
+
+        <!-- DIVIDEND -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+            <div style="width:40px;height:40px;border-radius:999px;background:rgba(37,99,235,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <!-- IndianRupee -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 3h12"></path><path d="M6 8h12"></path>
+                <path d="M6 13a5 5 0 0 0 5 5h1l-6 3"></path>
+              </svg>
+            </div>
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <p style="margin:0;font-weight:700;">TCS</p>
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:11px;background:#fff;">DIVIDEND</span>
+              </div>
+              <p style="margin:2px 0 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">80 shares @ ₹25.00 • Dhan</p>
+            </div>
+          </div>
+          <p style="margin:0;font-weight:700;white-space:nowrap;">₹2,000</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
 {% endblock %}
