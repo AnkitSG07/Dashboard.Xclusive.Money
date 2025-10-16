@@ -78,7 +78,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, text, inspect
 import re
 from blueprints.auth import auth_bp
-from blueprints.api import api_bp, login_required_api
+from blueprints.api import api_bp, login_required_api, _get_dashboard_snapshot
 from services.webhook_server import webhook_bp
 from helpers import (
     current_user,
@@ -7634,6 +7634,136 @@ def dashboard_data():
 @login_required
 def summary():
     """Render a high-level dashboard preview for the user."""
+
+
+    def _safe_float(value, default=0.0):
+        try:
+            if value is None or value == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _format_currency(value: float | None) -> str:
+        value = value or 0.0
+        return f"₹{value:,.2f}"
+
+    def _format_percentage(value: float | None) -> str:
+        value = value or 0.0
+        return f"{value:.2f}%"
+
+    def _format_quantity(value: float | None) -> str:
+        quantity = _safe_float(value, 0.0)
+        if float(quantity).is_integer():
+            return f"{int(quantity):,}"
+        return f"{quantity:,.2f}"
+
+    def _account_status_label(acc: Account) -> tuple[str, str]:
+        status = (acc.status or acc.copy_status or "").strip() or "Active"
+        status_lower = status.lower()
+        if status_lower in {"active", "connected", "success", "ok"}:
+            color = "var(--summary-green)"
+        elif status_lower in {"pending", "processing"}:
+            color = "var(--summary-primary)"
+        else:
+            color = "var(--summary-red)"
+        return status.capitalize(), color
+
+    def _compute_account_metrics(positions: list[dict]):
+        total_value = 0.0
+        total_cost = 0.0
+        total_pnl = 0.0
+        holdings: list[dict] = []
+        for position in positions:
+            if not isinstance(position, dict):
+                continue
+            symbol = (
+                position.get("tradingSymbol")
+                or position.get("symbol")
+                or position.get("name")
+                or "Unknown"
+            )
+            raw_qty = position.get("netQty") or position.get("netqty")
+            qty = _safe_float(raw_qty, 0.0)
+            if qty == 0:
+                continue
+
+            buy_avg = _safe_float(
+                position.get("buyAvg")
+                if position.get("buyAvg") is not None
+                else position.get("buyavg"),
+                0.0,
+            )
+            sell_avg = _safe_float(
+                position.get("sellAvg")
+                if position.get("sellAvg") is not None
+                else position.get("sellavg"),
+                0.0,
+            )
+            ltp = _safe_float(
+                position.get("ltp")
+                if position.get("ltp") is not None
+                else position.get("lastPrice"),
+                0.0,
+            )
+
+            profit_fields = None
+            for key in (
+                "profitAndLoss",
+                "profitandloss",
+                "pnl",
+                "pl",
+                "unrealizedProfit",
+                "unrealizedprofit",
+            ):
+                if key in position and position[key] is not None:
+                    profit_fields = position[key]
+                    break
+
+            pnl = _safe_float(profit_fields, 0.0)
+
+            qty_abs = abs(qty)
+            if qty > 0:
+                cost_basis = qty * buy_avg
+                if profit_fields is None:
+                    pnl = (ltp * qty) - cost_basis
+                market_value = cost_basis + pnl
+            else:
+                cost_basis = qty_abs * sell_avg
+                if profit_fields is None:
+                    pnl = cost_basis - (ltp * qty_abs)
+                market_value = cost_basis - pnl
+
+            total_value += market_value
+            total_cost += cost_basis
+            total_pnl += pnl
+
+            sector = None
+            for key in ("sector", "industry", "segment", "assetClass", "asset_type"):
+                if key in position and position[key]:
+                    sector = str(position[key])
+                    break
+
+            holdings.append(
+                {
+                    "symbol": symbol,
+                    "quantity": qty,
+                    "ltp": ltp,
+                    "market_value": market_value,
+                    "cost": cost_basis,
+                    "pnl": pnl,
+                    "sector": sector or "Uncategorized",
+                }
+            )
+
+        gain_pct = (total_pnl / total_cost * 100.0) if total_cost else 0.0
+        return {
+            "portfolio_value": total_value,
+            "investment": total_cost,
+            "gain_loss": total_pnl,
+            "gain_loss_percent": gain_pct,
+        }, holdings
+
     user = current_user()
     if "username" not in session and user:
         session["username"] = user.name or (
@@ -7642,10 +7772,8 @@ def summary():
 
     display_name = session.get("username", session.get("user"))
 
-    # Connected accounts
     accounts = Account.query.filter_by(user_id=user.id).all() if user else []
 
-    # Strategies owned or subscribed to
     owned_strats = (
         Strategy.query.filter_by(user_id=user.id).all() if user else []
     )
@@ -7673,7 +7801,196 @@ def summary():
         for s in all_strats
     ]
 
-    # Recent trades
+    aggregate_value = 0.0
+    aggregate_cost = 0.0
+    aggregate_pnl = 0.0
+    aggregated_holdings: dict[str, dict] = {}
+    sector_map: dict[str, float] = defaultdict(float)
+    account_summaries: list[dict] = []
+
+    for account in accounts:
+        status_label, status_color = _account_status_label(account)
+        summary_entry = {
+            "broker": account.broker,
+            "client_id": account.client_id,
+            "status_label": status_label,
+            "status_color": status_color,
+            "portfolio_value": 0.0,
+            "gain_loss": 0.0,
+            "gain_loss_percent": 0.0,
+            "error": None,
+        }
+
+        if not account.credentials:
+            summary_entry["error"] = "Credentials not configured"
+            account_summaries.append(summary_entry)
+            continue
+
+        try:
+            snapshot = _get_dashboard_snapshot(account)
+        except Exception as exc:  # pragma: no cover - defensive
+            summary_entry["error"] = str(exc)
+            account_summaries.append(summary_entry)
+            continue
+
+        positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
+        metrics, holdings = _compute_account_metrics(positions or [])
+        summary_entry.update(
+            {
+                "portfolio_value": metrics["portfolio_value"],
+                "gain_loss": metrics["gain_loss"],
+                "gain_loss_percent": metrics["gain_loss_percent"],
+            }
+        )
+        account_summaries.append(summary_entry)
+
+        aggregate_value += metrics["portfolio_value"]
+        aggregate_cost += metrics["investment"]
+        aggregate_pnl += metrics["gain_loss"]
+
+        for holding in holdings:
+            symbol = holding["symbol"] or "Unknown"
+            entry = aggregated_holdings.setdefault(
+                symbol,
+                {
+                    "symbol": symbol,
+                    "quantity": 0.0,
+                    "market_value": 0.0,
+                    "cost": 0.0,
+                    "pnl": 0.0,
+                    "ltp": holding["ltp"],
+                    "sector": holding["sector"],
+                },
+            )
+            entry["quantity"] += holding["quantity"]
+            entry["market_value"] += holding["market_value"]
+            entry["cost"] += holding["cost"]
+            entry["pnl"] += holding["pnl"]
+            entry["ltp"] = holding["ltp"] or entry.get("ltp") or 0.0
+            entry["sector"] = holding["sector"] or entry.get("sector") or "Uncategorized"
+            sector_map[entry["sector"]] += max(holding["market_value"], 0.0)
+
+    total_investment = aggregate_cost
+    total_portfolio_value = aggregate_value
+    total_gain_loss = aggregate_pnl
+    total_gain_loss_percent = (
+        (total_gain_loss / total_investment) * 100.0 if total_investment else 0.0
+    )
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_trades = (
+        Trade.query.filter_by(user_id=user.id)
+        .filter(Trade.timestamp >= today_start)
+        .all()
+        if user
+        else []
+    )
+    today_pnl = 0.0
+    for trade in today_trades:
+        qty = _safe_float(trade.qty, 0.0)
+        price = _safe_float(trade.price, 0.0)
+        action = (trade.action or "").upper()
+        value = qty * price
+        if action == "SELL":
+            today_pnl += value
+        else:
+            today_pnl -= value
+
+    today_gain_loss_percent = (
+        (today_pnl / total_portfolio_value) * 100.0 if total_portfolio_value else 0.0
+    )
+
+    benchmark_return_percent = 0.0
+
+    def _strategy_pnl_since(days: int) -> float:
+        if not strategy_ids:
+            return 0.0
+        start = datetime.utcnow() - timedelta(days=days)
+        logs = StrategyLog.query.filter(
+            StrategyLog.strategy_id.in_(strategy_ids),
+            StrategyLog.timestamp >= start,
+        ).all()
+        total = 0.0
+        for log in logs:
+            total += _safe_float((log.performance or {}).get("pnl"), 0.0)
+        return total
+
+    def _period_return(days: int) -> float:
+        pnl_value = _strategy_pnl_since(days)
+        if pnl_value == 0.0 and days <= 7:
+            pnl_value = today_pnl
+        if total_investment:
+            return (pnl_value / total_investment) * 100.0
+        return 0.0
+
+    performance_summary = {
+        "today_return_percent": today_gain_loss_percent,
+        "benchmark_return_percent": benchmark_return_percent,
+        "periods": [
+            {"label": "1 Year", "value": _period_return(365), "color": "var(--summary-green)"},
+            {"label": "6 Months", "value": _period_return(180), "color": "var(--summary-blue)"},
+            {"label": "3 Months", "value": _period_return(90), "color": "var(--summary-purple)"},
+        ],
+    }
+
+    top_holdings = sorted(
+        aggregated_holdings.values(), key=lambda h: h["market_value"], reverse=True
+    )[:5]
+
+    for holding in top_holdings:
+        cost = holding.get("cost", 0.0)
+        pnl = holding.get("pnl", 0.0)
+        holding["pnl_percent"] = (pnl / cost * 100.0) if cost else 0.0
+
+    total_sector_amount = sum(sector_map.values())
+    colors = [
+        "var(--summary-blue)",
+        "var(--summary-green)",
+        "#eab308",
+        "var(--summary-purple)",
+        "var(--summary-red)",
+    ]
+    sector_allocation = []
+    for index, (sector, amount) in enumerate(
+        sorted(sector_map.items(), key=lambda item: item[1], reverse=True)
+    ):
+        if total_sector_amount <= 0:
+            percent = 0.0
+        else:
+            percent = (amount / total_sector_amount) * 100.0
+        sector_allocation.append(
+            {
+                "label": sector,
+                "percent": percent,
+                "amount": amount,
+                "color": colors[index % len(colors)],
+            }
+        )
+
+    if not sector_allocation and total_portfolio_value:
+        sector_allocation.append(
+            {
+                "label": "Uncategorized",
+                "percent": 100.0,
+                "amount": total_portfolio_value,
+                "color": colors[0],
+            }
+        )
+
+    account_allocation = []
+    if total_portfolio_value:
+        for summary_entry in account_summaries:
+            value = summary_entry.get("portfolio_value", 0.0)
+            if value <= 0:
+                continue
+            account_allocation.append(
+                {
+                    "label": summary_entry.get("broker") or summary_entry.get("client_id"),
+                    "percent": (value / total_portfolio_value) * 100.0,
+                    "amount": value,
+                }
+            )
+
     recent_trades = (
         Trade.query.filter_by(user_id=user.id)
         .order_by(Trade.timestamp.desc())
@@ -7683,7 +8000,24 @@ def summary():
         else []
     )
 
-    # Notifications / system logs
+    recent_transactions = []
+    for trade in recent_trades:
+        qty = _safe_float(trade.qty, 0.0)
+        price = _safe_float(trade.price, 0.0)
+        value = qty * price
+        action = (trade.action or "").upper()
+        recent_transactions.append(
+            {
+                "symbol": trade.symbol,
+                "action": action,
+                "quantity": int(qty) if qty.is_integer() else qty,
+                "price": price,
+                "value": value,
+                "broker": trade.broker or trade.client_id,
+                "timestamp": trade.timestamp,
+            }
+        )
+
     notifications = (
         SystemLog.query.filter_by(user_id=str(user.id))
         .order_by(SystemLog.timestamp.desc())
@@ -7693,7 +8027,6 @@ def summary():
         else []
     )
 
-    # Subscription details
     expiry = user.subscription_end if user else None
     days_remaining = (
         (expiry.date() - datetime.utcnow().date()).days if expiry else 0
@@ -7702,17 +8035,35 @@ def summary():
         "Active" if expiry and expiry >= datetime.utcnow() else "Expired"
     )
 
+    overview = {
+        "total_portfolio_value": total_portfolio_value,
+        "total_investment": total_investment,
+        "total_gain_loss": total_gain_loss,
+        "total_gain_loss_percent": total_gain_loss_percent,
+        "today_gain_loss": today_pnl,
+        "today_gain_loss_percent": today_gain_loss_percent,
+    }
+
     return render_template(
         "summary.html",
         accounts=accounts,
         strategies=strategies,
-        recent_trades=recent_trades,
         notifications=notifications,
         plan_name=user.plan if user else None,
         days_remaining=days_remaining,
         expiry_date=expiry.date() if expiry else None,
         subscription_status=subscription_status,
         display_name=display_name,
+        overview=overview,
+        account_summaries=account_summaries,
+        performance_summary=performance_summary,
+        top_holdings=top_holdings,
+        sector_allocation=sector_allocation,
+        account_allocation=account_allocation,
+        recent_transactions=recent_transactions,
+        format_currency=_format_currency,
+        format_percentage=_format_percentage,
+        format_quantity=_format_quantity,
     )
 
 @app.route("/copy-trading")
