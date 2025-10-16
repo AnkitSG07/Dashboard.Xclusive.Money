@@ -7836,6 +7836,30 @@ def summary():
 
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
         metrics, holdings = _compute_account_metrics(positions or [])
+
+        account_stats = snapshot.get("account") if isinstance(snapshot, dict) else {}
+        total_funds = _safe_float((account_stats or {}).get("total_funds"), 0.0)
+        if metrics["portfolio_value"] <= 0.0:
+            if total_funds <= 0.0:
+                account_dict = _account_to_dict(account)
+                cached_balance = get_opening_balance_for_account(
+                    account_dict, cache_only=True
+                )
+                if cached_balance is None:
+                    cached_balance = get_opening_balance_for_account(account_dict)
+                total_funds = _safe_float(cached_balance, 0.0)
+
+            if total_funds > 0.0:
+                metrics["portfolio_value"] = total_funds
+                if metrics["investment"] <= 0.0:
+                    metrics["investment"] = total_funds
+                metrics["gain_loss"] = metrics.get("gain_loss", 0.0) or 0.0
+                metrics["gain_loss_percent"] = (
+                    (metrics["gain_loss"] / metrics["investment"]) * 100.0
+                    if metrics["investment"]
+                    else 0.0
+                )
+
         summary_entry.update(
             {
                 "portfolio_value": metrics["portfolio_value"],
