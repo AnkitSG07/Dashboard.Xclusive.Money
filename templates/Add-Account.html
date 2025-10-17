@@ -447,7 +447,7 @@ window.pageScripts["Add-Account"] = function() {
   function capitalizeWords(str) {
     return String(str || '')
       .replace(/_/g, ' ')
-      .replace(/\w/g, match => match.toUpperCase());
+      .replace(/\w/g, match => match.toUpperCase());
   }
 
   function fetchJson(url, options = {}) {
