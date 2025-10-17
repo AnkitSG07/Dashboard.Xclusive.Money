@@ -102,6 +102,39 @@
     color: var(--summary-primary);
   }
 
+  .summary-chart-container {
+    position: relative;
+    height: 240px;
+    border: 1px dashed var(--summary-border);
+    border-radius: 12px;
+    margin: 0 0 18px 0;
+    background: var(--summary-card);
+    overflow: hidden;
+  }
+
+  .summary-chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+
+  .summary-chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--summary-muted);
+    font-size: 14px;
+    padding: 0 16px;
+    background: var(--summary-card);
+  }
+
+  .summary-chart-empty[hidden] {
+    display: none;
+  }
+
   .summary-progress {
     height: 8px;
     border-radius: 999px;
@@ -414,13 +447,13 @@
       <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:12px;">
         <h2 style="margin:0; font-size:20px; font-weight:800;">Portfolio Performance</h2>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
-          <span class="summary-chip is-active">1D</span>
-          <span class="summary-chip">1W</span>
-          <span class="summary-chip">1M</span>
-          <span class="summary-chip">3M</span>
-          <span class="summary-chip">6M</span>
-          <span class="summary-chip">1Y</span>
-          <span class="summary-chip">All</span>
+          <span class="summary-chip is-active" data-period="1D" role="button" tabindex="0">1D</span>
+          <span class="summary-chip" data-period="1W" role="button" tabindex="0">1W</span>
+          <span class="summary-chip" data-period="1M" role="button" tabindex="0">1M</span>
+          <span class="summary-chip" data-period="3M" role="button" tabindex="0">3M</span>
+          <span class="summary-chip" data-period="6M" role="button" tabindex="0">6M</span>
+          <span class="summary-chip" data-period="1Y" role="button" tabindex="0">1Y</span>
+          <span class="summary-chip" data-period="All" role="button" tabindex="0">All</span>
         </div>
       </div>
 
@@ -447,8 +480,11 @@
         <p style="margin:0; color:var(--summary-muted); font-size:12px;">Portfolio return for 1D (benchmark {{ format_percentage(performance_summary.benchmark_return_percent) }})</p>
       </div>
 
-      <div style="height:240px; border:1px dashed var(--summary-border); border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--summary-muted); margin:0 0 18px 0;">
-        Inline chart placeholder (use your existing Recharts block here)
+      <div class="summary-chart-container">
+        <canvas id="portfolio-performance-chart" aria-label="Portfolio performance trend" role="img"></canvas>
+        <div id="portfolio-performance-empty" class="summary-chart-empty" hidden>
+          No performance data available yet.
+        </div>
       </div>
 
       <div class="summary-grid summary-grid-3" style="gap:12px;">
@@ -592,4 +628,253 @@
     </section>
   </div>
 </div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts["Summary"] = function () {
+  const canvas = document.getElementById("portfolio-performance-chart");
+  const emptyState = document.getElementById("portfolio-performance-empty");
+  const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
+  const chartGlobal = window.Chart;
+
+  if (!canvas) {
+    return;
+  }
+
+  const hasChart = typeof chartGlobal === "function";
+  if (!hasChart) {
+    canvas.setAttribute("hidden", "");
+    if (emptyState) {
+      emptyState.hidden = false;
+    }
+    return;
+  }
+
+  const initialSeries = {{ performance_summary.series | default([]) | tojson | safe }};
+  const PERIOD_LIMITS = {
+    "1D": 1,
+    "1W": 7,
+    "1M": 30,
+    "3M": 90,
+    "6M": 180,
+    "1Y": 365,
+    "All": null,
+  };
+
+  let cachedSeries = [];
+  let chartInstance = null;
+  const hasTimeScale = !!(chartGlobal?.registry?.getScale?.('time'));
+  const xScaleType = hasTimeScale ? 'time' : 'linear';
+
+  function normalizeSeries(series) {
+    if (!Array.isArray(series)) {
+      return [];
+    }
+    return series
+      .map((point) => {
+        if (!point) return null;
+        const date = new Date(point.timestamp);
+        if (Number.isNaN(date.getTime())) return null;
+        const value = Number(point.value);
+        if (!Number.isFinite(value)) return null;
+        return { timestamp: date.toISOString(), value };
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
+
+  function mapToDataset(series) {
+    return series.map((point) => {
+      const date = new Date(point.timestamp);
+      const xValue = hasTimeScale ? date : date.getTime();
+      return { x: xValue, y: Number(point.value) };
+    });
+  }
+
+  function ensureChart() {
+    if (chartInstance) {
+      return chartInstance;
+    }
+    const context = canvas.getContext("2d");
+    chartInstance = new chartGlobal(context, {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "Portfolio Performance",
+            data: [],
+            borderColor: "rgba(79, 70, 229, 0.9)",
+            backgroundColor: "rgba(79, 70, 229, 0.12)",
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        parsing: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: {
+            type: xScaleType,
+            time: hasTimeScale ? { tooltipFormat: "MMM d, yyyy HH:mm" } : undefined,
+            grid: { color: "rgba(107, 114, 128, 0.15)" },
+            ticks: {
+              color: "#6b7280",
+              maxTicksLimit: 8,
+              callback(value) {
+                if (hasTimeScale) {
+                  return this.getLabelForValue(value);
+                }
+                const date = new Date(Number(value));
+                if (Number.isNaN(date.getTime())) return "";
+                return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+              },
+            },
+          },
+          y: {
+            grid: { color: "rgba(107, 114, 128, 0.15)" },
+            ticks: {
+              color: "#6b7280",
+              callback(value) {
+                return `₹${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+              },
+            },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            callbacks: {
+              label(context) {
+                const value = context.parsed.y;
+                return `₹${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              },
+            },
+          },
+        },
+      },
+    });
+    return chartInstance;
+  }
+
+  function toggleState(hasData) {
+    if (hasData) {
+      canvas.removeAttribute("hidden");
+      if (emptyState) emptyState.hidden = true;
+    } else {
+      canvas.setAttribute("hidden", "");
+      if (emptyState) emptyState.hidden = false;
+    }
+  }
+
+  function updateChart(series) {
+    const chart = ensureChart();
+    const hasData = Array.isArray(series) && series.length > 0;
+    toggleState(hasData);
+    if (!hasData) {
+      chart.data.datasets[0].data = [];
+      chart.update("none");
+      return;
+    }
+    chart.data.datasets[0].data = mapToDataset(series);
+    chart.update("none");
+  }
+
+  function filterSeries(periodKey) {
+    if (!cachedSeries.length) {
+      return [];
+    }
+    const limitDays = PERIOD_LIMITS[periodKey] ?? null;
+    if (!limitDays) {
+      return cachedSeries.slice();
+    }
+    const now = Date.now();
+    const threshold = now - limitDays * 24 * 60 * 60 * 1000;
+    return cachedSeries.filter((point) => {
+      const time = Date.parse(point.timestamp);
+      return Number.isFinite(time) && time >= threshold;
+    });
+  }
+
+  function setActiveChip(period) {
+    chips.forEach((chip) => {
+      chip.classList.toggle("is-active", chip.dataset.period === period);
+    });
+  }
+
+  let activePeriod = chips.find((chip) => chip.classList.contains("is-active"))?.dataset.period || "1D";
+  if (!activePeriod || !(activePeriod in PERIOD_LIMITS)) {
+    activePeriod = "All";
+  }
+
+  function applyPeriod(period) {
+    if (!period || !(period in PERIOD_LIMITS)) {
+      period = activePeriod;
+    }
+    activePeriod = period;
+    setActiveChip(period);
+    const series = filterSeries(period);
+    updateChart(series);
+  }
+
+  function refreshSeries() {
+    fetch("/api/summary")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to load summary data");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const incoming = data?.performance_summary?.series;
+        if (!Array.isArray(incoming)) {
+          return;
+        }
+        cachedSeries = normalizeSeries(incoming);
+        applyPeriod(activePeriod);
+      })
+      .catch(() => {
+        if (!cachedSeries.length) {
+          toggleState(false);
+        }
+      });
+  }
+
+  cachedSeries = normalizeSeries(initialSeries);
+  applyPeriod(activePeriod);
+  refreshSeries();
+
+  const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
+  if (window[REFRESH_EVENT_KEY]) {
+    document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
+  }
+  window[REFRESH_EVENT_KEY] = refreshSeries;
+  document.addEventListener("summary:refresh", refreshSeries);
+
+  chips.forEach((chip) => {
+    if (chip.dataset.bound === "true") {
+      return;
+    }
+    chip.dataset.bound = "true";
+    const handleActivate = () => applyPeriod(chip.dataset.period);
+    chip.addEventListener("click", handleActivate);
+    chip.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleActivate();
+      }
+    });
+  });
+};
+</script>
 {% endblock %}
