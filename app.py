@@ -7631,6 +7631,85 @@ def dashboard_data():
         'status': 'No data available'
     })
 
+
+def _build_summary_series(
+    user: User | None,
+    strategy_ids: list[int],
+    *,
+    min_points: int = 30,
+    max_points: int = 240,
+) -> list[dict]:
+    """Return ordered timestamp/value points for the summary performance chart."""
+
+    if not user:
+        return []
+
+    def _safe_float_local(value, default=0.0):
+        try:
+            if value is None or value == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    points: list[tuple[datetime, float]] = []
+
+    if strategy_ids:
+        logs = (
+            StrategyLog.query.filter(StrategyLog.strategy_id.in_(strategy_ids))
+            .order_by(cast(StrategyLog.timestamp, SADateTime).desc())
+            .limit(max_points)
+            .all()
+        )
+        for log in reversed(logs):
+            timestamp = log.timestamp
+            if not timestamp:
+                continue
+            perf = log.performance if isinstance(log.performance, dict) else {}
+            value = _safe_float_local(perf.get("pnl"), None)
+            if value is None:
+                continue
+            points.append((timestamp, float(value)))
+
+    if len(points) < min_points:
+        trades = (
+            Trade.query.filter_by(user_id=user.id)
+            .order_by(cast(Trade.timestamp, SADateTime).desc())
+            .limit(max_points * 3)
+            .all()
+        )
+        running_total = 0.0
+        trade_points: list[tuple[datetime, float]] = []
+        for trade in reversed([t for t in trades if t.timestamp]):
+            qty = _safe_float_local(trade.qty, 0.0)
+            price = _safe_float_local(trade.price, 0.0)
+            value = qty * price
+            action = (trade.action or "").upper()
+            if action == "SELL":
+                running_total += value
+            else:
+                running_total -= value
+            trade_points.append((trade.timestamp, running_total))
+        points.extend(trade_points)
+
+    points.sort(key=lambda item: item[0])
+
+    seen: set[str] = set()
+    series: list[dict] = []
+    for timestamp, value in points:
+        if not timestamp:
+            continue
+        iso_key = timestamp.isoformat()
+        if iso_key in seen:
+            continue
+        series.append({"timestamp": iso_key, "value": float(value)})
+        seen.add(iso_key)
+
+    if len(series) > max_points:
+        series = series[-max_points:]
+
+    return series
+
 @app.route("/Summary")
 @login_required
 def summary():
@@ -7788,6 +7867,7 @@ def summary():
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
     all_strats = owned_strats + subscribed_strats
     strategy_ids = [s.id for s in all_strats]
+    unique_strategy_ids = list(dict.fromkeys(strategy_ids)) if strategy_ids else []
     pnl_map = defaultdict(float)
     if strategy_ids:
         logs = StrategyLog.query.filter(
@@ -7948,6 +8028,8 @@ def summary():
             return (pnl_value / total_investment) * 100.0
         return 0.0
 
+    performance_series = _build_summary_series(user, unique_strategy_ids)
+
     performance_summary = {
         "today_return_percent": today_gain_loss_percent,
         "benchmark_return_percent": benchmark_return_percent,
@@ -7957,7 +8039,8 @@ def summary():
             {"label": "3 Months", "value": _period_return(90), "color": "var(--summary-purple)"},
         ],
     }
-
+    performance_summary["series"] = performance_series
+    
     top_holdings = sorted(
         aggregated_holdings.values(), key=lambda h: h["market_value"], reverse=True
     )[:5]
@@ -8090,6 +8173,25 @@ def summary():
         format_percentage=_format_percentage,
         format_quantity=_format_quantity,
     )
+
+@app.route("/api/summary")
+@login_required_api
+def summary_payload():
+    user = current_user()
+    if not user:
+        return jsonify({"performance_summary": {"series": []}})
+
+    owned_ids = [s.id for s in Strategy.query.filter_by(user_id=user.id).all()]
+    subscription_ids = [
+        sub.strategy_id
+        for sub in StrategySubscription.query.filter_by(subscriber_id=user.id).all()
+        if sub.strategy_id
+    ]
+    strategy_ids = list(dict.fromkeys(owned_ids + subscription_ids))
+
+    series = _build_summary_series(user, strategy_ids)
+    return jsonify({"performance_summary": {"series": series}})
+
 
 @app.route("/copy-trading")
 @login_required
