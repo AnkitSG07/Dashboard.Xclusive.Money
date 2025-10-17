@@ -257,7 +257,7 @@
 if (!window.pageScripts) window.pageScripts = {};
 
 window.pageScripts["Add-Account"] = function() {
-  const brokerIcons = {{ broker_icons|tojson }};
+  const brokerIcons = {{ (broker_icons or {}) | tojson }};
   window.brokerIcons = brokerIcons;
 
   const brokerFields = {
