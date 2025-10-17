@@ -41,7 +41,7 @@ from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import joinedload
 from flask_wtf import CSRFProtect
 import io
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from dateutil import parser
 import requests
 from bs4 import BeautifulSoup
@@ -7652,6 +7652,42 @@ def _build_summary_series(
         except (TypeError, ValueError):
             return default
 
+    def _ensure_datetime(value) -> datetime | None:
+        """Normalize supported timestamp representations to ``datetime``."""
+
+        if isinstance(value, datetime):
+            dt_value = value
+        elif isinstance(value, (int, float)):
+            try:
+                dt_value = datetime.fromtimestamp(value, tz=timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+        elif isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            try:
+                dt_value = datetime.fromisoformat(text)
+            except ValueError:
+                try:
+                    dt_value = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        epoch = float(text)
+                    except ValueError:
+                        return None
+                    try:
+                        dt_value = datetime.fromtimestamp(epoch, tz=timezone.utc)
+                    except (OverflowError, OSError, ValueError):
+                        return None
+        else:
+            return None
+
+        if dt_value.tzinfo is not None:
+            return dt_value.astimezone(timezone.utc).replace(tzinfo=None)
+
+        return dt_value
+
     points: list[tuple[datetime, float]] = []
 
     if strategy_ids:
@@ -7662,7 +7698,7 @@ def _build_summary_series(
             .all()
         )
         for log in reversed(logs):
-            timestamp = log.timestamp
+            timestamp = _ensure_datetime(log.timestamp)
             if not timestamp:
                 continue
             perf = log.performance if isinstance(log.performance, dict) else {}
@@ -7689,7 +7725,10 @@ def _build_summary_series(
                 running_total += value
             else:
                 running_total -= value
-            trade_points.append((trade.timestamp, running_total))
+            timestamp = _ensure_datetime(trade.timestamp)
+            if not timestamp:
+                continue
+            trade_points.append((timestamp, running_total))
         points.extend(trade_points)
 
     points.sort(key=lambda item: item[0])
