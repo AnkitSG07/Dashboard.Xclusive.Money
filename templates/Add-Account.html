@@ -255,8 +255,13 @@
 {% block scripts %}
 <script>
 if (!window.pageScripts) window.pageScripts = {};
+if (!window.pageScriptStates) window.pageScriptStates = {};
 
 window.pageScripts["Add-Account"] = function() {
+  if (window.pageScriptStates["Add-Account"]) {
+    return;
+  }
+  window.pageScriptStates["Add-Account"] = true;
   const brokerIcons = {{ (broker_icons or {}) | tojson }};
   window.brokerIcons = brokerIcons;
 
@@ -1238,7 +1243,5 @@ window.pageScripts["Add-Account"] = function() {
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
 };
-
-window.pageScripts["Add-Account"]();
 </script>
 {% endblock %}
