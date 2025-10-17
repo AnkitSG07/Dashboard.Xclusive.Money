@@ -4,115 +4,262 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='addaccount.css') }}">
 
-<div class="background-shapes">
-    <div class="shape shape1"></div>
-    <div class="shape shape2"></div>
-</div>
-
-<div class="container py-5">
-    <div class="hero-section glass-panel mb-5 animated-entry">
-        <div class="me-auto me-md-0 mb-3 mb-md-0">
-            <h2 class="mb-2"><i class="bi bi-gear-fill me-2"></i> Account Configuration</h2>
-            <p class="lead">Manage your trading accounts. Add, edit, or reconnect accounts from multiple brokers.</p>
-        </div>
-        <button id="add-account-btn" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-2"></i> Add New Account
-        </button>
+<div class="account-config-page">
+    <div class="background-shapes">
+        <div class="shape shape1"></div>
+        <div class="shape shape2"></div>
     </div>
 
-    <div class="row g-4 mb-5 animated-entry" style="animation-delay: 0.1s;">
-        <div class="col-sm-6 col-md-3">
-            <div class="summary-card glass-panel h-100">
-                <p class="stat-label">Total Capacity</p>
-                <h4 class="stat-value" id="total-capacity">0</h4>
+    <div class="account-config-container container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Account Configuration</h1>
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>•</span>
+                    <span class="breadcrumb-current">Account Configuration</span>
+                </div>
             </div>
-        </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="summary-card glass-panel h-100">
-                <p class="stat-label">Master Accounts</p>
-                <h4 class="stat-value" id="master-accounts-count">0</h4>
-            </div>
-        </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="summary-card glass-panel h-100">
-                <p class="stat-label">Child Accounts</p>
-                <h4 class="stat-value" id="child-accounts-count">0</h4>
-            </div>
-        </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="summary-card glass-panel h-100">
-                <p class="stat-label">Current Plan</p>
-                <h4 class="stat-value" id="current-plan">N/A</h4>
-            </div>
-        </div>
-    </div>
-
-    <div id="add-account-section" class="glass-panel mb-5" style="display:none;">
-        <h3 class="section-title">Add/Edit Account Details</h3>
-        <p class="section-subtitle">Select your broker to configure account credentials.</p>
-        
-        <div class="broker-carousel mb-4">
-            <div class="broker-scroll">
-                <!-- This part is populated by your original JS -->
-            </div>
+            <button id="add-account-btn" class="btn btn-primary" type="button">
+                <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span id="add-btn-text">Add New Account</span>
+            </button>
         </div>
 
-        <form id="broker-credentials-form">
-            <div id="broker-fields" class="form-grid">
-                <p class="form-placeholder">Please select a broker above to view configuration fields.</p>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-content">
+                    <div class="stat-icon stat-icon-primary">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="stat-label">Total capacity</p>
+                        <p class="stat-value" id="total-capacity">0</p>
+                    </div>
+                </div>
             </div>
-            <div id="cred-check-result" class="form-feedback"></div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-outline" id="cancel-add-account-btn">Close</button>
-                <button type="submit" class="btn btn-primary" style="display:none;" id="submit-account-btn">Add Account</button>
-            </div>
-        </form>
-    </div>
 
-    <div class="accounts-module glass-panel animated-entry" style="animation-delay: 0.2s;">
-        <div class="panel-header">
-            <h3 class="section-title">Your Connected Accounts</h3>
-            <div class="filters">
-                <select class="form-select" id="broker-filter"></select>
-                <div class="input-group">
-                    <i class="bi bi-search"></i>
-                    <input type="search" class="form-control" id="account-search" placeholder="Search...">
+            <div class="stat-card">
+                <div class="stat-content">
+                    <div class="stat-icon stat-icon-success">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="stat-label">Master capacity</p>
+                        <p class="stat-value" id="master-accounts-count">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-content">
+                    <div class="stat-icon stat-icon-warning">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="stat-label">Children capacity</p>
+                        <p class="stat-value" id="child-accounts-count">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-content">
+                    <div class="stat-icon stat-icon-danger">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="stat-label">Plan name</p>
+                        <p class="stat-value" id="current-plan">—</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-content">
+                    <div class="stat-icon stat-icon-muted">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="stat-label">Validity</p>
+                        <p class="stat-value" id="plan-validity">—</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <ul class="nav-tabs" id="status-tabs">
-            <li class="nav-item">
-                <a class="nav-link active" href="#" data-status="all">All <span class="badge" id="tab-count-all">0</span></a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-status="success">Connected <span class="badge" id="tab-count-success">0</span></a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-status="failed">Failed <span class="badge" id="tab-count-failed">0</span></a>
-            </li>
-        </ul>
+        <div id="add-account-section" class="form-section animate-in" style="display:none;">
+            <h2 class="form-title">Add/Edit Account Details</h2>
+            <p class="form-description">Select your broker to configure account credentials.</p>
 
-        <div id="accounts-card-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            <!-- This part is populated by your original JS -->
+            <div class="broker-search">
+                <svg class="icon icon-sm search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" class="form-input search-input" id="broker-search" placeholder="Search broker...">
+            </div>
+
+            <div class="broker-grid broker-scroll" id="broker-grid">
+                <p class="broker-empty">Search or select a broker to begin.</p>
+            </div>
+
+            <form id="broker-credentials-form">
+                <div id="broker-fields" class="form-grid">
+                    <p class="form-placeholder">Please select a broker above to view configuration fields.</p>
+                </div>
+                <div id="cred-check-result" class="form-feedback"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" id="cancel-add-account-btn">Close</button>
+                    <button type="submit" class="btn btn-primary" id="submit-account-btn" style="display:none;">Add Account</button>
+                </div>
+            </form>
         </div>
-        <div id="accounts-empty-state" class="empty-state" style="display: none;">
-            <i class="bi bi-info-circle-fill"></i>
-            <p>No accounts found matching your criteria.</p>
+
+        <div class="card">
+            <div class="tabs" id="status-tabs">
+                <button class="tab status-tab active" type="button" data-status="all">
+                    All
+                    <span class="badge badge-secondary" id="tab-count-all">0</span>
+                </button>
+                <button class="tab status-tab" type="button" data-status="success">
+                    Success
+                    <span class="badge badge-success" id="tab-count-success">0</span>
+                </button>
+                <button class="tab status-tab" type="button" data-status="failed">
+                    Failed
+                    <span class="badge badge-danger" id="tab-count-failed">0</span>
+                </button>
+            </div>
+
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <select id="broker-filter">
+                        <option value="">All Brokers</option>
+                    </select>
+                    <div class="search-wrapper">
+                        <svg class="icon icon-sm search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input type="text" class="form-input search-input" id="account-search" placeholder="Search...">
+                    </div>
+                </div>
+
+                <div class="dropdown" id="more-dropdown">
+                    <button class="btn btn-icon btn-ghost" type="button" data-dropdown-toggle="more-dropdown" aria-haspopup="true" aria-expanded="false">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="12" cy="5" r="1"></circle>
+                            <circle cx="12" cy="19" r="1"></circle>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu" role="menu">
+                        <button class="dropdown-item" type="button" data-action="export-accounts">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 48px;">
+                                <input type="checkbox" class="checkbox" disabled>
+                            </th>
+                            <th>Client ID</th>
+                            <th class="mobile-hide lg-show">Opening Balance</th>
+                            <th>Auto-Login</th>
+                            <th class="mobile-hide md-show">Last Login Time</th>
+                            <th class="mobile-hide xl-show">Developer URL</th>
+                            <th class="mobile-hide xl-show">Static IP</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-table-body"></tbody>
+                </table>
+            </div>
+
+            <div id="accounts-empty-state" class="empty-state" style="display:none;">
+                <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <circle cx="12" cy="16" r="1"></circle>
+                </svg>
+                <p>No accounts found matching your criteria.</p>
+            </div>
+
+            <div class="table-footer">
+                <div class="text-sm text-muted" id="accounts-summary">No accounts to display</div>
+                <div class="footer-controls">
+                    <div class="footer-group">
+                        <span class="text-sm text-muted">Rows per page:</span>
+                        <select disabled>
+                            <option>10</option>
+                            <option>20</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                    <span class="text-sm text-muted" id="accounts-range">0-0 of 0</span>
+                    <div class="footer-group">
+                        <button class="btn btn-icon btn-ghost" type="button" disabled>
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <button class="btn btn-icon btn-ghost" type="button" disabled>
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Your original script block. No changes have been made here. -->
 <script>
 if (!window.pageScripts) window.pageScripts = {};
 
 window.pageScripts["Add-Account"] = function() {
   const brokerIcons = {{ broker_icons|tojson }};
   window.brokerIcons = brokerIcons;
-  // Broker field definitions
+
   const brokerFields = {
     flattrade: [
       { label: "Flattrade Client ID", name: "client_id", type: "text" },
@@ -189,8 +336,8 @@ window.pageScripts["Add-Account"] = function() {
     finvasia: [
       { label: "Client ID", name: "client_id", type: "text" },
       { label: "Password", name: "password", type: "password" },
-      { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya \u2192 Profile \u2192 Security \u2192 TOTP. Do not enter the 6-digit code." },
-      { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office \u2192 Profile \u2192 API Key." },
+      { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Copy the secret string from Shoonya → Profile → Security → TOTP. Do not enter the 6-digit code." },
+      { label: "Vendor Code", name: "vendor_code", type: "text", tip: "From Prism back office → Profile → API Key." },
       { label: "API Key", name: "api_key", type: "text", tip: "API Key/Secret from Prism back office." },
       { label: "IMEI", name: "imei", type: "text", tip: "Use the IMEI registered in Prism." },
       { label: "Email Id (optional)", name: "email", type: "text", optional: true },
@@ -234,21 +381,75 @@ window.pageScripts["Add-Account"] = function() {
     ]
   };
 
-  // === Global Variables ===
+  const brokerColorMap = {
+    broker1: "bg-gray",
+    flattrade: "bg-indigo",
+    acagarwal: "bg-blue",
+    motilaloswal: "bg-indigo",
+    kotakneo: "bg-red",
+    tradejini: "bg-teal",
+    zebu: "bg-blue",
+    enrichmoney: "bg-gray",
+    dhan: "bg-emerald",
+    finvasia: "bg-yellow",
+    fyers: "bg-indigo",
+    groww: "bg-cyan",
+    aliceblue: "bg-teal",
+    zerodha: "bg-orange"
+  };
+
   let allAccounts = [];
   let statusFilter = 'all';
   let brokerFilter = '';
   let searchFilter = '';
   let editingAccountId = null;
-  let currentBrokerSelected = null; // Track the currently selected broker in the form
-  let autoLoginResults = {}; // Track auto-login results per account
+  let currentBrokerSelected = null;
+  let autoLoginResults = {};
 
-  function getSelectedBroker() {
-    const selected = document.querySelector('.broker-item.selected');
-    return selected ? selected.dataset.broker : null;
+  function formatBrokerName(broker) {
+    if (!broker) return '';
+    return broker
+      .split(/[_-]/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
-    
-  // === Utility Functions ===
+
+  function getBrokerColor(broker) {
+    return brokerColorMap[broker] || 'bg-gray';
+  }
+
+  function getBrokerInitials(acc) {
+    const username = (acc.username || '').trim();
+    if (username) {
+      const parts = username.split(/\s+/);
+      const first = parts[0] ? parts[0].charAt(0) : '';
+      const second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : (parts[0] ? parts[0].charAt(1) : '');
+      return (first + (second || '')).toUpperCase();
+    }
+    const client = (acc.client_id || '').toString();
+    if (client) {
+      return client.substring(0, 2).toUpperCase();
+    }
+    const broker = (acc.broker || '').toString();
+    return broker.substring(0, 2).toUpperCase();
+  }
+
+  function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function capitalizeWords(str) {
+    return String(str || '')
+      .replace(/_/g, ' ')
+      .replace(/\w/g, match => match.toUpperCase());
+  }
+
   function fetchJson(url, options = {}) {
     options.credentials = options.credentials || 'same-origin';
     return fetch(url, options).then(async response => {
@@ -267,55 +468,75 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
-  // Placeholder for a toast notification system (e.g., Bootstrap Toasts, SweetAlert2)
   function showToast(message, type = 'success') {
     console.log(`[${type.toUpperCase()}] ${message}`);
-    alert(message); // Using alert for immediate demo purposes
+    alert(message);
   }
 
-  // === UI Rendering Functions ===
-  function populateBrokerCarousel() {
+  function populateBrokerCarousel(searchTerm = '') {
     const scrollContainer = document.querySelector('.broker-scroll');
     if (!scrollContainer) return;
 
-    let carouselHtml = '';
-    // Move the last broker to the front of the carousel
+    const search = searchTerm.trim().toLowerCase();
     const brokers = Object.keys(brokerFields);
-    const orderedBrokers = brokers.length
-      ? [brokers[brokers.length - 1], ...brokers.slice(0, -1)]
+    const filtered = search
+      ? brokers.filter(b => formatBrokerName(b).toLowerCase().includes(search))
       : brokers;
 
-    orderedBrokers.forEach(broker => {
-      const brokerName = broker.charAt(0).toUpperCase() + broker.slice(1);
-      const iconUrl = brokerIcons[broker] || '/static/images/logo.png';
-      carouselHtml += `
-            <div class="broker-item" data-broker="${broker}" title="${brokerName}">
-                <img src="${iconUrl}" class="broker-icon" alt="${brokerName}" />
-                <div class="broker-name">${brokerName}</div>
-            </div>
-        `;
-    });
-    scrollContainer.innerHTML = carouselHtml;
-    document.querySelectorAll('.broker-item').forEach(item => {
+    const ordered = !search && filtered.length
+      ? [filtered[filtered.length - 1], ...filtered.slice(0, -1)]
+      : filtered;
+
+    if (!ordered.length) {
+      scrollContainer.innerHTML = '<p class="broker-empty">No brokers found.</p>';
+      return;
+    }
+
+    scrollContainer.innerHTML = ordered.map(broker => {
+      const brokerName = formatBrokerName(broker);
+      const iconUrl = brokerIcons[broker];
+      const isActive = currentBrokerSelected === broker;
+      const initials = brokerName ? brokerName.substring(0, 2).toUpperCase() : broker.substring(0, 2).toUpperCase();
+      const avatarContent = iconUrl
+        ? `<img src="${iconUrl}" alt="${escapeHtml(brokerName)}">`
+        : `<span>${escapeHtml(initials)}</span>`;
+      return `
+        <button class="broker-card ${isActive ? 'active' : ''}" type="button" data-broker="${broker}" title="${escapeHtml(brokerName)}">
+          <div class="broker-avatar ${getBrokerColor(broker)}">
+            ${avatarContent}
+          </div>
+          <span class="broker-name">${escapeHtml(brokerName)}</span>
+        </button>
+      `;
+    }).join('');
+
+    scrollContainer.querySelectorAll('.broker-card').forEach(item => {
       item.addEventListener('click', function () {
-        document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
-        this.classList.add('selected');
+        scrollContainer.querySelectorAll('.broker-card').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
         showBrokerForm(this.dataset.broker);
       });
     });
   }
 
+  function getSelectedBroker() {
+    const selected = document.querySelector('.broker-card.active');
+    return selected ? selected.dataset.broker : null;
+  }
+
   function showBrokerForm(broker) {
     currentBrokerSelected = broker;
     const fields = brokerFields[broker];
-    const container = document.getElementById("broker-fields");
-    const submitBtn = document.getElementById("submit-account-btn");
-    const resultDiv = document.getElementById("cred-check-result");
+    const container = document.getElementById('broker-fields');
+    const submitBtn = document.getElementById('submit-account-btn');
+    const resultDiv = document.getElementById('cred-check-result');
     const formActions = document.querySelector('.form-actions');
 
-    container.innerHTML = "";
-    if (resultDiv) resultDiv.textContent = "";
-    if (submitBtn) submitBtn.style.display = "none";
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (resultDiv) resultDiv.textContent = '';
+    if (submitBtn) submitBtn.style.display = 'none';
     if (formActions) formActions.style.display = 'none';
 
     if (!fields) {
@@ -327,28 +548,31 @@ window.pageScripts["Add-Account"] = function() {
     if (broker !== 'broker1') {
       formHtml += `
         <div class="form-group">
-            <label for="username">Username (for your reference)</label>
-            <input class="form-control" name="username" type="text" id="username" required>
+          <label class="form-label" for="username">Username (for your reference)</label>
+          <input class="form-input" name="username" type="text" id="username" required>
         </div>`;
     }
-    
+
     fields.forEach(f => {
       const isRequired = f.optional ? '' : 'required';
       const ph = f.placeholder || f.label;
+      const inputId = escapeHtml(f.name);
       if (f.type === 'password') {
         formHtml += `
         <div class="form-group">
-            <label for="${f.name}">${f.label}</label>
-            <div class="input-group">
-                <input class="form-control" name="${f.name}" type="password" id="${f.name}" placeholder="${ph}" ${isRequired}>
-                <span class="input-group-text toggle-password" data-target="${f.name}" style="cursor: pointer;"><i class="bi bi-eye"></i></span>
-            </div>
+          <label class="form-label" for="${inputId}">${escapeHtml(f.label)}</label>
+          <div class="password-field">
+            <input class="form-input" name="${escapeHtml(f.name)}" type="password" id="${inputId}" placeholder="${escapeHtml(ph)}" ${isRequired}>
+            <button class="toggle-password" type="button" data-target="${inputId}" aria-label="Toggle password visibility">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
         </div>`;
       } else {
         formHtml += `
         <div class="form-group">
-            <label for="${f.name}">${f.label}</label>
-            <input class="form-control" name="${f.name}" type="${f.type}" id="${f.name}" placeholder="${ph}" ${isRequired}>
+          <label class="form-label" for="${inputId}">${escapeHtml(f.label)}</label>
+          <input class="form-input" name="${escapeHtml(f.name)}" type="${escapeHtml(f.type)}" id="${inputId}" placeholder="${escapeHtml(ph)}" ${isRequired}>
         </div>`;
       }
     });
@@ -356,7 +580,7 @@ window.pageScripts["Add-Account"] = function() {
     container.innerHTML = formHtml;
     container.querySelectorAll('.toggle-password').forEach(btn => {
       btn.addEventListener('click', function () {
-        const target = container.querySelector(`#${this.dataset.target}`);
+        const target = container.querySelector(`#${CSS.escape(this.dataset.target)}`);
         if (target) {
           const show = target.type === 'password';
           target.type = show ? 'text' : 'password';
@@ -364,22 +588,52 @@ window.pageScripts["Add-Account"] = function() {
         }
       });
     });
-    if (submitBtn) submitBtn.style.display = "inline-flex";
+
+    if (submitBtn) submitBtn.style.display = 'inline-flex';
     if (formActions) formActions.style.display = 'flex';
   }
-  
+
+  function openAddAccountForm() {
+    const addAccountSection = document.getElementById('add-account-section');
+    const addBtnText = document.getElementById('add-btn-text');
+    const addAccountBtn = document.getElementById('add-account-btn');
+    if (addAccountSection) addAccountSection.style.display = 'block';
+    if (addBtnText) addBtnText.textContent = 'Cancel';
+    if (addAccountBtn) addAccountBtn.setAttribute('aria-expanded', 'true');
+  }
+
   function hideBrokerForm() {
     const addAccountSection = document.getElementById('add-account-section');
+    const addBtnText = document.getElementById('add-btn-text');
     const addAccountBtn = document.getElementById('add-account-btn');
     const form = document.getElementById('broker-credentials-form');
     const submitBtn = document.getElementById('submit-account-btn');
-    if (form) form.reset();
+
+    if (form) {
+      form.reset();
+      form.querySelectorAll('input').forEach(input => {
+        input.readOnly = false;
+        input.classList.remove('bg-light');
+      });
+    }
+
+    const brokerSearchInput = document.getElementById('broker-search');
+    if (brokerSearchInput) brokerSearchInput.value = '';
+
     if (submitBtn) submitBtn.textContent = 'Add Account';
     editingAccountId = null;
     currentBrokerSelected = null;
-    document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
+
+    document.querySelectorAll('.broker-card').forEach(i => i.classList.remove('active'));
+
+    populateBrokerCarousel();
+
     if (addAccountSection) addAccountSection.style.display = 'none';
-    if (addAccountBtn) addAccountBtn.style.display = 'inline-flex';
+    if (addBtnText) addBtnText.textContent = 'Add New Account';
+    if (addAccountBtn) addAccountBtn.setAttribute('aria-expanded', 'false');
+
+    const resultDiv = document.getElementById('cred-check-result');
+    if (resultDiv) resultDiv.textContent = '';
   }
 
   function sanitizeClientId(id) {
@@ -390,54 +644,189 @@ window.pageScripts["Add-Account"] = function() {
     if (typeof balance === 'number' && !Number.isNaN(balance)) {
       return `₹${balance.toLocaleString('en-IN')}`;
     }
-    return '-';
+    if (typeof balance === 'string' && balance.trim()) {
+      return balance;
+    }
+    return '—';
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '--';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleString('en-IN', { hour12: false });
+  }
+
+  function getDeveloperUrl(acc) {
+    const creds = acc.credentials || {};
+    return creds.developer_url || creds.redirect_uri || creds.api_url || creds.url || '';
+  }
+
+  function getStaticIp(acc) {
+    const creds = acc.credentials || {};
+    return creds.static_ip || creds.ip || acc.device_number || '';
+  }
+
+  function renderCopyCell(type, value) {
+    if (!value) {
+      return '<span class="text-xs text-muted">--</span>';
+    }
+    const label = type === 'url' ? 'Copy URL' : 'Copy IP';
+    return `
+      <button class="btn btn-sm btn-success" type="button" data-action="copy-${type}">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        ${label}
+      </button>
+    `;
+  }
+
+  function renderActionCell(acc, sanitizedId) {
+    const dropdownId = `dropdown-${sanitizedId}`;
+    const hasUrl = !!getDeveloperUrl(acc);
+    const hasIp = !!getStaticIp(acc);
+    return `
+      <div class="flex items-center gap-2">
+        <button class="btn btn-sm btn-success mobile-hide" type="button" data-action="reconnect">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Reconnect
+        </button>
+        <div class="dropdown" id="${dropdownId}">
+          <button class="btn btn-icon btn-ghost" type="button" data-dropdown-toggle="${dropdownId}" aria-haspopup="true" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </button>
+          <div class="dropdown-menu" role="menu">
+            <button class="dropdown-item" type="button" data-action="reconnect">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              Reconnect
+            </button>
+            <button class="dropdown-item${hasUrl ? '' : ' disabled'}" type="button" data-action="copy-url" data-requires="url">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy URL
+            </button>
+            <button class="dropdown-item${hasIp ? '' : ' disabled'}" type="button" data-action="copy-ip" data-requires="ip">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy IP
+            </button>
+            <button class="dropdown-item" type="button" data-action="edit">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Edit
+            </button>
+            <button class="dropdown-item danger" type="button" data-action="delete">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderStatusBadge(acc) {
+    const auto = autoLoginResults[acc.client_id];
+    const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
+    if (auto) {
+      if (auto.status === 'error') {
+        const msg = auto.error ? escapeHtml(auto.error) : 'Error';
+        return `<span class="badge badge-danger" title="${msg}">Error</span>`;
+      }
+      if (auto.status === 'checking') {
+        return '<span class="badge badge-secondary">Connecting...</span>';
+      }
+    }
+    const status = (acc.status || '').toLowerCase();
+    if (status === 'connected') {
+      return '<span class="badge badge-success">Success</span>';
+    }
+    if (status === 'pending') {
+      return '<span class="badge badge-secondary">Pending</span>';
+    }
+    if (status) {
+      const label = lastErr ? String(lastErr) : status;
+      const truncated = label.length > 32 ? `${label.slice(0, 29)}…` : label;
+      return `<span class="badge badge-danger" title="${escapeHtml(label)}">${escapeHtml(truncated)}</span>`;
+    }
+    return '<span class="badge badge-danger">Error</span>';
   }
 
   function renderAccounts(accountsToRender) {
-    const cardGrid = document.getElementById('accounts-card-grid');
-    const emptyState = document.getElementById('accounts-empty-state');
-    if (!cardGrid || !emptyState) return;
-    cardGrid.innerHTML = '';
+    const tbody = document.getElementById('accounts-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
     accountsToRender.forEach(acc => {
-        const brokerName = acc.broker ? acc.broker.charAt(0).toUpperCase() + acc.broker.slice(1) : '';
-        const iconUrl = brokerIcons[acc.broker] || '/static/images/logo.png';
-        const statusHtml = renderStatusBadge(acc);
-        const sanitizedId = sanitizeClientId(acc.client_id);
+      const sanitizedId = sanitizeClientId(acc.client_id || acc.username || Math.random().toString(36).slice(2));
+      const row = document.createElement('tr');
+      row.dataset.clientId = sanitizedId;
+      row.dataset.developerUrl = getDeveloperUrl(acc) || '';
+      row.dataset.staticIp = getStaticIp(acc) || '';
 
-        const cardHtml = `
-            <div class="col" data-client-id="${sanitizedId}">
-                <div class="account-card" data-client-id="${sanitizedId}">
-                    <div class="account-card-header">
-                        <img src="${iconUrl}" alt="${brokerName} logo">
-                        <div class="account-info">
-                            <span class="account-id">${acc.client_id}</span>
-                            <span class="account-username">${acc.username || '-'}</span>
-                        </div>
-                    </div>
-                    <div class="account-card-body">
-                        <div class="account-detail">
-                            <span>Balance:</span>
-                            <span data-field="balance">${formatBalance(acc.opening_balance)}</span>
-                        </div>
-                        <div class="account-detail">
-                            <span>Status:</span>
-                            <span data-field="status">${statusHtml}</span>
-                        </div>
-                    </div>
-                    <div class="account-card-footer">
-                        <button class="action-btn" onclick="window.editAccount('${acc.client_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
-                        <button class="action-btn" onclick="window.reconnectAccount('${acc.client_id}')" title="Reconnect"><i class="bi bi-arrow-repeat"></i></button>
-                        <button class="action-btn danger" onclick="window.deleteAccount('${acc.client_id}')" title="Delete"><i class="bi bi-trash"></i></button>
-                    </div>
-                </div>
+      const primaryLabel = acc.username || acc.client_id || '—';
+      const secondaryLabel = acc.client_id || '';
+
+      row.innerHTML = `
+        <td><input type="checkbox" class="checkbox" disabled></td>
+        <td>
+          <div class="flex items-center gap-2">
+            <div class="avatar ${getBrokerColor(acc.broker)}">${escapeHtml(getBrokerInitials(acc))}</div>
+            <div>
+              <p class="font-medium text-sm truncate" title="${escapeHtml(primaryLabel)}">${escapeHtml(primaryLabel)}</p>
+              <p class="text-xs text-muted truncate" title="${escapeHtml(secondaryLabel)}">${escapeHtml(secondaryLabel)}</p>
             </div>
-        `;
-        cardGrid.insertAdjacentHTML('beforeend', cardHtml);
+          </div>
+        </td>
+        <td class="mobile-hide lg-show"><span class="text-sm" data-field="balance">${escapeHtml(formatBalance(acc.opening_balance))}</span></td>
+        <td><div data-field="status">${renderStatusBadge(acc)}</div></td>
+        <td class="mobile-hide md-show"><span class="text-xs" data-field="last-login">${escapeHtml(formatDateTime(acc.last_login))}</span></td>
+        <td class="mobile-hide xl-show" data-field="developer-cell">${renderCopyCell('url', row.dataset.developerUrl)}</td>
+        <td class="mobile-hide xl-show" data-field="static-cell">${renderCopyCell('ip', row.dataset.staticIp)}</td>
+        <td data-field="action-cell">${renderActionCell(acc, sanitizedId)}</td>
+      `;
+
+      tbody.appendChild(row);
     });
+  }
 
-
-    updateEmptyState();
+  function populateBrokerFilter() {
+    const select = document.getElementById('broker-filter');
+    if (!select) return;
+    const currentValue = select.value;
+    const brokers = [...new Set(allAccounts.map(a => a.broker).filter(Boolean))].sort();
+    const options = ['<option value="">All Brokers</option>'];
+    brokers.forEach(b => {
+      options.push(`<option value="${b}">${escapeHtml(formatBrokerName(b))}</option>`);
+    });
+    select.innerHTML = options.join('');
+    if (currentValue && brokers.includes(currentValue)) {
+      select.value = currentValue;
+    } else {
+      select.value = '';
+      brokerFilter = '';
+    }
   }
 
   function matchesFilters(acc) {
@@ -454,43 +843,64 @@ window.pageScripts["Add-Account"] = function() {
 
     if (matches && searchFilter) {
       const term = searchFilter.toLowerCase();
-      matches = String(acc.client_id).toLowerCase().includes(term) || (acc.username || '').toLowerCase().includes(term);
+      matches = String(acc.client_id || '').toLowerCase().includes(term) || (acc.username || '').toLowerCase().includes(term);
     }
 
     return matches;
   }
 
   function updateEmptyState() {
-    const cardGrid = document.getElementById('accounts-card-grid');
+    const tbody = document.getElementById('accounts-table-body');
     const emptyState = document.getElementById('accounts-empty-state');
-    if (!cardGrid || !emptyState) return;
-
-    const visibleCards = Array.from(cardGrid.querySelectorAll('.col')).filter(col => col.style.display !== 'none');
-    emptyState.style.display = visibleCards.length === 0 ? 'flex' : 'none';
+    if (!tbody || !emptyState) return;
+    const hasVisible = Array.from(tbody.querySelectorAll('tr')).some(row => row.style.display !== 'none');
+    emptyState.style.display = hasVisible ? 'none' : 'flex';
   }
 
-  function updateAccountCard(acc) {
-    if (!acc) return;
-    const sanitizedId = sanitizeClientId(acc.client_id);
-    const card = document.querySelector(`.account-card[data-client-id="${sanitizedId}"]`);
-    if (!card) return;
-
-    const balanceEl = card.querySelector('[data-field="balance"]');
-    if (balanceEl) {
-      balanceEl.textContent = formatBalance(acc.opening_balance);
-    }
-
-    const statusContainer = card.querySelector('[data-field="status"]');
-    if (statusContainer) {
-      statusContainer.innerHTML = renderStatusBadge(acc);
-    }
-
-    const container = card.closest('.col');
-    if (container) {
-      container.style.display = matchesFilters(acc) ? '' : 'none';
-    }
-
+  function applyFilters() {
+    const tbody = document.getElementById('accounts-table-body');
+    if (!tbody) return;
+    Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+      const clientId = row.dataset.clientId;
+      const acc = allAccounts.find(a => sanitizeClientId(a.client_id || a.username || '') === clientId);
+      if (!acc) return;
+      row.style.display = matchesFilters(acc) ? '' : 'none';
+    });
     updateEmptyState();
+  }
+
+  function updateCounts() {
+    const total = allAccounts.length;
+    const connected = allAccounts.filter(a => (a.status || '').toLowerCase() === 'connected').length;
+    const failed = total - connected;
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    setText('tab-count-all', total);
+    setText('tab-count-success', connected);
+    setText('tab-count-failed', failed);
+    setText('master-accounts-count', allAccounts.filter(acc => acc.role === 'master').length);
+    setText('child-accounts-count', allAccounts.filter(acc => acc.role === 'child').length);
+    setText('total-capacity', total.toString());
+    setText('current-plan', 'Professional');
+    setText('plan-validity', '--');
+
+    const summary = document.getElementById('accounts-summary');
+    if (summary) {
+      summary.textContent = total ? `Showing ${total} account${total === 1 ? '' : 's'}` : 'No accounts to display';
+    }
+    const range = document.getElementById('accounts-range');
+    if (range) {
+      range.textContent = total ? `1-${total} of ${total}` : '0-0 of 0';
+    }
+  }
+
+  function updateAccountCard() {
+    renderAccounts(allAccounts);
+    applyFilters();
   }
 
   async function attemptAutoLoginForAccount(acc) {
@@ -539,137 +949,212 @@ window.pageScripts["Add-Account"] = function() {
     }
   }
 
-  function renderStatusBadge(acc) {
-    const auto = autoLoginResults[acc.client_id];
-    const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
-    const st = (acc.status || '').toLowerCase();
-    if (auto) {
-      if (auto.status === 'error') {
-        const msg = auto.error ? auto.error.replace(/"/g, '&quot;') : 'Error';
-        return `<span class="badge bg-danger" title="${msg}"><i class="bi bi-x-circle-fill me-1"></i>Error</span>`;
-      }
-      if (auto.status === 'checking') {
-        return '<span class="badge bg-info">Connecting...</span>';
-      }
+  async function copyToClipboard(text, successMessage) {
+    if (!text) {
+      showToast('No data available to copy.', 'warning');
+      return;
     }
-
-    if (st && st !== 'connected') {
-      if (st === 'pending') return '<span class="badge bg-info">Pending</span>';
-      if (st === 'failed' || lastErr) {
-        const msg = lastErr ? String(lastErr).replace(/"/g, '&quot;') : acc.status;
-        return `<span class="badge bg-danger" title="${msg}"><i class="bi bi-x-circle-fill me-1"></i>Error</span>`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
       }
-      const label = acc.status ? acc.status : 'Unknown';
-      return `<span class="badge bg-warning">${label}</span>`;
+      showToast(successMessage || 'Copied to clipboard.');
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      showToast('Failed to copy to clipboard.', 'error');
     }
-
-    return '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Connected</span>';
   }
 
-  function applyFilters() {
-    const cardGrid = document.getElementById('accounts-card-grid');
-    if (!cardGrid) return;
-
-    allAccounts.forEach(acc => {
-      const sanitizedId = sanitizeClientId(acc.client_id);
-      const card = cardGrid.querySelector(`.account-card[data-client-id="${sanitizedId}"]`);
-      if (!card) return;
-      const container = card.closest('.col');
-      if (!container) return;
-
-      container.style.display = matchesFilters(acc) ? '' : 'none';
+  const addAccountBtn = document.getElementById('add-account-btn');
+  if (addAccountBtn) {
+    addAccountBtn.addEventListener('click', () => {
+      const section = document.getElementById('add-account-section');
+      const isHidden = !section || section.style.display === 'none' || getComputedStyle(section).display === 'none';
+      if (isHidden) {
+        openAddAccountForm();
+        populateBrokerCarousel();
+      } else {
+        hideBrokerForm();
+      }
     });
-
-    updateEmptyState();
   }
 
-  function updateCounts() {
-    const total = allAccounts.length;
-    const connected = allAccounts.filter(a => (a.status || '').toLowerCase() === 'connected').length;
-    const failed = total - connected;
-    
-    document.getElementById('tab-count-all').textContent = total;
-    document.getElementById('tab-count-success').textContent = connected;
-    document.getElementById('tab-count-failed').textContent = failed;
-
-    document.getElementById('master-accounts-count').textContent = allAccounts.filter(acc => acc.role === 'master').length;
-    document.getElementById('child-accounts-count').textContent = allAccounts.filter(acc => acc.role === 'child').length;
-    document.getElementById('total-capacity').textContent = '10';
-    document.getElementById('current-plan').textContent = 'Professional';
+  const cancelAddAccountBtn = document.getElementById('cancel-add-account-btn');
+  if (cancelAddAccountBtn) {
+    cancelAddAccountBtn.addEventListener('click', hideBrokerForm);
   }
 
-  function populateBrokerFilter() {
-    const select = document.getElementById('broker-filter');
-    if (!select) return;
-    const brokers = [...new Set(allAccounts.map(a => a.broker))].sort();
-    select.innerHTML = '<option value="">All Brokers</option>' +
-      brokers.map(b => `<option value="${b}">${b.charAt(0).toUpperCase() + b.slice(1)}</option>`).join('');
+  const brokerSearchInput = document.getElementById('broker-search');
+  if (brokerSearchInput) {
+    brokerSearchInput.addEventListener('input', event => {
+      populateBrokerCarousel(event.target.value || '');
+    });
   }
 
-  document.getElementById('add-account-btn').addEventListener('click', () => {
-      document.getElementById('add-account-section').style.display = 'block';
-      document.getElementById('add-account-btn').style.display = 'none';
-  });
-
-  document.getElementById('cancel-add-account-btn').addEventListener('click', hideBrokerForm);
-
-  // Broker credentials form submission
-  document.getElementById('broker-credentials-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const data = {};
-    for (const [key, value] of formData.entries()) data[key] = value;
-
-    const selectedBroker = getSelectedBroker();
-    if (!selectedBroker) { showToast('Please select a broker.', 'warning'); return; }
-    data['broker'] = selectedBroker;
-
-    if (data['broker'] === 'zerodha') {
-      fetchJson('/api/init-zerodha-login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
-      })
-      .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); })
-      .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
-      return;
-    }
-
-    if (data['broker'] === 'fyers') {
-      fetchJson('/api/init-fyers-login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
-      })
-      .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); })
-      .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
-      return;
-    }
-
-    const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
-    if (editingAccountId) data['client_id'] = editingAccountId;
-
-    fetchJson(endpoint, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    })
-    .then(resp => {
-      showToast(resp.message || resp.error || 'Operation completed.');
-      if (resp.message) location.reload();
-    })
-    .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
-  });
-
-  document.querySelectorAll('#status-tabs .nav-link').forEach(link => {
-    link.addEventListener('click', e => {
+  const brokerForm = document.getElementById('broker-credentials-form');
+  if (brokerForm) {
+    brokerForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      document.querySelectorAll('#status-tabs .nav-link').forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-      statusFilter = link.dataset.status || 'all';
+      const formData = new FormData(this);
+      const data = {};
+      for (const [key, value] of formData.entries()) data[key] = value;
+
+      const selectedBroker = getSelectedBroker();
+      if (!selectedBroker) { showToast('Please select a broker.', 'warning'); return; }
+      data['broker'] = selectedBroker;
+
+      if (data['broker'] === 'zerodha') {
+        fetchJson('/api/init-zerodha-login', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+        })
+        .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Zerodha.', 'error'); })
+        .catch(error => showToast(`Failed to initiate Zerodha login: ${error.message}`, 'error'));
+        return;
+      }
+
+      if (data['broker'] === 'fyers') {
+        fetchJson('/api/init-fyers-login', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+        })
+        .then(resp => { if (resp.login_url) window.location.href = resp.login_url; else showToast(resp.error || 'Failed to get login URL for Fyers.', 'error'); })
+        .catch(error => showToast(`Failed to initiate Fyers login: ${error.message}`, 'error'));
+        return;
+      }
+
+      const endpoint = editingAccountId ? '/api/update-account' : '/api/add-account';
+      if (editingAccountId) data['client_id'] = editingAccountId;
+
+      fetchJson(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(resp => {
+        showToast(resp.message || resp.error || 'Operation completed.');
+        if (resp.message) location.reload();
+      })
+      .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
+    });
+  }
+
+  document.querySelectorAll('#status-tabs .status-tab').forEach(button => {
+    button.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('#status-tabs .status-tab').forEach(l => l.classList.remove('active'));
+      button.classList.add('active');
+      statusFilter = button.dataset.status || 'all';
       applyFilters();
     });
   });
 
-  document.getElementById('broker-filter').addEventListener('change', e => { brokerFilter = e.target.value; applyFilters(); });
-  document.getElementById('account-search').addEventListener('input', e => { searchFilter = e.target.value; applyFilters(); });
-  
+  const brokerFilterSelect = document.getElementById('broker-filter');
+  if (brokerFilterSelect) {
+    brokerFilterSelect.addEventListener('change', e => {
+      brokerFilter = e.target.value;
+      applyFilters();
+    });
+  }
+
+  const accountSearchInput = document.getElementById('account-search');
+  if (accountSearchInput) {
+    accountSearchInput.addEventListener('input', e => {
+      searchFilter = e.target.value;
+      applyFilters();
+    });
+  }
+
+  const accountsTableBody = document.getElementById('accounts-table-body');
+  if (accountsTableBody) {
+    accountsTableBody.addEventListener('click', event => {
+      const actionButton = event.target.closest('[data-action]');
+      if (!actionButton) return;
+      const row = actionButton.closest('tr');
+      if (!row) return;
+      const clientId = row.dataset.clientId;
+      const account = allAccounts.find(acc => sanitizeClientId(acc.client_id || acc.username || '') === clientId);
+      if (!account) return;
+
+      const action = actionButton.dataset.action;
+      if (action === 'copy-url' || action === 'copy-ip') {
+        const requires = actionButton.dataset.requires || (action === 'copy-url' ? 'url' : 'ip');
+        const value = action === 'copy-url' ? getDeveloperUrl(account) : getStaticIp(account);
+        if (!value) {
+          showToast(`No ${requires.toUpperCase()} available to copy.`, 'warning');
+          return;
+        }
+        copyToClipboard(value, `${requires.toUpperCase()} copied to clipboard.`);
+        const dropdown = actionButton.closest('.dropdown');
+        if (dropdown) dropdown.classList.remove('open');
+        return;
+      }
+
+      if (action === 'reconnect') {
+        window.reconnectAccount(account.client_id);
+        return;
+      }
+
+      if (action === 'edit') {
+        window.editAccount(account.client_id);
+        const dropdown = actionButton.closest('.dropdown');
+        if (dropdown) dropdown.classList.remove('open');
+        return;
+      }
+
+      if (action === 'delete') {
+        window.deleteAccount(account.client_id);
+        const dropdown = actionButton.closest('.dropdown');
+        if (dropdown) dropdown.classList.remove('open');
+      }
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest('[data-dropdown-toggle]');
+    if (toggle) {
+      event.preventDefault();
+      const targetId = toggle.dataset.dropdownToggle;
+      const dropdown = document.getElementById(targetId);
+      if (!dropdown) return;
+      const isOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.dropdown.open').forEach(d => {
+        if (d !== dropdown) {
+          d.classList.remove('open');
+          const btn = d.querySelector('[data-dropdown-toggle]');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+      dropdown.classList.toggle('open', !isOpen);
+      toggle.setAttribute('aria-expanded', String(!isOpen));
+      return;
+    }
+
+    if (!event.target.closest('.dropdown')) {
+      document.querySelectorAll('.dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        const btn = d.querySelector('[data-dropdown-toggle]');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+
+  const exportButton = document.querySelector('[data-action="export-accounts"]');
+  if (exportButton) {
+    exportButton.addEventListener('click', () => {
+      showToast('Export functionality is coming soon.', 'info');
+      const dropdown = exportButton.closest('.dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
   window.deleteAccount = function(cid) {
     if (!confirm('Are you sure you want to delete account ' + cid + '? This action cannot be undone.')) return;
     fetchJson('/api/delete-account', {
@@ -683,17 +1168,19 @@ window.pageScripts["Add-Account"] = function() {
     const acc = allAccounts.find(a => a.client_id === cid);
     if (!acc) { showToast('Account not found for editing.', 'error'); return; }
     editingAccountId = cid;
-    const addAccountSection = document.getElementById('add-account-section');
-    addAccountSection.style.display = 'block';
-    const sectionRect = addAccountSection.getBoundingClientRect();
-    const targetOffset = sectionRect.top + window.pageYOffset;
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: targetOffset - 16, behavior: 'smooth' });
-    });
-    document.getElementById('add-account-btn').style.display = 'none';
-    document.querySelectorAll('.broker-item').forEach(i => i.classList.remove('selected'));
-    const item = document.querySelector(`.broker-item[data-broker="${acc.broker}"]`);
-    if (item) { item.classList.add('selected'); showBrokerForm(acc.broker); }
+    openAddAccountForm();
+    const section = document.getElementById('add-account-section');
+    if (section) {
+      const sectionRect = section.getBoundingClientRect();
+      const targetOffset = sectionRect.top + window.pageYOffset;
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: targetOffset - 16, behavior: 'smooth' });
+      });
+    }
+
+    document.querySelectorAll('.broker-card').forEach(i => i.classList.remove('active'));
+    const item = document.querySelector(`.broker-card[data-broker="${acc.broker}"]`);
+    if (item) { item.classList.add('active'); showBrokerForm(acc.broker); }
 
     setTimeout(() => {
       const form = document.getElementById('broker-credentials-form');
@@ -712,7 +1199,8 @@ window.pageScripts["Add-Account"] = function() {
       });
       const submitBtn = document.getElementById('submit-account-btn');
       if (submitBtn) submitBtn.textContent = 'Update Account';
-      document.getElementById('cred-check-result').innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
+      const resultDiv = document.getElementById('cred-check-result');
+      if (resultDiv) resultDiv.innerHTML = '<span class="text-info small">Modify credentials and click Update.</span>';
     }, 100);
   };
 
@@ -725,8 +1213,6 @@ window.pageScripts["Add-Account"] = function() {
     .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
   };
 
-
-  // Initial Load
   fetchJson('/api/accounts?cache_only=1')
     .then(data => {
       allAccounts = data.accounts || [];
@@ -736,23 +1222,18 @@ window.pageScripts["Add-Account"] = function() {
       updateCounts();
       applyFilters();
 
-      // Kick off status and balance refresh in the background so the
-      // page can render immediately with cached data. The UI will be
-      // updated as each account finishes processing.
       allAccounts.forEach(acc => {
         const isConnected = (acc.status || '').toLowerCase() === 'connected';
-
         if (isConnected) {
           autoLoginResults[acc.client_id] = { status: 'success' };
-          updateAccountCard(acc);
         } else {
           attemptAutoLoginForAccount(acc)
-            .then(() => { updateCounts(); updateAccountCard(acc); })
-            .catch(() => { updateCounts(); updateAccountCard(acc); });
+            .then(() => { updateCounts(); updateAccountCard(); })
+            .catch(() => { updateCounts(); updateAccountCard(); });
         }
         refreshBalanceForAccount(acc)
-          .then(() => { updateCounts(); updateAccountCard(acc); })
-          .catch(() => { updateAccountCard(acc); });
+          .then(() => { updateCounts(); updateAccountCard(); })
+          .catch(() => { updateAccountCard(); });
       });
     })
     .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
