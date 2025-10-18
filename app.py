@@ -79,7 +79,11 @@ from sqlalchemy import or_, text, inspect, cast
 from sqlalchemy.types import DateTime as SADateTime
 import re
 from blueprints.auth import auth_bp
-from blueprints.api import api_bp, login_required_api, _get_dashboard_snapshot
+from blueprints.api import (
+    api_bp,
+    login_required_api,
+    get_cached_dashboard_snapshot,
+)
 from services.webhook_server import webhook_bp
 from helpers import (
     current_user,
@@ -7947,12 +7951,13 @@ def summary():
             continue
 
         try:
-            snapshot = _get_dashboard_snapshot(account)
+            snapshot = get_cached_dashboard_snapshot(account, prefer_cache=True)
         except Exception as exc:  # pragma: no cover - defensive
             summary_entry["error"] = str(exc)
             account_summaries.append(summary_entry)
             continue
 
+        snapshot = snapshot or {}
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
         metrics, holdings = _compute_account_metrics(positions or [])
 
@@ -7984,6 +7989,9 @@ def summary():
                 "portfolio_value": metrics["portfolio_value"],
                 "gain_loss": metrics["gain_loss"],
                 "gain_loss_percent": metrics["gain_loss_percent"],
+                "stale": bool(snapshot.get("stale")),
+                "cached_at": snapshot.get("cached_at"),
+                "age": snapshot.get("age"),
             }
         )
         account_summaries.append(summary_entry)
