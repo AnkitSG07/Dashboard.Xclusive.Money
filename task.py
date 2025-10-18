@@ -2,10 +2,16 @@ import os
 from celery import Celery
 from services.trade_copier import poll_and_copy_trades, copy_order
 from services.db import get_session
-from models import db
+from models import db, Account
 from prometheus_client import Gauge, Histogram
 from services.utils import get_redis_url
 from services.webhook_receiver import get_redis_client
+from cache import cache_delete
+from blueprints.api import (
+    _load_snapshot_entry,
+    _refresh_snapshot_now,
+    snapshot_cache_key_for,
+)
 
 _redis_url = get_redis_url()
 
@@ -54,3 +60,32 @@ def poll_trades() -> None:
             poll_and_copy_trades(session, processor=copy_order, redis_client=client)
         finally:
             session.close()
+
+
+
+
+@celery.task(name="services.tasks.refresh_dashboard_snapshot")
+def refresh_dashboard_snapshot(user_id: int, client_id: str | None) -> None:
+    """Refresh a cached dashboard snapshot for the given account."""
+
+    update_queue_depth()
+    session = get_session()
+    key = snapshot_cache_key_for(user_id, client_id)
+    refresh_key = f"{key}:refreshing"
+    try:
+        query = session.query(Account).filter_by(user_id=user_id)
+        if client_id:
+            query = query.filter_by(client_id=client_id)
+        account = query.first()
+        if not account or not account.credentials:
+            cache_delete(key)
+            cache_delete(refresh_key)
+            return
+
+        entry = _load_snapshot_entry(key)
+        _refresh_snapshot_now(account, key=key, entry=entry)
+    except Exception:
+        cache_delete(refresh_key)
+        raise
+    finally:
+        session.close()
