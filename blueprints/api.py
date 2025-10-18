@@ -1,9 +1,11 @@
+import logging
 import os
-from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from copy import deepcopy
 from threading import Lock
 
 from flask import Blueprint, jsonify, session, request
+from kombu.exceptions import OperationalError
 from helpers import (
     current_user,
     get_primary_account,
@@ -15,8 +17,11 @@ from functools import wraps
 from datetime import datetime, timedelta
 
 from cache import cache_delete, cache_get, cache_set
+from celery.exceptions import CeleryError
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+logger = logging.getLogger(__name__)
 
 _HOLDINGS_CACHE: dict[str, dict] = {}
 _HOLDINGS_LOCK = Lock()
@@ -161,12 +166,23 @@ def _enqueue_snapshot_refresh(account: Account, key: str) -> None:
     try:
         from task import celery
 
+        # Summary requests must fail fast when the broker is offline so cached data
+        # continues to render instantly.
         celery.send_task(
             "services.tasks.refresh_dashboard_snapshot",
             args=[account.user_id, account.client_id],
+            ignore_result=True,
+            retry=False,
+            throw=False,
         )
+    except (OperationalError, CeleryError) as exc:
+        logger.debug(
+            "Unable to enqueue snapshot refresh due to broker issue: %s", exc,
+        )
+        cache_delete(_refreshing_cache_key(key))
     except Exception:
         cache_delete(_refreshing_cache_key(key))
+        raise
 
 
 def update_dashboard_snapshot_cache(account: Account) -> dict:
