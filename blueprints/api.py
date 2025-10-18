@@ -160,9 +160,9 @@ def _mark_refresh_scheduled(key: str) -> bool:
     return True
 
 
-def _enqueue_snapshot_refresh(account: Account, key: str) -> None:
+def _enqueue_snapshot_refresh(account: Account, key: str) -> bool:
     if not _mark_refresh_scheduled(key):
-        return
+        return True
 
     try:
         from task import celery
@@ -181,9 +181,12 @@ def _enqueue_snapshot_refresh(account: Account, key: str) -> None:
             "Unable to enqueue snapshot refresh due to broker issue: %s", exc,
         )
         cache_delete(_refreshing_cache_key(key))
+        return False
     except Exception:
         cache_delete(_refreshing_cache_key(key))
         raise
+
+    return True
 
 
 def update_dashboard_snapshot_cache(account: Account) -> dict:
@@ -205,7 +208,14 @@ def get_cached_dashboard_snapshot(
         response = _prepare_snapshot_for_response(entry)
         if entry_age is None or entry_age >= _SNAPSHOT_INTERVAL:
             response["stale"] = response.get("stale") or True
-            _enqueue_snapshot_refresh(account, key)
+            scheduled = _enqueue_snapshot_refresh(account, key)
+            if scheduled is False:
+                try:
+                    refreshed = _refresh_snapshot_now(account, key=key, entry=entry)
+                except Exception as exc:
+                    response.setdefault("errors", {})["snapshot"] = str(exc)
+                else:
+                    return _prepare_snapshot_for_response(refreshed)
         return response
 
     if entry and entry_age is not None and entry_age < _SNAPSHOT_INTERVAL:
