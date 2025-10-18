@@ -162,6 +162,21 @@ def _mark_refresh_scheduled(key: str) -> bool:
 
 def _enqueue_snapshot_refresh(account: Account, key: str) -> bool:
     if not _mark_refresh_scheduled(key):
+        refresh_key = _refreshing_cache_key(key)
+        marker = cache_get(refresh_key)
+        if isinstance(marker, dict):
+            timestamp = marker.get("timestamp")
+            if isinstance(timestamp, str):
+                cleaned = timestamp.rstrip("Z")
+                try:
+                    timestamp = datetime.fromisoformat(cleaned)
+                except ValueError:
+                    timestamp = None
+            if isinstance(timestamp, datetime):
+                age = datetime.utcnow() - timestamp
+                if age >= _SNAPSHOT_INTERVAL * 2:
+                    cache_delete(refresh_key)
+                    return False
         return True
 
     try:
