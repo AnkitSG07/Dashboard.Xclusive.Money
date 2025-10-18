@@ -349,15 +349,20 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
         except Exception:  # pragma: no cover - defensive
             api.timeout = _BROKER_TIMEOUT_SECONDS
 
+    existing_portfolio = deepcopy(existing.get("portfolio", []))
+    existing_account = deepcopy(existing.get("account", {}))
+
     snapshot = {
-        "portfolio": existing.get("portfolio", []),
+        "portfolio": existing_portfolio,
         "orders": existing.get(
             "orders", {"items": [], "summary": _default_order_summary()}
         ),
-        "account": existing.get("account", {}),
+        "account": existing_account,
         "errors": {},
         "stale": False,
     }
+
+    positions_failed = False
 
     if hasattr(api, "get_positions"):
         try:
@@ -365,8 +370,11 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
             snapshot["portfolio"] = _normalize_portfolio_data(resp, account)
         except Exception as exc:
             snapshot["errors"]["portfolio"] = str(exc)
+            snapshot["portfolio"] = existing_portfolio
+            positions_failed = True
     else:
         snapshot["errors"]["portfolio"] = "Broker does not expose positions"
+        positions_failed = True
 
     if hasattr(api, "get_order_list"):
         try:
@@ -377,6 +385,7 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
     else:
         snapshot["errors"]["orders"] = "Broker does not expose order list"
 
+    account_failed = False
     profile_method = None
     for candidate in ("get_profile", "get_fund_limits", "get_account_details"):
         if hasattr(api, candidate):
@@ -393,12 +402,16 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
                 snapshot["errors"].setdefault(
                     "account", "Account response missing expected fields"
                 )
+                snapshot["account"] = existing_account
+                account_failed = True
         except Exception as exc:
             snapshot["errors"]["account"] = str(exc)
+            snapshot["account"] = existing_account
+            account_failed = True
     elif not snapshot["account"]:
         snapshot["errors"]["account"] = "Broker does not expose account stats"
 
-    snapshot["stale"] = bool(snapshot["errors"])
+    snapshot["stale"] = positions_failed or account_failed
     return snapshot
 
 
