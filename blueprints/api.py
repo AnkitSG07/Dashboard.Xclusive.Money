@@ -14,10 +14,10 @@ from models import Account, db, Strategy, StrategyLog, StrategySubscription, Tra
 from functools import wraps
 from datetime import datetime, timedelta
 
+from cache import cache_delete, cache_get, cache_set
+
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
-_SNAPSHOT_CACHE: dict[str, dict] = {}
-_SNAPSHOT_LOCK = Lock()
 _HOLDINGS_CACHE: dict[str, dict] = {}
 _HOLDINGS_LOCK = Lock()
 
@@ -29,6 +29,10 @@ _HOLDINGS_INTERVAL = timedelta(
 )
 _BROKER_TIMEOUT_SECONDS = float(os.environ.get("BROKER_TIMEOUT_SECONDS", "4"))
 _EXECUTOR = ThreadPoolExecutor(max_workers=4)
+
+def snapshot_cache_key_for(user_id: int, client_id: str | None) -> str:
+    client_key = client_id or "primary"
+    return f"snapshot:{user_id}:{client_key}"
 
 
 def login_required_api(fn):
@@ -43,8 +47,7 @@ def login_required_api(fn):
 
 
 def _snapshot_cache_key(account: Account) -> str:
-    client_id = account.client_id or "primary"
-    return f"snapshot:{account.user_id}:{client_id}"
+    return snapshot_cache_key_for(account.user_id, account.client_id)
 
 
 def _holdings_cache_key(account: Account) -> str:
@@ -87,6 +90,120 @@ def _prepare_snapshot_for_response(entry: dict) -> dict:
         data["cached_at"] = None
         data["age"] = None
     return data
+
+
+def _refreshing_cache_key(key: str) -> str:
+    return f"{key}:refreshing"
+
+
+def _load_snapshot_entry(key: str) -> dict | None:
+    entry = cache_get(key)
+    if not isinstance(entry, dict):
+        return None
+
+    timestamp = entry.get("timestamp")
+    if isinstance(timestamp, str):
+        cleaned = timestamp.rstrip("Z")
+        try:
+            entry["timestamp"] = datetime.fromisoformat(cleaned)
+        except ValueError:
+            entry["timestamp"] = datetime.min
+    return entry
+
+
+def _save_snapshot_entry(key: str, snapshot: dict) -> dict:
+    timestamp = datetime.utcnow()
+    ttl_seconds = max(int(_SNAPSHOT_INTERVAL.total_seconds() * 6), 1)
+    cache_set(
+        key,
+        {"timestamp": timestamp.isoformat() + "Z", "data": snapshot},
+        ttl=ttl_seconds,
+    )
+    cache_delete(_refreshing_cache_key(key))
+    return {"timestamp": timestamp, "data": snapshot}
+
+
+def _refresh_snapshot_now(
+    account: Account, *, key: str | None = None, entry: dict | None = None
+) -> dict:
+    key = key or _snapshot_cache_key(account)
+    refresh_key = _refreshing_cache_key(key)
+    existing_data: dict = {}
+    if entry and isinstance(entry.get("data"), dict):
+        existing_data = deepcopy(entry["data"])
+
+    try:
+        snapshot = _collect_snapshot(account, existing_data)
+    except Exception:
+        cache_delete(refresh_key)
+        raise
+
+    return _save_snapshot_entry(key, snapshot)
+
+
+def _mark_refresh_scheduled(key: str) -> bool:
+    refresh_key = _refreshing_cache_key(key)
+    if cache_get(refresh_key):
+        return False
+    ttl_seconds = max(int(_SNAPSHOT_INTERVAL.total_seconds()), 15)
+    cache_set(
+        refresh_key,
+        {"timestamp": datetime.utcnow().isoformat() + "Z"},
+        ttl=ttl_seconds,
+    )
+    return True
+
+
+def _enqueue_snapshot_refresh(account: Account, key: str) -> None:
+    if not _mark_refresh_scheduled(key):
+        return
+
+    try:
+        from task import celery
+
+        celery.send_task(
+            "services.tasks.refresh_dashboard_snapshot",
+            args=[account.user_id, account.client_id],
+        )
+    except Exception:
+        cache_delete(_refreshing_cache_key(key))
+
+
+def update_dashboard_snapshot_cache(account: Account) -> dict:
+    entry = _refresh_snapshot_now(account)
+    return _prepare_snapshot_for_response(entry)
+
+
+def get_cached_dashboard_snapshot(
+    account: Account, *, prefer_cache: bool = False
+) -> dict:
+    key = _snapshot_cache_key(account)
+    entry = _load_snapshot_entry(key)
+    now = datetime.utcnow()
+    entry_age = None
+    if entry and isinstance(entry.get("timestamp"), datetime):
+        entry_age = now - entry["timestamp"]
+
+    if prefer_cache and entry:
+        response = _prepare_snapshot_for_response(entry)
+        if entry_age is None or entry_age >= _SNAPSHOT_INTERVAL:
+            response["stale"] = response.get("stale") or True
+            _enqueue_snapshot_refresh(account, key)
+        return response
+
+    if entry and entry_age is not None and entry_age < _SNAPSHOT_INTERVAL:
+        return _prepare_snapshot_for_response(entry)
+
+    try:
+        refreshed = _refresh_snapshot_now(account, key=key, entry=entry)
+        return _prepare_snapshot_for_response(refreshed)
+    except Exception as exc:
+        if entry:
+            cached = _prepare_snapshot_for_response(entry)
+            cached.setdefault("errors", {})["snapshot"] = str(exc)
+            cached["stale"] = True
+            return cached
+        raise
 
 
 def _normalize_portfolio_data(resp, account: Account) -> list:
@@ -269,29 +386,7 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
 
 
 def _get_dashboard_snapshot(account: Account) -> dict:
-    key = _snapshot_cache_key(account)
-    now = datetime.utcnow()
-
-    with _SNAPSHOT_LOCK:
-        entry = _SNAPSHOT_CACHE.get(key)
-        if entry and now - entry["timestamp"] < _SNAPSHOT_INTERVAL:
-            return _prepare_snapshot_for_response(entry)
-
-    existing = deepcopy(entry["data"]) if entry else {}
-
-    try:
-        snapshot = _collect_snapshot(account, existing)
-        entry = {"timestamp": datetime.utcnow(), "data": snapshot}
-        with _SNAPSHOT_LOCK:
-            _SNAPSHOT_CACHE[key] = entry
-        return _prepare_snapshot_for_response(entry)
-    except Exception as exc:
-        if entry:
-            cached = _prepare_snapshot_for_response(entry)
-            cached.setdefault("errors", {})["snapshot"] = str(exc)
-            cached["stale"] = True
-            return cached
-        raise
+    return get_cached_dashboard_snapshot(account, prefer_cache=False)
 
 
 def _resolve_account(user, client_id: str | None) -> Account | None:
@@ -351,7 +446,13 @@ def dashboard_snapshot(client_id=None):
     if not account or not account.credentials:
         return jsonify({"error": "Account not configured"}), 400
 
-    snapshot = _get_dashboard_snapshot(account)
+    prefer_cache = request.args.get("cache", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    snapshot = get_cached_dashboard_snapshot(account, prefer_cache=prefer_cache)
     return jsonify(snapshot)
 
 
