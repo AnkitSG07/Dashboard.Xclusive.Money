@@ -151,7 +151,8 @@ def _mark_refresh_scheduled(key: str) -> bool:
     refresh_key = _refreshing_cache_key(key)
     if cache_get(refresh_key):
         return False
-    ttl_seconds = max(int(_SNAPSHOT_INTERVAL.total_seconds()), 15)
+    min_ttl = int((_SNAPSHOT_INTERVAL * 2).total_seconds())
+    ttl_seconds = max(min_ttl, 60)
     cache_set(
         refresh_key,
         {"timestamp": datetime.utcnow().isoformat() + "Z"},
@@ -172,12 +173,16 @@ def _enqueue_snapshot_refresh(account: Account, key: str) -> bool:
                     timestamp = datetime.fromisoformat(cleaned)
                 except ValueError:
                     timestamp = None
-            if isinstance(timestamp, datetime):
-                age = datetime.utcnow() - timestamp
-                if age >= _SNAPSHOT_INTERVAL * 2:
-                    cache_delete(refresh_key)
-                    return False
-        return True
+            if not isinstance(timestamp, datetime):
+                cache_delete(refresh_key)
+                return False
+            age = datetime.utcnow() - timestamp
+            if age >= _SNAPSHOT_INTERVAL * 2:
+                cache_delete(refresh_key)
+                return False
+            return True
+        cache_delete(refresh_key)
+        return False
 
     try:
         from task import celery
