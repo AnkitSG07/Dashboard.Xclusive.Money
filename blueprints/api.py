@@ -6,6 +6,7 @@ from threading import Lock
 
 from flask import Blueprint, jsonify, session, request
 from kombu.exceptions import OperationalError
+from redis.exceptions import RedisError
 from helpers import (
     current_user,
     get_primary_account,
@@ -175,7 +176,7 @@ def _enqueue_snapshot_refresh(account: Account, key: str) -> None:
             retry=False,
             throw=False,
         )
-    except (OperationalError, CeleryError) as exc:
+    except (OperationalError, CeleryError, RedisError) as exc:
         logger.debug(
             "Unable to enqueue snapshot refresh due to broker issue: %s", exc,
         )
