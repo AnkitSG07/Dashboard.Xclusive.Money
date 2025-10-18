@@ -336,31 +336,112 @@ def _normalize_account_stats(resp) -> dict:
     data = resp
     if isinstance(resp, dict):
         data = resp.get("data") or resp
-    if not isinstance(data, dict):
-        return {}
 
-    def first_float(keys, default=0.0):
+    def first_float(keys):
+        if not isinstance(data, dict):
+            return None
         for key in keys:
             if key in data:
-                val = _safe_float(data.get(key))
-                return val
-        return default
+                val = _safe_float(data.get(key), default=None)
+                if val is not None:
+                    return val
+        return None
 
-    return {
-        "total_funds": first_float(
-            [
-                "availabelBalance",
-                "availableBalance",
-                "availableAmount",
-                "netCashAvailable",
-                "netCash",
-            ]
+    stats: dict[str, float] = {}
+    if isinstance(data, dict):
+        stats = {
+            "total_funds": first_float(
+                [
+                    "availabelBalance",
+                    "availableBalance",
+                    "availableAmount",
+                    "netCashAvailable",
+                    "netCash",
+                ]
+            ),
+            "available_margin": first_float(
+                ["withdrawableBalance", "availableBalance", "availableAmount"]
+            ),
+            "used_margin": first_float(
+                ["utilizedAmount", "usedMargin", "blockedMargin"]
+            ),
+        }
+
+    def _search_numeric(value, keywords: tuple[str, ...]):
+        if isinstance(value, dict):
+            for key, candidate in value.items():
+                if isinstance(key, str):
+                    lowered = key.lower()
+                    if any(word in lowered for word in keywords):
+                        result = _safe_float(candidate, default=None)
+                        if result is not None:
+                            return result
+                result = _search_numeric(candidate, keywords)
+                if result is not None:
+                    return result
+        elif isinstance(value, list):
+            for item in value:
+                result = _search_numeric(item, keywords)
+                if result is not None:
+                    return result
+        return None
+
+    fallback: dict[str, float] = {}
+    search_source = data if isinstance(data, (dict, list)) else resp
+    try:
+        from app import extract_balance
+    except Exception:  # pragma: no cover - defensive
+        extract_balance = None
+
+    if extract_balance:
+        balance = extract_balance(search_source)
+        if balance is None and search_source is not resp:
+            balance = extract_balance(resp)
+        if balance is not None:
+            fallback["total_funds"] = balance
+
+    available = _search_numeric(
+        search_source,
+        (
+            "availablemargin",
+            "marginavailable",
+            "availmargin",
+            "withdrawablebalance",
+            "availablebalance",
         ),
-        "available_margin": first_float(
-            ["withdrawableBalance", "availableBalance", "availableAmount"]
-        ),
-        "used_margin": first_float(["utilizedAmount", "usedMargin", "blockedMargin"]),
-    }
+    )
+    if available is not None:
+        fallback["available_margin"] = available
+
+    used = _search_numeric(
+        search_source,
+        ("usedmargin", "utilizedmargin", "utilizedamount", "blockedmargin", "marginused"),
+    )
+    if used is not None:
+        fallback["used_margin"] = used
+
+    if "total_funds" in fallback and "available_margin" not in fallback:
+        fallback["available_margin"] = fallback["total_funds"]
+
+    keys = ("total_funds", "available_margin", "used_margin")
+    result: dict[str, float] = {}
+    has_value = False
+    for key in keys:
+        value = None
+        if stats:
+            value = stats.get(key)
+        if value is None and fallback:
+            value = fallback.get(key)
+        if value is not None:
+            result[key] = value
+            has_value = True
+        else:
+            result[key] = 0.0
+
+    if has_value:
+        return result
+
+    return {}
 
 
 def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
