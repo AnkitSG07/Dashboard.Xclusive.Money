@@ -162,7 +162,6 @@ class ZerodhaBroker(BrokerBase):
             isinstance(response_data, dict)
             and response_data.get("status") == "success"
             and isinstance(response_data.get("data"), dict)
-            and response_data["data"].get("profile")
         ):
             follow_resp = session.get(
                 self.kite.login_url(),
