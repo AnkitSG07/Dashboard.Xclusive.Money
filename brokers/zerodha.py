@@ -371,12 +371,19 @@ class ZerodhaBroker(BrokerBase):
             return {"status": "failure", "error": str(e), "data": None}
 
     def check_token_valid(self, *, timeout=None):
+        self.ensure_token()
         try:
-            self.ensure_token()
             self._kite_call(self.kite.profile, timeout=timeout)
             return True
         except Exception:  # pragma: no cover - network call
-            return False
+            self.access_token = None
+            self.token_time = None
+            try:
+                self.ensure_token()
+                self._kite_call(self.kite.profile, timeout=timeout)
+                return True
+            except Exception:  # pragma: no cover - network call
+                return False
 
     def get_opening_balance(self, *, timeout=None):
         """Return available cash balance using Kite margins API."""
