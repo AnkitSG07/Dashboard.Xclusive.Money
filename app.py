@@ -5365,6 +5365,7 @@ def check_auto_logins():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    data = request.json or {}
     results = []
     for acc_db in user.accounts:
         if not acc_db.auto_login:
@@ -5390,6 +5391,12 @@ def check_auto_logins():
             db.session.commit()
             if valid:
                 clear_connection_error_logs(acc_db)
+                _update_alert_guard(
+                    user.id,
+                    acc_db,
+                    max_qty=data.get("max_qty"),
+                    allowed_symbols=data.get("allowed_symbols"),
+                )
             results.append({"client_id": acc_db.client_id, "status": acc_db.status})
         except Exception as e:
             db.session.rollback()
