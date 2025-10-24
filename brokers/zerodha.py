@@ -123,29 +123,53 @@ class ZerodhaBroker(BrokerBase):
             timeout=10,
         )
         # After successful 2FA we get redirected to the connect login URL with request_token
-        # Extract request_token from the final URL
-        match = re.search(r"request_token=([^&]+)", resp.url)
-        if not match:
-            message = None
+        # Extract request_token from either the redirect chain, the final URL or the JSON payload
+
+        def _extract_request_token(response):
+            if response is None:
+                return None
+            match = re.search(r"request_token=([^&]+)", getattr(response, "url", ""))
+            if match:
+                return match.group(1)
             try:
-                data = resp.json()
-                if isinstance(data, dict):
-                    message = data.get("message") or data.get("error")
+                data = response.json()
             except Exception:  # pragma: no cover - non-json response
-                pass
+                return None
+            if isinstance(data, dict):
+                token = data.get("data", {}).get("request_token")
+                if not token:
+                    token = data.get("request_token")
+                return token
+            return None
 
-            if not message:
-                parsed = urlparse(resp.url)
-                qs = parse_qs(parsed.query)
-                message = (
-                    (qs.get("error") or qs.get("message") or [None])[0]
-                )
+        request_token = None
+        for candidate in list(getattr(resp, "history", [])) + [resp]:
+            request_token = _extract_request_token(candidate)
+            if request_token:
+                break
 
-            if not message:
-                message = resp.text
+        if request_token:
+            return request_token
 
-            raise Exception(message or "TOTP login failed")
-        return match.group(1)
+        message = None
+        try:
+            data = resp.json()
+            if isinstance(data, dict):
+                message = data.get("message") or data.get("error")
+        except Exception:  # pragma: no cover - non-json response
+            pass
+
+        if not message:
+            parsed = urlparse(resp.url)
+            qs = parse_qs(parsed.query)
+            message = (
+                (qs.get("error") or qs.get("message") or [None])[0]
+            )
+
+        if not message:
+            message = resp.text
+
+        raise Exception(message or "TOTP login failed")
 
     def _kite_call(self, func, *args, timeout=None, **kwargs):
         """Call a KiteConnect API method ensuring a timeout is supplied."""
