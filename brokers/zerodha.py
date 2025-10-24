@@ -143,7 +143,8 @@ class ZerodhaBroker(BrokerBase):
             return None
 
         request_token = None
-        for candidate in list(getattr(resp, "history", [])) + [resp]:
+        history_and_response = list(getattr(resp, "history", [])) + [resp]
+        for candidate in history_and_response:
             request_token = _extract_request_token(candidate)
             if request_token:
                 break
@@ -151,13 +152,36 @@ class ZerodhaBroker(BrokerBase):
         if request_token:
             return request_token
 
-        message = None
+        response_data = None
         try:
-            data = resp.json()
-            if isinstance(data, dict):
-                message = data.get("message") or data.get("error")
+            response_data = resp.json()
         except Exception:  # pragma: no cover - non-json response
-            pass
+            response_data = None
+
+        if (
+            isinstance(response_data, dict)
+            and response_data.get("status") == "success"
+            and isinstance(response_data.get("data"), dict)
+            and response_data["data"].get("profile")
+        ):
+            follow_resp = session.get(
+                self.kite.login_url(),
+                allow_redirects=True,
+                timeout=10,
+            )
+            for candidate in list(getattr(follow_resp, "history", [])) + [follow_resp]:
+                request_token = _extract_request_token(candidate)
+                if request_token:
+                    return request_token
+            resp = follow_resp
+            try:
+                response_data = resp.json()
+            except Exception:  # pragma: no cover - non-json response
+                response_data = None
+
+        message = None
+        if isinstance(response_data, dict):
+            message = response_data.get("message") or response_data.get("error")
 
         if not message:
             parsed = urlparse(resp.url)
