@@ -15,13 +15,14 @@
     --summary-red: #dc2626;
     --summary-purple: #7c3aed;
     --summary-blue: #2563eb;
+  
     color: var(--summary-text);
     background: var(--summary-bg);
     border-radius: 24px;
     box-shadow: inset 0 0 0 1px rgba(230, 233, 242, 0.45);
     padding: clamp(32px, 4vw, 48px) clamp(20px, 4vw, 32px);
   }
-
+  
   .summary-dashboard .summary-inner {
     max-width: 1280px;
     margin: 0 auto;
@@ -29,59 +30,170 @@
     flex-direction: column;
     gap: clamp(24px, 4vw, 32px);
   }
-
+  
+  /* base grid helper */
   .summary-grid {
     display: grid;
     gap: 24px;
   }
-
+  
+  /* === TOP METRIC CARDS ROW (4 cards, like screenshot) === */
   .summary-grid-4 {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
   }
-
+  
+  /* each top stat card */
+  .summary-grid-4 .summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(17,24,39,0.04);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  
+  /* top row in each card:
+     "Total Portfolio Value" on left
+     icon badge on right */
+  .summary-grid-4 .summary-card-title {
+    display: flex;
+    align-items: ;
+    justify-content: left;
+    margin-bottom: 16px;
+    gap: 12px;
+   
+  }
+  
+  /* label text in card header */
+  .summary-grid-4 .summary-card-label {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 500;
+    color: #4b5563; /* grey-600 like screenshot */
+  }
+  
+  /* icon badge on right of header */
+  .summary-grid-4 .summary-card-title > div {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 35px;
+    /* background color for each card is still inline in HTML */
+  }
+  .summary-grid-4 .summary-card-title svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+  }
+  
+  /* big rupee amount */
+  .summary-grid-4 .summary-stat-value {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #111827;
+  }
+  
+  /* green/red amount override for gain/loss cards */
+  .summary-grid-4 .summary-stat-value.summary-stat-positive {
+    color: #059669; /* green-600 */
+  }
+  .summary-grid-4 .summary-stat-value.summary-stat-negative {
+    color: #dc2626; /* red-600 */
+  }
+  
+  /* footnote under number (like "+16.23%") */
+  .summary-grid-4 .summary-stat-footnote {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+    color: #059669;
+  }
+  .summary-grid-4 .summary-stat-footnote.summary-stat-negative {
+    color: #dc2626;
+  }
+  
+  /* other grid groups below summary cards */
   .summary-grid-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
   .summary-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  @media (max-width: 1280px) {
+  
+  /* responsive:
+     tablet/phone -> scroll horizontally for the 4 stat cards,
+     but other grids (3-col, 2-col) collapse to single-column */
+  @media (max-width: 1024px) {
     .summary-grid-4 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(250px, 1fr);
+      grid-template-columns: unset;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+  
+    .summary-grid-4 .summary-card {
+      min-width: 250px;
+    }
+  
+    .summary-grid-4::-webkit-scrollbar {
+      height: 6px;
+    }
+  
+    .summary-grid-4::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 999px;
+    }
+  
+    .summary-grid-3 {
+      grid-template-columns: 1fr;
+    }
+  
+    .summary-grid-2 {
+      grid-template-columns: 1fr;
     }
   }
-
+  
+  /* dashboard container tweaks on very small screens */
   @media (max-width: 768px) {
     .summary-dashboard {
       border-radius: 20px;
       padding: 28px 20px;
     }
-
-    .summary-grid-3,
-    .summary-grid-2,
-    .summary-grid-4 {
-      grid-template-columns: 1fr;
-    }
   }
-
+  
+  /* === GENERIC CARD STYLES (used in lower sections etc.) === */
   .summary-card,
   .summary-card--muted {
     background: var(--summary-card);
     border: 1px solid var(--summary-border);
     border-radius: 12px;
-    padding: clamp(20px, 3vw, 24px);
+    padding: clamp(10px, 1vw, 14px);
     box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
   }
-
+  
+  /* muted card (empty states / small KPI boxes in performance section) */
   .summary-card--muted {
     background: #f3f4f7;
     border: none;
     box-shadow: none;
     text-align: center;
   }
-
+  
+  /* === ACCOUNT STATUS BADGES === */
   .summary-account-status {
     display: inline-flex;
     align-items: center;
@@ -94,7 +206,6 @@
     color: var(--summary-muted);
     background: #f8f9fc;
   }
-
   .summary-account-status::before {
     content: "";
     width: 8px;
@@ -102,19 +213,18 @@
     border-radius: 999px;
     background: currentColor;
   }
-
   .summary-account-status.summary-account-status--ok {
     color: var(--summary-green);
     border-color: rgba(5, 150, 105, 0.24);
     background: rgba(5, 150, 105, 0.08);
   }
-
   .summary-account-status.summary-account-status--error {
     color: var(--summary-red);
     border-color: rgba(220, 38, 38, 0.24);
     background: rgba(220, 38, 38, 0.08);
   }
-
+  
+  /* === LITTLE FILTER CHIPS (1D / 1W / etc.) === */
   .summary-chip {
     display: inline-flex;
     align-items: center;
@@ -128,13 +238,13 @@
     color: var(--summary-muted);
     user-select: none;
   }
-
   .summary-chip.is-active {
     background: rgba(79, 70, 229, 0.08);
     border-color: #dfe2f7;
     color: var(--summary-primary);
   }
-
+  
+  /* === STALE DATA PILL ("Refreshing…") === */
   .summary-stale-indicator {
     display: inline-flex;
     align-items: center;
@@ -146,7 +256,6 @@
     padding: 4px 10px;
     font-weight: 500;
   }
-
   .summary-stale-indicator::before {
     content: "";
     width: 6px;
@@ -155,19 +264,14 @@
     background: var(--summary-blue);
     animation: summary-pulse 1.5s ease-in-out infinite;
   }
-
+  
   @keyframes summary-pulse {
-    0% {
-      opacity: 0.2;
-    }
-    50% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0.2;
-    }
+    0% { opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { opacity: 0.2; }
   }
-
+  
+  /* === PERFORMANCE CHART BOX === */
   .summary-chart-container {
     position: relative;
     height: 240px;
@@ -177,13 +281,11 @@
     background: var(--summary-card);
     overflow: hidden;
   }
-
   .summary-chart-container canvas {
     width: 100% !important;
     height: 100% !important;
     display: block;
   }
-
   .summary-chart-empty {
     position: absolute;
     inset: 0;
@@ -196,11 +298,11 @@
     padding: 0 16px;
     background: var(--summary-card);
   }
-
   .summary-chart-empty[hidden] {
     display: none;
   }
-
+  
+  /* === PROGRESS BAR (sector allocation rows) === */
   .summary-progress {
     height: 8px;
     border-radius: 999px;
@@ -208,7 +310,6 @@
     position: relative;
     overflow: hidden;
   }
-
   .summary-progress > span {
     position: absolute;
     left: 0;
@@ -216,28 +317,27 @@
     bottom: 0;
     border-radius: inherit;
   }
-
+  
+  /* === TABLES (Top Holdings) === */
   .summary-table {
     width: 100%;
     border-collapse: collapse;
   }
-
   .summary-table th,
   .summary-table td {
     padding: 12px 8px;
     border-bottom: 1px solid #f1f3f8;
   }
-
   .summary-table thead th {
     font-weight: 600;
     color: var(--summary-muted);
     text-align: left;
   }
-
   .summary-table tbody tr:last-child td {
     border-bottom: none;
   }
-
+  
+  /* === HEADER CARD ("Dashboard Summary" block at top) === */
   .summary-header {
     background: var(--summary-card);
     border: 1px solid var(--summary-border);
@@ -245,21 +345,21 @@
     padding: clamp(24px, 4vw, 28px) clamp(20px, 4vw, 32px);
     box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
   }
-
   .summary-header h1 {
     font-size: clamp(26px, 3vw, 32px);
     font-weight: 800;
     letter-spacing: -0.3px;
     margin: 0;
   }
-
   .summary-header p {
     margin: 8px 0 0 0;
     color: var(--summary-muted);
     font-size: clamp(14px, 2.4vw, 16px);
   }
-
+  
+  /* === SECTION HEADERS ("Account Summary", etc.) === */
   .summary-section-title {
+    margin-top: 1px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -267,59 +367,57 @@
     gap: 12px;
     margin-bottom: 12px;
   }
-
   .summary-section-title h2 {
+  
     font-size: 20px;
     font-weight: 800;
     margin: 0;
   }
-
   .summary-section-title a {
     text-decoration: none;
     color: var(--summary-primary);
     font-weight: 600;
     font-size: 14px;
   }
-
+  
+  /* === GENERIC CARD HEADER (used in other cards, e.g. "Top Holdings", etc.) === */
   .summary-card-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
   }
-
   .summary-card-label {
     margin: 0;
     color: var(--summary-muted);
     font-size: 14px;
   }
-
+  
+  /* === NUMERIC STAT / GENERIC (outside top tiles) === */
   .summary-stat-value {
     margin: 0;
     font-size: clamp(26px, 3vw, 32px);
     font-weight: 800;
     letter-spacing: -0.4px;
   }
-
   .summary-stat-positive {
     color: var(--summary-green);
   }
-
   .summary-stat-negative {
     color: var(--summary-red);
   }
-
+  
+  /* === RECENT TRANSACTIONS LIST === */
   .summary-transaction {
+    margin-top: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
   }
-
   .summary-transaction + .summary-transaction {
     margin-top: 14px;
   }
-
   .summary-transaction .info {
     display: flex;
     align-items: center;
@@ -327,7 +425,6 @@
     flex: 1;
     min-width: 0;
   }
-
   .summary-pill {
     border: 1px solid var(--summary-border);
     padding: 2px 6px;
@@ -337,23 +434,21 @@
     font-weight: 600;
     text-transform: uppercase;
   }
-
   .summary-pill.summary-pill--sell {
     border-color: #fad1d1;
     color: var(--summary-red);
     background: #fff5f5;
   }
-
   .summary-pill.summary-pill--dividend {
     background: #ffffff;
   }
-
   .summary-value {
     margin: 0;
     font-weight: 700;
     white-space: nowrap;
   }
-
+  
+  /* default footnote style (used outside the top 4 cards) */
   .summary-stat-footnote {
     margin: 6px 0 0 0;
     font-size: 12px;
