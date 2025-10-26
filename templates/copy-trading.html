@@ -822,14 +822,63 @@
             <p class="card-description">Manage or cancel trades initiated by Master accounts and copied to children.</p>
         </div>
         <div class="card-content">
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div class="flex gap-2 flex-wrap">
-                    <button class="btn btn-sm btn-destructive" onclick="window.cancelSelectedOrders()">Cancel Selected</button>
-                    <button class="btn btn-sm btn-warning" onclick="window.squareOffSelectedOrders()">Square Off Selected</button>
+                    <button class="btn btn-sm btn-destructive" id="cancelSelectedOrdersBtn">Cancel Selected</button>
+                    <button class="btn btn-sm btn-warning" id="squareOffSelectedOrdersBtn">Square Off Selected</button>
                 </div>
-                <button class="btn btn-sm btn-outline" onclick="window.selectAllOrders()">Select All</button>
+                <label for="toggleAllMasterOrdersCheckbox" class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" id="toggleAllMasterOrdersCheckbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" onchange="window.toggleAllMasterOrders(this.checked)">
+                    <span>Select All</span>
+                </label>
             </div>
             <div id="master-orders-alert" class="alert">No active orders at the moment. Orders from Master accounts will appear here.</div>
+            <div id="master-orders-list" class="list-group space-y-2"></div>
+            <div id="master-orders-empty-state" class="empty-state" style="display: none;">
+                <p>No master orders found.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="childMappingModal" tabindex="-1" aria-labelledby="childMappingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="childMappingModalLabel">Child Orders for Master Order</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="child-mapping-list" class="list-group"></div>
+                    <div id="child-mapping-empty-state" class="text-center p-3 text-muted" style="display: none;">
+                        No child orders found for this master order.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="changeMasterModal" tabindex="-1" aria-labelledby="changeMasterModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="changeMasterModalLabel">Change Master for Child Account</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="changeChildId" />
+                    <div class="mb-3">
+                        <label for="newMasterDropdown" class="form-label">Select New Master:</label>
+                        <select id="newMasterDropdown" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="submitChangeMasterBtn">Confirm</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
