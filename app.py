@@ -7938,7 +7938,8 @@ def summary():
     aggregated_holdings: dict[str, dict] = {}
     sector_map: dict[str, float] = defaultdict(float)
     account_summaries: list[dict] = []
-
+    account_allocation_values: list[tuple[str | None, float]] = []
+    
     for account in accounts:
         status_label, status_color = _account_status_label(account)
         summary_entry = {
@@ -7946,9 +7947,6 @@ def summary():
             "client_id": account.client_id,
             "status_label": status_label,
             "status_color": status_color,
-            "portfolio_value": 0.0,
-            "gain_loss": 0.0,
-            "gain_loss_percent": 0.0,
             "error": None,
         }
 
@@ -7993,9 +7991,6 @@ def summary():
 
         summary_entry.update(
             {
-                "portfolio_value": metrics["portfolio_value"],
-                "gain_loss": metrics["gain_loss"],
-                "gain_loss_percent": metrics["gain_loss_percent"],
                 "stale": bool(snapshot.get("stale")),
                 "cached_at": snapshot.get("cached_at"),
                 "age": snapshot.get("age"),
@@ -8003,6 +7998,13 @@ def summary():
         )
         account_summaries.append(summary_entry)
 
+        account_allocation_values.append(
+            (
+                summary_entry.get("broker") or summary_entry.get("client_id"),
+                metrics["portfolio_value"],
+            )
+        )
+    
         aggregate_value += metrics["portfolio_value"]
         aggregate_cost += metrics["investment"]
         aggregate_pnl += metrics["gain_loss"]
@@ -8141,13 +8143,12 @@ def summary():
 
     account_allocation = []
     if total_portfolio_value:
-        for summary_entry in account_summaries:
-            value = summary_entry.get("portfolio_value", 0.0)
+        for label, value in account_allocation_values:
             if value <= 0:
                 continue
             account_allocation.append(
                 {
-                    "label": summary_entry.get("broker") or summary_entry.get("client_id"),
+                    "label": label,
                     "percent": (value / total_portfolio_value) * 100.0,
                     "amount": value,
                 }
