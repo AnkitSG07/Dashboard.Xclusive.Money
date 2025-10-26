@@ -1706,7 +1706,9 @@
     const SPA_SCRIPT_ID = 'spa-script';
     const PAGE_SCRIPT_ATTR = 'data-page-script';
     const PAGE_SCRIPT_KEY_ATTR = 'data-page-script-key';
-
+    const PAGE_STYLE_ATTR = 'data-page-style';
+    const PAGE_STYLE_KEY_ATTR = 'data-page-style-key';
+    
     function normalizeScriptSrc(src) {
       try {
         return new URL(src, window.location.href).href;
@@ -1742,6 +1744,48 @@
         }
       }
       return false;
+    }
+    function normalizeStylesheetHref(href) {
+      try {
+        return new URL(href, window.location.href).href;
+      } catch (error) {
+        return href;
+      }
+    }
+
+    function computeStyleKey(styleEl) {
+      if (!styleEl) return null;
+      const tag = styleEl.tagName;
+      if (tag === 'LINK') {
+        if ((styleEl.rel || '').toLowerCase() !== 'stylesheet') return null;
+        const href = styleEl.getAttribute('href') || styleEl.href;
+        if (!href) return null;
+        return `href:${normalizeStylesheetHref(href)}`;
+      }
+      if (tag === 'STYLE') {
+        const inlineContent = styleEl.textContent ? styleEl.textContent.trim() : '';
+        if (!inlineContent) return null;
+        return `inline:${inlineContent}`;
+      }
+      return null;
+    }
+
+    function hasStyleWithKey(key) {
+      if (!key) return false;
+      const styles = document.querySelectorAll('link[rel="stylesheet"], style');
+      for (const existing of styles) {
+        const existingKey = existing.getAttribute(PAGE_STYLE_KEY_ATTR) || computeStyleKey(existing);
+        if (existingKey === key) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function removeInjectedPageStyles() {
+      document
+        .querySelectorAll(`link[${PAGE_STYLE_ATTR}], style[${PAGE_STYLE_ATTR}]`)
+        .forEach(style => style.remove());
     }
 
     function setupSidebarSPALinks() {
@@ -1786,7 +1830,18 @@
               if (newContent.dataset.page) {
                 pageContainer.dataset.page = newContent.dataset.page;
               }
-              removeInjectedPageScripts();  
+              removeInjectedPageScripts();
+              removeInjectedPageStyles();
+              doc.querySelectorAll('link[rel="stylesheet"], style').forEach(styleEl => {
+                const key = computeStyleKey(styleEl);
+                if (hasStyleWithKey(key)) return;
+                const clone = styleEl.cloneNode(true);
+                clone.setAttribute(PAGE_STYLE_ATTR, 'true');
+                if (key) {
+                  clone.setAttribute(PAGE_STYLE_KEY_ATTR, key);
+                }
+                document.head.appendChild(clone);
+              });
               doc.querySelectorAll('script').forEach(srcEl => {
                 if (srcEl.id === SPA_SCRIPT_ID) return;
                 const key = computeScriptKey(srcEl);
