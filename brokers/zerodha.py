@@ -7,7 +7,7 @@ import re
 import requests
 import pyotp
 import time
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin
 
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker_lazy
@@ -119,7 +119,7 @@ class ZerodhaBroker(BrokerBase):
                 "twofa_value": totp,
                 "twofa_type": twofa_type,
             },
-            allow_redirects=True,
+            allow_redirects=False,
             timeout=10,
         )
         # After successful 2FA we get redirected to the connect login URL with request_token
@@ -142,15 +142,48 @@ class ZerodhaBroker(BrokerBase):
                 return token
             return None
 
-        request_token = None
-        history_and_response = list(getattr(resp, "history", [])) + [resp]
-        for candidate in history_and_response:
-            request_token = _extract_request_token(candidate)
-            if request_token:
-                break
+        redirect_status_codes = {301, 302, 303, 307, 308}
+        allowed_redirect_hosts = {"kite.zerodha.com", "kite.trade"}
 
+        def _follow_redirects_for_token(initial_response):
+            responses = [initial_response]
+            current = initial_response
+            for _ in range(10):
+                token = _extract_request_token(current)
+                if token:
+                    return token, responses
+
+                if current.status_code not in redirect_status_codes:
+                    break
+
+                location = current.headers.get("Location")
+                if not location:
+                    break
+
+                next_url = urljoin(current.url, location)
+                parsed = urlparse(next_url)
+                host = parsed.hostname
+                if host and host not in allowed_redirect_hosts:
+                    qs = parse_qs(parsed.query)
+                    token = (qs.get("request_token") or [None])[0]
+                    if token:
+                        return token, responses
+                    break
+
+                current = session.get(
+                    next_url,
+                    allow_redirects=False,
+                    timeout=10,
+                )
+                responses.append(current)
+
+            return None, responses
+
+        request_token, responses = _follow_redirects_for_token(resp)
         if request_token:
             return request_token
+
+        resp = responses[-1]
 
         response_data = None
         try:
@@ -165,14 +198,13 @@ class ZerodhaBroker(BrokerBase):
         ):
             follow_resp = session.get(
                 self.kite.login_url(),
-                allow_redirects=True,
+                allow_redirects=False,
                 timeout=10,
             )
-            for candidate in list(getattr(follow_resp, "history", [])) + [follow_resp]:
-                request_token = _extract_request_token(candidate)
-                if request_token:
-                    return request_token
-            resp = follow_resp
+            request_token, responses = _follow_redirects_for_token(follow_resp)
+            if request_token:
+                return request_token
+            resp = responses[-1]
             try:
                 response_data = resp.json()
             except Exception:  # pragma: no cover - non-json response
