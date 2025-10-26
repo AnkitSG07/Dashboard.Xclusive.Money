@@ -16,8 +16,8 @@
 .account-config-page .background-shapes .shape {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.6;
+  filter: blur(500px);
+  opacity: 0;
 }
 .account-config-page .background-shapes .shape1 {
   width: 420px;
@@ -232,7 +232,7 @@
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.4;
   color: #1f2937;
   font-weight: 500;
@@ -246,19 +246,20 @@
 }
 
 .account-config-page .broker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 16px;
+  display:  grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
   margin-bottom: 24px;
+  margin-top: 24px;
 }
 .account-config-page .broker-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 1px;
+  padding: 1px;
   border-radius: 14px;
-  border: 2px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   background: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
@@ -273,12 +274,12 @@
   background: rgba(99, 102, 241, 0.05);
 }
 .account-config-page .broker-card img {
-  width: 48px;
-  height: 48px;
+  width: 98px;
+  height: 58px;
   border-radius: 50%;
   object-fit: contain;
   background: #ffffff;
-  padding: 6px;
+  padding: 9px;
 }
 .account-config-page .broker-avatar {
   width: 56px;
@@ -293,8 +294,8 @@
   text-transform: uppercase;
 }
 .account-config-page .broker-name {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 300;
   text-align: center;
   color: #374151;
 }
@@ -1793,7 +1794,6 @@
   position: relative !important;
   display: inline-block !important;
   margin: 0 !important;
-  z-index: 9999!important;
 }
 .account-config-page td[data-field="action-cell"] .dropdown-menu {
   position: absolute !important;
