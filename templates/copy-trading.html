@@ -4,501 +4,837 @@
 {% block head %}
   {{ super() }}
   <style>
-      :root {
-        --bs-primary: #007bff; /* A standard primary blue */
-        --bs-secondary: #6c757d;
-        --bs-success: #28a745;
-        --bs-info: #17a2b8;
-        --bs-warning: #ffc107;
-        --bs-danger: #dc3545;
-        --bs-light: #f8f9fa;
-        --bs-dark: #343a40;
-  
-        --bs-body-bg: #f4f7f6; /* Light gray background for the whole page */
-        --bs-body-color: #333; /* Darker text for readability */
-  
-        /* Customizing shadows for a softer look */
-        --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
-        --bs-box-shadow-sm: 0 .125rem .25rem rgba(0,0,0,.06);
-        --bs-box-shadow-lg: 0 .5rem 1rem rgba(0,0,0,.15);
-        --bs-box-shadow-inset: inset 0 1px 2px rgba(0,0,0,.075);
-  
-        /* Rounded corners */
-        --bs-border-radius: .5rem; /* Slightly more rounded */
-        --bs-border-radius-sm: .3rem;
-        --bs-border-radius-lg: .75rem;
-      }
-  
-      body {
-        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-        background-color: var(--bs-body-bg);
-        color: var(--bs-body-color);
-      }
-  
-      .card {
-        border-radius: var(--bs-border-radius-lg); /* More pronounced rounded corners for cards */
-        box-shadow: var(--bs-box-shadow);
-        transition: all 0.3s ease; /* Smooth transition for hover effects */
-      }
-  
-      .card:hover {
-        box-shadow: var(--bs-box-shadow-lg); /* Lift effect on hover */
-        transform: translateY(-2px);
-      }
-  
-      .card-header {
-        border-top-left-radius: var(--bs-border-radius-lg);
-        border-top-right-radius: var(--bs-border-radius-lg);
-        font-weight: 600;
-        border-bottom: none; /* Remove default header border */
-      }
-  
-      .hero-section {
-        background: linear-gradient(45deg, var(--bs-primary), #0d6efd); /* Gradient background for hero */
-        color: white;
-        padding: 2.5rem !important;
-        border-radius: var(--bs-border-radius-lg) !important;
-        box-shadow: var(--bs-box-shadow-lg) !important;
-      }
-  
-      .hero-section h3, .hero-section p {
-          color: white !important; /* Ensure text is white on gradient */
-      }
-  
-      .hero-section a {
-          color: rgba(255, 255, 255, 0.8) !important;
-          text-decoration: underline !important;
-      }
-      .hero-section a:hover {
-          color: white !important;
-      }
-  
-      .btn {
-        border-radius: var(--bs-border-radius-sm);
-      }
-  
-      .btn-outline-primary,
-      .btn-outline-secondary,
-      .btn-outline-success,
-      .btn-outline-warning,
-      .btn-outline-info,
-      .btn-outline-danger,
-      .btn-outline-dark {
-          transition: all 0.2s ease; /* Smooth hover for outline buttons */
-      }
-  
-      .accordion-item {
-        border: none; /* Remove default accordion borders */
-        border-radius: var(--bs-border-radius);
-        box-shadow: var(--bs-box-shadow-sm);
-        margin-bottom: 1rem; /* Space between accordion items */
-        overflow: hidden; /* Ensure rounded corners clip content */
-      }
-  
-      .accordion-button {
-        background-color: white;
-        border-radius: var(--bs-border-radius);
-        transition: background-color 0.2s ease;
-        font-weight: 500;
-        padding: 1rem 1.25rem; /* Adjust padding */
-      }
-  
-      .accordion-button:not(.collapsed) {
-        background-color: var(--bs-light); /* Slightly different background for expanded */
-        color: var(--bs-primary);
-        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.125);
-      }
-  
-      .accordion-body {
-        background-color: #fcfdff; /* Lighter background for accordion content */
-        border-top: 1px solid rgba(0,0,0,.05); /* Subtle separator */
-      }
-  
-      .list-group-item {
-        border-radius: var(--bs-border-radius-sm);
-        margin-bottom: .5rem; /* Space between list items */
-        border: 1px solid rgba(0,0,0,.05);
-        background-color: white;
-        transition: all 0.2s ease;
-      }
-  
-      .list-group-item:hover {
-          background-color: var(--bs-light);
-          box-shadow: var(--bs-box-shadow-sm);
-      }
-  
-      .badge {
-        font-weight: 600;
-        padding: .4em .7em;
-        border-radius: .25rem;
-      }
-  
-      .form-check-input:checked {
-        background-color: var(--bs-primary);
-        border-color: var(--bs-primary);
-      }
-  
-      /* Adjust modal header background for consistent theme */
-      .modal-header.bg-primary,
-      .modal-header.bg-info {
-          background-color: var(--bs-primary) !important;
-      }
-  
-      /* Specific adjustments for input groups in tables */
-      .input-group-sm .form-control, .input-group-sm .btn {
-          height: calc(1.5em + .5rem + 2px); /* Bootstrap's height for sm inputs */
-      }
-  
-      /* Specific styling for the custom backdrop used in modals for spinner/symbol select */
-      .modal-backdrop.d-flex {
-          background-color: rgba(0, 0, 0, 0.65); /* Darker backdrop for loading */
-          backdrop-filter: blur(3px); /* Optional blur effect */
-      }
-  
-      /* --- FIXES FOR MOBILE VIEW & MULTIPLIER --- */
-  
-      /* Child accordion header layout fixes */
-      .child-accordion-header {
-          display: flex !important;
-          align-items: center !important;
-          width: 100% !important;
-          gap: 0.75rem !important;
-          flex-wrap: nowrap !important; /* Force no wrapping on desktop */
-      }
-  
-      .child-info {
-          display: flex !important;
-          align-items: center !important;
-          gap: 0.5rem !important;
-          flex: 1 !important;
-          min-width: 0 !important;
-      }
-  
-      .child-controls {
-          display: flex !important;
-          align-items: center !important;
-          gap: 0.5rem !important;
-          flex-shrink: 0 !important;
-          margin-left: auto !important;
-      }
-  
-      .copy-status-control {
-          display: flex !important;
-          align-items: center !important;
-          gap: 0.25rem !important;
-      }
-  
-      /* Quantity input and button on the same line and responsive */
-      .copy-qty-control {
-          display: flex !important;
-          align-items: center !important;
-          gap: 0.25rem !important; /* Tight spacing between input, button, and tooltip */
-          flex-wrap: nowrap !important; /* Keep them on one line */
-          flex-shrink: 0 !important; /* Avoid shrinking */
-      }
-  
-      .copy-qty-control .form-control {
-          width: 50px !important; /* Compact input */
-          text-align: center !important;
-          font-size: 0.875rem !important;
-      }
-  
-      .copy-qty-control .btn {
-          font-size: 0.75rem !important; /* Smaller button text */
-          padding: 0.25rem 0.5rem !important; /* Compact button */
-          white-space: nowrap !important;
-      }
-  
-      .copy-qty-control i {
-          font-size: 0.875rem !important; /* Smaller tooltip icon */
-          cursor: help !important;
-      }
-  
-      /* Prevent toggle switch from interfering with accordion */
-      .accordion-button .form-check {
-          pointer-events: all !important;
-          z-index: 10 !important;
-          position: relative !important;
-      }
-  
-      .accordion-button .form-check-input {
-          pointer-events: all !important;
-      }
-  
-      /* Ensure list-group-item content flows well on small screens */
-      .list-group-item .d-flex {
-          flex-wrap: wrap; /* Allow content inside list items to wrap */
-      }
-  
-      .list-group-item .d-flex > * {
-          margin-bottom: .25rem; /* Small space for wrapped items */
-      }
-  
-      .list-group-item .d-flex > *:last-child {
-          margin-bottom: 0;
-      }
-  
-      /* Adjust spacing and font size for details within list items on smaller screens */
-      .list-group-item p,
-      .list-group-item small {
-          font-size: 0.875rem; /* Slightly smaller text */
-          line-height: 1.3;
-      }
-  
-      @media (max-width: 767.98px) { /* Small devices (landscape phones, less than 768px) */
-          .child-accordion-header {
-              flex-wrap: wrap !important;
-              flex-direction: column !important;
-              align-items: flex-start !important;
-          }
-  
-          .child-info {
-              width: 100% !important;
-          }
-  
-          .child-controls {
-              width: 100% !important;
-              justify-content: space-between !important;
-              margin-left: 0 !important;
-              margin-top: 0.5rem !important;
-              gap: 0.75rem !important;
-          }
-  
-          .copy-qty-control .form-control {
-              width: 45px !important;
-          }
-  
-          .copy-qty-control .btn {
-              font-size: 0.7rem !important;
-              padding: 0.2rem 0.4rem !important;
-          }
-  
-          /* Updated: Use flex-nowrap to keep elements on one line, and adjust spacing. */
-          .accordion-button .d-flex.w-100.pe-3 {
-              flex-wrap: nowrap; /* Prevent wrapping to keep controls on one line */
-              justify-content: flex-start; /* Align content to the start */
-              text-align: left;
-              overflow-x: auto; /* Add horizontal scroll if necessary */
-          }
-          .accordion-button .d-flex.w-100.pe-3 > * {
-              flex-shrink: 0; /* Prevent elements from shrinking */
-              margin-bottom: 0;
-          }
-          .accordion-button .d-flex.w-100.pe-3 .ms-auto {
-              margin-left: auto !important;
-              margin-right: 0 !important;
-          }
-  
-          .accordion-button .d-none.d-md-inline-block {
-              display: block !important; /* Show username on mobile */
-              font-size: 0.85rem;
-          }
-  
-          /* Remove the width 100% rule for quantity control on mobile */
-          .accordion-button .copy-qty-control {
-              width: auto;
-          }
-  
-          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 {
-              justify-content: center;
-          }
-  
-          .accordion-body .d-flex.flex-wrap.gap-2.mb-3 .btn {
-              flex-grow: 1; /* Make buttons expand on mobile */
-              max-width: 48%; /* Allow two buttons per row */
-          }
-  
-          .nav-tabs .nav-item {
-              flex-grow: 1; /* Make tabs equally wide */
-              text-align: center;
-          }
-          .nav-tabs .nav-link {
-              padding: .75rem .5rem; /* Smaller padding for tabs */
-              font-size: 0.875rem;
-          }
-  
-          /* Adjust list-group items for better mobile readability */
-          .list-group-item p,
-          .list-group-item small {
-              word-break: break-word; /* Break long words */
-          }
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+
+        .container-xl {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        @media (min-width: 768px) {
+            .container-xl {
+                padding: 32px;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .card-description {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .card-content {
+            padding: 24px;
+        }
+
+        .card-primary {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-success {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .card-accent {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .card-muted {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-header-primary {
+            background: rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .card-header-accent {
+            background: rgba(245, 158, 11, 0.1);
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .card-header-muted {
+            background: rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            text-decoration: none;
+            background: transparent;
+        }
+
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+            border-color: #6366f1;
+        }
+
+        .btn-primary:hover {
+            background: #5558e3;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+
+        .btn-outline:hover {
+            background: #f9fafb;
+        }
+
+        .btn-success {
+            border-color: #10b981;
+            color: #10b981;
+            background: transparent;
+        }
+
+        .btn-success:hover {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .btn-warning {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .btn-warning:hover {
+            background: rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-destructive {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+
+        .btn-destructive:hover {
+            background: #dc2626;
+        }
+
+        .btn-destructive-outline {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: transparent;
+        }
+
+        .btn-destructive-outline:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: none;
+        }
+
+        .btn-ghost:hover {
+            background: #f3f4f6;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-primary {
+            background: #6366f1;
+            color: white;
+        }
+
+        .badge-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #065f46;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-outline {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+
+        .badge-green {
+            background: #10b981;
+            color: white;
+        }
+
+        .badge-red {
+            background: #ef4444;
+            color: white;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        @media (max-width: 768px) {
+            .grid-cols-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #fafafa;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #fafafa;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .collapsible-trigger {
+            cursor: pointer;
+        }
+
+        .collapsible-content {
+            display: none;
+        }
+
+        .collapsible-content.open {
+            display: table-row;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #d1d5db;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #6366f1;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            cursor: pointer;
+            accent-color: #6366f1;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .icon-sm {
+            width: 16px;
+            height: 16px;
+        }
+
+        .icon-lg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 4px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            position: relative;
+            top: 1px;
+            white-space: nowrap;
+            background: transparent;
+            border: none;
+        }
+
+        .tab.active {
+            color: #6366f1;
+            border-bottom-color: #6366f1;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: 8px;
+        }
+
+        .gap-3 {
+            gap: 12px;
+        }
+
+        .flex-wrap {
+            flex-wrap: wrap;
+        }
+
+        .font-medium {
+            font-weight: 500;
+        }
+
+        .font-semibold {
+            font-weight: 600;
+        }
+
+        .text-sm {
+            font-size: 14px;
+        }
+
+        .text-xs {
+            font-size: 12px;
+        }
+
+        .text-muted {
+            color: #6b7280;
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        .text-destructive {
+            color: #ef4444;
+        }
+
+        .bg-muted {
+            background: rgba(0, 0, 0, 0.03);
+        }
+
+        .p-4 {
+            padding: 16px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        .rounded {
+            border-radius: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .hide-mobile {
+                display: none;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 2000px;
+            }
+        }
+
+        .collapsible-content.open td {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .expanded-row-content {
+            background: rgba(0, 0, 0, 0.02);
+            padding: 16px;
+        }
+
+        .section-title-sm {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .download-btn:hover {
+            color: #374151;
+        }
+
+        .account-mini-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .account-mini-card .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .account-mini-card .account-id {
+            font-weight: 600;
+        }
+
+        .account-mini-card .account-username {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .icon-box {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 4px;
+        }
+
+        .position-row {
+            cursor: pointer;
+        }
+
+        .position-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        select {
+            appearance: none;
+            padding-right: 32px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            cursor: pointer;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            color: #d1d5db;
+        }
+
+        .copy-qty-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .copy-qty-control input {
+            width: 64px;
+            text-align: center;
+        }
+
+        .list-group-item {
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 8px;
+            background: white;
+            padding: 16px;
+        }
+
+        .list-group-item:hover {
+            background: #f9fafb;
+        }
+
+        .list-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
+        }
+
+        .vr {
+            width: 1px;
+            background: #e5e7eb;
+            align-self: stretch;
+        }
+
+        .btn-link,
+        .btn-link:hover {
+            text-decoration: none;
+        }
   </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card hero-section">
-                <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between">
-                    <div class="mb-3 mb-md-0">
-                        <h3 class="mb-2"><i class="bi bi-people-fill me-2"></i> Copy Trading Setup</h3>
-                        <p class="mb-0">Manage your trading accounts for copy trading. Use the <a href="/Add-Account" class="text-decoration-none fw-semibold">Account Configuration</a> page to add new accounts. Below, you can assign roles, link/unlink accounts, and control the copying process.</p>
-                    </div>
-                    <a href="/Add-Account" class="btn btn-light text-primary btn-lg mt-3 mt-md-0 shadow-sm">
-                        <i class="bi bi-plus-circle me-2"></i> Configure New Account
-                    </a>
+<div class="container-xl py-4">
+    <div class="card">
+        <div class="card-content">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div style="flex: 1 1 240px;">
+                    <h2 class="card-title" style="margin-bottom: 4px;">Copy Trading Setup</h2>
+                    <p class="card-description" style="margin-bottom: 0;">Manage account roles and control how trades flow between master and child accounts. Configure new accounts from the account configuration page.</p>
                 </div>
+                <a href="/Add-Account" class="btn btn-primary" style="white-space: nowrap;">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Configure New Account
+                </a>
             </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="bi bi-question-circle me-2"></i> Unassigned Accounts</h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Accounts added but not yet assigned a role (Master or Child). Assign their role below to get started.</p>
-                    <div id="unassigned-accounts-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                        </div>
-                    <div id="unassigned-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
-                        <i class="bi bi-check-circle-fill fs-3 text-success mb-2"></i>
-                        <p class="mb-0">No unassigned accounts. All accounts have a role.</p>
-                    </div>
-                </div>
+    <div class="card card-primary">
+        <div class="card-header card-header-primary">
+            <div class="card-title" style="font-size: 18px; color: #6366f1;">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                Unassigned Accounts
+            </div>
+            <p class="card-description">Accounts added but not yet assigned a role (Master or Child). Assign their role below to get started.</p>
+        </div>
+        <div class="card-content">
+            <div class="grid grid-cols-3" id="unassigned-accounts-list"></div>
+            <div id="unassigned-empty-state" class="empty-state" style="display: none;">
+                <svg class="icon empty-state-icon" viewBox="0 0 24 24">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <p>All accounts have been assigned roles.</p>
             </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="bi bi-person-badge-fill me-2"></i> Master Accounts</h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Accounts selected to replicate their trades across linked child accounts.</p>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="master-accounts-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Account</th>
-                                    <th class="d-none d-md-table-cell">Username</th>
-                                    <th class="d-none d-lg-table-cell">Broker</th>
-                                    <th>Status</th>
-                                    <th>Copy</th>
-                                    <th>Children</th>
-                                </tr>
-                            </thead>
-                            <tbody id="master-accounts-body"></tbody>
-                        </table>
-                    </div>
-                    <div id="master-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
-                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
-                        <p class="mb-0">No master accounts configured.</p>
-                    </div>
-                </div>
+    <div class="card card-success">
+        <div class="card-header card-header-success">
+            <div class="card-title" style="font-size: 18px; color: #10b981;">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Master Accounts
+            </div>
+            <p class="card-description">Accounts selected to replicate their trades across linked child accounts.</p>
+        </div>
+        <div class="card-content">
+            <div class="table-wrapper">
+                <table id="master-accounts-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>Account</th>
+                            <th>Username</th>
+                            <th>Broker</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Copy</th>
+                            <th class="text-center">Children</th>
+                        </tr>
+                    </thead>
+                    <tbody id="master-accounts-body"></tbody>
+                </table>
+            </div>
+            <div id="master-empty-state" class="empty-state" style="display: none;">
+                <p>No master accounts configured.</p>
             </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i> Child Accounts</h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Accounts where all trades from their assigned Master will be copied.</p>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="children-accounts-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Account</th>
-                                    <th>Master</th>
-                                    <th class="d-none d-lg-table-cell">Broker</th>
-                                    <th>Status</th>
-                                    <th>Copy</th>
-                                    <th>Settings</th>
-                                </tr>
-                            </thead>
-                            <tbody id="children-accounts-body"></tbody>
-                        </table>
-                    </div>
-                    <div id="children-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
-                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
-                        <p class="mb-0">No child accounts configured.</p>
-                    </div>
-                </div>
+    <div class="card card-accent">
+        <div class="card-header card-header-accent">
+            <div class="card-title" style="font-size: 18px; color: #f59e0b;">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                Child Accounts
+            </div>
+            <p class="card-description">Accounts where all trades from their assigned Master will be copied.</p>
+        </div>
+        <div class="card-content">
+            <div class="table-wrapper">
+                <table id="children-accounts-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>Account</th>
+                            <th>Master</th>
+                            <th>Broker</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Copy</th>
+                            <th class="text-center">Settings</th>
+                        </tr>
+                    </thead>
+                    <tbody id="children-accounts-body"></tbody>
+                </table>
+            </div>
+            <div id="children-empty-state" class="empty-state" style="display: none;">
+                <p>No child accounts configured.</p>
             </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i> Master Orders</h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Manage or cancel trades initiated by Master accounts and copied to children.</p>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <button class="btn btn-danger btn-sm" id="cancelSelectedOrdersBtn"><i class="bi bi-x-circle me-1"></i> Cancel Selected</button>
-                        <button class="btn btn-warning btn-sm" id="squareOffSelectedOrdersBtn"><i class="bi bi-box-arrow-in-up-right me-1"></i> Square Off Selected</button>
-                        <div class="form-check form-check-inline ms-auto">
-                            <input class="form-check-input" type="checkbox" id="toggleAllMasterOrdersCheckbox" onchange='window.toggleAllMasterOrders(this.checked)'>
-                            <label class="form-check-label" for="toggleAllMasterOrdersCheckbox">Select All</label>
-                        </div>
-                    </div>
-                    <div id="master-orders-list" class="list-group">
-                        </div>
-                    <div id="master-orders-empty-state" class="text-center p-4 text-muted border rounded mt-3" style="display: none;">
-                        <i class="bi bi-info-circle-fill fs-3 text-info mb-2"></i>
-                        <p class="mb-0">No master orders found.</p>
-                    </div>
-                </div>
+    <div class="card card-muted">
+        <div class="card-header card-header-muted">
+            <div class="card-title" style="font-size: 18px; color: #6b7280;">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                Master Orders
             </div>
+            <p class="card-description">Manage or cancel trades initiated by Master accounts and copied to children.</p>
         </div>
-    </div>
-</div>
-
-<div class="modal fade" id="childMappingModal" tabindex="-1" aria-labelledby="childMappingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="childMappingModalLabel">Child Orders for Master Order</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="child-mapping-list" class="list-group">
-                    </div>
-                <div id="child-mapping-empty-state" class="text-center p-3 text-muted" style="display: none;">
-                    No child orders found for this master order.
+        <div class="card-content">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div class="flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-destructive" onclick="window.cancelSelectedOrders()">Cancel Selected</button>
+                    <button class="btn btn-sm btn-warning" onclick="window.squareOffSelectedOrders()">Square Off Selected</button>
                 </div>
+                <button class="btn btn-sm btn-outline" onclick="window.selectAllOrders()">Select All</button>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
+            <div id="master-orders-alert" class="alert">No active orders at the moment. Orders from Master accounts will appear here.</div>
         </div>
     </div>
 </div>
-
-<div class="modal fade" id="changeMasterModal" tabindex="-1" aria-labelledby="changeMasterModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="changeMasterModalLabel">Change Master for Child Account</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="changeChildId" />
-                <div class="mb-3">
-                    <label for="newMasterDropdown" class="form-label">Select New Master:</label>
-                    <select id="newMasterDropdown" class="form-select"></select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="submitChangeMasterBtn">Confirm</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
+
 
 {% block scripts %}
 <script>
@@ -548,40 +884,18 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function updatePollingState() {
-    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-table .collapse.show[data-master]'))
+    const masterDataOpen = Array.from(document.querySelectorAll('#master-accounts-table .collapsible-content.open[data-master]'))
       .some(panel => {
-        const id = panel.id.replace('collapseMaster', '');
-        const active = document.querySelector(`#tabs-${id} .nav-link.active`);
-        return active && !active.id.includes('children');
+        const id = panel.dataset.master;
+        const active = document.querySelector(`#tabs-${id} .tab.active`);
+        return active && active.dataset.tab !== 'children';
       });
-    const childDataOpen = !!document.querySelector('#children-accounts-table .collapse.show[data-child]');
+    const childDataOpen = !!document.querySelector('#children-accounts-table .collapsible-content.open[data-child]');
     if (masterDataOpen || childDataOpen) {
       pauseAccountsPolling();
     } else {
       resumeAccountsPolling();
     }
-  }
-  function initializeCollapseIconHandlers(containerSelector) {
-    const container = document.querySelector(containerSelector);
-    if (!container) return;
-    container.querySelectorAll('.collapse').forEach(collapseEl => {
-      const targetId = collapseEl.id;
-      if (!targetId) return;
-      const toggles = container.querySelectorAll(`[data-bs-target="#${targetId}"]`);
-      const updateIcon = (isShown) => {
-        toggles.forEach(toggle => {
-          const icon = toggle.querySelector('i');
-          if (icon) {
-            icon.classList.remove('bi-plus-square', 'bi-dash-square');
-            icon.classList.add(isShown ? 'bi-dash-square' : 'bi-plus-square');
-          }
-          toggle.setAttribute('aria-expanded', isShown);
-        });
-      };
-      collapseEl.addEventListener('shown.bs.collapse', () => updateIcon(true));
-      collapseEl.addEventListener('hidden.bs.collapse', () => updateIcon(false));
-      updateIcon(collapseEl.classList.contains('show'));
-    });
   }
 
   function escapeHtml(str) {
@@ -619,12 +933,12 @@ window.pageScripts["copy-trading"] = function () {
 
   function formatOrderStatus(rawStatus) {
     if (rawStatus === undefined || rawStatus === null) {
-      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+      return { label: 'Unknown', className: 'badge-secondary', tooltip: 'Status unavailable' };
     }
 
     const statusStr = String(rawStatus).trim();
     if (!statusStr) {
-      return { label: 'Unknown', className: 'bg-secondary', tooltip: 'Status unavailable' };
+      return { label: 'Unknown', className: 'badge-secondary', tooltip: 'Status unavailable' };
     }
 
     const statusCodeMap = {
@@ -647,15 +961,15 @@ window.pageScripts["copy-trading"] = function () {
       .trim() || 'Unknown';
 
     const upper = baseLabel.toUpperCase();
-    let className = 'bg-primary';
+    let className = 'badge-primary';
     if (/REJECT|FAIL|ERROR/.test(upper)) {
-      className = 'bg-danger';
+      className = 'badge-red';
     } else if (/CANCEL|EXPIRE/.test(upper)) {
-      className = 'bg-secondary';
+      className = 'badge-secondary';
     } else if (/TRADE|FILL|COMPLETE|SUCCESS/.test(upper)) {
-      className = 'bg-success';
+      className = 'badge-success';
     } else if (/PEND|TRANSIT|OPEN|TRIGGER/.test(upper)) {
-      className = 'bg-warning text-dark';
+      className = 'badge-secondary';
     }
 
     const tooltip = isNumeric ? `Broker status code ${statusStr}` : titleCase;
@@ -791,10 +1105,10 @@ window.pageScripts["copy-trading"] = function () {
 
     if (errList.length > 0) {
       const tip = escapeHtml(errList.join('\n'));
-      return `<span class="badge bg-danger me-1">Error</span><i class="bi bi-info-circle" title="${tip}"></i>`;
+      return `<span class="badge badge-red" style="margin-right:6px;">Error</span><i class="bi bi-info-circle" title="${tip}"></i>`;
     }
 
-    return '<span class="badge bg-success">LIVE</span>';
+    return '<span class="badge badge-success">LIVE</span>';
   }
 
   function childHasError(acc) {
@@ -866,7 +1180,7 @@ window.pageScripts["copy-trading"] = function () {
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                   <div class="d-flex w-100 justify-content-between">
-                      <h6 class="mb-1">${childId} <span class="badge bg-secondary ms-2">${status}</span></h6>
+                      <h6 class="mb-1">${childId} <span class="badge badge-secondary" style="margin-left:8px;">${status}</span></h6>
                       <small>${brokerIconHTML(row.child_broker)}</small>
                   </div>
                   <p class="mb-1 text-muted">Order ID: ${orderId}</p>
@@ -1042,10 +1356,10 @@ window.pageScripts["copy-trading"] = function () {
     }
 
     const openMasters = masterTableBodyEl
-      ? new Set(Array.from(masterTableBodyEl.querySelectorAll('div.collapse.show[data-master]')).map(el => el.dataset.master))
+      ? new Set(Array.from(masterTableBodyEl.querySelectorAll('.collapsible-content.open[data-master]')).map(el => el.dataset.master))
       : new Set();
     const openChildren = childrenTableBodyEl
-      ? new Set(Array.from(childrenTableBodyEl.querySelectorAll('div.collapse.show[data-child]')).map(el => el.dataset.child))
+      ? new Set(Array.from(childrenTableBodyEl.querySelectorAll('.collapsible-content.open[data-child]')).map(el => el.dataset.child))
       : new Set();
 
     // Capture currently active tabs so user selections persist after reload
@@ -1053,10 +1367,9 @@ window.pageScripts["copy-trading"] = function () {
     if (masterTableBodyEl) {
       masterTableBodyEl.querySelectorAll('.master-tab-links').forEach(tabList => {
         const id = tabList.id.replace('tabs-','');
-        const activeLink = tabList.querySelector('.nav-link.active');
-        if (id && activeLink) {
-          const match = activeLink.id.match(/tab-(\\w+)-/);
-          if (match) masterActiveTabs[id] = match[1];
+        const activeLink = tabList.querySelector('.tab.active');
+        if (id && activeLink && activeLink.dataset.tab) {
+          masterActiveTabs[id] = activeLink.dataset.tab;
         }
       });
     }
@@ -1064,10 +1377,9 @@ window.pageScripts["copy-trading"] = function () {
     if (childrenTableBodyEl) {
       childrenTableBodyEl.querySelectorAll('.child-tab-links').forEach(tabList => {
         const id = tabList.id.replace('child-tabs-','');
-        const activeLink = tabList.querySelector('.nav-link.active');
-        if (id && activeLink) {
-          const match = activeLink.id.match(/tab-child-(\\w+)-/);
-          if (match) childActiveTabs[id] = match[1];
+        const activeLink = tabList.querySelector('.tab.active');
+        if (id && activeLink && activeLink.dataset.tab) {
+          childActiveTabs[id] = activeLink.dataset.tab;
         }
       });
     }
@@ -1189,81 +1501,80 @@ let errorHandled = false;
               const masterOpen = openMasters.has(masterDomId);
               const childCount = Array.isArray(master.children) ? master.children.length : 0;
               const copyStatus = master.copy_status || '-';
-              const copyClass = copyStatus === 'On' ? 'bg-success' : copyStatus === 'Off' ? 'bg-secondary' : 'bg-info';
+              const copyBadgeClass = copyStatus === 'On' ? 'badge-success' : copyStatus === 'Off' ? 'badge-secondary' : 'badge-primary';
 
               const detailContent = `
-                <div class="accordion-body p-3">
-                  <div class="d-flex flex-wrap gap-2 mb-3">
-                      <button class="btn btn-sm btn-outline-danger" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
-                      <div class="vr"></div>
-                      <button class="btn btn-sm btn-outline-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
-                      <button class="btn btn-sm btn-outline-warning text-dark" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
-                      ${masterExited ? '<button class=\"btn btn-sm btn-outline-secondary disabled\">Exited Master Positions</button>' : `<button class=\"btn btn-sm btn-outline-secondary\" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
-                      <button class="btn btn-sm btn-outline-secondary" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
+                <div class="expanded-row-content">
+                  <div class="flex gap-2 mb-4 flex-wrap">
+                      <button class="btn btn-sm btn-success" onclick='window.startAllChildren(${JSON.stringify(rawMasterId)})'>Turn On All Child Copying</button>
+                      <button class="btn btn-sm btn-outline" onclick='window.stopAllChildren(${JSON.stringify(rawMasterId)})'>Turn Off All Child Copying</button>
+                      ${masterExited ? '<button class="btn btn-sm btn-outline" disabled>Exit Master Positions</button>' : `<button class="btn btn-sm btn-warning" onclick='window.exitMasterPositions(${JSON.stringify(rawMasterId)})'>Exit Master Positions</button>`}
+                      <button class="btn btn-sm btn-outline" onclick='window.exitAllChildren(${JSON.stringify(rawMasterId)})'>Exit All Child Positions</button>
+                      <button class="btn btn-sm btn-destructive-outline" onclick='window.removeMaster(${JSON.stringify(rawMasterId)})'>Remove Master</button>
                   </div>
-                  <ul class="nav nav-tabs master-tab-links mb-3" id="tabs-${masterDomId}" role="tablist">
-                      <li class="nav-item" role="presentation">
-                           <button class="nav-link active" id="tab-children-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-children-${masterDomId}" type="button" role="tab" aria-controls="master-children-${masterDomId}" aria-selected="true" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children")'>View Children</button>
-                      </li>
-                      <li class="nav-item" role="presentation">
-                          <button class="nav-link" id="tab-positions-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-positions-${masterDomId}" type="button" role="tab" aria-controls="master-positions-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions")'>Positions</button>
-                        </li>
-                      <li class="nav-item" role="presentation">
-                          <button class="nav-link" id="tab-holdings-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-holdings-${masterDomId}" type="button" role="tab" aria-controls="master-holdings-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings")'>Holdings</button>
-                      </li>
-                      <li class="nav-item" role="presentation">
-                          <button class="nav-link" id="tab-orders-${masterDomId}-tab" data-bs-toggle="tab" data-bs-target="#master-orders-book-${masterDomId}" type="button" role="tab" aria-controls="master-orders-book-${masterDomId}" aria-selected="false" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders")'>Order Book</button>
-                      </li>
-                  </ul>
-                  <div class="tab-content">
-                      <div class="tab-pane fade show active" id="master-children-${masterDomId}" role="tabpanel" aria-labelledby="tab-children-${masterDomId}-tab">
-                          <h6>Linked Child Accounts</h6>
-                          <div id="child-rows-${masterDomId}" class="list-group">
-                              </div>
-                          <div id="child-rows-empty-${masterDomId}" class="text-center p-3 text-muted" style="display:none;">No child accounts linked to this master.</div>
+                  <div class="tabs master-tab-links" id="tabs-${masterDomId}" data-master="${masterDomId}">
+                      <button class="tab active" data-tab="children" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "children", this)'>View Children</button>
+                      <button class="tab" data-tab="positions" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "positions", this)'>Positions</button>
+                      <button class="tab" data-tab="holdings" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "holdings", this)'>Holdings</button>
+                      <button class="tab" data-tab="orders" onclick='window.showMasterTab(${JSON.stringify(rawMasterId)}, "orders", this)'>Order Book</button>
+                  </div>
+                  <div id="master-children-${masterDomId}">
+                      <h4 class="section-title-sm">Linked Child Accounts</h4>
+                      <div id="child-rows-${masterDomId}" style="display:flex;flex-direction:column;gap:8px;"></div>
+                      <div id="child-rows-empty-${masterDomId}" class="empty-state" style="display:none;">
+                          <p>No child accounts linked to this master.</p>
                       </div>
-                      <div class="tab-pane fade" id="master-positions-${masterDomId}" role="tabpanel" aria-labelledby="tab-positions-${masterDomId}-tab">
+                  </div>
+                  <div id="master-positions-${masterDomId}" style="display:none;">
                         <div id="positions-body-${masterDomId}" class="list-group"></div>
-                        <div id="positions-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this master account.</div>
-                      </div>
-                      <div class="tab-pane fade" id="master-holdings-${masterDomId}" role="tabpanel" aria-labelledby="tab-holdings-${masterDomId}-tab">
+                        <div id="positions-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No positions for this master account.</p></div>
+                  </div>
+                  <div id="master-holdings-${masterDomId}" style="display:none;">
                         <div id="holdings-body-${masterDomId}" class="list-group"></div>
-                        <div id="holdings-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this master account.</div>
-                      </div>
-                      <div class="tab-pane fade" id="master-orders-book-${masterDomId}" role="tabpanel" aria-labelledby="tab-orders-${masterDomId}-tab">
+                        <div id="holdings-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No holdings for this master account.</p></div>
+                  </div>
+                  <div id="master-orders-book-${masterDomId}" style="display:none;">
                         <div id="orders-body-${masterDomId}" class="list-group"></div>
-                        <div id="orders-empty-${masterDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this master account.</div>
-                        <div class="text-center mt-2">
-                          <button class="btn btn-sm btn-outline-primary" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
+                        <div id="orders-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No recent orders for this master account.</p></div>
+                        <div class="text-center" style="margin-top:12px;">
+                          <button class="btn btn-sm btn-outline" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
                         </div>
-                      </div>
                   </div>
                 </div>
               `;
 
               const summaryRow = `
-                <tr class="align-middle" data-master-summary="${masterDomId}">
+                <tr class="collapsible-trigger" data-master-summary="${masterDomId}" onclick="window.toggleMasterExpand('${masterDomId}', ${JSON.stringify(rawMasterId)}, event)">
                   <td>
-                    <button class="btn btn-link text-decoration-none p-0 me-2 master-toggle" data-bs-toggle="collapse" data-bs-target="#collapseMaster${masterDomId}" aria-expanded="${masterOpen}" aria-controls="collapseMaster${masterDomId}">
-                      <i class="bi ${masterOpen ? 'bi-dash-square' : 'bi-plus-square'}"></i>
+                    <button class="btn btn-icon btn-ghost" type="button" onclick="window.toggleMasterExpand('${masterDomId}', ${JSON.stringify(rawMasterId)}, event)">
+                      <svg class="icon icon-sm" viewBox="0 0 24 24" id="chevron-master-${masterDomId}">
+                        <polyline points="${masterOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'}"></polyline>
+                      </svg>
                     </button>
-                    ${brokerIconHTML(master.broker)}
-                    <span class="ms-2 fw-semibold">${masterClientId}</span>
                   </td>
-                  <td class="d-none d-md-table-cell">${masterUsername}</td>
-                  <td class="d-none d-lg-table-cell">${escapeHtml(master.broker || '-')}</td>
-                  <td>${statusBadge(master.system_errors)}</td>
-                  <td><span class="badge ${copyClass}">${escapeHtml(copyStatus)}</span></td>
-                  <td>${childCount}</td>
+                  <td class="font-medium">
+                    <div class="flex items-center gap-2">
+                      <div class="icon-box">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: #6366f1;">
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                          <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                      </div>
+                      ${masterClientId}
+                    </div>
+                  </td>
+                  <td>${masterUsername}</td>
+                  <td style="text-transform: capitalize;">${escapeHtml(master.broker || '-')}</td>
+                  <td class="text-center">${statusBadge(master.system_errors)}</td>
+                  <td class="text-center"><span class="badge ${copyBadgeClass}">${escapeHtml(copyStatus)}</span></td>
+                  <td class="text-center">${childCount}</td>
                 </tr>
               `;
 
               const detailRow = `
-                <tr data-master-detail="${masterDomId}">
-                  <td colspan="6" class="p-0">
-                    <div id="collapseMaster${masterDomId}" class="collapse${masterOpen ? ' show' : ''}" data-master="${masterDomId}">
-                      ${detailContent}
-                    </div>
+                <tr class="collapsible-content${masterOpen ? ' open' : ''}" id="master-content-${masterDomId}" data-master="${masterDomId}">
+                  <td colspan="7">
+                    ${detailContent}
                   </td>
                 </tr>
               `;
@@ -1271,7 +1582,6 @@ let errorHandled = false;
               masterRows.push(summaryRow + detailRow);
             });
             masterBody.innerHTML = masterRows.join('');
-            initializeCollapseIconHandlers('#master-accounts-table');
             // Restore active tab for each master if necessary
             masters.forEach(master => {
               const rawId = master.client_id || 'N/A';
@@ -1310,95 +1620,102 @@ let errorHandled = false;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
               const childOpen = openChildren.has(childDomId);
               const detailContent = `
-                <div class="accordion-body p-3">
-                        <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button class="btn btn-sm btn-outline-success ${startDisabled}" ${startDisabled ? '' : `onclick='window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})'`}>Start Copying</button>
-                            <button class="btn btn-sm btn-outline-warning text-dark ${stopDisabled}" ${stopDisabled ? '' : `onclick='window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)'`}>Stop Copying</button>
-                            <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-info" onclick='window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})'>Square Off Specific Symbol</button>
-                            <button class="btn btn-sm btn-outline-secondary ${exited ? 'disabled' : ''}" ${exited ? '' : `onclick='window.exitAllPositions(${JSON.stringify(rawChildId)})'`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
-                            <div class="vr d-none d-md-block"></div>
-                            <button class="btn btn-sm btn-outline-danger" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove Child</button>
-                            <button class="btn btn-sm btn-outline-primary" onclick='window.openChangeMaster(${JSON.stringify(rawChildId)})'>Change Master</button>
+                <div class="expanded-row-content">
+                        <div class="flex gap-2 mb-4 flex-wrap">
+                            <button class="btn btn-sm btn-success" ${startDisabled ? 'disabled' : ''} ${startDisabled ? '' : `onclick='window.startCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)})'`}>Start Copying</button>
+                            <button class="btn btn-sm btn-outline" ${stopDisabled ? 'disabled' : ''} ${stopDisabled ? '' : `onclick='window.stopCopying(${JSON.stringify(rawChildId)}, ${JSON.stringify(rawMasterId)}, null, true)'`}>Stop Copying</button>
+                            <button class="btn btn-sm btn-outline" style="border-color: #f59e0b; color: #f59e0b;" onclick='window.squareOffPosition(${JSON.stringify(rawMasterId)}, ${JSON.stringify(rawChildId)})'>Square Off Specific Symbol</button>
+                            <button class="btn btn-sm btn-outline" ${exited ? 'disabled' : ''} ${exited ? '' : `onclick='window.exitAllPositions(${JSON.stringify(rawChildId)})'`}>${exited ? 'Exited All Positions' : 'Exit All Positions'}</button>
+                            <button class="btn btn-sm btn-destructive-outline" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove Child</button>
+                            <button class="btn btn-sm btn-outline" style="border-color: #6366f1; color: #6366f1;" onclick='window.openChangeMaster(${JSON.stringify(rawChildId)})'>Change Master</button>
                         </div>
-                        <ul class="nav nav-tabs child-tab-links mb-3" id="child-tabs-${childDomId}" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-orders-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-orders-${childDomId}" type="button" role="tab" aria-controls="child-orders-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "orders")'>Order Book</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="tab-child-positions-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-positions-${childDomId}" type="button" role="tab" aria-controls="child-positions-${childDomId}" aria-selected="true" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "positions")'>Positions</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-child-holdings-${childDomId}-tab" data-bs-toggle="tab" data-bs-target="#child-holdings-${childDomId}" type="button" role="tab" aria-controls="child-holdings-${childDomId}" aria-selected="false" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings")'>Holdings</button>
-                            </li>
-                        </ul>
-                        <div class="tab-content">
-                            <div class="tab-pane fade" id="child-orders-${childDomId}" role="tabpanel" aria-labelledby="tab-child-orders-${childDomId}-tab">
+                        <div class="tabs child-tab-links" id="child-tabs-${childDomId}" data-child="${childDomId}">
+                            <button class="tab" data-tab="orders" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "orders", this)'>Order Book</button>
+                            <button class="tab active" data-tab="positions" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "positions", this)'>Positions</button>
+                            <button class="tab" data-tab="holdings" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings", this)'>Holdings</button>
+                        </div>
+                        <div id="child-orders-${childDomId}" style="display:none;">
                                 <div id="child-orders-body-${childDomId}" class="list-group"></div>
-                                <div id="child-orders-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No recent orders for this child account.</div>
-                                <div class="text-center mt-2">
-                                  <button class="btn btn-sm btn-outline-primary" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
+                                <div id="child-orders-empty-${childDomId}" class="empty-state" style="display:none;"><p>No recent orders for this child account.</p></div>
+                                <div class="text-center" style="margin-top:12px;">
+                                  <button class="btn btn-sm btn-outline" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
                                 </div>
-                            </div>
-                            <div class="tab-pane fade show active" id="child-positions-${childDomId}" role="tabpanel" aria-labelledby="tab-child-positions-${childDomId}-tab">
+                        </div>
+                        <div id="child-positions-${childDomId}">
                                 <div id="child-positions-body-${childDomId}" class="list-group"></div>
-                                <div id="child-positions-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No positions for this child account.</div>
-                            </div>
-                            <div class="tab-pane fade" id="child-holdings-${childDomId}" role="tabpanel" aria-labelledby="tab-child-holdings-${childDomId}-tab">
+                                <div id="child-positions-empty-${childDomId}" class="empty-state" style="display:none;"><p>No positions for this child account.</p></div>
+                        </div>
+                        <div id="child-holdings-${childDomId}" style="display:none;">
                                 <div id="child-holdings-body-${childDomId}" class="list-group"></div>
-                                <div id="child-holdings-empty-${childDomId}" class="text-center p-2 text-muted" style="display:none;">No holdings for this child account.</div>
-                            </div>
+                                <div id="child-holdings-empty-${childDomId}" class="empty-state" style="display:none;"><p>No holdings for this child account.</p></div>
                         </div>
                 </div>
               `;
               const summaryRow = `
-                <tr class="align-middle" data-child-summary="${childDomId}">
+                <tr class="collapsible-trigger" data-child-summary="${childDomId}" onclick="window.toggleChildExpand('${childDomId}', ${JSON.stringify(rawChildId)}, event)">
                   <td>
-                    <button class="btn btn-link text-decoration-none p-0 me-2 child-toggle" data-bs-toggle="collapse" data-bs-target="#collapseChild${childDomId}" aria-expanded="${childOpen}" aria-controls="collapseChild${childDomId}">
-                      <i class="bi ${childOpen ? 'bi-dash-square' : 'bi-plus-square'}"></i>
+                    <button class="btn btn-icon btn-ghost" type="button" onclick="window.toggleChildExpand('${childDomId}', ${JSON.stringify(rawChildId)}, event)">
+                      <svg class="icon icon-sm" viewBox="0 0 24 24" id="chevron-child-${childDomId}">
+                        <polyline points="${childOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'}"></polyline>
+                      </svg>
                     </button>
-                    ${brokerIconHTML(child.broker)}
-                    <span class="ms-2 fw-semibold">${childUsername} (${childClientId})</span>
                   </td>
-                  <td>
-                    <div class="fw-semibold">${linkedMasterUsername}</div>
-                    <div class="text-muted small">${linkedMasterId}</div>
-                  </td>
-                  <td class="d-none d-lg-table-cell">${escapeHtml(child.broker || master.broker || '-')}</td>
-                  <td>${statusBadge(child.system_errors)}</td>
-                  <td>
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`}>
-                      <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
+                  <td class="font-medium">
+                    <div class="flex items-center gap-2">
+                      <div class="icon-box">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: #6366f1;">
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                          <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                      </div>
+                      ${childUsername} (${childClientId})
                     </div>
                   </td>
                   <td>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                      <div class="copy-qty-control">
-                        <input type="number" min="1" step="1" class="form-control form-control-sm" id="qty-${childDomId}" value="${childQty}">
-                        <button class="btn btn-sm btn-outline-primary" onclick='window.updateCopyQty("${rawChildId}")'>Save</button>
-                        <span data-bs-toggle="tooltip" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
-                              <i class="bi bi-info-circle"></i>
-                        </span>
+                    <div>
+                      <p class="font-medium" style="margin:0;">${linkedMasterUsername}</p>
+                      <p class="text-xs text-muted" style="margin:2px 0 0;">${linkedMasterId}</p>
+                    </div>
+                  </td>
+                  <td style="text-transform: capitalize;">${escapeHtml(child.broker || master.broker || '-')}</td>
+                  <td class="text-center">${statusBadge(child.system_errors)}</td>
+                  <td>
+                    <div class="flex items-center justify-center gap-2">
+                      <label class="switch" onclick="event.stopPropagation();">
+                        <input type="checkbox" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy} ${disableCopy ? '' : `onchange="window.toggleCopyTrade('${rawChildId}', '${rawMasterId}', this)"`} onclick="event.stopPropagation();">
+                        <span class="slider"></span>
+                      </label>
+                      <span class="badge ${copyStatus === 'On' ? 'badge-primary' : 'badge-secondary'}">${copyStatus || '-'}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center justify-center gap-2">
+                      <div class="copy-qty-control" style="align-items:center;">
+                        <input type="number" min="1" step="1" id="qty-${childDomId}" value="${childQty}" onkeydown="event.stopPropagation();" onclick="event.stopPropagation();">
+                        <button class="btn btn-sm btn-outline" onclick='event.stopPropagation(); window.updateCopyQty("${rawChildId}")'>Save</button>
+                        <button class="btn btn-icon btn-ghost" type="button" onclick="event.stopPropagation();" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
+                          <svg class="icon icon-sm" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                          </svg>
+                        </button>
                       </div>
-                      ${remainingValue != null ? `<span class="badge bg-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
+                      ${remainingValue != null ? `<span class="badge badge-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
                     </div>
                   </td>
                 </tr>
               `;
               const detailRow = `
-                <tr data-child-detail="${childDomId}">
-                  <td colspan="6" class="p-0">
-                    <div id="collapseChild${childDomId}" class="collapse${childOpen ? ' show' : ''}" data-child="${childDomId}">
-                      ${detailContent}
-                    </div>
+                <tr class="collapsible-content${childOpen ? ' open' : ''}" id="child-content-${childDomId}" data-child="${childDomId}">
+                  <td colspan="7">
+                    ${detailContent}
                   </td>
                 </tr>
               `;
               childRows.push(summaryRow + detailRow);
             });
             childrenBody.innerHTML = childRows.join('');
-            initializeCollapseIconHandlers('#children-accounts-table');
             // Restore active tab for each child if necessary
             children.forEach(child => {
               const rawId = child.client_id || 'N/A';
@@ -1411,37 +1728,37 @@ let errorHandled = false;
         }
 // --- Unassigned Accounts Display ---
         const unassignedList = document.getElementById("unassigned-accounts-list");
-        unassignedList.innerHTML = "";
-        // Ensure data.accounts is an array before filtering
-        const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
-        if (unassignedAccounts.length === 0) {
-            document.getElementById("unassigned-empty-state").style.display = 'block';
-        } else {
-            document.getElementById("unassigned-empty-state").style.display = 'none';
-            unassignedAccounts.forEach(acc => {
-              const accClientIdRaw = acc.client_id || 'N/A';
-              const accClientId = escapeHtml(accClientIdRaw);
-              const accUsername = escapeHtml(acc.username || "-");
+        const unassignedEmpty = document.getElementById("unassigned-empty-state");
+        if (unassignedList && unassignedEmpty) {
+          unassignedList.innerHTML = "";
+          // Ensure data.accounts is an array before filtering
+          const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
+          if (unassignedAccounts.length === 0) {
+              unassignedEmpty.style.display = 'block';
+          } else {
+              unassignedEmpty.style.display = 'none';
+              unassignedAccounts.forEach(acc => {
+                const accClientIdRaw = acc.client_id || 'N/A';
+                const accClientId = escapeHtml(accClientIdRaw);
+                const accUsername = escapeHtml(acc.username || "-");
 
-              unassignedList.innerHTML += `
-                <div class="col">
-                    <div class="card h-100 shadow-sm border-0">
-                        <div class="card-body d-flex flex-column">
-                            <div class="d-flex align-items-center mb-2">
-                                ${brokerIconHTML(acc.broker)}
-                                <h6 class="card-title mb-0 ms-2">${accClientId}</h6>
-                            </div>
-                            <p class="card-text text-muted mb-auto">Username: ${accUsername}</p>
-                            <span class="badge bg-secondary mb-3 align-self-start">Not Assigned</span>
-                            <div class="d-flex gap-2 mt-auto">
-                                <button class="btn btn-sm btn-primary flex-grow-1" onclick='window.setAsMaster(${JSON.stringify(accClientIdRaw)})'>Set as Master</button>
-                                <button class="btn btn-sm btn-info flex-grow-1" onclick='window.openSetAsChild(${JSON.stringify(accClientIdRaw)})'>Set as Child</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-              `;
-            });
+                unassignedList.innerHTML += `
+                  <div class="account-mini-card">
+                      <div class="account-header">
+                          <div>
+                              <p class="account-id">${accClientId}</p>
+                              <p class="account-username">Username: ${accUsername}</p>
+                          </div>
+                          <span class="badge badge-secondary text-xs">Not Assigned</span>
+                      </div>
+                      <div class="flex gap-2">
+                          <button class="btn btn-sm btn-primary" style="flex:1;" onclick='window.setAsMaster(${JSON.stringify(accClientIdRaw)})'>Set as Master</button>
+                          <button class="btn btn-sm btn-outline" style="flex:1;" onclick='window.openSetAsChild(${JSON.stringify(accClientIdRaw)})'>Set as Child</button>
+                      </div>
+                  </div>
+                `;
+              });
+          }
         }
       })
       .then(() => {
@@ -1475,6 +1792,58 @@ let errorHandled = false;
       });
   };
 
+  window.toggleMasterExpand = function(domId, clientId, evt) {
+    if (evt) {
+      evt.stopPropagation();
+    }
+    const row = document.getElementById(`master-content-${domId}`);
+    const icon = document.getElementById(`chevron-master-${domId}`);
+    if (!row) return;
+    const isOpen = !row.classList.contains('open');
+    if (isOpen) {
+      row.classList.add('open');
+    } else {
+      row.classList.remove('open');
+    }
+    if (icon) {
+      icon.innerHTML = isOpen
+        ? '<polyline points="6 9 12 15 18 9"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    }
+    if (isOpen) {
+      const active = document.querySelector(`#tabs-${domId} .tab.active`);
+      const tab = active && active.dataset.tab ? active.dataset.tab : 'children';
+      window.showMasterTab(clientId, tab);
+    }
+    updatePollingState();
+  };
+
+  window.toggleChildExpand = function(domId, clientId, evt) {
+    if (evt) {
+      evt.stopPropagation();
+    }
+    const row = document.getElementById(`child-content-${domId}`);
+    const icon = document.getElementById(`chevron-child-${domId}`);
+    if (!row) return;
+    const isOpen = !row.classList.contains('open');
+    if (isOpen) {
+      row.classList.add('open');
+    } else {
+      row.classList.remove('open');
+    }
+    if (icon) {
+      icon.innerHTML = isOpen
+        ? '<polyline points="6 9 12 15 18 9"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    }
+    if (isOpen) {
+      const active = document.querySelector(`#child-tabs-${domId} .tab.active`);
+      const tab = active && active.dataset.tab ? active.dataset.tab : 'positions';
+      window.showChildTab(clientId, tab);
+    }
+    updatePollingState();
+  };
+
   function renderMasterChildrenList(masterId) {
       const master = window.masterAccounts.find(m => m.client_id === masterId);
       const kids = (master?.children || []);
@@ -1498,52 +1867,65 @@ let errorHandled = false;
               const qty = child.copy_qty;
               const valueLimit = child.copy_value_limit;
               const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
+              const badgeClass = copyStatus === 'On' ? 'badge-primary' : 'badge-secondary';
 
                 return `
-              <div class="list-group-item list-group-item-action py-3 d-flex align-items-center flex-wrap">
-                ${brokerIconHTML(child.broker)}
-                <span class="ms-2 me-auto fw-semibold">${childUsername} (${childClientId})</span>
-                <div class="me-3 mt-2 mt-md-0">${statusBadge(child.system_errors)}</div>
-                <div class="form-check form-switch m-0 me-3 mt-2 mt-md-0">
-                  <input type="checkbox" class="form-check-input" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
-                    data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
-                    ${disableCopy ? '' : `onchange='window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)'` }>
-                  <label class="form-check-label badge ${copyStatus === 'On' ? 'bg-success' : 'bg-secondary'}">${copyStatus || '-'}</label>
+              <div class="flex items-center justify-between p-3 bg-muted rounded flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="font-medium">${childUsername} (${childClientId})</span>
                 </div>
-                ${qty != null ? `<span class="me-3 mt-2 mt-md-0">Qty: ${qty}</span>` : ''}
-                ${remainingValue != null ? `<span class="me-3 mt-2 mt-md-0">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
-                <button class="btn btn-sm btn-danger mt-2 mt-md-0" data-child-id="${childClientId}" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove</button>
+                <div class="flex items-center gap-2 flex-wrap">
+                  ${statusBadge(child.system_errors)}
+                  <label class="switch" onclick="event.stopPropagation();">
+                    <input type="checkbox" ${copyStatus === 'On' ? 'checked' : ''} ${disableCopy}
+                      data-child-id="${childClientId}" data-master-id="${escapeHtml(masterId)}"
+                      ${disableCopy ? '' : `onchange='window.toggleCopyTrade(${JSON.stringify(rawChildId)}, ${JSON.stringify(masterId)}, this)'`} onclick="event.stopPropagation();">
+                    <span class="slider"></span>
+                  </label>
+                  <span class="badge ${badgeClass}">${copyStatus || '-'}</span>
+                  ${qty != null ? `<span class="text-sm">Qty: ${qty}</span>` : ''}
+                  ${remainingValue != null ? `<span class="text-sm">Balance: ₹${remainingValue.toFixed(2)}</span>` : ''}
+                  <button class="btn btn-sm btn-destructive" data-child-id="${childClientId}" onclick='window.removeChild(${JSON.stringify(rawChildId)})'>Remove</button>
+                </div>
               </div>
           `}).join('');
       }
   }
 
 
-  window.showMasterTab = function(clientId, tabName) {
+  window.showMasterTab = function(clientId, tabName, button) {
     const dom = domId(clientId);
-    const tabLinks = document.querySelectorAll(`#tabs-${dom} .nav-link`);
-    const tabPanes = document.querySelectorAll(`#master-children-${dom}, #master-positions-${dom}, #master-holdings-${dom}, #master-orders-book-${dom}`);
-    const activeTabLink = document.getElementById(`tab-${tabName}-${dom}-tab`);
-    const selectedTabPane = document.getElementById(`master-${tabName === 'orders' ? 'orders-book' : tabName}-${dom}`);
-    const wasActive = activeTabLink && activeTabLink.classList.contains('active');
-    
-    // Deactivate all
-    tabLinks.forEach(link => link.classList.remove('active'));
-    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+    const container = document.getElementById(`tabs-${dom}`);
+    if (!container) return;
+    const wasActive = button ? button.classList.contains('active') : false;
+    const tabs = container.querySelectorAll('.tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    if (button) {
+      button.classList.add('active');
+    } else {
+      const fallback = container.querySelector(`.tab[data-tab="${tabName}"]`);
+      if (fallback) fallback.classList.add('active');
+    }
 
-    // Activate selected tab and pane
-    if (activeTabLink) activeTabLink.classList.add('active');
-    if (selectedTabPane) {
-      selectedTabPane.classList.add('show', 'active');
-      if (tabName === 'positions') {
-        loadMasterPositions(clientId, { force: wasActive });
-      } else if (tabName === 'orders') {
-        loadMasterOrderBook(clientId, { force: wasActive });
-      } else if (tabName === 'holdings') {
-        loadMasterHoldings(clientId, { force: wasActive });
-      } else if (tabName === 'children') {
-        renderMasterChildrenList(clientId); // Re-render in case child data changed
-      }
+    const sections = {
+      children: document.getElementById(`master-children-${dom}`),
+      positions: document.getElementById(`master-positions-${dom}`),
+      holdings: document.getElementById(`master-holdings-${dom}`),
+      orders: document.getElementById(`master-orders-book-${dom}`)
+    };
+    Object.entries(sections).forEach(([name, el]) => {
+      if (!el) return;
+      el.style.display = name === tabName ? 'block' : 'none';
+    });
+
+    if (tabName === 'positions') {
+      loadMasterPositions(clientId, { force: wasActive });
+    } else if (tabName === 'orders') {
+      loadMasterOrderBook(clientId, { force: wasActive });
+    } else if (tabName === 'holdings') {
+      loadMasterHoldings(clientId, { force: wasActive });
+    } else if (tabName === 'children') {
+      renderMasterChildrenList(clientId);
     }
     updatePollingState();
   };
@@ -1634,13 +2016,13 @@ let errorHandled = false;
           } else if (netQty < 0) {
             type = 'SELL';
           }
-          const typeClass = type === 'BUY' ? 'bg-success'
-                             : type === 'SELL' ? 'bg-danger'
-                             : 'bg-secondary';
+          const typeClass = type === 'BUY' ? 'badge-green'
+                             : type === 'SELL' ? 'badge-red'
+                             : 'badge-secondary';
           listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass}" style="margin-left:8px;">${type}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
@@ -1673,13 +2055,13 @@ let errorHandled = false;
             } else if (netQty < 0) {
               type = 'SELL';
             }
-            const typeClass = type === 'BUY' ? 'bg-success'
-                               : type === 'SELL' ? 'bg-danger'
-                               : 'bg-secondary';  
+            const typeClass = type === 'BUY' ? 'badge-green'
+                               : type === 'SELL' ? 'badge-red'
+                               : 'badge-secondary';  
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass} ms-2">${type}</span></h6>
+                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass}" style="margin-left:8px;">${type}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
@@ -1823,29 +2205,36 @@ let errorHandled = false;
   }
 
   // --- Child Tabs ---
-  window.showChildTab = function(childId, tabName) {
+  window.showChildTab = function(childId, tabName, button) {
     const dom = domId(childId);
-    const tabLinks = document.querySelectorAll(`#child-tabs-${dom} .nav-link`);
-    const tabPanes = document.querySelectorAll(`#child-orders-${dom}, #child-positions-${dom}, #child-holdings-${dom}`);
-    const activeTabLink = document.getElementById(`tab-child-${tabName}-${dom}-tab`);
-    const selectedTabPane = document.getElementById(`child-${tabName}-${dom}`);
-    const wasActive = activeTabLink && activeTabLink.classList.contains('active');
+    const container = document.getElementById(`child-tabs-${dom}`);
+    if (!container) return;
+    const wasActive = button ? button.classList.contains('active') : false;
+    const tabs = container.querySelectorAll('.tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    if (button) {
+      button.classList.add('active');
+    } else {
+      const fallback = container.querySelector(`.tab[data-tab="${tabName}"]`);
+      if (fallback) fallback.classList.add('active');
+    }
 
-    // Deactivate all
-    tabLinks.forEach(link => link.classList.remove('active'));
-    tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+    const sections = {
+      orders: document.getElementById(`child-orders-${dom}`),
+      positions: document.getElementById(`child-positions-${dom}`),
+      holdings: document.getElementById(`child-holdings-${dom}`)
+    };
+    Object.entries(sections).forEach(([name, el]) => {
+      if (!el) return;
+      el.style.display = name === tabName ? 'block' : 'none';
+    });
 
-    // Activate selected tab and pane
-    if (activeTabLink) activeTabLink.classList.add('active');
-    if (selectedTabPane) {
-      selectedTabPane.classList.add('show', 'active');
-      if (tabName === 'positions') {
-        loadChildPositions(childId, { force: wasActive });
-      } else if (tabName === 'orders') {
-        loadChildOrderBook(childId, { force: wasActive });
-      } else if (tabName === 'holdings') {
-        loadChildHoldings(childId, { force: wasActive });
-      }
+    if (tabName === 'positions') {
+      loadChildPositions(childId, { force: wasActive });
+    } else if (tabName === 'orders') {
+      loadChildOrderBook(childId, { force: wasActive });
+    } else if (tabName === 'holdings') {
+      loadChildHoldings(childId, { force: wasActive });
     }
     updatePollingState();  
   };
@@ -1943,15 +2332,15 @@ let errorHandled = false;
           } else if (netQty < 0) {
             type = 'SELL';
           }
-          const typeClass = type === 'BUY' ? 'bg-success'
-                             : type === 'SELL' ? 'bg-danger'
-                             : 'bg-secondary';
+          const typeClass = type === 'BUY' ? 'badge-green'
+                             : type === 'SELL' ? 'badge-red'
+                             : 'badge-secondary';
           const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
           const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
           listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass} ms-2">${escapeHtml(type)}</span></h6>
+                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass}">${escapeHtml(type)}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
@@ -1984,15 +2373,15 @@ let errorHandled = false;
             } else if (netQty < 0) {
               type = 'SELL';
             }
-            const typeClass = type === 'BUY' ? 'bg-success'
-                               : type === 'SELL' ? 'bg-danger'
-                               : 'bg-secondary';
+            const typeClass = type === 'BUY' ? 'badge-green'
+                               : type === 'SELL' ? 'badge-red'
+                               : 'badge-secondary';
             const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
             const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
             listGroup.innerHTML += `
               <div class="list-group-item list-group-item-action py-3">
                 <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass} ms-2">${escapeHtml(type)}</span></h6>
+                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass}">${escapeHtml(type)}</span></h6>
                   <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
                 </div>
                 <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
@@ -2141,10 +2530,10 @@ let errorHandled = false;
                     <input type="checkbox" class="form-check-input master-order-checkbox" value="${idSafe}" id="masterOrderCheck${dom}">
                     <label class="form-check-label fw-semibold" for="masterOrderCheck${dom}">${symbol}</label>
                   </div>
-                  <span class="badge bg-primary mt-1 mt-md-0">${status}</span>
+                  <span class="badge badge-primary mt-1 mt-md-0">${status}</span>
                 </div>
                 <p class="mb-1 text-muted">Order ID: ${idSafe} | Children: ${children}</p>
-                <button class="btn btn-sm btn-info mt-2" data-master-order-id="${idSafe}" onclick='window.viewChildMappings(this.dataset.masterOrderId)'><i class="bi bi-eye-fill"></i> View Children</button>
+                <button class="btn btn-sm btn-outline mt-2" data-master-order-id="${idSafe}" onclick='window.viewChildMappings(this.dataset.masterOrderId)'><i class="bi bi-eye-fill"></i> View Children</button>
               </div>`;
           });
         } else {
@@ -2459,7 +2848,7 @@ let errorHandled = false;
           spinnerOverlay.style.zIndex = 1050; // Ensure it's above other modals
           spinnerOverlay.innerHTML = `
             <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div>
-            <p class="text-light ms-2">Processing...</p>
+            <p class="text-light" style="margin-left:8px;">Processing...</p>
           `;
           document.body.appendChild(spinnerOverlay);
 
@@ -2608,17 +2997,6 @@ let errorHandled = false;
   };
 
   // --- INIT ON LOAD ---
-  const masterTableEl = document.getElementById('master-accounts-table');
-  if (masterTableEl) {
-    masterTableEl.addEventListener('shown.bs.collapse', updatePollingState);
-    masterTableEl.addEventListener('hidden.bs.collapse', updatePollingState);
-  }
-  const childTableEl = document.getElementById('children-accounts-table');
-  if (childTableEl) {
-    childTableEl.addEventListener('shown.bs.collapse', updatePollingState);
-    childTableEl.addEventListener('hidden.bs.collapse', updatePollingState);
-  }
-
   // These calls will now fetch and populate the sections
   window.loadAccounts();
   window.loadMasterOrders();
