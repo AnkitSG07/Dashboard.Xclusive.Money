@@ -82,6 +82,39 @@
     text-align: center;
   }
 
+  .summary-account-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--summary-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--summary-muted);
+    background: #f8f9fc;
+  }
+
+  .summary-account-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .summary-account-status.summary-account-status--ok {
+    color: var(--summary-green);
+    border-color: rgba(5, 150, 105, 0.24);
+    background: rgba(5, 150, 105, 0.08);
+  }
+
+  .summary-account-status.summary-account-status--error {
+    color: var(--summary-red);
+    border-color: rgba(220, 38, 38, 0.24);
+    background: rgba(220, 38, 38, 0.08);
+  }
+
   .summary-chip {
     display: inline-flex;
     align-items: center;
@@ -454,20 +487,12 @@
                 </div>
               </div>
               <div style="display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; justify-content:space-between; font-size:14px;">
-                  <span style="color:var(--summary-muted)">Portfolio Value</span>
-                  <span style="font-weight:700;">{{ format_currency(account.portfolio_value) }}</span>
+                {% set has_error = account.error %}
+                <div class="summary-account-status {{ 'summary-account-status--error' if has_error else 'summary-account-status--ok' }}">
+                  {{ 'Failed' if has_error else 'Connected' }}
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:14px;">
-                  <span style="color:var(--summary-muted)">Gain/Loss</span>
-                  {% set account_positive = account.gain_loss >= 0 %}
-                  <span style="font-weight:700; color:{{ 'var(--summary-green)' if account_positive else 'var(--summary-red)' }};">
-                    {{ format_currency(account.gain_loss) }}
-                    <span style="font-size:11px; margin-left:4px;">{{ format_percentage(account.gain_loss_percent) }}</span>
-                  </span>
-                </div>
-                {% if account.error %}
-                  <p class="summary-stat-footnote" style="color:var(--summary-red);">{{ account.error }}</p>
+                {% if has_error %}
+                  <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
                 {% endif %}
               </div>
             </div>
