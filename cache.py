@@ -1,13 +1,26 @@
 import os
 import json
 import time
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Optional
+from uuid import UUID
 
 import redis
 
 _redis_client = None
 _local_store: dict[str, tuple[Any, Optional[float]]] = {}
 
+def _json_default(value: Any) -> Any:
+    """Serialize non-JSON primitives for :func:`json.dumps`."""
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, UUID):
+        return str(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 def _get_client():
     global _redis_client
@@ -26,11 +39,12 @@ def _get_client():
 
 def cache_set(key: str, value: Any, ttl: int | None = None) -> None:
     client = _get_client()
+    serialized = json.dumps(value, default=_json_default)
     if client:
-        client.set(name=key, value=json.dumps(value), ex=ttl)
+        client.set(name=key, value=serialized, ex=ttl)
     else:
         expiry = time.time() + ttl if ttl else None
-        _local_store[key] = (value, expiry)
+        _local_store[key] = (serialized, expiry)
 
 
 def cache_get(key: str) -> Optional[Any]:
@@ -50,6 +64,11 @@ def cache_get(key: str) -> Optional[Any]:
     if expiry and time.time() > expiry:
         del _local_store[key]
         return None
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
     return value
 
 
