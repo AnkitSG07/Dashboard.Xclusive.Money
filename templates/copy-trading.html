@@ -1359,7 +1359,7 @@ window.pageScripts["copy-trading"] = function () {
 
     return `
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
-        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Holdings</div>
+        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Positions</div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:16px;">
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Live P&L:</div>
@@ -1439,12 +1439,17 @@ window.pageScripts["copy-trading"] = function () {
     }
 
     const rows = safePositions.map(pos => {
+      const sideLabel = pos.sideLabel || (pos.netQty > 0 ? 'B' : pos.netQty < 0 ? 'S' : '—');
       const sideBg = pos.netQty > 0 ? '#10b981' : pos.netQty < 0 ? '#ef4444' : '#94a3b8';
       const qtyDisplay = pos.quantityDisplay || pos.netQtyDisplay;
       const avgPriceDisplay = pos.avgPriceDisplayNet || pos.buyAvgDisplay || pos.sellAvgDisplay;
+      const qtyColor = pos.netQty > 0 ? '#047857' : pos.netQty < 0 ? '#dc2626' : '#0f172a';
       const pnlColor = inlineToneColor(pos.pnl, '#0f172a');
       const pnlPercentColor = inlineToneColor(pos.pnlPercent, '#475569');
       const pnlPercentDisplay = pos.pnlPercentDisplay || pos.changeDisplay || '—';
+      const badgeHtml = pos.badgeText && pos.badgeText !== '—'
+        ? `<span style="display:inline-block; margin-left:6px; font-size:10px; line-height:1; font-weight:500; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; color:#475569;" title="${pos.badgeTitle}">${pos.badgeText}</span>`
+        : '';
 
       return `
         <tr style="border-bottom:1px solid #e2e8f0;">
@@ -1452,22 +1457,23 @@ window.pageScripts["copy-trading"] = function () {
             <input type="checkbox" style="accent-color:#4f46e5;">
           </td>
           <td style="padding:8px 12px; vertical-align:top;">
+            <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:${sideBg}; color:#ffffff; font-size:12px; font-weight:600;">${escapeHtml(String(sideLabel))}</span>
+          </td>
+          <td style="padding:8px 12px; vertical-align:top;">
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:${sideBg}; color:#ffffff; font-size:12px; font-weight:600;">${escapeHtml(String(pos.sideLabel))}</span>
-                <span style="font-weight:600; color:#0f172a;">${pos.symbolDisplay}</span>
-              </div>
+              <span style="font-weight:600; color:#0f172a;">${pos.symbolDisplay}</span>
               <div style="font-size:11px; color:#64748b;">
                 ${pos.exchangeDisplay}
-                <span style="display:inline-block; margin-left:6px; font-size:10px; line-height:1; font-weight:500; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; color:#475569;" title="${pos.badgeTitle}">${pos.badgeText}</span>
+                ${badgeHtml}
               </div>
             </div>
           </td>
-          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:#0f172a;">${qtyDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top;">
+            <span style="display:inline-block; background:rgba(16,185,129,0.1); color:#047857; border:1px solid rgba(16,185,129,0.3); font-size:11px; line-height:1; font-weight:500; border-radius:4px; padding:4px 6px;">${pos.productDisplay}</span>
+          </td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${qtyColor};">${qtyDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${avgPriceDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.ltpDisplay}</td>
-          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.investedDisplay}</td>
-          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.currentValueDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${pnlColor};">${pos.pnlDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${pnlPercentColor};">${pnlPercentDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:center;">
@@ -1485,18 +1491,18 @@ window.pageScripts["copy-trading"] = function () {
           <table style="border-collapse:collapse; width:100%; font-size:13px; color:#0f172a;">
             <thead style="background:#f8fafc; text-align:left;">
               <tr>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid:#e2e8f0;">
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid #e2e8f0;">
                   <input type="checkbox" style="accent-color:#4f46e5;">
                 </th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid:#e2e8f0;">Name</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Qty</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Avg Price</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">LTP</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Invested</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Current Value</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">P&L</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">P&L %</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:center; border-bottom:1px solid:#e2e8f0;">Action</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:40px; border-bottom:1px solid #e2e8f0;">B/S</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Name</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Product</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Qty</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">LTP</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">P&L</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Change %</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:center; border-bottom:1px solid #e2e8f0;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1521,7 +1527,7 @@ window.pageScripts["copy-trading"] = function () {
       </div>
     `;
   }
-
+  
   function buildClosedPositionsContent(positions) {
     const safePositions = Array.isArray(positions) ? positions : [];
     const realisedPnl = safePositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
@@ -1687,6 +1693,370 @@ window.pageScripts["copy-trading"] = function () {
       });
       applyPositionsTabStyles(tabsEl);
     }
+  }
+
+  function normalizeHolding(holding) {
+    if (!holding || typeof holding !== 'object') {
+      return null;
+    }
+
+    const symbolRaw = getValueInsensitive(holding, ['tradingSymbol', 'tradingsymbol', 'symbol', 'tsym']) || '-';
+    const exchangeRaw = getValueInsensitive(holding, ['exchange', 'segment', 'exchange_segment', 'exch']);
+    const seriesRaw = getValueInsensitive(holding, ['series', 'instrumentType', 'instrument_type', 'optionType', 'option_type']);
+    const qtyRaw = getValueInsensitive(holding, [
+      'quantity',
+      'qty',
+      'holdqty',
+      'holdingsquantity',
+      't1_quantity',
+      'dp_qty',
+      'totalqty',
+      'availableqty',
+      'dpqty',
+      't1qty',
+      'collateralqty'
+    ]);
+    const avgPriceRaw = getValueInsensitive(holding, [
+      'buyavg',
+      'buy_avg_price',
+      'average_price',
+      'avg_price',
+      'purchaseprice',
+      'avgcostprice'
+    ]);
+    const ltpRaw = getValueInsensitive(holding, ['ltp', 'last_price', 'last_traded_price', 'close']);
+    const pnlRaw = getValueInsensitive(holding, [
+      'profitandloss',
+      'pnl',
+      'unrealizedprofit',
+      'unrealisedprofit',
+      'mtm',
+      'mtm_value'
+    ]);
+    const changeRaw = getValueInsensitive(holding, [
+      'pnl_percentage',
+      'pnlpercent',
+      'change_percent',
+      'changepercentage',
+      'day_change_percentage',
+      'daychangepercentage'
+    ]);
+    const dayChangeRaw = getValueInsensitive(holding, [
+      'daychange',
+      'day_change',
+      'day_gain',
+      'daygain',
+      'daymtm',
+      'mtm_today',
+      'dayprofit',
+      'dayProfit'
+    ]);
+    const investedRaw = getValueInsensitive(holding, [
+      'invested',
+      'investment_value',
+      'totalcost',
+      'total_cost',
+      'buy_value',
+      'purchase_value'
+    ]);
+    const currentValueRaw = getValueInsensitive(holding, [
+      'current_value',
+      'currentvalue',
+      'market_value',
+      'marketvalue',
+      'value'
+    ]);
+
+    const qtyNum = parseNumeric(qtyRaw);
+    const avgPriceNum = parseNumeric(avgPriceRaw);
+    const ltpNum = parseNumeric(ltpRaw);
+    let investedNum = parseNumeric(investedRaw);
+    let currentValueNum = parseNumeric(currentValueRaw);
+    if (!Number.isFinite(investedNum) && Number.isFinite(qtyNum) && Number.isFinite(avgPriceNum)) {
+      investedNum = qtyNum * avgPriceNum;
+    }
+    if (!Number.isFinite(currentValueNum) && Number.isFinite(qtyNum) && Number.isFinite(ltpNum)) {
+      currentValueNum = qtyNum * ltpNum;
+    }
+
+    let pnlNum = parseNumeric(pnlRaw);
+    if (!Number.isFinite(pnlNum)) {
+      if (Number.isFinite(currentValueNum) && Number.isFinite(investedNum)) {
+        pnlNum = currentValueNum - investedNum;
+      } else if (Number.isFinite(ltpNum) && Number.isFinite(avgPriceNum) && Number.isFinite(qtyNum)) {
+        pnlNum = (ltpNum - avgPriceNum) * qtyNum;
+      }
+    }
+
+    let changeNum = parseNumeric(changeRaw);
+    if (!Number.isFinite(changeNum) && Number.isFinite(investedNum) && investedNum !== 0 && Number.isFinite(pnlNum)) {
+      changeNum = (pnlNum / investedNum) * 100;
+    }
+
+    const dayChangeNum = parseNumeric(dayChangeRaw);
+
+    const symbolLabel = typeof symbolRaw === 'string' ? symbolRaw : String(symbolRaw || '-');
+    const exchangeLabel = typeof exchangeRaw === 'string' ? exchangeRaw : String(exchangeRaw || '');
+    const badgeLabel = typeof seriesRaw === 'string' ? seriesRaw : String(seriesRaw || '');
+    const badgeText = badgeLabel ? badgeLabel.toUpperCase() : '—';
+
+    return {
+      symbolDisplay: escapeHtml(symbolLabel),
+      symbolInitial: escapeHtml(symbolLabel.trim() ? symbolLabel.trim().charAt(0).toUpperCase() : '—'),
+      exchangeDisplay: escapeHtml(exchangeLabel || '—'),
+      badgeText: escapeHtml(badgeText),
+      badgeTitle: escapeHtml(badgeLabel || ''),
+      qtyValue: Number.isFinite(qtyNum) ? qtyNum : 0,
+      qtyDisplay: escapeHtml(formatQuantityValue(qtyRaw)),
+      avgPriceDisplay: escapeHtml(formatDecimalValue(avgPriceRaw)),
+      ltpDisplay: escapeHtml(formatDecimalValue(ltpRaw)),
+      pnlValue: Number.isFinite(pnlNum) ? pnlNum : null,
+      pnlDisplay: escapeHtml(formatCurrencyValue(Number.isFinite(pnlNum) ? pnlNum : pnlRaw)),
+      pnlPercentValue: Number.isFinite(changeNum) ? changeNum : null,
+      pnlPercentDisplay: escapeHtml(formatPercentValue(Number.isFinite(changeNum) ? changeNum : changeRaw)),
+      dayChangeValue: Number.isFinite(dayChangeNum) ? dayChangeNum : null,
+      dayChangeDisplay: escapeHtml(formatCurrencyValue(Number.isFinite(dayChangeNum) ? dayChangeNum : dayChangeRaw)),
+      investedValue: Number.isFinite(investedNum) ? investedNum : null,
+      investedDisplay: escapeHtml(formatCurrencyValue(investedNum)),
+      currentValue: Number.isFinite(currentValueNum) ? currentValueNum : null,
+      currentValueDisplay: escapeHtml(formatCurrencyValue(currentValueNum))
+    };
+  }
+
+  function buildHoldingsSummary(holdings, accountStats) {
+    const safeHoldings = Array.isArray(holdings) ? holdings : [];
+    const openHoldings = safeHoldings.filter(h => Math.abs(h.qtyValue) > 1e-8);
+    const closedHoldings = safeHoldings.filter(h => Math.abs(h.qtyValue) <= 1e-8);
+    const livePnl = openHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
+
+    const marginAvailableRaw = accountStats ? getValueInsensitive(accountStats, [
+      'available_margin',
+      'availableMargin',
+      'availableFunds',
+      'marginAvailable',
+      'total_funds',
+      'totalFunds'
+    ]) : undefined;
+    const marginUsedRaw = accountStats ? getValueInsensitive(accountStats, [
+      'used_margin',
+      'usedMargin',
+      'blockedMargin',
+      'marginUtilized',
+      'utilizedAmount'
+    ]) : undefined;
+
+    const marginAvailableDisplay = escapeHtml(formatCurrencyValue(marginAvailableRaw));
+    const marginUsedDisplay = escapeHtml(formatCurrencyValue(marginUsedRaw));
+
+    return `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Holdings</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:16px;">
+          <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Live P&L:</div>
+            <div style="font-size:16px; font-weight:700; color:${inlineToneColor(livePnl, '#047857')};">${escapeHtml(formatCurrencyValue(livePnl))}</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Open Positions:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(openHoldings.length))}</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Closed Positions:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(closedHoldings.length))}</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Available:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${marginAvailableDisplay}</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Used:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${marginUsedDisplay}</div>
+          </div>
+          <div style="display:flex; align-items:flex-end; gap:8px;">
+            <button type="button" style="height:32px; width:32px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; font-size:12px; cursor:pointer;">👁</button>
+            <button type="button" style="background:#10b981; border:1px solid #10b981; border-radius:6px; color:#ffffff; font-weight:600; font-size:12px; padding:6px 8px; cursor:pointer;">+ Top up</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildHoldingsTable(holdings) {
+    const safeHoldings = Array.isArray(holdings) ? holdings : [];
+    const lossCount = safeHoldings.filter(h => Number.isFinite(h.pnlValue) && h.pnlValue < 0).length;
+    const totalPnl = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
+    const totalInvested = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.investedValue) ? h.investedValue : 0), 0);
+    const totalCurrent = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.currentValue) ? h.currentValue : 0), 0);
+
+    const header = `
+      <div style="display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="font-size:15px; font-weight:700; color:#0f172a;">Open</div>
+          <div style="position:relative;">
+            <div style="width:120px; height:36px; display:flex; align-items:center; justify-content:space-between; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px; padding:0 8px; font-size:13px; cursor:pointer;">
+              <span>P&L</span>
+              <span style="font-size:10px; color:#94a3b8;">▼</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" style="display:inline-flex; align-items:center; gap:6px; background:#fffbea; border:1px solid #facc15; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:500; color:#92400e; cursor:pointer;">
+          <span style="font-size:12px;">📈</span>
+          <span>Analyse</span>
+        </button>
+      </div>
+    `;
+
+    const filters = `
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#4f46e5; color:#fff; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.08);">
+          <span>All</span>
+          <span style="background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(safeHoldings.length || 0))}</span>
+        </div>
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+          <span>In Loss</span>
+          <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(lossCount))}</span>
+        </div>
+      </div>
+    `;
+
+    if (safeHoldings.length === 0) {
+      return `
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
+          ${header}
+          ${filters}
+          <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">No holdings available.</div>
+        </div>
+      `;
+    }
+
+    const rows = safeHoldings.map(holding => {
+      const qtyColor = holding.qtyValue > 0 ? '#047857' : holding.qtyValue < 0 ? '#dc2626' : '#0f172a';
+      const pnlColor = inlineToneColor(holding.pnlValue, '#0f172a');
+      const pnlPercentColor = inlineToneColor(holding.pnlPercentValue, '#475569');
+      const dayChangeColor = inlineToneColor(holding.dayChangeValue, '#475569');
+      const badgeHtml = holding.badgeText && holding.badgeText !== '—'
+        ? `<span style="display:inline-block; margin-left:6px; font-size:10px; line-height:1; font-weight:500; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; color:#475569;" title="${holding.badgeTitle}">${holding.badgeText}</span>`
+        : '';
+
+      return `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+          <td style="padding:8px 12px; vertical-align:top;">
+            <input type="checkbox" style="accent-color:#4f46e5;">
+          </td>
+          <td style="padding:8px 12px; vertical-align:top;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <span style="font-weight:600; color:#0f172a;">${holding.symbolDisplay}</span>
+              <div style="font-size:11px; color:#64748b;">
+                ${holding.exchangeDisplay}
+                ${badgeHtml}
+              </div>
+            </div>
+          </td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${qtyColor};">${holding.qtyDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${holding.avgPriceDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${holding.ltpDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${pnlColor};">${holding.pnlDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${pnlPercentColor};">${holding.pnlPercentDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${dayChangeColor};">${holding.dayChangeDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${holding.investedDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${holding.currentValueDisplay}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
+        ${header}
+        ${filters}
+        <div style="overflow-x:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">
+          <table style="border-collapse:collapse; width:100%; font-size:13px; color:#0f172a;">
+            <thead style="background:#f8fafc; text-align:left;">
+              <tr>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid #e2e8f0;">
+                  <input type="checkbox" style="accent-color:#4f46e5;">
+                </th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Name</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Qty</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">LTP</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">P&L</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Change %</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Day Change</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Invested</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Current Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+          <button type="button" style="display:flex; align-items:center; gap:6px; background:transparent; border:0; color:#475569; font-size:12px; font-weight:500; cursor:pointer;">
+            <span style="font-size:12px;">⬇</span>
+            <span>Download as CSV</span>
+          </button>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; font-size:13px; font-weight:600; color:#0f172a;">
+            <span>Invested:
+              <span style="color:#0f172a; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalInvested))}</span>
+            </span>
+            <span>Current Value:
+              <span style="color:#0f172a; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalCurrent))}</span>
+            </span>
+            <span>Total P&L:
+              <span style="color:${inlineToneColor(totalPnl, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalPnl))}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildHoldingsLayout(holdings, accountStats) {
+    const normalized = Array.isArray(holdings) ? holdings : [];
+    const openHoldings = normalized.filter(h => Math.abs(h.qtyValue) > 1e-8);
+    return `
+      <div style="display:flex; flex-direction:column; gap:24px; color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+        ${buildHoldingsSummary(normalized, accountStats)}
+        ${buildHoldingsTable(openHoldings)}
+      </div>
+    `;
+  }
+
+  function renderHoldingsUI(clientId, holdings, scope) {
+    const dom = domId(clientId);
+    const containerId = scope === 'master'
+      ? `master-holdings-container-${dom}`
+      : `child-holdings-container-${dom}`;
+    const emptyId = scope === 'master'
+      ? `holdings-empty-${dom}`
+      : `child-holdings-empty-${dom}`;
+    const container = document.getElementById(containerId);
+    const emptyState = document.getElementById(emptyId);
+    if (!container || !emptyState) {
+      return;
+    }
+
+    const normalized = Array.isArray(holdings)
+      ? holdings.map(normalizeHolding).filter(Boolean)
+      : [];
+
+    const accountStats = scope === 'master'
+      ? (window.masterAccountStats && window.masterAccountStats[clientId])
+      : (window.childAccountStats && window.childAccountStats[clientId]);
+
+    if (normalized.length === 0) {
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:24px; color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+          ${buildHoldingsSummary([], accountStats)}
+          ${buildHoldingsTable([])}
+        </div>
+      `;
+    } else {
+      container.innerHTML = buildHoldingsLayout(normalized, accountStats);
+    }
+
+    emptyState.style.display = 'none';
   }
 
   function formatOrderStatus(rawStatus) {
@@ -2296,7 +2666,7 @@ let errorHandled = false;
                         <div id="positions-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No positions for this master account.</p></div>
                   </div>
                   <div id="master-holdings-${masterDomId}" style="display:none;">
-                        <div id="holdings-body-${masterDomId}" class="list-group"></div>
+                        <div id="master-holdings-container-${masterDomId}" class="holdings-container"></div>
                         <div id="holdings-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No holdings for this master account.</p></div>
                   </div>
                   <div id="master-orders-book-${masterDomId}" style="display:none;">
@@ -2430,7 +2800,7 @@ let errorHandled = false;
                                 <div id="child-positions-empty-${childDomId}" class="empty-state" style="display:none;"><p>No positions for this child account.</p></div>
                         </div>
                         <div id="child-holdings-${childDomId}" style="display:none;">
-                                <div id="child-holdings-body-${childDomId}" class="list-group"></div>
+                                <div id="child-holdings-container-${childDomId}" class="holdings-container"></div>
                                 <div id="child-holdings-empty-${childDomId}" class="empty-state" style="display:none;"><p>No holdings for this child account.</p></div>
                         </div>
                 </div>
@@ -2892,9 +3262,11 @@ let errorHandled = false;
 
   function loadMasterHoldings(clientId, { force = false } = {}) {
     const dom = domId(clientId);
-    const listGroup = document.getElementById(`holdings-body-${dom}`);
+    const container = document.getElementById(`master-holdings-container-${dom}`);
     const emptyState = document.getElementById(`holdings-empty-${dom}`);
-    if (!listGroup || !emptyState) return;
+    if (!container || !emptyState) {
+      return;
+    }
 
     const cachedRaw = window.masterHoldings[clientId];
     const cached = Array.isArray(cachedRaw)
@@ -2902,126 +3274,37 @@ let errorHandled = false;
       : Array.isArray(cachedRaw?.data)
         ? cachedRaw.data
         : null;
-    if (cached !== null && !force) {
+
+    if (Array.isArray(cached) && !force) {
       window.masterHoldings[clientId] = cached;
-      listGroup.innerHTML = "";
-      if (cached.length > 0) {
-        cached.forEach(h => {
-          const getVal = (obj, keys) => {
-            for (const k of keys) {
-              for (const key in obj) {
-                if (key.toLowerCase() === k.toLowerCase()) return obj[key];
-              }
-            }
-            return undefined;
-          };
-          const qty = getVal(h, [
-            'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
-            'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
-          ]) || 0;
-          const avg = getVal(h, [
-            'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
-          ]);
-          const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
-          let pnl = getVal(h, [
-            'profitandloss',
-            'pnl',
-            'unrealizedprofit',
-            'unrealisedprofit'
-          ]);
-          if (pnl === undefined && ltp !== undefined && avg !== undefined) {
-            const qtyNum = parseFloat(qty) || 0;
-            const ltpNum = parseFloat(ltp);
-            const avgNum = parseFloat(avg);
-            if (!isNaN(ltpNum) && !isNaN(avgNum)) {
-              pnl = ((ltpNum - avgNum) * qtyNum).toFixed(2);
-            }
-          }
-          const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
-          listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
-                </div>
-                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
-                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
-              </div>
-            `;
-        });
-        emptyState.style.display = 'none';
-      } else {
-        emptyState.style.display = 'block';
-      }
+      renderHoldingsUI(clientId, cached, 'master');
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
+    container.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
     fetch('/api/holdings/' + encodeURIComponent(clientId))
-      .then(rawHoldings => {
-        const payload = Array.isArray(rawHoldings)
-          ? rawHoldings
-          : Array.isArray(rawHoldings?.data)
-            ? rawHoldings.data
-            : [];
-        window.masterHoldings[clientId] = payload;
-        listGroup.innerHTML = "";
-        if (payload.length > 0) {
-          payload.forEach(h => {
-            const getVal = (obj, keys) => {
-              for (const k of keys) {
-                for (const key in obj) {
-                  if (key.toLowerCase() === k.toLowerCase()) return obj[key];
-                }
-              }
-              return undefined;
-            };
-            const qty = getVal(h, [
-              'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
-              'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
-            ]) || 0;
-            const avg = getVal(h, [
-              'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
-            ]);
-            const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
-            let pnl = getVal(h, [
-              'profitandloss',
-              'pnl',
-              'unrealizedprofit',
-              'unrealisedprofit'
-            ]);
-            if (pnl === undefined && ltp !== undefined && avg !== undefined) {
-              const qtyNum = parseFloat(qty) || 0;
-              const ltpNum = parseFloat(ltp);
-              const avgNum = parseFloat(avg);
-              if (!isNaN(ltpNum) && !isNaN(avgNum)) {
-                pnl = ((ltpNum - avgNum) * qtyNum).toFixed(2);
-              }
-            }
-            const sym = getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-';
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl !== undefined ? pnl : '-'}</small>
-                </div>
-                <p class="mb-1">Qty: ${qty} | Avg Price: ${avg !== undefined ? avg : '-'}</p>
-                <small class="text-muted">LTP: ${ltp !== undefined ? ltp : '-'}</small>
-              </div>
-            `;
-          });
-          emptyState.style.display = 'none';
-        } else {
-          emptyState.style.display = 'block';
+      .then(res => {
+        if (res && typeof res.json === 'function') {
+          return res.json();
         }
+        return res;
+      })
+      .then(payload => {
+        const holdings = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        window.masterHoldings[clientId] = holdings;
+        renderHoldingsUI(clientId, holdings, 'master');
       })
       .catch(err => {
-        console.error("Holdings fetch failed:", err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
+        console.error('Holdings fetch failed:', err);
+        container.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
         emptyState.style.display = 'none';
-        showMessage("Failed to load holdings for child account.", 'danger');
+        showMessage('Failed to load holdings.', 'danger');
       });
   }
 
@@ -3232,9 +3515,11 @@ let errorHandled = false;
 
   function loadChildHoldings(childId, { force = false } = {}) {
     const dom = domId(childId);
-    const listGroup = document.getElementById(`child-holdings-body-${dom}`);
+    const container = document.getElementById(`child-holdings-container-${dom}`);
     const emptyState = document.getElementById(`child-holdings-empty-${dom}`);
-    if (!listGroup || !emptyState) return;
+    if (!container || !emptyState) {
+      return;
+    }
 
     const cachedRaw = window.childHoldings[childId];
     const cached = Array.isArray(cachedRaw)
@@ -3242,106 +3527,35 @@ let errorHandled = false;
       : Array.isArray(cachedRaw?.data)
         ? cachedRaw.data
         : null;
-    if (cached !== null && !force) {
+
+    if (Array.isArray(cached) && !force) {
       window.childHoldings[childId] = cached;
-      listGroup.innerHTML = "";
-      if (cached.length > 0) {
-        cached.forEach(h => {
-          const getVal = (obj, keys) => {
-            for (const k of keys) {
-              for (const key in obj) {
-                if (key.toLowerCase() === k.toLowerCase()) return obj[key];
-              }
-            }
-            return undefined;
-          };
-          const qty = getVal(h, [
-            'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
-            'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
-          ]) || 0;
-          const avg = getVal(h, [
-            'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
-          ]);
-          const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
-          const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
-          const sym = escapeHtml(getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-');
-          const pnlSafe = escapeHtml(pnl !== undefined ? pnl : '-');
-          const qtySafe = escapeHtml(qty);
-          const avgSafe = escapeHtml(avg !== undefined ? avg : '-');
-          const ltpSafe = escapeHtml(ltp !== undefined ? ltp : '-');
-          listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnlSafe}</small>
-                </div>
-                <p class="mb-1">Qty: ${qtySafe} | Avg Price: ${avgSafe}</p>
-                <small class="text-muted">LTP: ${ltpSafe}</small>
-              </div>
-            `;
-        });
-        emptyState.style.display = 'none';
-      } else {
-        emptyState.style.display = 'block';
-      }
+      renderHoldingsUI(childId, cached, 'child');
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
+    container.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading holdings...</div>`;
     emptyState.style.display = 'none';
 
     fetch('/api/holdings/' + encodeURIComponent(childId))
-      .then(rawHoldings => {
-        const payload = Array.isArray(rawHoldings)
-          ? rawHoldings
-          : Array.isArray(rawHoldings?.data)
-            ? rawHoldings.data
-            : [];
-        window.childHoldings[childId] = payload;
-        listGroup.innerHTML = "";
-        if (payload.length > 0) {
-          payload.forEach(h => {
-            const getVal = (obj, keys) => {
-              for (const k of keys) {
-                for (const key in obj) {
-                  if (key.toLowerCase() === k.toLowerCase()) return obj[key];
-                }
-              }
-              return undefined;
-            };
-            const qty = getVal(h, [
-              'quantity', 'qty', 'holdqty', 'holdingsquantity', 't1_quantity',
-              'dp_qty', 'totalqty', 'availableqty', 'dpqty', 't1qty', 'collateralqty'
-            ]) || 0;
-            const avg = getVal(h, [
-              'buyavg', 'buy_avg_price', 'average_price', 'avg_price', 'purchaseprice', 'avgcostprice'
-            ]);
-            const ltp = getVal(h, ['ltp','last_price','last_traded_price']);
-            const pnl = getVal(h, ['profitandloss','pnl','unrealizedprofit','unrealisedprofit']);
-            const sym = escapeHtml(getVal(h, ['tradingSymbol','tradingsymbol','symbol','tsym']) || '-');
-            const pnlSafe = escapeHtml(pnl !== undefined ? pnl : '-');
-            const qtySafe = escapeHtml(qty);
-            const avgSafe = escapeHtml(avg !== undefined ? avg : '-');
-            const ltpSafe = escapeHtml(ltp !== undefined ? ltp : '-');
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${sym}</h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnlSafe}</small>
-                </div>
-                <p class="mb-1">Qty: ${qtySafe} | Avg Price: ${avgSafe}</p>
-                <small class="text-muted">LTP: ${ltpSafe}</small>
-              </div>
-            `;
-          });
-          emptyState.style.display = 'none';
-        } else {
-          emptyState.style.display = 'block';
+      .then(res => {
+        if (res && typeof res.json === 'function') {
+          return res.json();
         }
+        return res;
+      })
+      .then(payload => {
+        const holdings = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        window.childHoldings[childId] = holdings;
+        renderHoldingsUI(childId, holdings, 'child');
       })
       .catch(err => {
         console.error('Child holdings fetch failed:', err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
+        container.innerHTML = `<div class="p-3 text-center text-danger">Failed to load holdings.</div>`;
         emptyState.style.display = 'none';
         showMessage('Failed to load holdings for child account.', 'danger');
       });
