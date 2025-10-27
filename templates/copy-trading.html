@@ -1076,10 +1076,12 @@ window.pageScripts["copy-trading"] = function () {
   window.childOrderBooks = {};
   window.childOrderIndex = {};
   // Data caches for manual refresh behavior
-  window.masterPositions = {};
-  window.masterHoldings = {};
-  window.childPositions = {};
-  window.childHoldings = {};
+  window.masterPositions = window.masterPositions || {};
+  window.masterAccountStats = window.masterAccountStats || {};
+  window.masterHoldings = window.masterHoldings || {};
+  window.childPositions = window.childPositions || {};
+  window.childAccountStats = window.childAccountStats || {};
+  window.childHoldings = window.childHoldings || {};
   const ORDER_PAGE_SIZE = 20;
 
   const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
@@ -1231,18 +1233,70 @@ window.pageScripts["copy-trading"] = function () {
     const netQtyNum = parseNumeric(netQtyRaw);
     const buyQtyNum = parseNumeric(buyQtyRaw);
     const sellQtyNum = parseNumeric(sellQtyRaw);
-    const pnlNum = parseNumeric(pnlRaw);
-    const changeNum = parseNumeric(changeRaw);
+    const buyAvgNum = parseNumeric(buyAvgRaw);
+    const sellAvgNum = parseNumeric(sellAvgRaw);
+    const ltpNum = parseNumeric(ltpRaw);
 
-    const type = netQtyNum > 0 ? 'BUY' : netQtyNum < 0 ? 'SELL' : 'CLOSED';
-    const sideClass = netQtyNum > 0 ? 'buy' : netQtyNum < 0 ? 'sell' : 'neutral';
-    const sideLabel = netQtyNum > 0 ? 'B' : netQtyNum < 0 ? 'S' : '—';
+    let absQtyNum = Number.isFinite(netQtyNum) ? Math.abs(netQtyNum) : NaN;
+    if (!Number.isFinite(absQtyNum) || absQtyNum === 0) {
+      if (Number.isFinite(buyQtyNum) && buyQtyNum > 0) {
+        absQtyNum = buyQtyNum;
+      } else if (Number.isFinite(sellQtyNum) && sellQtyNum > 0) {
+        absQtyNum = sellQtyNum;
+      }
+    }
+
+    let avgPriceNum = NaN;
+    if (Number.isFinite(netQtyNum) && netQtyNum > 0 && Number.isFinite(buyAvgNum)) {
+      avgPriceNum = buyAvgNum;
+    } else if (Number.isFinite(netQtyNum) && netQtyNum < 0 && Number.isFinite(sellAvgNum)) {
+      avgPriceNum = sellAvgNum;
+    } else if (Number.isFinite(buyAvgNum)) {
+      avgPriceNum = buyAvgNum;
+    } else if (Number.isFinite(sellAvgNum)) {
+      avgPriceNum = sellAvgNum;
+    }
+
+    const investedValue = Number.isFinite(absQtyNum) && Number.isFinite(avgPriceNum)
+      ? absQtyNum * avgPriceNum
+      : NaN;
+    const currentValue = Number.isFinite(absQtyNum) && Number.isFinite(ltpNum)
+      ? absQtyNum * ltpNum
+      : NaN;
+
+    let pnlNum = parseNumeric(pnlRaw);
+    if (!Number.isFinite(pnlNum) && Number.isFinite(currentValue) && Number.isFinite(investedValue)) {
+      pnlNum = currentValue - investedValue;
+    }
+
+    let changeNum = parseNumeric(changeRaw);
+    if (!Number.isFinite(changeNum) && Number.isFinite(pnlNum) && Number.isFinite(investedValue) && investedValue !== 0) {
+      changeNum = (pnlNum / investedValue) * 100;
+    }
+
+    const type = Number.isFinite(netQtyNum)
+      ? (netQtyNum > 0 ? 'BUY' : netQtyNum < 0 ? 'SELL' : 'CLOSED')
+      : 'CLOSED';
+    const sideClass = type === 'BUY' ? 'buy' : type === 'SELL' ? 'sell' : 'neutral';
+    const sideLabel = type === 'BUY' ? 'B' : type === 'SELL' ? 'S' : '—';
 
     const symbolLabel = String(symbolRaw || '-');
     const productLabel = String(productRaw || '—');
     const exchangeLabel = exchangeRaw ? String(exchangeRaw) : '—';
     const badgeLabel = seriesRaw ? String(seriesRaw) : productLabel;
     const badgeText = badgeLabel.trim() ? badgeLabel.trim().charAt(0).toUpperCase() : '—';
+
+    const quantityDisplay = escapeHtml(
+      formatQuantityValue(Number.isFinite(absQtyNum) ? absQtyNum : netQtyRaw)
+    );
+    const avgSource = Number.isFinite(avgPriceNum)
+      ? avgPriceNum
+      : (Number.isFinite(netQtyNum) && netQtyNum < 0 && sellAvgRaw !== undefined)
+        ? sellAvgRaw
+        : buyAvgRaw !== undefined
+          ? buyAvgRaw
+          : sellAvgRaw;
+    const avgPriceDisplay = escapeHtml(formatDecimalValue(avgSource));
 
     return {
       symbolDisplay: escapeHtml(symbolLabel),
@@ -1253,35 +1307,59 @@ window.pageScripts["copy-trading"] = function () {
       badgeTitle: escapeHtml(badgeLabel || ''),
       netQty: Number.isFinite(netQtyNum) ? netQtyNum : 0,
       netQtyDisplay: escapeHtml(formatQuantityValue(netQtyRaw)),
+      quantityDisplay,
       buyQty: Number.isFinite(buyQtyNum) ? buyQtyNum : 0,
       buyQtyDisplay: escapeHtml(formatQuantityValue(buyQtyRaw)),
       sellQty: Number.isFinite(sellQtyNum) ? sellQtyNum : 0,
       sellQtyDisplay: escapeHtml(formatQuantityValue(sellQtyRaw)),
       buyAvgDisplay: escapeHtml(formatDecimalValue(buyAvgRaw)),
       sellAvgDisplay: escapeHtml(formatDecimalValue(sellAvgRaw)),
+      avgPriceValue: Number.isFinite(avgPriceNum) ? avgPriceNum : null,
+      avgPriceDisplayNet: avgPriceDisplay,
+      ltpValue: Number.isFinite(ltpNum) ? ltpNum : null,
       ltpDisplay: escapeHtml(formatDecimalValue(ltpRaw)),
+      investedValue: Number.isFinite(investedValue) ? investedValue : null,
+      investedDisplay: escapeHtml(formatCurrencyValue(investedValue)),
+      currentValue: Number.isFinite(currentValue) ? currentValue : null,
+      currentValueDisplay: escapeHtml(formatCurrencyValue(currentValue)),
       pnl: Number.isFinite(pnlNum) ? pnlNum : null,
-      pnlDisplay: escapeHtml(formatCurrencyValue(pnlRaw)),
+      pnlDisplay: escapeHtml(formatCurrencyValue(Number.isFinite(pnlNum) ? pnlNum : pnlRaw)),
       pnlClass: Number.isFinite(pnlNum) ? (pnlNum > 0 ? 'text-success' : pnlNum < 0 ? 'text-danger' : 'text-muted') : 'text-muted',
       change: Number.isFinite(changeNum) ? changeNum : null,
-      changeDisplay: escapeHtml(formatPercentValue(changeRaw)),
+      changeDisplay: escapeHtml(formatPercentValue(Number.isFinite(changeNum) ? changeNum : changeRaw)),
       changeClass: Number.isFinite(changeNum) ? (changeNum > 0 ? 'text-success' : changeNum < 0 ? 'text-danger' : 'text-muted') : 'text-muted',
+      pnlPercent: Number.isFinite(changeNum) ? changeNum : null,
+      pnlPercentDisplay: escapeHtml(formatPercentValue(Number.isFinite(changeNum) ? changeNum : changeRaw)),
       sideClass,
       sideLabel,
       type
     };
   }
 
-  function buildPositionsSummary(allPositions, openPositions, closedPositions) {
-    const totalPnl = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+  function buildPositionsSummary(allPositions, openPositions, closedPositions, accountStats) {
     const livePnl = openPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
-    const totalBuyQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.buyQty) ? pos.buyQty : 0), 0);
-    const totalSellQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.sellQty) ? pos.sellQty : 0), 0);
-    const netQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.netQty) ? pos.netQty : 0), 0);
+    const marginAvailableRaw = accountStats ? getValueInsensitive(accountStats, [
+      'available_margin',
+      'availableMargin',
+      'availableFunds',
+      'marginAvailable',
+      'total_funds',
+      'totalFunds'
+    ]) : undefined;
+    const marginUsedRaw = accountStats ? getValueInsensitive(accountStats, [
+      'used_margin',
+      'usedMargin',
+      'blockedMargin',
+      'marginUtilized',
+      'utilizedAmount'
+    ]) : undefined;
+
+    const marginAvailableDisplay = escapeHtml(formatCurrencyValue(marginAvailableRaw));
+    const marginUsedDisplay = escapeHtml(formatCurrencyValue(marginUsedRaw));
 
     return `
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
-        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Positions</div>
+        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Holdings</div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:16px;">
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Live P&L:</div>
@@ -1296,24 +1374,12 @@ window.pageScripts["copy-trading"] = function () {
             <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(closedPositions.length))}</div>
           </div>
           <div>
-            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Total Buy Qty:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(totalBuyQty))}</div>
-          </div>
-          <div>
-            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Total Sell Qty:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(totalSellQty))}</div>
-          </div>
-          <div>
-            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Net Qty:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(netQty))}</div>
-          </div>
-          <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Available:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">—</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${marginAvailableDisplay}</div>
           </div>
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Used:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">—</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${marginUsedDisplay}</div>
           </div>
           <div style="display:flex; align-items:flex-end; gap:8px;">
             <button type="button" style="height:32px; width:32px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; font-size:12px; cursor:pointer;">👁</button>
@@ -1373,13 +1439,12 @@ window.pageScripts["copy-trading"] = function () {
     }
 
     const rows = safePositions.map(pos => {
-      const isBuy = pos.netQty > 0;
-      const isSell = pos.netQty < 0;
-      const sideBg = isBuy ? '#10b981' : isSell ? '#ef4444' : '#64748b';
-      const avgPriceDisplay = isBuy ? pos.buyAvgDisplay : isSell ? pos.sellAvgDisplay : pos.buyAvgDisplay;
+      const sideBg = pos.netQty > 0 ? '#10b981' : pos.netQty < 0 ? '#ef4444' : '#94a3b8';
+      const qtyDisplay = pos.quantityDisplay || pos.netQtyDisplay;
+      const avgPriceDisplay = pos.avgPriceDisplayNet || pos.buyAvgDisplay || pos.sellAvgDisplay;
       const pnlColor = inlineToneColor(pos.pnl, '#0f172a');
-      const changeColor = inlineToneColor(pos.change, '#475569');
-      const qtyColor = isBuy ? '#047857' : isSell ? '#b91c1c' : '#0f172a';
+      const pnlPercentColor = inlineToneColor(pos.pnlPercent, '#475569');
+      const pnlPercentDisplay = pos.pnlPercentDisplay || pos.changeDisplay || '—';
 
       return `
         <tr style="border-bottom:1px solid #e2e8f0;">
@@ -1387,17 +1452,24 @@ window.pageScripts["copy-trading"] = function () {
             <input type="checkbox" style="accent-color:#4f46e5;">
           </td>
           <td style="padding:8px 12px; vertical-align:top;">
-            <span style="display:inline-block; background:${sideBg}; color:#ffffff; font-size:11px; line-height:1; font-weight:600; border-radius:4px; padding:4px 6px;">${escapeHtml(String(pos.sideLabel))}</span>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:${sideBg}; color:#ffffff; font-size:12px; font-weight:600;">${escapeHtml(String(pos.sideLabel))}</span>
+                <span style="font-weight:600; color:#0f172a;">${pos.symbolDisplay}</span>
+              </div>
+              <div style="font-size:11px; color:#64748b;">
+                ${pos.exchangeDisplay}
+                <span style="display:inline-block; margin-left:6px; font-size:10px; line-height:1; font-weight:500; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; color:#475569;" title="${pos.badgeTitle}">${pos.badgeText}</span>
+              </div>
+            </div>
           </td>
-          <td style="padding:8px 12px; vertical-align:top; font-weight:600; color:#0f172a;">${pos.symbolDisplay}</td>
-          <td style="padding:8px 12px; vertical-align:top;">
-            <span style="display:inline-block; background:rgba(16,185,129,0.1); color:#047857; border:1px solid rgba(16,185,129,0.3); font-size:11px; line-height:1; font-weight:500; border-radius:4px; padding:4px 6px;">${pos.productDisplay}</span>
-          </td>
-          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${qtyColor}; font-weight:500;">${pos.netQtyDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:#0f172a;">${qtyDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${avgPriceDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.ltpDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.investedDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.currentValueDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${pnlColor};">${pos.pnlDisplay}</td>
-          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${changeColor};">${pos.changeDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${pnlPercentColor};">${pnlPercentDisplay}</td>
           <td style="padding:8px 12px; vertical-align:top; text-align:center;">
             <button type="button" style="height:32px; width:32px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; font-size:12px; cursor:pointer;">✕</button>
           </td>
@@ -1413,18 +1485,18 @@ window.pageScripts["copy-trading"] = function () {
           <table style="border-collapse:collapse; width:100%; font-size:13px; color:#0f172a;">
             <thead style="background:#f8fafc; text-align:left;">
               <tr>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid #e2e8f0;">
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid:#e2e8f0;">
                   <input type="checkbox" style="accent-color:#4f46e5;">
                 </th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">B/S</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Name</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Product</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Qty</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Avg Price</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">LTP</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">P&L</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Change %</th>
-                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:center; border-bottom:1px solid #e2e8f0;">Action</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid:#e2e8f0;">Name</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Qty</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">LTP</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Invested</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">Current Value</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">P&L</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid:#e2e8f0;">P&L %</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:center; border-bottom:1px solid:#e2e8f0;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1581,7 +1653,7 @@ window.pageScripts["copy-trading"] = function () {
   }
 
 
-  function renderPositionsUI(clientId, positions, scope) {
+  function renderPositionsUI(clientId, positions, accountStats, scope) {
     const dom = domId(clientId);
     const summaryEl = document.getElementById(`${scope}-positions-summary-${dom}`);
     const openEl = document.getElementById(`${scope}-positions-open-${dom}`);
@@ -1598,7 +1670,7 @@ window.pageScripts["copy-trading"] = function () {
     const openPositions = normalized.filter(pos => Math.abs(pos.netQty) > 1e-8);
     const closedPositions = normalized.filter(pos => Math.abs(pos.netQty) <= 1e-8);
 
-    summaryEl.innerHTML = buildPositionsSummary(normalized, openPositions, closedPositions);
+    summaryEl.innerHTML = buildPositionsSummary(normalized, openPositions, closedPositions, accountStats);
     openEl.innerHTML = buildOpenPositionsContent(openPositions);
     closedEl.innerHTML = buildClosedPositionsContent(closedPositions);
 
@@ -2741,6 +2813,7 @@ let errorHandled = false;
       });
   }
 
+  
   function loadMasterPositions(clientId, { force = false } = {}) {
     const dom = domId(clientId);
     const summaryEl = document.getElementById(`master-positions-summary-${dom}`);
@@ -2757,30 +2830,60 @@ let errorHandled = false;
       ? tabsEl.querySelector('.sub-tab.active').dataset.view || 'open'
       : 'open';
 
-    const cached = window.masterPositions[clientId];
-    if (cached && !force) {
-      renderPositionsUI(clientId, cached, 'master');
+    const cachedPositions = window.masterPositions[clientId];
+    const cachedStats = window.masterAccountStats[clientId];
+    const hasCachedPositions = Array.isArray(cachedPositions);
+
+    if (hasCachedPositions && !force) {
+      renderPositionsUI(clientId, cachedPositions, cachedStats || {}, 'master');
       window.setMasterPositionsView(clientId, activeView);
-      return;
+      if (cachedStats) {
+        return;
+      }
     }
 
-    summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
-    openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
-    closedEl.innerHTML = '';
+    if (!hasCachedPositions || force) {
+      summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
+      openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
+      closedEl.innerHTML = '';
+    }
+
     emptyState.style.display = 'none';
     window.setMasterPositionsView(clientId, 'open');
 
-    fetch('/api/portfolio/' + encodeURIComponent(clientId))
-      .then(res => res.json())
-      .then(positions => {
-        window.masterPositions[clientId] = Array.isArray(positions) ? positions : [];
-        renderPositionsUI(clientId, window.masterPositions[clientId], 'master');
+    fetch(`/api/dashboard/snapshot/${encodeURIComponent(clientId)}?cache=1`)
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(text || res.statusText || 'Failed to load snapshot');
+          });
+        }
+        return res.json();
+      })
+      .then(snapshot => {
+        if (snapshot && snapshot.error) {
+          throw new Error(snapshot.error);
+        }
+        const positions = Array.isArray(snapshot?.portfolio) ? snapshot.portfolio : [];
+        const accountStats = snapshot && typeof snapshot.account === 'object' && snapshot.account !== null
+          ? snapshot.account
+          : {};
+        window.masterPositions[clientId] = positions;
+        window.masterAccountStats[clientId] = accountStats;
+        renderPositionsUI(clientId, positions, accountStats, 'master');
         window.setMasterPositionsView(clientId, activeView);
       })
       .catch(err => {
         console.error('Positions fetch failed:', err);
-        summaryEl.innerHTML = '';
-        openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        if (hasCachedPositions) {
+          renderPositionsUI(clientId, cachedPositions, cachedStats || {}, 'master');
+          window.setMasterPositionsView(clientId, activeView);
+        } else {
+          summaryEl.innerHTML = '';
+          openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+          closedEl.innerHTML = '';
+          emptyState.style.display = 'none';
+        }
         closedEl.innerHTML = '';
         emptyState.style.display = 'none';
         showMessage('Failed to load positions.', 'danger');
@@ -3057,32 +3160,60 @@ let errorHandled = false;
       ? tabsEl.querySelector('.sub-tab.active').dataset.view || 'open'
       : 'open';
 
-    const cached = window.childPositions[childId];
-    if (cached && !force) {
-      renderPositionsUI(childId, cached, 'child');
+    const cachedPositions = window.childPositions[childId];
+    const cachedStats = window.childAccountStats[childId];
+    const hasCachedPositions = Array.isArray(cachedPositions);
+
+    if (hasCachedPositions && !force) {
+      renderPositionsUI(childId, cachedPositions, cachedStats || {}, 'child');
       window.setChildPositionsView(childId, activeView);
-      return;
+      if (cachedStats) {
+        return;
+      }
     }
 
-    summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
-    openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
-    closedEl.innerHTML = '';
+    if (!hasCachedPositions || force) {
+      summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
+      openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
+      closedEl.innerHTML = '';
+    }
+
     emptyState.style.display = 'none';
     window.setChildPositionsView(childId, 'open');
 
-    fetch('/api/portfolio/' + encodeURIComponent(childId))
-      .then(res => res.json())
-      .then(positions => {
-        window.childPositions[childId] = Array.isArray(positions) ? positions : [];
-        renderPositionsUI(childId, window.childPositions[childId], 'child');
+    fetch(`/api/dashboard/snapshot/${encodeURIComponent(childId)}?cache=1`)
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(text || res.statusText || 'Failed to load snapshot');
+          });
+        }
+        return res.json();
+      })
+      .then(snapshot => {
+        if (snapshot && snapshot.error) {
+          throw new Error(snapshot.error);
+        }
+        const positions = Array.isArray(snapshot?.portfolio) ? snapshot.portfolio : [];
+        const accountStats = snapshot && typeof snapshot.account === 'object' && snapshot.account !== null
+          ? snapshot.account
+          : {};
+        window.childPositions[childId] = positions;
+        window.childAccountStats[childId] = accountStats;
+        renderPositionsUI(childId, positions, accountStats, 'child');
         window.setChildPositionsView(childId, activeView);
       })
       .catch(err => {
         console.error('Child positions fetch failed:', err);
-        summaryEl.innerHTML = '';
-        openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
-        closedEl.innerHTML = '';
-        emptyState.style.display = 'none';
+        if (hasCachedPositions) {
+          renderPositionsUI(childId, cachedPositions, cachedStats || {}, 'child');
+          window.setChildPositionsView(childId, activeView);
+        } else {
+          summaryEl.innerHTML = '';
+          openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+          closedEl.innerHTML = '';
+          emptyState.style.display = 'none';
+        }
         showMessage('Failed to load positions.', 'danger');
       });
   }
