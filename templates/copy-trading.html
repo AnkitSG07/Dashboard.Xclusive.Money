@@ -1207,20 +1207,11 @@ window.pageScripts["copy-trading"] = function () {
     return `${sign}${Math.abs(num).toFixed(2)}%`;
   }
 
-  function valueToneClass(num) {
-    if (!Number.isFinite(num)) return '';
-    if (num > 0) return 'text-success';
-    if (num < 0) return 'text-danger';
-    return '';
-  }
-
-  function positionsSummaryCard(label, value, toneClass = '') {
-    return `
-      <div class="positions-summary-card">
-        <p class="positions-summary-label">${escapeHtml(String(label))}</p>
-        <p class="positions-summary-value ${toneClass}">${escapeHtml(String(value))}</p>
-      </div>
-    `;
+  function inlineToneColor(value, neutral = '#111827') {
+    if (!Number.isFinite(value)) return neutral;
+    if (value > 0) return '#16a34a';
+    if (value < 0) return '#dc2626';
+    return neutral;
   }
 
   function normalizePosition(pos) {
@@ -1277,67 +1268,218 @@ window.pageScripts["copy-trading"] = function () {
     const netQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.netQty) ? pos.netQty : 0), 0);
 
     return `
-      <div class="positions-summary-grid">
-        ${positionsSummaryCard('Live P&L', formatCurrencyValue(livePnl), valueToneClass(livePnl))}
-        ${positionsSummaryCard('Total P&L', formatCurrencyValue(totalPnl), valueToneClass(totalPnl))}
-        ${positionsSummaryCard('Open Positions', openPositions.length)}
-        ${positionsSummaryCard('Closed Positions', closedPositions.length)}
-        ${positionsSummaryCard('Total Buy Qty', formatQuantityValue(totalBuyQty))}
-        ${positionsSummaryCard('Total Sell Qty', formatQuantityValue(totalSellQty))}
-        ${positionsSummaryCard('Net Qty', formatQuantityValue(netQty))}
+      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <h3 style="margin:0 0 16px 0; font-size:20px; font-weight:800; color:#111827;">Today's Positions</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Live P&L:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:${inlineToneColor(livePnl)};">${escapeHtml(formatCurrencyValue(livePnl))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Open Positions:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(String(openPositions.length))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Closed Positions:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(String(closedPositions.length))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Total Buy Qty:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(totalBuyQty))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Total Sell Qty:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(totalSellQty))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Net Qty:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(netQty))}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Margin Available:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">—</p>
+          </div>
+          <div>
+            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Margin Used:</p>
+            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">—</p>
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="button" style="padding:8px 16px; background:#16a34a; color:#ffffff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Top up</button>
+          </div>
+        </div>
       </div>
     `;
   }
 
-  function buildPositionsTable(positions, { emptyMessage } = {}) {
+
+
+  function buildOpenPositionsContent(positions) {
+    const totalPnl = positions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const header = `
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <h4 style="margin:0; font-size:18px; font-weight:800; color:#111827;">Open Positions</h4>
+        <button type="button" style="padding:8px 16px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; border-radius:8px; font-size:13px; cursor:pointer;">Analyse</button>
+      </div>
+    `;
+
     if (!positions || positions.length === 0) {
-      return `<div class="positions-empty-sub">${escapeHtml(emptyMessage || 'No positions to display.')}</div>`;
+      return `
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          ${header}
+          <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">No open positions.</div>
+        </div>
+      `;
     }
 
-    const rows = positions.map(pos => `
-      <tr>
-        <td>
-          <span class="position-side ${pos.sideClass}">${escapeHtml(String(pos.sideLabel))}</span>
-        </td>
-        <td>
-          <div class="positions-symbol">${pos.symbolDisplay}</div>
-          <div class="positions-subtext">${pos.productDisplay}</div>
-        </td>
-        <td class="text-right">${pos.netQtyDisplay}</td>
-        <td class="text-right">${pos.buyQtyDisplay}</td>
-        <td class="text-right">${pos.sellQtyDisplay}</td>
-        <td class="text-right">${pos.buyAvgDisplay}</td>
-        <td class="text-right">${pos.sellAvgDisplay}</td>
-        <td class="text-right">${pos.ltpDisplay}</td>
-        <td class="text-right ${pos.pnlClass}">${pos.pnlDisplay}</td>
-        <td class="text-right ${pos.changeClass}">${pos.changeDisplay}</td>
-      </tr>
-    `).join('');
+    const rows = positions.map(pos => {
+      const isBuy = pos.netQty > 0;
+      const isSell = pos.netQty < 0;
+      const sideColor = isBuy ? '#16a34a' : isSell ? '#dc2626' : '#6b7280';
+      const avgPriceDisplay = isBuy ? pos.buyAvgDisplay : isSell ? pos.sellAvgDisplay : pos.buyAvgDisplay;
+      const pnlColor = inlineToneColor(pos.pnl, '#111827');
+      const changeColor = inlineToneColor(pos.change, '#6b7280');
+      const qtyColor = isBuy ? '#16a34a' : isSell ? '#dc2626' : '#111827';
+
+      return `
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:12px; width:48px;"><input type="checkbox"></td>
+          <td style="padding:12px;">
+            <span style="display:inline-flex; align-items:center; justify-content:center; padding:4px 8px; background:${sideColor}; color:#ffffff; border-radius:6px; font-size:12px; font-weight:600; min-width:28px;">
+              ${escapeHtml(String(pos.sideLabel))}
+            </span>
+          </td>
+          <td style="padding:12px; font-weight:600; font-size:14px; color:#111827;">${pos.symbolDisplay}</td>
+          <td style="padding:12px;">
+            <span style="display:inline-flex; align-items:center; padding:4px 10px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:20px; font-size:12px;">
+              ${pos.productDisplay}
+            </span>
+          </td>
+          <td style="padding:12px; text-align:right; color:${qtyColor}; font-weight:600;">${pos.netQtyDisplay}</td>
+          <td style="padding:12px; text-align:right; color:#374151;">${avgPriceDisplay}</td>
+          <td style="padding:12px; text-align:right; color:#374151;">${pos.ltpDisplay}</td>
+          <td style="padding:12px; text-align:right; font-weight:700; color:${pnlColor};">${pos.pnlDisplay}</td>
+          <td style="padding:12px; text-align:right; color:${changeColor};">${pos.changeDisplay}</td>
+          <td style="padding:12px; text-align:center;">
+            <button type="button" style="width:32px; height:32px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; cursor:pointer;">×</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     return `
-      <div class="positions-table-wrapper">
-        <table class="positions-table">
-          <thead>
-            <tr>
-              <th style="width:72px;">B/S</th>
-              <th>Symbol</th>
-              <th class="text-right">Net Qty</th>
-              <th class="text-right">Buy Qty</th>
-              <th class="text-right">Sell Qty</th>
-              <th class="text-right">Buy Avg</th>
-              <th class="text-right">Sell Avg</th>
-              <th class="text-right">LTP</th>
-              <th class="text-right">P&L</th>
-              <th class="text-right">Change %</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
+      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        ${header}
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; overflow-x:auto; margin-bottom:16px;">
+          <table style="width:100%; border-collapse:collapse; min-width:1000px;">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb; background:#f9fafb;">
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280; width:48px;"><input type="checkbox"></th>
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">B/S</th>
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Name</th>
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Product</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Qty</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Avg Price</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">LTP</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">P&L</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Change %</th>
+                <th style="padding:12px; text-align:center; font-size:13px; font-weight:600; color:#6b7280;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <button type="button" style="padding:8px 16px; background:transparent; color:#6b7280; border:none; font-size:13px; cursor:pointer;">Download as CSV</button>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:14px; font-weight:700; color:#111827;">Total P&L: <span style="color:${inlineToneColor(totalPnl, '#111827')}">${escapeHtml(formatCurrencyValue(totalPnl))}</span></span>
+            <button type="button" style="padding:8px 16px; background:#ffffff; color:#374151; border:1px solid #d1d5db; border-radius:8px; font-size:13px; cursor:pointer;">Set P&L Exit</button>
+          </div>
+        </div>
       </div>
     `;
   }
+
+  function buildClosedPositionsContent(positions) {
+    const realisedPnl = positions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+
+    if (!positions || positions.length === 0) {
+      return `
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <h4 style="margin:0; font-size:18px; font-weight:800; color:#111827;">Closed Positions</h4>
+          <div style="margin-top:16px; padding:24px; text-align:center; color:#6b7280; font-size:14px;">No closed positions.</div>
+        </div>
+      `;
+    }
+
+    const rows = positions.map(pos => {
+      const qtyDisplay = pos.sellQtyDisplay !== '—' ? pos.sellQtyDisplay : pos.buyQtyDisplay;
+      const pnlColor = inlineToneColor(pos.pnl, '#111827');
+
+      return `
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:12px; font-weight:600; color:#111827;">${pos.symbolDisplay}</td>
+          <td style="padding:12px;">
+            <span style="display:inline-flex; align-items:center; padding:4px 10px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:20px; font-size:12px;">
+              ${pos.productDisplay}
+            </span>
+          </td>
+          <td style="padding:12px; text-align:right; color:#374151;">${qtyDisplay}</td>
+          <td style="padding:12px; text-align:right; color:#374151;">${pos.buyAvgDisplay}</td>
+          <td style="padding:12px; text-align:right; color:#374151;">${pos.sellAvgDisplay}</td>
+          <td style="padding:12px; text-align:right; color:#374151;">${pos.ltpDisplay}</td>
+          <td style="padding:12px; text-align:right; font-weight:700; color:${pnlColor};">${pos.pnlDisplay}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:800; color:#111827;">Closed Positions</h4>
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; overflow-x:auto; margin-bottom:16px;">
+          <table style="width:100%; border-collapse:collapse; min-width:900px;">
+            <thead>
+              <tr style="border-bottom:1px solid #e5e7eb; background:#f9fafb;">
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Name</th>
+                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Product</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Qty</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Buy Avg</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Sell Avg</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">LTP</th>
+                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">P&L</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <button type="button" style="padding:8px 16px; background:transparent; color:#6b7280; border:none; font-size:13px; cursor:pointer;">Download as CSV</button>
+          <span style="font-size:14px; font-weight:700; color:#111827;">Realised P&L: <span style="color:${inlineToneColor(realisedPnl, '#111827')}">${escapeHtml(formatCurrencyValue(realisedPnl))}</span></span>
+        </div>
+      </div>
+    `;
+  }
+
+  function applyPositionsTabStyles(tabsEl) {
+    if (!tabsEl) return;
+    tabsEl.querySelectorAll('.sub-tab').forEach(btn => {
+      const isActive = btn.classList.contains('active');
+      btn.style.padding = '10px 16px';
+      btn.style.border = 'none';
+      btn.style.background = 'transparent';
+      btn.style.fontSize = '14px';
+      btn.style.cursor = 'pointer';
+      btn.style.fontWeight = isActive ? '600' : '500';
+      btn.style.color = isActive ? '#111827' : '#6b7280';
+      btn.style.borderBottom = isActive ? '2px solid #3b82f6' : '2px solid transparent';
+      btn.style.transition = 'color 0.2s ease, border-color 0.2s ease';
+      btn.style.outline = 'none';
+    });
+  }
+
 
   function renderPositionsUI(clientId, positions, scope) {
     const dom = domId(clientId);
@@ -1357,8 +1499,8 @@ window.pageScripts["copy-trading"] = function () {
     const closedPositions = normalized.filter(pos => Math.abs(pos.netQty) <= 1e-8);
 
     summaryEl.innerHTML = buildPositionsSummary(normalized, openPositions, closedPositions);
-    openEl.innerHTML = buildPositionsTable(openPositions, { emptyMessage: 'No open positions.' });
-    closedEl.innerHTML = buildPositionsTable(closedPositions, { emptyMessage: 'No closed positions.' });
+    openEl.innerHTML = buildOpenPositionsContent(openPositions);
+    closedEl.innerHTML = buildClosedPositionsContent(closedPositions);
 
     emptyEl.style.display = normalized.length === 0 ? 'block' : 'none';
 
@@ -1371,6 +1513,7 @@ window.pageScripts["copy-trading"] = function () {
           countEl.textContent = count > 0 ? `(${count})` : '';
         }
       });
+      applyPositionsTabStyles(tabsEl);
     }
   }
 
@@ -1970,9 +2113,11 @@ let errorHandled = false;
                   </div>
                   <div id="master-positions-${masterDomId}" style="display:none;">
                         <div id="master-positions-summary-${masterDomId}" class="positions-summary"></div>
-                        <div class="sub-tabs" id="master-positions-tabs-${masterDomId}">
-                          <button class="sub-tab active" data-view="open" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "open", this)'>Open <span class="sub-tab-count"></span></button>
-                          <button class="sub-tab" data-view="closed" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "closed", this)'>Closed <span class="sub-tab-count"></span></button>
+                        <div id="master-positions-tabs-${masterDomId}" style="border-bottom:1px solid #e5e7eb; margin-bottom:16px;">
+                          <div style="display:flex; gap:16px;">
+                            <button type="button" class="sub-tab active" data-view="open" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "open", this)' style="padding:10px 16px; border:none; background:transparent; color:#111827; font-weight:600; font-size:14px; border-bottom:2px solid #3b82f6; cursor:pointer;">Open <span class="sub-tab-count"></span></button>
+                            <button type="button" class="sub-tab" data-view="closed" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "closed", this)' style="padding:10px 16px; border:none; background:transparent; color:#6b7280; font-weight:500; font-size:14px; border-bottom:2px solid transparent; cursor:pointer;">Closed <span class="sub-tab-count"></span></button>
+                          </div>
                         </div>
                         <div id="master-positions-open-${masterDomId}" class="positions-view"></div>
                         <div id="master-positions-closed-${masterDomId}" class="positions-view" style="display:none;"></div>
@@ -2102,9 +2247,11 @@ let errorHandled = false;
                         </div>
                         <div id="child-positions-${childDomId}">
                                 <div id="child-positions-summary-${childDomId}" class="positions-summary"></div>
-                                <div class="sub-tabs" id="child-positions-tabs-${childDomId}">
-                                    <button class="sub-tab active" data-view="open" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "open", this)'>Open <span class="sub-tab-count"></span></button>
-                                    <button class="sub-tab" data-view="closed" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "closed", this)'>Closed <span class="sub-tab-count"></span></button>
+                                <div id="child-positions-tabs-${childDomId}" style="border-bottom:1px solid #e5e7eb; margin-bottom:16px;">
+                                    <div style="display:flex; gap:16px;">
+                                        <button type="button" class="sub-tab active" data-view="open" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "open", this)' style="padding:10px 16px; border:none; background:transparent; color:#111827; font-weight:600; font-size:14px; border-bottom:2px solid #3b82f6; cursor:pointer;">Open <span class="sub-tab-count"></span></button>
+                                        <button type="button" class="sub-tab" data-view="closed" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "closed", this)' style="padding:10px 16px; border:none; background:transparent; color:#6b7280; font-weight:500; font-size:14px; border-bottom:2px solid transparent; cursor:pointer;">Closed <span class="sub-tab-count"></span></button>
+                                    </div>
                                 </div>
                                 <div id="child-positions-open-${childDomId}" class="positions-view"></div>
                                 <div id="child-positions-closed-${childDomId}" class="positions-view" style="display:none;"></div>
@@ -2418,6 +2565,7 @@ let errorHandled = false;
           btn.classList.toggle('active', btn.dataset.view === view);
         }
       });
+      applyPositionsTabStyles(tabsEl);
     }
     const openEl = document.getElementById(`master-positions-open-${dom}`);
     const closedEl = document.getElementById(`master-positions-closed-${dom}`);
@@ -2709,6 +2857,7 @@ let errorHandled = false;
         } else {
           btn.classList.toggle('active', btn.dataset.view === view);
         }
+      applyPositionsTabStyles(tabsEl);
       });
     }
     const openEl = document.getElementById(`child-positions-open-${dom}`);
