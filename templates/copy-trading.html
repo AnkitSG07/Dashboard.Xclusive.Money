@@ -1593,9 +1593,9 @@ let errorHandled = false;
               `;
 
               const summaryRow = `
-                <tr class="collapsible-trigger" data-master-summary="${masterDomId}" onclick="window.toggleMasterExpand('${masterDomId}', ${JSON.stringify(rawMasterId)}, event)">
+                <tr class="collapsible-trigger" data-master-summary="${masterDomId}" data-master-id="${masterClientId}">
                   <td>
-                    <button class="btn btn-icon btn-ghost" type="button" onclick="window.toggleMasterExpand('${masterDomId}', ${JSON.stringify(rawMasterId)}, event)">
+                    <button class="btn btn-icon btn-ghost" type="button" data-master-toggle="${masterDomId}" data-master-id="${masterClientId}">
                       <svg class="icon icon-sm" viewBox="0 0 24 24" id="chevron-master-${masterDomId}">
                         <polyline points="${masterOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'}"></polyline>
                       </svg>
@@ -1631,6 +1631,16 @@ let errorHandled = false;
               masterRows.push(summaryRow + detailRow);
             });
             masterBody.innerHTML = masterRows.join('');
+            masterBody.querySelectorAll('tr[data-master-summary]').forEach(row => {
+              const domIdVal = row.dataset.masterSummary;
+              const clientIdVal = row.dataset.masterId;
+              if (!domIdVal) return;
+              const handler = evt => window.toggleMasterExpand(domIdVal, clientIdVal, evt);
+              row.addEventListener('click', handler);
+              row.querySelectorAll('[data-master-toggle]').forEach(btn => {
+                btn.addEventListener('click', handler);
+              });
+            });
             // Restore active tab for each master if necessary
             masters.forEach(master => {
               const rawId = master.client_id || 'N/A';
@@ -1701,9 +1711,9 @@ let errorHandled = false;
                 </div>
               `;
               const summaryRow = `
-                <tr class="collapsible-trigger" data-child-summary="${childDomId}" onclick="window.toggleChildExpand('${childDomId}', ${JSON.stringify(rawChildId)}, event)">
+                <tr class="collapsible-trigger" data-child-summary="${childDomId}" data-child-id="${childClientId}">
                   <td>
-                    <button class="btn btn-icon btn-ghost" type="button" onclick="window.toggleChildExpand('${childDomId}', ${JSON.stringify(rawChildId)}, event)">
+                    <button class="btn btn-icon btn-ghost" type="button" data-child-toggle="${childDomId}" data-child-id="${childClientId}">
                       <svg class="icon icon-sm" viewBox="0 0 24 24" id="chevron-child-${childDomId}">
                         <polyline points="${childOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'}"></polyline>
                       </svg>
@@ -1765,6 +1775,16 @@ let errorHandled = false;
               childRows.push(summaryRow + detailRow);
             });
             childrenBody.innerHTML = childRows.join('');
+            childrenBody.querySelectorAll('tr[data-child-summary]').forEach(row => {
+              const domIdVal = row.dataset.childSummary;
+              const clientIdVal = row.dataset.childId;
+              if (!domIdVal) return;
+              const handler = evt => window.toggleChildExpand(domIdVal, clientIdVal, evt);
+              row.addEventListener('click', handler);
+              row.querySelectorAll('[data-child-toggle]').forEach(btn => {
+                btn.addEventListener('click', handler);
+              });
+            });  
             // Restore active tab for each child if necessary
             children.forEach(child => {
               const rawId = child.client_id || 'N/A';
