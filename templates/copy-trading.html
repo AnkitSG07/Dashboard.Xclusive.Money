@@ -35,6 +35,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             margin-bottom: 24px;
+            margin-left: -22px;
         }
 
         .card-header {
@@ -432,6 +433,175 @@
             border-bottom-color: #6366f1;
         }
 
+        .sub-tabs {
+            display: flex;
+            gap: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .sub-tab {
+            background: transparent;
+            border: none;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .sub-tab:hover {
+            color: #4b5563;
+        }
+
+        .sub-tab.active {
+            color: #111827;
+            font-weight: 600;
+            border-bottom-color: #6366f1;
+        }
+
+        .sub-tab-count {
+            margin-left: 6px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .sub-tab.active .sub-tab-count {
+            color: #4b5563;
+        }
+
+        .positions-summary {
+            margin-bottom: 16px;
+        }
+
+        .positions-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+
+        .positions-summary-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .positions-summary-label {
+            font-size: 13px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .positions-summary-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .positions-table-wrapper {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow-x: auto;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+
+        .positions-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+        }
+
+        .positions-table th,
+        .positions-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .positions-table th {
+            background: #f9fafb;
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            text-align: left;
+        }
+
+        .positions-table td {
+            font-size: 14px;
+            color: #1f2937;
+            vertical-align: top;
+        }
+
+        .positions-table td .positions-symbol {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .positions-table td .positions-subtext {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .positions-empty-sub {
+            padding: 20px;
+            border: 1px dashed #d1d5db;
+            border-radius: 10px;
+            background: #f9fafb;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .positions-loading {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .positions-view {
+            display: block;
+        }
+
+        .position-side {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .position-side.buy {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .position-side.sell {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .position-side.neutral {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -585,17 +755,18 @@
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            padding: 16px;
+            padding: 15px;
         }
 
         .account-mini-card .account-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 12px;
+            margin-bottom: 1px;
         }
 
         .account-mini-card .account-id {
+            margin-bottom: 1px;
             font-weight: 600;
         }
 
@@ -960,13 +1131,13 @@ window.pageScripts["copy-trading"] = function () {
     return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  function getOrderField(order, keys) {
-    if (!order || typeof order !== 'object') return undefined;
+  function getValueInsensitive(obj, keys) {
+    if (!obj || typeof obj !== 'object') return undefined;
     for (const key of keys) {
       const lower = key.toLowerCase();
-      for (const prop in order) {
-        if (Object.prototype.hasOwnProperty.call(order, prop) && prop.toLowerCase() === lower) {
-          const value = order[prop];
+      for (const prop in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, prop) && prop.toLowerCase() === lower) {
+          const value = obj[prop];
           if (value !== undefined && value !== null && (String(value).length > 0 || value === 0)) {
             return value;
           }
@@ -976,8 +1147,231 @@ window.pageScripts["copy-trading"] = function () {
     return undefined;
   }
 
+  function getOrderField(order, keys) {
+    return getValueInsensitive(order, keys);
+  }
+
   function withFallback(value, fallback = '—') {
     return value === undefined || value === null ? fallback : value;
+  }
+
+  function parseNumeric(value) {
+    if (value === null || value === undefined || value === '') return NaN;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : NaN;
+    }
+    const cleaned = String(value).replace(/[^0-9.+-]/g, '');
+    if (!cleaned || cleaned === '-' || cleaned === '+') return NaN;
+    const parsed = parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+
+  function formatQuantityValue(value) {
+    const num = parseNumeric(value);
+    if (!Number.isFinite(num)) {
+      if (value === undefined || value === null || value === '') return '—';
+      return String(value);
+    }
+    const options = Number.isInteger(num)
+      ? { maximumFractionDigits: 0 }
+      : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    return num.toLocaleString('en-IN', options);
+  }
+
+  function formatDecimalValue(value) {
+    const num = parseNumeric(value);
+    if (!Number.isFinite(num)) {
+      if (value === undefined || value === null || value === '') return '—';
+      return String(value);
+    }
+    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatCurrencyValue(value) {
+    const num = parseNumeric(value);
+    if (!Number.isFinite(num)) {
+      if (value === undefined || value === null || value === '') return '—';
+      return String(value);
+    }
+    const formatted = num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `₹ ${formatted}`;
+  }
+
+  function formatPercentValue(value) {
+    const num = parseNumeric(value);
+    if (!Number.isFinite(num)) {
+      if (value === undefined || value === null || value === '') return '—';
+      return String(value);
+    }
+    const sign = num > 0 ? '+' : num < 0 ? '-' : '';
+    return `${sign}${Math.abs(num).toFixed(2)}%`;
+  }
+
+  function valueToneClass(num) {
+    if (!Number.isFinite(num)) return '';
+    if (num > 0) return 'text-success';
+    if (num < 0) return 'text-danger';
+    return '';
+  }
+
+  function positionsSummaryCard(label, value, toneClass = '') {
+    return `
+      <div class="positions-summary-card">
+        <p class="positions-summary-label">${escapeHtml(String(label))}</p>
+        <p class="positions-summary-value ${toneClass}">${escapeHtml(String(value))}</p>
+      </div>
+    `;
+  }
+
+  function normalizePosition(pos) {
+    const symbolRaw = getValueInsensitive(pos, ['tradingSymbol', 'symbol', 'tradingsymbol', 'trading_symbol', 'tsym']) || '-';
+    const productRaw = getValueInsensitive(pos, ['productType', 'product', 'product_type', 'segment', 'exchange']) || '—';
+    const netQtyRaw = getValueInsensitive(pos, ['netQty', 'net_quantity', 'netqty', 'quantity', 'qty']);
+    const buyQtyRaw = getValueInsensitive(pos, ['buyQty', 'buy_quantity', 'buyqty', 'totalBuyQty', 'total_buy_quantity']);
+    const sellQtyRaw = getValueInsensitive(pos, ['sellQty', 'sell_quantity', 'sellqty', 'totalSellQty', 'total_sell_quantity']);
+    const buyAvgRaw = getValueInsensitive(pos, ['buyAvg', 'buy_avg_price', 'avg_buy_price', 'buyavg', 'averagebuyprice']);
+    const sellAvgRaw = getValueInsensitive(pos, ['sellAvg', 'sell_avg_price', 'avg_sell_price', 'sellavg', 'averagesellprice']);
+    const ltpRaw = getValueInsensitive(pos, ['ltp', 'last_price', 'last_traded_price', 'ltp_price', 'close']);
+    const pnlRaw = getValueInsensitive(pos, ['profitAndLoss', 'pnl', 'mtm', 'unrealized', 'unrealised', 'profit_and_loss', 'overallpnl', 'pnlmtm']);
+    const changeRaw = getValueInsensitive(pos, ['change', 'pnlPercent', 'percentage', 'pnl_percentage', 'mtm_percentage', 'change_percentage']);
+
+    const netQtyNum = parseNumeric(netQtyRaw);
+    const buyQtyNum = parseNumeric(buyQtyRaw);
+    const sellQtyNum = parseNumeric(sellQtyRaw);
+    const pnlNum = parseNumeric(pnlRaw);
+    const changeNum = parseNumeric(changeRaw);
+
+    const type = netQtyNum > 0 ? 'BUY' : netQtyNum < 0 ? 'SELL' : 'CLOSED';
+    const sideClass = netQtyNum > 0 ? 'buy' : netQtyNum < 0 ? 'sell' : 'neutral';
+    const sideLabel = netQtyNum > 0 ? 'B' : netQtyNum < 0 ? 'S' : '—';
+
+    return {
+      symbolDisplay: escapeHtml(String(symbolRaw || '-')),
+      productDisplay: escapeHtml(String(productRaw || '—')),
+      netQty: Number.isFinite(netQtyNum) ? netQtyNum : 0,
+      netQtyDisplay: escapeHtml(formatQuantityValue(netQtyRaw)),
+      buyQty: Number.isFinite(buyQtyNum) ? buyQtyNum : 0,
+      buyQtyDisplay: escapeHtml(formatQuantityValue(buyQtyRaw)),
+      sellQty: Number.isFinite(sellQtyNum) ? sellQtyNum : 0,
+      sellQtyDisplay: escapeHtml(formatQuantityValue(sellQtyRaw)),
+      buyAvgDisplay: escapeHtml(formatDecimalValue(buyAvgRaw)),
+      sellAvgDisplay: escapeHtml(formatDecimalValue(sellAvgRaw)),
+      ltpDisplay: escapeHtml(formatDecimalValue(ltpRaw)),
+      pnl: Number.isFinite(pnlNum) ? pnlNum : null,
+      pnlDisplay: escapeHtml(formatCurrencyValue(pnlRaw)),
+      pnlClass: Number.isFinite(pnlNum) ? (pnlNum > 0 ? 'text-success' : pnlNum < 0 ? 'text-danger' : 'text-muted') : 'text-muted',
+      change: Number.isFinite(changeNum) ? changeNum : null,
+      changeDisplay: escapeHtml(formatPercentValue(changeRaw)),
+      changeClass: Number.isFinite(changeNum) ? (changeNum > 0 ? 'text-success' : changeNum < 0 ? 'text-danger' : 'text-muted') : 'text-muted',
+      sideClass,
+      sideLabel,
+      type
+    };
+  }
+
+  function buildPositionsSummary(allPositions, openPositions, closedPositions) {
+    const totalPnl = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const livePnl = openPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const totalBuyQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.buyQty) ? pos.buyQty : 0), 0);
+    const totalSellQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.sellQty) ? pos.sellQty : 0), 0);
+    const netQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.netQty) ? pos.netQty : 0), 0);
+
+    return `
+      <div class="positions-summary-grid">
+        ${positionsSummaryCard('Live P&L', formatCurrencyValue(livePnl), valueToneClass(livePnl))}
+        ${positionsSummaryCard('Total P&L', formatCurrencyValue(totalPnl), valueToneClass(totalPnl))}
+        ${positionsSummaryCard('Open Positions', openPositions.length)}
+        ${positionsSummaryCard('Closed Positions', closedPositions.length)}
+        ${positionsSummaryCard('Total Buy Qty', formatQuantityValue(totalBuyQty))}
+        ${positionsSummaryCard('Total Sell Qty', formatQuantityValue(totalSellQty))}
+        ${positionsSummaryCard('Net Qty', formatQuantityValue(netQty))}
+      </div>
+    `;
+  }
+
+  function buildPositionsTable(positions, { emptyMessage } = {}) {
+    if (!positions || positions.length === 0) {
+      return `<div class="positions-empty-sub">${escapeHtml(emptyMessage || 'No positions to display.')}</div>`;
+    }
+
+    const rows = positions.map(pos => `
+      <tr>
+        <td>
+          <span class="position-side ${pos.sideClass}">${escapeHtml(String(pos.sideLabel))}</span>
+        </td>
+        <td>
+          <div class="positions-symbol">${pos.symbolDisplay}</div>
+          <div class="positions-subtext">${pos.productDisplay}</div>
+        </td>
+        <td class="text-right">${pos.netQtyDisplay}</td>
+        <td class="text-right">${pos.buyQtyDisplay}</td>
+        <td class="text-right">${pos.sellQtyDisplay}</td>
+        <td class="text-right">${pos.buyAvgDisplay}</td>
+        <td class="text-right">${pos.sellAvgDisplay}</td>
+        <td class="text-right">${pos.ltpDisplay}</td>
+        <td class="text-right ${pos.pnlClass}">${pos.pnlDisplay}</td>
+        <td class="text-right ${pos.changeClass}">${pos.changeDisplay}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="positions-table-wrapper">
+        <table class="positions-table">
+          <thead>
+            <tr>
+              <th style="width:72px;">B/S</th>
+              <th>Symbol</th>
+              <th class="text-right">Net Qty</th>
+              <th class="text-right">Buy Qty</th>
+              <th class="text-right">Sell Qty</th>
+              <th class="text-right">Buy Avg</th>
+              <th class="text-right">Sell Avg</th>
+              <th class="text-right">LTP</th>
+              <th class="text-right">P&L</th>
+              <th class="text-right">Change %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderPositionsUI(clientId, positions, scope) {
+    const dom = domId(clientId);
+    const summaryEl = document.getElementById(`${scope}-positions-summary-${dom}`);
+    const openEl = document.getElementById(`${scope}-positions-open-${dom}`);
+    const closedEl = document.getElementById(`${scope}-positions-closed-${dom}`);
+    const emptyElId = scope === 'master' ? `positions-empty-${dom}` : `child-positions-empty-${dom}`;
+    const emptyEl = document.getElementById(emptyElId);
+    const tabsEl = document.getElementById(`${scope}-positions-tabs-${dom}`);
+
+    if (!summaryEl || !openEl || !closedEl || !emptyEl) {
+      return;
+    }
+
+    const normalized = Array.isArray(positions) ? positions.map(normalizePosition) : [];
+    const openPositions = normalized.filter(pos => Math.abs(pos.netQty) > 1e-8);
+    const closedPositions = normalized.filter(pos => Math.abs(pos.netQty) <= 1e-8);
+
+    summaryEl.innerHTML = buildPositionsSummary(normalized, openPositions, closedPositions);
+    openEl.innerHTML = buildPositionsTable(openPositions, { emptyMessage: 'No open positions.' });
+    closedEl.innerHTML = buildPositionsTable(closedPositions, { emptyMessage: 'No closed positions.' });
+
+    emptyEl.style.display = normalized.length === 0 ? 'block' : 'none';
+
+    if (tabsEl) {
+      tabsEl.querySelectorAll('.sub-tab').forEach(btn => {
+        const countEl = btn.querySelector('.sub-tab-count');
+        if (countEl) {
+          const view = btn.dataset.view;
+          const count = view === 'open' ? openPositions.length : closedPositions.length;
+          countEl.textContent = count > 0 ? `(${count})` : '';
+        }
+      });
+    }
   }
 
   function formatOrderStatus(rawStatus) {
@@ -1575,7 +1969,13 @@ let errorHandled = false;
                       </div>
                   </div>
                   <div id="master-positions-${masterDomId}" style="display:none;">
-                        <div id="positions-body-${masterDomId}" class="list-group"></div>
+                        <div id="master-positions-summary-${masterDomId}" class="positions-summary"></div>
+                        <div class="sub-tabs" id="master-positions-tabs-${masterDomId}">
+                          <button class="sub-tab active" data-view="open" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "open", this)'>Open <span class="sub-tab-count"></span></button>
+                          <button class="sub-tab" data-view="closed" onclick='window.setMasterPositionsView(${JSON.stringify(rawMasterId)}, "closed", this)'>Closed <span class="sub-tab-count"></span></button>
+                        </div>
+                        <div id="master-positions-open-${masterDomId}" class="positions-view"></div>
+                        <div id="master-positions-closed-${masterDomId}" class="positions-view" style="display:none;"></div>
                         <div id="positions-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No positions for this master account.</p></div>
                   </div>
                   <div id="master-holdings-${masterDomId}" style="display:none;">
@@ -1701,7 +2101,13 @@ let errorHandled = false;
                                 </div>
                         </div>
                         <div id="child-positions-${childDomId}">
-                                <div id="child-positions-body-${childDomId}" class="list-group"></div>
+                                <div id="child-positions-summary-${childDomId}" class="positions-summary"></div>
+                                <div class="sub-tabs" id="child-positions-tabs-${childDomId}">
+                                    <button class="sub-tab active" data-view="open" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "open", this)'>Open <span class="sub-tab-count"></span></button>
+                                    <button class="sub-tab" data-view="closed" onclick='window.setChildPositionsView(${JSON.stringify(rawChildId)}, "closed", this)'>Closed <span class="sub-tab-count"></span></button>
+                                </div>
+                                <div id="child-positions-open-${childDomId}" class="positions-view"></div>
+                                <div id="child-positions-closed-${childDomId}" class="positions-view" style="display:none;"></div>
                                 <div id="child-positions-empty-${childDomId}" class="empty-state" style="display:none;"><p>No positions for this child account.</p></div>
                         </div>
                         <div id="child-holdings-${childDomId}" style="display:none;">
@@ -1999,6 +2405,28 @@ let errorHandled = false;
     updatePollingState();
   };
 
+  window.setMasterPositionsView = function(clientId, view, button) {
+    const dom = domId(clientId);
+    const tabsEl = document.getElementById(`master-positions-tabs-${dom}`);
+    if (tabsEl) {
+      const buttons = tabsEl.querySelectorAll('.sub-tab');
+      buttons.forEach(btn => {
+        if (!btn.dataset.view) return;
+        if (button) {
+          btn.classList.toggle('active', btn === button);
+        } else {
+          btn.classList.toggle('active', btn.dataset.view === view);
+        }
+      });
+    }
+    const openEl = document.getElementById(`master-positions-open-${dom}`);
+    const closedEl = document.getElementById(`master-positions-closed-${dom}`);
+    if (openEl && closedEl) {
+      openEl.style.display = view === 'open' ? 'block' : 'none';
+      closedEl.style.display = view === 'closed' ? 'block' : 'none';
+    }
+  };
+
   function appendMasterOrders(clientId) {
     const orders = window.masterOrderBooks[clientId] || [];
     const dom = domId(clientId);
@@ -2067,86 +2495,47 @@ let errorHandled = false;
 
   function loadMasterPositions(clientId, { force = false } = {}) {
     const dom = domId(clientId);
-    const listGroup = document.getElementById(`positions-body-${dom}`);
+    const summaryEl = document.getElementById(`master-positions-summary-${dom}`);
+    const openEl = document.getElementById(`master-positions-open-${dom}`);
+    const closedEl = document.getElementById(`master-positions-closed-${dom}`);
     const emptyState = document.getElementById(`positions-empty-${dom}`);
-    if (!listGroup || !emptyState) return;
+    const tabsEl = document.getElementById(`master-positions-tabs-${dom}`);
 
-    const cached = window.masterPositions[clientId];
-    if (cached && !force) {
-      listGroup.innerHTML = "";
-      if (cached.length > 0) {
-        cached.forEach(pos => {
-          const buyQty = pos.buyQty || pos.buy_quantity || 0;
-          const sellQty = pos.sellQty || pos.sell_quantity || 0;
-          const netQty = pos.netQty || pos.net_quantity || 0;
-          let type = 'CLOSED';
-          if (netQty > 0) {
-            type = 'BUY';
-          } else if (netQty < 0) {
-            type = 'SELL';
-          }
-          const typeClass = type === 'BUY' ? 'badge-green'
-                             : type === 'SELL' ? 'badge-red'
-                             : 'badge-secondary';
-          listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass}" style="margin-left:8px;">${type}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
-                </div>
-                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
-                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
-              </div>
-            `;
-        });
-      } else {
-        emptyState.style.display = 'block';
-      }
+    if (!summaryEl || !openEl || !closedEl || !emptyState) {
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
+    const activeView = tabsEl && tabsEl.querySelector('.sub-tab.active')
+      ? tabsEl.querySelector('.sub-tab.active').dataset.view || 'open'
+      : 'open';
+
+    const cached = window.masterPositions[clientId];
+    if (cached && !force) {
+      renderPositionsUI(clientId, cached, 'master');
+      window.setMasterPositionsView(clientId, activeView);
+      return;
+    }
+
+    summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
+    openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
+    closedEl.innerHTML = '';
     emptyState.style.display = 'none';
+    window.setMasterPositionsView(clientId, 'open');
 
     fetch('/api/portfolio/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(positions => {
         window.masterPositions[clientId] = Array.isArray(positions) ? positions : [];
-        listGroup.innerHTML = "";
-        if (window.masterPositions[clientId].length > 0) {
-          window.masterPositions[clientId].forEach(pos => {
-            const buyQty = pos.buyQty || pos.buy_quantity || 0;
-            const sellQty = pos.sellQty || pos.sell_quantity || 0;
-            const netQty = pos.netQty || pos.net_quantity || 0;
-            let type = 'CLOSED';
-            if (netQty > 0) {
-              type = 'BUY';
-            } else if (netQty < 0) {
-              type = 'SELL';
-            }
-            const typeClass = type === 'BUY' ? 'badge-green'
-                               : type === 'SELL' ? 'badge-red'
-                               : 'badge-secondary';  
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${pos.tradingSymbol || pos.symbol || '-'} <span class="badge ${typeClass}" style="margin-left:8px;">${type}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pos.profitAndLoss ?? pos.pnl ?? '-'}</small>
-                </div>
-                <p class="mb-1">Net Qty: ${netQty} | Buy Qty: ${buyQty} | Sell Qty: ${sellQty}</p>
-                  <small class="text-muted">Avg Buy Price: ${pos.buyAvg ?? pos.buy_avg_price ?? '-'} | Avg Sell Price: ${pos.sellAvg ?? pos.sell_avg_price ?? '-'} | LTP: ${pos.ltp ?? pos.last_price ?? '-'}</small>
-              </div>
-            `;
-          });
-        } else {
-          emptyState.style.display = 'block';
-        }
+        renderPositionsUI(clientId, window.masterPositions[clientId], 'master');
+        window.setMasterPositionsView(clientId, activeView);
       })
       .catch(err => {
-        console.error("Positions fetch failed:", err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        console.error('Positions fetch failed:', err);
+        summaryEl.innerHTML = '';
+        openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        closedEl.innerHTML = '';
         emptyState.style.display = 'none';
-        showMessage("Failed to load positions.", 'danger');
+        showMessage('Failed to load positions.', 'danger');
       });
   }
 
@@ -2305,7 +2694,29 @@ let errorHandled = false;
     } else if (tabName === 'holdings') {
       loadChildHoldings(childId, { force: wasActive });
     }
-    updatePollingState();  
+    updatePollingState();
+  };
+
+  window.setChildPositionsView = function(childId, view, button) {
+    const dom = domId(childId);
+    const tabsEl = document.getElementById(`child-positions-tabs-${dom}`);
+    if (tabsEl) {
+      const buttons = tabsEl.querySelectorAll('.sub-tab');
+      buttons.forEach(btn => {
+        if (!btn.dataset.view) return;
+        if (button) {
+          btn.classList.toggle('active', btn === button);
+        } else {
+          btn.classList.toggle('active', btn.dataset.view === view);
+        }
+      });
+    }
+    const openEl = document.getElementById(`child-positions-open-${dom}`);
+    const closedEl = document.getElementById(`child-positions-closed-${dom}`);
+    if (openEl && closedEl) {
+      openEl.style.display = view === 'open' ? 'block' : 'none';
+      closedEl.style.display = view === 'closed' ? 'block' : 'none';
+    } 
   };
 
   function appendChildOrders(childId) {
@@ -2383,88 +2794,45 @@ let errorHandled = false;
 
   function loadChildPositions(childId, { force = false } = {}) {
     const dom = domId(childId);
-    const listGroup = document.getElementById(`child-positions-body-${dom}`);
+    const summaryEl = document.getElementById(`child-positions-summary-${dom}`);
+    const openEl = document.getElementById(`child-positions-open-${dom}`);
+    const closedEl = document.getElementById(`child-positions-closed-${dom}`);
     const emptyState = document.getElementById(`child-positions-empty-${dom}`);
-    if (!listGroup || !emptyState) return;
+    const tabsEl = document.getElementById(`child-positions-tabs-${dom}`);
 
-    const cached = window.childPositions[childId];
-    if (cached && !force) {
-      listGroup.innerHTML = "";
-      if (cached.length > 0) {
-        cached.forEach(pos => {
-          const buyQty = pos.buyQty || pos.buy_quantity || 0;
-          const sellQty = pos.sellQty || pos.sell_quantity || 0;
-          const netQty = pos.netQty || pos.net_quantity || 0;
-          let type = 'CLOSED';
-          if (netQty > 0) {
-            type = 'BUY';
-          } else if (netQty < 0) {
-            type = 'SELL';
-          }
-          const typeClass = type === 'BUY' ? 'badge-green'
-                             : type === 'SELL' ? 'badge-red'
-                             : 'badge-secondary';
-          const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
-          const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
-          listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass}">${escapeHtml(type)}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
-                </div>
-                <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
-                <small class="text-muted">Avg Buy Price: ${escapeHtml(pos.buyAvg ?? pos.buy_avg_price ?? '-')} | Avg Sell Price: ${escapeHtml(pos.sellAvg ?? pos.sell_avg_price ?? '-')} | LTP: ${escapeHtml(pos.ltp ?? pos.last_price ?? '-')}</small>
-              </div>
-            `;
-        });
-      } else {
-        emptyState.style.display = 'block';
-      }
+    if (!summaryEl || !openEl || !closedEl || !emptyState) {
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading positions...</div>`;
+    const activeView = tabsEl && tabsEl.querySelector('.sub-tab.active')
+      ? tabsEl.querySelector('.sub-tab.active').dataset.view || 'open'
+      : 'open';
+
+    const cached = window.childPositions[childId];
+    if (cached && !force) {
+      renderPositionsUI(childId, cached, 'child');
+      window.setChildPositionsView(childId, activeView);
+      return;
+    }
+
+    summaryEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading position summary...</div>`;
+    openEl.innerHTML = `<div class="positions-loading"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading open positions...</div>`;
+    closedEl.innerHTML = '';
     emptyState.style.display = 'none';
+    window.setChildPositionsView(childId, 'open');
 
     fetch('/api/portfolio/' + encodeURIComponent(childId))
       .then(res => res.json())
       .then(positions => {
         window.childPositions[childId] = Array.isArray(positions) ? positions : [];
-        listGroup.innerHTML = "";
-        if (window.childPositions[childId].length > 0) {
-          window.childPositions[childId].forEach(pos => {
-            const buyQty = pos.buyQty || pos.buy_quantity || 0;
-            const sellQty = pos.sellQty || pos.sell_quantity || 0;
-            const netQty = pos.netQty || pos.net_quantity || 0;
-            let type = 'CLOSED';
-            if (netQty > 0) {
-              type = 'BUY';
-            } else if (netQty < 0) {
-              type = 'SELL';
-            }
-            const typeClass = type === 'BUY' ? 'badge-green'
-                               : type === 'SELL' ? 'badge-red'
-                               : 'badge-secondary';
-            const symbol = escapeHtml(pos.tradingSymbol || pos.symbol || '-');
-            const pnl = escapeHtml(pos.profitAndLoss ?? pos.pnl ?? '-');
-            listGroup.innerHTML += `
-              <div class="list-group-item list-group-item-action py-3">
-                <div class="d-flex w-100 justify-content-between flex-wrap">
-                  <h6 class="mb-1">${symbol} <span class="badge ${typeClass}">${escapeHtml(type)}</span></h6>
-                  <small class="text-muted mt-1 mt-md-0">P/L: ${pnl}</small>
-                </div>
-                <p class="mb-1">Net Qty: ${escapeHtml(netQty)} | Buy Qty: ${escapeHtml(buyQty)} | Sell Qty: ${escapeHtml(sellQty)}</p>
-                <small class="text-muted">Avg Buy Price: ${escapeHtml(pos.buyAvg ?? pos.buy_avg_price ?? '-')} | Avg Sell Price: ${escapeHtml(pos.sellAvg ?? pos.sell_avg_price ?? '-')} | LTP: ${escapeHtml(pos.ltp ?? pos.last_price ?? '-')}</small>
-              </div>
-            `;
-          });
-        } else {
-          emptyState.style.display = 'block';
-        }
+        renderPositionsUI(childId, window.childPositions[childId], 'child');
+        window.setChildPositionsView(childId, activeView);
       })
       .catch(err => {
         console.error('Child positions fetch failed:', err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        summaryEl.innerHTML = '';
+        openEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load positions.</div>`;
+        closedEl.innerHTML = '';
         emptyState.style.display = 'none';
         showMessage('Failed to load positions.', 'danger');
       });
