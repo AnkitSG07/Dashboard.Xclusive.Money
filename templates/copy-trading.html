@@ -2896,8 +2896,14 @@ let errorHandled = false;
     const emptyState = document.getElementById(`holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
-    const cached = window.masterHoldings[clientId];
-    if (cached && !force) {
+    const cachedRaw = window.masterHoldings[clientId];
+    const cached = Array.isArray(cachedRaw)
+      ? cachedRaw
+      : Array.isArray(cachedRaw?.data)
+        ? cachedRaw.data
+        : null;
+    if (cached !== null && !force) {
+      window.masterHoldings[clientId] = cached;
       listGroup.innerHTML = "";
       if (cached.length > 0) {
         cached.forEach(h => {
@@ -2943,6 +2949,7 @@ let errorHandled = false;
               </div>
             `;
         });
+        emptyState.style.display = 'none';
       } else {
         emptyState.style.display = 'block';
       }
@@ -2953,12 +2960,16 @@ let errorHandled = false;
     emptyState.style.display = 'none';
 
     fetch('/api/holdings/' + encodeURIComponent(clientId))
-      .then(res => res.json())
-      .then(holdings => {
-        window.masterHoldings[clientId] = Array.isArray(holdings) ? holdings : [];  
+      .then(rawHoldings => {
+        const payload = Array.isArray(rawHoldings)
+          ? rawHoldings
+          : Array.isArray(rawHoldings?.data)
+            ? rawHoldings.data
+            : [];
+        window.masterHoldings[clientId] = payload;
         listGroup.innerHTML = "";
-        if (window.masterHoldings[clientId].length > 0) {
-          window.masterHoldings[clientId].forEach(h => {
+        if (payload.length > 0) {
+          payload.forEach(h => {
             const getVal = (obj, keys) => {
               for (const k of keys) {
                 for (const key in obj) {
@@ -3001,6 +3012,7 @@ let errorHandled = false;
               </div>
             `;
           });
+          emptyState.style.display = 'none';
         } else {
           emptyState.style.display = 'block';
         }
@@ -3224,8 +3236,14 @@ let errorHandled = false;
     const emptyState = document.getElementById(`child-holdings-empty-${dom}`);
     if (!listGroup || !emptyState) return;
 
-    const cached = window.childHoldings[childId];
-    if (cached && !force) {
+    const cachedRaw = window.childHoldings[childId];
+    const cached = Array.isArray(cachedRaw)
+      ? cachedRaw
+      : Array.isArray(cachedRaw?.data)
+        ? cachedRaw.data
+        : null;
+    if (cached !== null && !force) {
+      window.childHoldings[childId] = cached;
       listGroup.innerHTML = "";
       if (cached.length > 0) {
         cached.forEach(h => {
@@ -3262,6 +3280,7 @@ let errorHandled = false;
               </div>
             `;
         });
+        emptyState.style.display = 'none';
       } else {
         emptyState.style.display = 'block';
       }
@@ -3272,12 +3291,16 @@ let errorHandled = false;
     emptyState.style.display = 'none';
 
     fetch('/api/holdings/' + encodeURIComponent(childId))
-      .then(res => res.json())
-      .then(holdings => {
-        window.childHoldings[childId] = Array.isArray(holdings) ? holdings : [];  
+      .then(rawHoldings => {
+        const payload = Array.isArray(rawHoldings)
+          ? rawHoldings
+          : Array.isArray(rawHoldings?.data)
+            ? rawHoldings.data
+            : [];
+        window.childHoldings[childId] = payload;
         listGroup.innerHTML = "";
-        if (window.childHoldings[childId].length > 0) {
-          window.childHoldings[childId].forEach(h => {
+        if (payload.length > 0) {
+          payload.forEach(h => {
             const getVal = (obj, keys) => {
               for (const k of keys) {
                 for (const key in obj) {
@@ -3311,6 +3334,7 @@ let errorHandled = false;
               </div>
             `;
           });
+          emptyState.style.display = 'none';
         } else {
           emptyState.style.display = 'block';
         }
