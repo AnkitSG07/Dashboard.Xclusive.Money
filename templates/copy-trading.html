@@ -1217,6 +1217,8 @@ window.pageScripts["copy-trading"] = function () {
   function normalizePosition(pos) {
     const symbolRaw = getValueInsensitive(pos, ['tradingSymbol', 'symbol', 'tradingsymbol', 'trading_symbol', 'tsym']) || '-';
     const productRaw = getValueInsensitive(pos, ['productType', 'product', 'product_type', 'segment', 'exchange']) || '—';
+    const exchangeRaw = getValueInsensitive(pos, ['exchange', 'exch', 'exchange_segment', 'segment']);
+    const seriesRaw = getValueInsensitive(pos, ['series', 'expiryType', 'expiry_type', 'duration', 'instrumentType', 'instrument_type', 'optionType', 'option_type']);
     const netQtyRaw = getValueInsensitive(pos, ['netQty', 'net_quantity', 'netqty', 'quantity', 'qty']);
     const buyQtyRaw = getValueInsensitive(pos, ['buyQty', 'buy_quantity', 'buyqty', 'totalBuyQty', 'total_buy_quantity']);
     const sellQtyRaw = getValueInsensitive(pos, ['sellQty', 'sell_quantity', 'sellqty', 'totalSellQty', 'total_sell_quantity']);
@@ -1236,9 +1238,19 @@ window.pageScripts["copy-trading"] = function () {
     const sideClass = netQtyNum > 0 ? 'buy' : netQtyNum < 0 ? 'sell' : 'neutral';
     const sideLabel = netQtyNum > 0 ? 'B' : netQtyNum < 0 ? 'S' : '—';
 
+    const symbolLabel = String(symbolRaw || '-');
+    const productLabel = String(productRaw || '—');
+    const exchangeLabel = exchangeRaw ? String(exchangeRaw) : '—';
+    const badgeLabel = seriesRaw ? String(seriesRaw) : productLabel;
+    const badgeText = badgeLabel.trim() ? badgeLabel.trim().charAt(0).toUpperCase() : '—';
+
     return {
-      symbolDisplay: escapeHtml(String(symbolRaw || '-')),
-      productDisplay: escapeHtml(String(productRaw || '—')),
+      symbolDisplay: escapeHtml(symbolLabel),
+      symbolInitial: escapeHtml(symbolLabel.trim() ? symbolLabel.trim().charAt(0).toUpperCase() : '—'),
+      productDisplay: escapeHtml(productLabel),
+      exchangeDisplay: escapeHtml(exchangeLabel || '—'),
+      badgeText: escapeHtml(badgeText || '—'),
+      badgeTitle: escapeHtml(badgeLabel || ''),
       netQty: Number.isFinite(netQtyNum) ? netQtyNum : 0,
       netQtyDisplay: escapeHtml(formatQuantityValue(netQtyRaw)),
       buyQty: Number.isFinite(buyQtyNum) ? buyQtyNum : 0,
@@ -1268,43 +1280,44 @@ window.pageScripts["copy-trading"] = function () {
     const netQty = allPositions.reduce((sum, pos) => sum + (Number.isFinite(pos.netQty) ? pos.netQty : 0), 0);
 
     return `
-      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 16px 0; font-size:20px; font-weight:800; color:#111827;">Today's Positions</h3>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+        <div style="font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px;">Today's Positions</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:16px;">
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Live P&L:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:${inlineToneColor(livePnl)};">${escapeHtml(formatCurrencyValue(livePnl))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Live P&L:</div>
+            <div style="font-size:16px; font-weight:700; color:${inlineToneColor(livePnl, '#047857')};">${escapeHtml(formatCurrencyValue(livePnl))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Open Positions:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(String(openPositions.length))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Open Positions:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(openPositions.length))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Closed Positions:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(String(closedPositions.length))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Closed Positions:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(closedPositions.length))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Total Buy Qty:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(totalBuyQty))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Total Buy Qty:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(totalBuyQty))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Total Sell Qty:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(totalSellQty))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Total Sell Qty:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(totalSellQty))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Net Qty:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">${escapeHtml(formatQuantityValue(netQty))}</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Net Qty:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(formatQuantityValue(netQty))}</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Margin Available:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">—</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Available:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">—</div>
           </div>
           <div>
-            <p style="margin:0 0 6px 0; font-size:13px; color:#6b7280;">Margin Used:</p>
-            <p style="margin:0; font-size:22px; font-weight:800; color:#111827;">—</p>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Used:</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">—</div>
           </div>
-          <div style="display:flex; align-items:flex-end;">
-            <button type="button" style="padding:8px 16px; background:#16a34a; color:#ffffff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">+ Top up</button>
+          <div style="display:flex; align-items:flex-end; gap:8px;">
+            <button type="button" style="height:32px; width:32px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; font-size:12px; cursor:pointer;">👁</button>
+            <button type="button" style="background:#10b981; border:1px solid #10b981; border-radius:6px; color:#ffffff; font-weight:600; font-size:12px; padding:6px 8px; cursor:pointer;">+ Top up</button>
           </div>
         </div>
       </div>
@@ -1314,75 +1327,104 @@ window.pageScripts["copy-trading"] = function () {
 
 
   function buildOpenPositionsContent(positions) {
-    const totalPnl = positions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const safePositions = Array.isArray(positions) ? positions : [];
+    const totalPnl = safePositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const lossCount = safePositions.filter(pos => Number.isFinite(pos.pnl) && pos.pnl < 0).length;
+
     const header = `
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-        <h4 style="margin:0; font-size:18px; font-weight:800; color:#111827;">Open Positions</h4>
-        <button type="button" style="padding:8px 16px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; border-radius:8px; font-size:13px; cursor:pointer;">Analyse</button>
+      <div style="display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="font-size:15px; font-weight:700; color:#0f172a;">Open</div>
+          <div style="position:relative;">
+            <div style="width:120px; height:36px; display:flex; align-items:center; justify-content:space-between; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px; padding:0 8px; font-size:13px; cursor:pointer;">
+              <span>P&L</span>
+              <span style="font-size:10px; color:#94a3b8;">▼</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" style="display:inline-flex; align-items:center; gap:6px; background:#fffbea; border:1px solid #facc15; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:500; color:#92400e; cursor:pointer;">
+          <span style="font-size:12px;">📈</span>
+          <span>Analyse</span>
+        </button>
       </div>
     `;
 
-    if (!positions || positions.length === 0) {
+    const filters = `
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#4f46e5; color:#fff; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.08);">
+          <span>All</span>
+          <span style="background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(safePositions.length || 0))}</span>
+        </div>
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+          <span>In Loss</span>
+          <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(lossCount))}</span>
+        </div>
+      </div>
+    `;
+
+    if (safePositions.length === 0) {
       return `
-        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
           ${header}
+          ${filters}
           <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">No open positions.</div>
         </div>
       `;
     }
 
-    const rows = positions.map(pos => {
+    const rows = safePositions.map(pos => {
       const isBuy = pos.netQty > 0;
       const isSell = pos.netQty < 0;
-      const sideColor = isBuy ? '#16a34a' : isSell ? '#dc2626' : '#6b7280';
+      const sideBg = isBuy ? '#10b981' : isSell ? '#ef4444' : '#64748b';
       const avgPriceDisplay = isBuy ? pos.buyAvgDisplay : isSell ? pos.sellAvgDisplay : pos.buyAvgDisplay;
-      const pnlColor = inlineToneColor(pos.pnl, '#111827');
-      const changeColor = inlineToneColor(pos.change, '#6b7280');
-      const qtyColor = isBuy ? '#16a34a' : isSell ? '#dc2626' : '#111827';
+      const pnlColor = inlineToneColor(pos.pnl, '#0f172a');
+      const changeColor = inlineToneColor(pos.change, '#475569');
+      const qtyColor = isBuy ? '#047857' : isSell ? '#b91c1c' : '#0f172a';
 
       return `
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:12px; width:48px;"><input type="checkbox"></td>
-          <td style="padding:12px;">
-            <span style="display:inline-flex; align-items:center; justify-content:center; padding:4px 8px; background:${sideColor}; color:#ffffff; border-radius:6px; font-size:12px; font-weight:600; min-width:28px;">
-              ${escapeHtml(String(pos.sideLabel))}
-            </span>
+        <tr style="border-bottom:1px solid #e2e8f0;">
+          <td style="padding:8px 12px; vertical-align:top;">
+            <input type="checkbox" style="accent-color:#4f46e5;">
           </td>
-          <td style="padding:12px; font-weight:600; font-size:14px; color:#111827;">${pos.symbolDisplay}</td>
-          <td style="padding:12px;">
-            <span style="display:inline-flex; align-items:center; padding:4px 10px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:20px; font-size:12px;">
-              ${pos.productDisplay}
-            </span>
+          <td style="padding:8px 12px; vertical-align:top;">
+            <span style="display:inline-block; background:${sideBg}; color:#ffffff; font-size:11px; line-height:1; font-weight:600; border-radius:4px; padding:4px 6px;">${escapeHtml(String(pos.sideLabel))}</span>
           </td>
-          <td style="padding:12px; text-align:right; color:${qtyColor}; font-weight:600;">${pos.netQtyDisplay}</td>
-          <td style="padding:12px; text-align:right; color:#374151;">${avgPriceDisplay}</td>
-          <td style="padding:12px; text-align:right; color:#374151;">${pos.ltpDisplay}</td>
-          <td style="padding:12px; text-align:right; font-weight:700; color:${pnlColor};">${pos.pnlDisplay}</td>
-          <td style="padding:12px; text-align:right; color:${changeColor};">${pos.changeDisplay}</td>
-          <td style="padding:12px; text-align:center;">
-            <button type="button" style="width:32px; height:32px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; cursor:pointer;">×</button>
+          <td style="padding:8px 12px; vertical-align:top; font-weight:600; color:#0f172a;">${pos.symbolDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top;">
+            <span style="display:inline-block; background:rgba(16,185,129,0.1); color:#047857; border:1px solid rgba(16,185,129,0.3); font-size:11px; line-height:1; font-weight:500; border-radius:4px; padding:4px 6px;">${pos.productDisplay}</span>
+          </td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${qtyColor}; font-weight:500;">${pos.netQtyDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${avgPriceDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.ltpDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${pnlColor};">${pos.pnlDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:${changeColor};">${pos.changeDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:center;">
+            <button type="button" style="height:32px; width:32px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; font-size:12px; cursor:pointer;">✕</button>
           </td>
         </tr>
       `;
     }).join('');
 
     return `
-      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
         ${header}
-        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; overflow-x:auto; margin-bottom:16px;">
-          <table style="width:100%; border-collapse:collapse; min-width:1000px;">
-            <thead>
-              <tr style="border-bottom:1px solid #e5e7eb; background:#f9fafb;">
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280; width:48px;"><input type="checkbox"></th>
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">B/S</th>
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Name</th>
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Product</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Qty</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Avg Price</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">LTP</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">P&L</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Change %</th>
-                <th style="padding:12px; text-align:center; font-size:13px; font-weight:600; color:#6b7280;">Action</th>
+        ${filters}
+        <div style="overflow-x:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">
+          <table style="border-collapse:collapse; width:100%; font-size:13px; color:#0f172a;">
+            <thead style="background:#f8fafc; text-align:left;">
+              <tr>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; width:32px; border-bottom:1px solid #e2e8f0;">
+                  <input type="checkbox" style="accent-color:#4f46e5;">
+                </th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">B/S</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Name</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Product</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Qty</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">LTP</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">P&L</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Change %</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:center; border-bottom:1px solid #e2e8f0;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1390,11 +1432,18 @@ window.pageScripts["copy-trading"] = function () {
             </tbody>
           </table>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          <button type="button" style="padding:8px 16px; background:transparent; color:#6b7280; border:none; font-size:13px; cursor:pointer;">Download as CSV</button>
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:14px; font-weight:700; color:#111827;">Total P&L: <span style="color:${inlineToneColor(totalPnl, '#111827')}">${escapeHtml(formatCurrencyValue(totalPnl))}</span></span>
-            <button type="button" style="padding:8px 16px; background:#ffffff; color:#374151; border:1px solid #d1d5db; border-radius:8px; font-size:13px; cursor:pointer;">Set P&L Exit</button>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+          <button type="button" style="display:flex; align-items:center; gap:6px; background:transparent; border:0; color:#475569; font-size:12px; font-weight:500; cursor:pointer;">
+            <span style="font-size:12px;">⬇</span>
+            <span>Download as CSV</span>
+          </button>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; font-size:13px; font-weight:600; color:#0f172a;">
+            <span>Total P&L:
+              <span style="color:${inlineToneColor(totalPnl, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalPnl))}</span>
+            </span>
+            <button type="button" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:500; color:#0f172a; cursor:pointer;">
+              Set P&L Exit
+            </button>
           </div>
         </div>
       </div>
@@ -1402,52 +1451,96 @@ window.pageScripts["copy-trading"] = function () {
   }
 
   function buildClosedPositionsContent(positions) {
-    const realisedPnl = positions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const safePositions = Array.isArray(positions) ? positions : [];
+    const realisedPnl = safePositions.reduce((sum, pos) => sum + (Number.isFinite(pos.pnl) ? pos.pnl : 0), 0);
+    const profitCount = safePositions.filter(pos => Number.isFinite(pos.pnl) && pos.pnl > 0).length;
+    const lossCount = safePositions.filter(pos => Number.isFinite(pos.pnl) && pos.pnl < 0).length;
 
-    if (!positions || positions.length === 0) {
+    if (safePositions.length === 0) {
       return `
-        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <h4 style="margin:0; font-size:18px; font-weight:800; color:#111827;">Closed Positions</h4>
-          <div style="margin-top:16px; padding:24px; text-align:center; color:#6b7280; font-size:14px;">No closed positions.</div>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:16px;">
+            <div style="font-size:15px; font-weight:700; color:#0f172a;">Closed</div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#4f46e5; color:#fff; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.08);">
+              <span>All</span>
+              <span style="background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">0</span>
+            </div>
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+              <span>In Profit</span>
+              <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">0</span>
+            </div>
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+              <span>In Loss</span>
+              <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">0</span>
+            </div>
+          </div>
+          <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">No closed positions.</div>
         </div>
       `;
     }
 
-    const rows = positions.map(pos => {
+    const rows = safePositions.map(pos => {
       const qtyDisplay = pos.sellQtyDisplay !== '—' ? pos.sellQtyDisplay : pos.buyQtyDisplay;
-      const pnlColor = inlineToneColor(pos.pnl, '#111827');
+      const pnlColor = inlineToneColor(pos.pnl, '#0f172a');
 
       return `
-        <tr style="border-bottom:1px solid #f3f4f6;">
-          <td style="padding:12px; font-weight:600; color:#111827;">${pos.symbolDisplay}</td>
-          <td style="padding:12px;">
-            <span style="display:inline-flex; align-items:center; padding:4px 10px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:20px; font-size:12px;">
-              ${pos.productDisplay}
-            </span>
+        <tr style="border-bottom:1px solid #e2e8f0;">
+          <td style="padding:8px 12px; vertical-align:top;">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:#e2e8f0; color:#0f172a; font-size:12px; font-weight:600;">${pos.symbolInitial}</span>
+              <div>
+                <div style="font-weight:600; color:#0f172a;">${pos.symbolDisplay}</div>
+                <div style="font-size:11px; color:#64748b;">
+                  ${pos.exchangeDisplay}
+                  <span style="display:inline-block; margin-left:4px; font-size:10px; line-height:1; font-weight:500; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; color:#475569;" title="${pos.badgeTitle}">${pos.badgeText}</span>
+                </div>
+              </div>
+            </div>
           </td>
-          <td style="padding:12px; text-align:right; color:#374151;">${qtyDisplay}</td>
-          <td style="padding:12px; text-align:right; color:#374151;">${pos.buyAvgDisplay}</td>
-          <td style="padding:12px; text-align:right; color:#374151;">${pos.sellAvgDisplay}</td>
-          <td style="padding:12px; text-align:right; color:#374151;">${pos.ltpDisplay}</td>
-          <td style="padding:12px; text-align:right; font-weight:700; color:${pnlColor};">${pos.pnlDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top;">
+            <span style="display:inline-block; background:rgba(16,185,129,0.1); color:#047857; border:1px solid rgba(16,185,129,0.3); font-size:11px; line-height:1; font-weight:500; border-radius:4px; padding:4px 6px;">${pos.productDisplay}</span>
+          </td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${qtyDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.buyAvgDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; color:#0f172a;">${pos.sellAvgDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align-right; color:#0f172a;">${pos.ltpDisplay}</td>
+          <td style="padding:8px 12px; vertical-align:top; text-align:right; font-weight:600; color:${pnlColor};">${pos.pnlDisplay}</td>
         </tr>
       `;
     }).join('');
 
     return `
-      <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <h4 style="margin:0 0 16px 0; font-size:18px; font-weight:800; color:#111827;">Closed Positions</h4>
-        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; overflow-x:auto; margin-bottom:16px;">
-          <table style="width:100%; border-collapse:collapse; min-width:900px;">
-            <thead>
-              <tr style="border-bottom:1px solid #e5e7eb; background:#f9fafb;">
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Name</th>
-                <th style="padding:12px; text-align:left; font-size:13px; font-weight:600; color:#6b7280;">Product</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Qty</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Buy Avg</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">Sell Avg</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">LTP</th>
-                <th style="padding:12px; text-align:right; font-size:13px; font-weight:600; color:#6b7280;">P&L</th>
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:16px;">
+          <div style="font-size:15px; font-weight:700; color:#0f172a;">Closed</div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <div style="display:inline-flex; align-items:center; gap:6px; background:#4f46e5; color:#fff; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.08);">
+            <span>All</span>
+            <span style="background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(safePositions.length))}</span>
+          </div>
+          <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+            <span>In Profit</span>
+            <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(profitCount))}</span>
+          </div>
+          <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
+            <span>In Loss</span>
+            <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(lossCount))}</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">
+          <table style="border-collapse:collapse; width:100%; font-size:13px; color:#0f172a;">
+            <thead style="background:#f8fafc; text-align:left;">
+              <tr>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Name</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; border-bottom:1px solid #e2e8f0;">Product</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Qty</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Buy Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">Sell Avg Price</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">LTP</th>
+                <th style="padding:8px 12px; font-weight:500; color:#64748b; text-align:right; border-bottom:1px solid #e2e8f0;">P&L</th>
               </tr>
             </thead>
             <tbody>
@@ -1455,13 +1548,20 @@ window.pageScripts["copy-trading"] = function () {
             </tbody>
           </table>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          <button type="button" style="padding:8px 16px; background:transparent; color:#6b7280; border:none; font-size:13px; cursor:pointer;">Download as CSV</button>
-          <span style="font-size:14px; font-weight:700; color:#111827;">Realised P&L: <span style="color:${inlineToneColor(realisedPnl, '#111827')}">${escapeHtml(formatCurrencyValue(realisedPnl))}</span></span>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+          <button type="button" style="display:flex; align-items:center; gap:6px; background:transparent; border:0; color:#475569; font-size:12px; font-weight:500; cursor:pointer;">
+            <span style="font-size:12px;">⬇</span>
+            <span>Download as CSV</span>
+          </button>
+          <div style="font-size:13px; font-weight:600; color:#0f172a;">
+            Realised P&L:
+            <span style="color:${inlineToneColor(realisedPnl, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(realisedPnl))}</span>
+          </div>
         </div>
       </div>
     `;
   }
+
 
   function applyPositionsTabStyles(tabsEl) {
     if (!tabsEl) return;
