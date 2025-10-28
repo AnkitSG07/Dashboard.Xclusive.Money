@@ -132,6 +132,16 @@
   .summary-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  
+  }
+  .summary-period-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    align-items: stretch;
+  }
+  .summary-period-grid .summary-card--muted {
+    text-align: center;
+    
     /* === TOP HOLDINGS TABLE & CARD VIEW === */
   .top-holdings-surface {
     background: #ffffff;
@@ -389,11 +399,11 @@
     }
   
     .summary-grid-3 {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     }
   
     .summary-grid-2 {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
   }
   
@@ -404,7 +414,13 @@
       padding: 28px 20px;
     }
   }
-  
+
+  @media (max-width: 768px) {
+    .summary-period-grid {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+  }
+    
   /* === GENERIC CARD STYLES (used in lower sections etc.) === */
   .summary-card,
   .summary-card--muted {
@@ -892,7 +908,7 @@
         </div>
       </div>
 
-      <div class="summary-grid summary-grid-3" style="gap:12px;">
+      <div class="summary-grid summary-grid-3 summary-period-grid" style="gap:12px;">
         {% for period in performance_summary.periods %}
           {% set period_color = period.color if period.value >= 0 else 'var(--summary-red)' %}
           <div class="summary-card--muted">
