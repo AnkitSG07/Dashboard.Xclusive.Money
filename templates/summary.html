@@ -132,6 +132,236 @@
   .summary-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+    /* === TOP HOLDINGS TABLE & CARD VIEW === */
+  .top-holdings-surface {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+  }
+
+  .top-holdings-table-container {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .top-holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #1f2937;
+  }
+
+  .top-holdings-table thead th {
+    padding: 10px 12px;
+    font-weight: 500;
+    color: #6b7280;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+
+  .top-holdings-table thead th:nth-child(n + 4) {
+    text-align: right;
+  }
+
+  .top-holdings-table thead th:nth-child(2),
+  .top-holdings-table thead th:nth-child(3),
+  .top-holdings-table tbody td:nth-child(2),
+  .top-holdings-table tbody td:nth-child(3),
+  .top-holdings-table tbody td:last-child {
+    text-align: center;
+  }
+
+  .top-holdings-table thead th:last-child {
+    text-align: center;
+  }
+
+  .top-holdings-table tbody td:nth-child(4),
+  .top-holdings-table tbody td:nth-child(5),
+  .top-holdings-table tbody td:nth-child(6),
+  .top-holdings-table tbody td:nth-child(7) {
+    text-align: right;
+  }
+
+  .top-holdings-table tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+    vertical-align: middle;
+  }
+
+  .top-holdings-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .top-holdings-card-list {
+    display: none;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(243,244,246,0.45), rgba(243,244,246,0));
+  }
+
+  .top-holdings-card {
+    background: #ffffff;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .top-holdings-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .top-holdings-card__identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .top-holdings-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .top-holdings-card__symbol {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .top-holdings-card__subtitle {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .top-holdings-card__value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .top-holdings-card__value-delta {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .top-holdings-card__value-delta.is-positive {
+    color: #16a34a;
+  }
+
+  .top-holdings-card__value-delta.is-negative {
+    color: #dc2626;
+  }
+
+  .top-holdings-card__chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .top-holdings-card__chips .top-holdings-card__broker {
+    margin-left: auto;
+  }
+
+  .top-holdings-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    line-height: 1;
+  }
+
+  .top-holdings-chip--product {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.2);
+  }
+
+  .top-holdings-card__broker {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .top-holdings-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #4b5563;
+  }
+
+  .top-holdings-card__qty {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .top-holdings-card__qty strong {
+    color: #111827;
+    font-weight: 700;
+  }
+
+  .top-holdings-card__ltp {
+    font-weight: 600;
+    color: #111827;
+  }
+
+  @media (max-width: 768px) {
+    .top-holdings-surface {
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .top-holdings-table-container {
+      display: none;
+    }
+
+    .top-holdings-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+      background: transparent;
+    }
+  }
+
   
   /* responsive:
      tablet/phone -> scroll horizontally for the 4 stat cards,
@@ -199,10 +429,10 @@
     align-items: center;
     gap: 8px;
     border: 1px solid var(--summary-border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 13px;
-    font-weight: 600;
+    border-radius: 12px;
+    padding: 8px 8px;
+    font-size: 10px;
+    font-weight: 500;
     color: var(--summary-muted);
     background: #f8f9fc;
   }
@@ -679,83 +909,140 @@
           <h2>Top Holdings</h2>
           <a href="#">View All</a>
         </div>
-        <div style="display: block; overflow-x: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+        <div class="top-holdings-surface">
           {% if top_holdings %}
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; color: #1f2937;">
-              <thead>
-                <tr style="border-bottom: 1px solid #e5e7eb; color: #6b7280; text-align: left;">
-                  <th style="text-align: left; padding: 8px 8px; font-weight: 500;">Name</th>
-                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;">Product</th>
-                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;">Qty</th>
-                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">Buy Avg Price</th>
-                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">Sell Avg Price</th>
-                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">LTP</th>
-                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">P&amp;L</th>
-                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;"></th>
-                </tr>
-              </thead>
-              {% set broker_palette = [
-                {'bg': '#dbeafe', 'color': '#1e40af'},
-                {'bg': '#ffedd5', 'color': '#9a3412'},
-                {'bg': '#d1fae5', 'color': '#065f46'}
-              ] %}
-              <tbody style="font-size: 12px; color: #1f2937;">
-                {% for holding in top_holdings %}
-                  {% set pnl_positive = holding.pnl >= 0 %}
-                  {% set symbol_display = holding.symbol or '—' %}
-                  {% set avatar_text = symbol_display[:2].upper() %}
-                  {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
-                  {% set sector_badge = holding.sector and holding.sector[:1].upper() %}
-                  {% set product_label = (holding.product or 'Normal') %}
-                  {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
-                  {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
-                  {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
-                  {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
-                  {% set broker_badge = broker_name[:2].upper() %}
-                  <tr style="border-bottom: 1px solid #e5e7eb; background-color: #ffffff;">
-                    <td style="padding: 10px 8px;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
-                          {{ avatar_text }}
+            {% set broker_palette = [
+              {'bg': '#dbeafe', 'color': '#1e40af'},
+              {'bg': '#ffedd5', 'color': '#9a3412'},
+              {'bg': '#d1fae5', 'color': '#065f46'}
+            ] %}
+            <div class="top-holdings-table-container">
+              <table class="top-holdings-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Buy Avg Price</th>
+                    <th>Sell Avg Price</th>
+                    <th>LTP</th>
+                    <th>P&amp;L</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for holding in top_holdings %}
+                    {% set pnl_positive = holding.pnl >= 0 %}
+                    {% set symbol_display = holding.symbol or '—' %}
+                    {% set avatar_text = symbol_display[:2].upper() %}
+                    {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
+                    {% set product_label = (holding.product or 'Normal') %}
+                    {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
+                    {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
+                    {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
+                    {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
+                    {% set broker_badge = broker_name[:2].upper() %}
+                    <tr>
+                      <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
+                            {{ avatar_text }}
+                          </div>
+                          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-weight: 500; color:#111827;">{{ symbol_display }}</span>
+                            {% if exchange_badge %}
+                              <span style="border: 1px solid rgba(107,114,128,0.3); font-size: 9px; line-height: 1; padding: 2px 4px; height: 16px; border-radius: 4px; color:#374151; background-color:#ffffff;">
+                                {{ exchange_badge }}
+                              </span>
+                            {% endif %}
+                            {% if holding.sector %}
+                              <span style="border: 1px solid #fde68a; background-color:#fffbeb; color:#92400e; font-size: 9px; line-height:1; padding:2px 4px; height:16px; border-radius:4px; font-weight:500;">
+                                {{ holding.sector[:1].upper() }}
+                              </span>
+                            {% endif %}
+                          </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                          <span style="font-weight: 500; color:#111827;">{{ symbol_display }}</span>
-                          {% if exchange_badge %}
-                            <span style="border: 1px solid rgba(107,114,128,0.3); font-size: 9px; line-height: 1; padding: 2px 4px; height: 16px; border-radius: 4px; color:#374151; background-color:#ffffff;">
-                              {{ exchange_badge }}
-                            </span>
-                          {% endif %}
-                          {% if sector_badge %}
-                            <span style="border: 1px solid #fde68a; background-color:#fffbeb; color:#92400e; font-size: 9px; line-height:1; padding:2px 4px; height:16px; border-radius:4px; font-weight:500;">
-                              {{ sector_badge }}
-                            </span>
-                          {% endif %}
+                      </td>
+                      <td>
+                        <span style="border:1px solid #10b981; background-color:#ecfdf5; color:#047857; font-size:10px; line-height:1; padding:2px 6px; border-radius:4px; font-weight:500; display:inline-block;">
+                          {{ product_label }}
+                        </span>
+                      </td>
+                      <td>{{ format_quantity(holding.quantity) }}</td>
+                      <td>{{ buy_avg is not none and format_currency(buy_avg) or '—' }}</td>
+                      <td>{{ sell_avg is not none and format_currency(sell_avg) or '—' }}</td>
+                      <td>{{ format_currency(holding.ltp) }}</td>
+                      <td>
+                        <span style="color:{{ '#16a34a' if pnl_positive else '#dc2626' }}; font-weight:600;">{{ format_currency(holding.pnl) }}</span>
+                      </td>
+                      <td>
+                        <div title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; border-radius: 6px; background-color:{{ broker_style.bg }}; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; font-size:10px; font-weight:600; color:{{ broker_style.color }};">
+                          {{ broker_badge }}
                         </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="top-holdings-card-list">
+              {% for holding in top_holdings %}
+                {% set pnl_positive = holding.pnl >= 0 %}
+                {% set symbol_display = holding.symbol or '—' %}
+                {% set avatar_text = symbol_display[:2].upper() %}
+                {% set product_label = (holding.product or 'Normal') %}
+                {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
+                {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
+                {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
+                {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
+                {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
+                {% set broker_badge = broker_name[:2].upper() %}
+                {% set market_value = holding.market_value if holding.market_value is not none else (holding.cost + holding.pnl) %}
+                {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
+                <div class="top-holdings-card">
+                  <div class="top-holdings-card__header">
+                    <div class="top-holdings-card__identity">
+                      <div class="top-holdings-card__avatar">{{ avatar_text }}</div>
+                      <div>
+                        <p class="top-holdings-card__symbol">{{ symbol_display }}</p>
+                        <p class="top-holdings-card__subtitle">{{ holding.sector or 'Uncategorized' }}</p>
                       </div>
-                    </td>
-                    <td style="padding: 10px 8px; text-align: center;">
-                      <span style="border:1px solid #10b981; background-color:#ecfdf5; color:#047857; font-size:10px; line-height:1; padding:2px 6px; border-radius:4px; font-weight:500; display:inline-block;">
-                        {{ product_label }}
+                    </div>
+                    <div class="top-holdings-card__value">
+                      {{ format_currency(market_value) }}
+                      <span class="top-holdings-card__value-delta {{ 'is-positive' if pnl_positive else 'is-negative' }}">
+                        {{ format_currency(holding.pnl) }} ({{ format_percentage(pnl_percent) }})
                       </span>
-                    </td>
-                    <td style="padding: 10px 8px; text-align: center; color:#111827;">{{ format_quantity(holding.quantity) }}</td>
-                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ buy_avg is not none and format_currency(buy_avg) or '—' }}</td>
-                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ sell_avg is not none and format_currency(sell_avg) or '—' }}</td>
-                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ format_currency(holding.ltp) }}</td>
-                    <td style="padding: 10px 8px; text-align: right;">
-                      <span style="color:{{ '#16a34a' if pnl_positive else '#dc2626' }}; font-weight:600;">{{ format_currency(holding.pnl) }}</span>
-                    </td>
-                    <td style="padding: 10px 8px; text-align: center;">
-                      <div title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; border-radius: 6px; background-color:{{ broker_style.bg }}; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; font-size:10px; font-weight:600; color:{{ broker_style.color }};">
-                        {{ broker_badge }}
-                      </div>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  <div class="top-holdings-card__chips">
+                    <span class="top-holdings-chip top-holdings-chip--product">{{ product_label }}</span>
+                    {% if exchange_badge %}
+                      <span class="top-holdings-chip">{{ exchange_badge }}</span>
+                    {% endif %}
+                    <span class="top-holdings-card__broker" style="background-color:{{ broker_style.bg }}; color:{{ broker_style.color }};">
+                      {{ broker_badge }}
+                    </span>
+                  </div>
+                  <div class="top-holdings-card__meta">
+                    <div class="top-holdings-card__qty">
+                      <span>Qty.</span>
+                      <strong>{{ format_quantity(holding.quantity) }}</strong>
+                      {% if buy_avg is not none %}
+                        <span>&times; {{ format_currency(buy_avg) }}</span>
+                      {% endif %}
+                      {% if sell_avg is not none %}
+                        <span>(Sell {{ format_currency(sell_avg) }})</span>
+                      {% endif %}
+                    </div>
+                    <div class="top-holdings-card__ltp">LTP {{ format_currency(holding.ltp) }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
           {% else %}
-            <div style="padding: 24px 8px; text-align: center; color: #6b7280; font-size: 12px;">
+            <div style="padding: 24px 16px; text-align: center; color: #6b7280; font-size: 12px;">
               No holdings available. Connect an account or refresh your positions.
             </div>
           {% endif %}
