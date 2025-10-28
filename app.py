@@ -75,7 +75,7 @@ from models import (
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from services.trade_copier import poll_and_copy_trades, copy_order
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_, text, inspect, cast
+from sqlalchemy import or_, text, inspect, cast, func
 from sqlalchemy.types import DateTime as SADateTime
 import re
 from blueprints.auth import auth_bp
@@ -7649,6 +7649,7 @@ def _build_summary_series(
     *,
     min_points: int = 30,
     max_points: int = 240,
+    logs: list | None = None,
 ) -> list[dict]:
     """Return ordered timestamp/value points for the summary performance chart."""
 
@@ -7701,19 +7702,35 @@ def _build_summary_series(
 
     points: list[tuple[datetime, float]] = []
 
-    if strategy_ids:
-        logs = (
-            StrategyLog.query.filter(StrategyLog.strategy_id.in_(strategy_ids))
+    log_rows = logs
+    if log_rows is None and strategy_ids:
+        log_rows = (
+            db.session.query(
+                StrategyLog.timestamp.label("timestamp"),
+                StrategyLog.performance["pnl"].as_float().label("pnl"),
+            )
+            .filter(StrategyLog.strategy_id.in_(strategy_ids))
             .order_by(cast(StrategyLog.timestamp, SADateTime).desc())
             .limit(max_points)
             .all()
         )
-        for log in reversed(logs):
-            timestamp = _ensure_datetime(log.timestamp)
+
+    if log_rows:
+        for row in reversed(log_rows):
+            if isinstance(row, dict):
+                timestamp_value = row.get("timestamp")
+                pnl_value = row.get("pnl")
+            elif isinstance(row, (list, tuple)):
+                timestamp_value = row[0] if len(row) > 0 else None
+                pnl_value = row[1] if len(row) > 1 else None
+            else:
+                timestamp_value = getattr(row, "timestamp", None)
+                pnl_value = getattr(row, "pnl", None)
+
+            timestamp = _ensure_datetime(timestamp_value)
             if not timestamp:
                 continue
-            perf = log.performance if isinstance(log.performance, dict) else {}
-            value = _safe_float_local(perf.get("pnl"), None)
+            value = _safe_float_local(pnl_value, None)
             if value is None:
                 continue
             points.append((timestamp, float(value)))
@@ -7942,32 +7959,87 @@ def summary():
 
     accounts = Account.query.filter_by(user_id=user.id).all() if user else []
 
-    owned_strats = (
-        Strategy.query.filter_by(user_id=user.id).all() if user else []
-    )
-    subs = (
-        StrategySubscription.query.filter_by(subscriber_id=user.id).all()
+    owned_strategy_rows = (
+        db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
+        .filter(Strategy.user_id == user.id)
+        .all()
         if user
         else []
     )
-    subscribed_strats = [s.strategy for s in subs if s.strategy]
+    subscribed_strategy_rows = (
+        db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
+        .join(
+            StrategySubscription,
+            StrategySubscription.strategy_id == Strategy.id,
+        )
+        .filter(StrategySubscription.subscriber_id == user.id)
+        .all()
+        if user
+        else []
+    )
+    combined_strategy_rows = owned_strategy_rows + subscribed_strategy_rows
+    ordered_strategies: list[dict] = []
+    seen_strategy_ids: set[int] = set()
+    for row in combined_strategy_rows:
+        strategy_id = getattr(row, "id", None)
+        if strategy_id is None or strategy_id in seen_strategy_ids:
+            continue
+        seen_strategy_ids.add(strategy_id)
+        ordered_strategies.append(
+            {
+                "id": strategy_id,
+                "name": getattr(row, "name", None),
+                "is_active": bool(getattr(row, "is_active", False)),
+            }
+        )
+
+    strategy_ids = [entry["id"] for entry in ordered_strategies]
+    unique_strategy_ids = strategy_ids
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    all_strats = owned_strats + subscribed_strats
-    strategy_ids = [s.id for s in all_strats]
-    unique_strategy_ids = list(dict.fromkeys(strategy_ids)) if strategy_ids else []
-    pnl_map = defaultdict(float)
+    pnl_map: dict[int, float] = defaultdict(float)
+    chart_log_rows: list = []
     if strategy_ids:
-        logs = StrategyLog.query.filter(
-            StrategyLog.strategy_id.in_(strategy_ids),
-            StrategyLog.timestamp >= seven_days_ago,
-        ).all()
-        for log in logs:
-            pnl_map[log.strategy_id] += (log.performance or {}).get("pnl", 0)
+        aggregate_rows = (
+            db.session.query(
+                StrategyLog.strategy_id,
+                func.coalesce(
+                    func.sum(StrategyLog.performance["pnl"].as_float()),
+                    0.0,
+                ).label("total_pnl"),
+            )
+            .filter(
+                StrategyLog.strategy_id.in_(strategy_ids),
+                StrategyLog.timestamp >= seven_days_ago,
+            )
+            .group_by(StrategyLog.strategy_id)
+            .all()
+        )
+        for row in aggregate_rows:
+            strategy_id = getattr(row, "strategy_id", None)
+            if strategy_id is None:
+                continue
+            total_pnl = getattr(row, "total_pnl", 0.0) or 0.0
+            pnl_map[int(strategy_id)] = float(total_pnl)
+
+        chart_log_rows = (
+            db.session.query(
+                StrategyLog.timestamp.label("timestamp"),
+                StrategyLog.performance["pnl"].as_float().label("pnl"),
+            )
+            .filter(StrategyLog.strategy_id.in_(strategy_ids))
+            .order_by(cast(StrategyLog.timestamp, SADateTime).desc())
+            .limit(240)
+            .all()
+        )
 
     strategies = [
-        {"name": s.name, "is_active": s.is_active, "pnl": pnl_map.get(s.id, 0)}
-        for s in all_strats
+        {
+            "name": entry["name"],
+            "is_active": entry["is_active"],
+            "pnl": pnl_map.get(entry["id"], 0.0),
+        }
+        for entry in ordered_strategies
     ]
 
     aggregate_value = 0.0
@@ -8131,14 +8203,20 @@ def summary():
         if not strategy_ids:
             return 0.0
         start = datetime.utcnow() - timedelta(days=days)
-        logs = StrategyLog.query.filter(
-            StrategyLog.strategy_id.in_(strategy_ids),
-            StrategyLog.timestamp >= start,
-        ).all()
-        total = 0.0
-        for log in logs:
-            total += _safe_float((log.performance or {}).get("pnl"), 0.0)
-        return total
+        total = (
+            db.session.query(
+                func.coalesce(
+                    func.sum(StrategyLog.performance["pnl"].as_float()),
+                    0.0,
+                )
+            )
+            .filter(
+                StrategyLog.strategy_id.in_(strategy_ids),
+                StrategyLog.timestamp >= start,
+            )
+            .scalar()
+        )
+        return float(total or 0.0)
 
     def _period_return(days: int) -> float:
         pnl_value = _strategy_pnl_since(days)
@@ -8148,7 +8226,9 @@ def summary():
             return (pnl_value / total_investment) * 100.0
         return 0.0
 
-    performance_series = _build_summary_series(user, unique_strategy_ids)
+    performance_series = _build_summary_series(
+        user, unique_strategy_ids, logs=list(chart_log_rows)
+    )
 
     performance_summary = {
         "today_return_percent": today_gain_loss_percent,
