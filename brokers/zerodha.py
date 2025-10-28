@@ -449,6 +449,94 @@ class ZerodhaBroker(BrokerBase):
         except Exception as e:  # pragma: no cover - network call
             return {"status": "failure", "error": str(e), "data": None}
 
+    def get_fund_limits(self, *, timeout=None):
+        """Return Zerodha equity fund limits with available/used margin totals."""
+        self.ensure_token()
+        timeout = timeout or self.timeout
+
+        def _sum_numeric(value):
+            if isinstance(value, dict):
+                total = 0.0
+                found = False
+                for item in value.values():
+                    subtotal, has_value = _sum_numeric(item)
+                    if has_value:
+                        total += subtotal
+                        found = True
+                return total, found
+            if isinstance(value, (list, tuple, set)):
+                total = 0.0
+                found = False
+                for item in value:
+                    subtotal, has_value = _sum_numeric(item)
+                    if has_value:
+                        total += subtotal
+                        found = True
+                return total, found
+            try:
+                return float(value), True
+            except (TypeError, ValueError):
+                return 0.0, False
+
+        try:
+            margins = self._kite_call(
+                self.kite.margins, segment="equity", timeout=timeout
+            )
+            data = margins.get("data", margins) if isinstance(margins, dict) else {}
+            equity = data.get("equity", data) if isinstance(data, dict) else {}
+            available_section = (
+                equity.get("available")
+                if isinstance(equity, dict)
+                else {}
+            )
+            utilised_section = None
+            if isinstance(equity, dict):
+                utilised_section = (
+                    equity.get("utilised")
+                    or equity.get("utilized")
+                    or equity.get("utilisedMargin")
+                )
+
+            available_total, available_found = _sum_numeric(available_section or 0.0)
+            utilised_total, utilised_found = _sum_numeric(utilised_section or 0.0)
+
+            net_total = 0.0
+            net_found = False
+            if isinstance(equity, dict) and "net" in equity:
+                net_total, net_found = _sum_numeric(equity.get("net"))
+
+            if not available_found and isinstance(equity, dict):
+                fallback_available = (
+                    equity.get("availableMargin")
+                    or equity.get("available")
+                )
+                available_total, available_found = _sum_numeric(
+                    fallback_available or 0.0
+                )
+
+            if not utilised_found and isinstance(equity, dict):
+                fallback_utilised = (
+                    equity.get("usedMargin")
+                    or equity.get("utilised")
+                    or equity.get("utilized")
+                )
+                utilised_total, utilised_found = _sum_numeric(
+                    fallback_utilised or 0.0
+                )
+
+            total_funds = net_total if net_found else available_total + utilised_total
+
+            payload = {
+                "availableMargin": available_total if available_found else 0.0,
+                "usedMargin": utilised_total if utilised_found else 0.0,
+                "totalFunds": total_funds if (available_found or utilised_found or net_found) else 0.0,
+                "netCash": total_funds if (available_found or utilised_found or net_found) else 0.0,
+            }
+
+            return {"status": "success", "data": payload}
+        except Exception as e:  # pragma: no cover - network call
+            return {"status": "failure", "error": str(e), "data": None}
+
     def check_token_valid(self, *, timeout=None):
         self.ensure_token()
         try:
