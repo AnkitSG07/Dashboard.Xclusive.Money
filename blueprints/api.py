@@ -230,12 +230,17 @@ def get_cached_dashboard_snapshot(
             response["stale"] = response.get("stale") or True
             scheduled = _enqueue_snapshot_refresh(account, key)
             if scheduled is False:
-                try:
-                    refreshed = _refresh_snapshot_now(account, key=key, entry=entry)
-                except Exception as exc:
-                    response.setdefault("errors", {})["snapshot"] = str(exc)
+                errors = response.setdefault("errors", {})
+                message = "Snapshot refresh deferred: background queue unavailable"
+                if errors.get("snapshot"):
+                    errors["snapshot"] = f"{errors['snapshot']}; {message}"
                 else:
-                    return _prepare_snapshot_for_response(refreshed)
+                    errors["snapshot"] = message
+                logger.warning(
+                    "Skipping synchronous snapshot refresh for user %s client %s; background queue unavailable",
+                    account.user_id,
+                    account.client_id or "primary",
+                )
         return response
 
     if entry and entry_age is not None and entry_age < _SNAPSHOT_INTERVAL:
