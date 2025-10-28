@@ -7788,6 +7788,16 @@ def summary():
             return f"{int(quantity):,}"
         return f"{quantity:,.2f}"
 
+    def _format_datetime(value) -> str:
+        if not value:
+            return "—"
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                return value
+        return value.strftime("%d %b %Y %I:%M %p")
+
     def _account_status_label(acc: Account) -> tuple[str, str]:
         status = (acc.status or acc.copy_status or "").strip() or "Active"
         status_lower = status.lower()
@@ -8154,6 +8164,12 @@ def summary():
                 }
             )
 
+
+    holding_price_lookup = {
+        symbol: _safe_float(data.get("ltp"), 0.0)
+        for symbol, data in aggregated_holdings.items()
+    }
+
     recent_trades = (
         Trade.query.filter_by(user_id=user.id)
         .order_by(cast(Trade.timestamp, SADateTime).desc())
@@ -8167,8 +8183,17 @@ def summary():
     for trade in recent_trades:
         qty = _safe_float(trade.qty, 0.0)
         price = _safe_float(trade.price, 0.0)
-        value = qty * price
+        if price <= 0.0:
+            price = _safe_float(holding_price_lookup.get(trade.symbol), 0.0)
+        value = qty * price if price else 0.0
         action = (trade.action or "").upper()
+        timestamp = trade.timestamp
+        timestamp_iso = ""
+        if timestamp:
+            if isinstance(timestamp, str):
+                timestamp_iso = timestamp
+            else:
+                timestamp_iso = timestamp.isoformat()
         recent_transactions.append(
             {
                 "symbol": trade.symbol,
@@ -8177,7 +8202,8 @@ def summary():
                 "price": price,
                 "value": value,
                 "broker": trade.broker or trade.client_id,
-                "timestamp": trade.timestamp,
+                "timestamp": timestamp,
+                "timestamp_iso": timestamp_iso,
             }
         )
 
@@ -8227,6 +8253,7 @@ def summary():
         format_currency=_format_currency,
         format_percentage=_format_percentage,
         format_quantity=_format_quantity,
+        format_datetime=_format_datetime,
     )
 
 @app.route("/api/summary")
