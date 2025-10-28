@@ -7862,6 +7862,30 @@ def summary():
 
             pnl = _safe_float(profit_fields, 0.0)
 
+            product = None
+            for key in (
+                "product",
+                "productType",
+                "product_type",
+                "positionType",
+                "position_type",
+            ):
+                if position.get(key):
+                    product = str(position.get(key))
+                    break
+
+            exchange = None
+            for key in (
+                "exchange",
+                "exchangeSegment",
+                "exchange_segment",
+                "exchangeCode",
+                "exchange_code",
+            ):
+                if position.get(key):
+                    exchange = str(position.get(key))
+                    break
+
             qty_abs = abs(qty)
             if qty > 0:
                 cost_basis = qty * buy_avg
@@ -7893,6 +7917,10 @@ def summary():
                     "cost": cost_basis,
                     "pnl": pnl,
                     "sector": sector or "Uncategorized",
+                    "product": product,
+                    "exchange": exchange,
+                    "buy_avg_price": buy_avg if buy_avg else None,
+                    "sell_avg_price": sell_avg if sell_avg else None,
                 }
             )
 
@@ -7976,6 +8004,10 @@ def summary():
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
         metrics, holdings = _compute_account_metrics(positions or [])
 
+        for holding in holdings:
+            holding["broker"] = account.broker
+            holding["account_client_id"] = account.client_id
+
         account_stats = snapshot.get("account") if isinstance(snapshot, dict) else {}
         total_funds = _safe_float((account_stats or {}).get("total_funds"), 0.0)
         if metrics["portfolio_value"] <= 0.0:
@@ -8031,6 +8063,13 @@ def summary():
                     "pnl": 0.0,
                     "ltp": holding["ltp"],
                     "sector": holding["sector"],
+                    "product": holding.get("product"),
+                    "exchange": holding.get("exchange"),
+                    "brokers": set(),
+                    "buy_total_cost": 0.0,
+                    "buy_total_qty": 0.0,
+                    "sell_total_cost": 0.0,
+                    "sell_total_qty": 0.0,
                 },
             )
             entry["quantity"] += holding["quantity"]
@@ -8039,6 +8078,21 @@ def summary():
             entry["pnl"] += holding["pnl"]
             entry["ltp"] = holding["ltp"] or entry.get("ltp") or 0.0
             entry["sector"] = holding["sector"] or entry.get("sector") or "Uncategorized"
+            if holding.get("product"):
+                entry["product"] = holding.get("product")
+            if holding.get("exchange"):
+                entry["exchange"] = holding.get("exchange")
+            broker_label = holding.get("broker") or holding.get("account_client_id")
+            if broker_label:
+                entry["brokers"].add(str(broker_label))
+            qty = holding["quantity"]
+            if qty > 0 and holding.get("buy_avg_price"):
+                entry["buy_total_cost"] += holding["buy_avg_price"] * qty
+                entry["buy_total_qty"] += qty
+            elif qty < 0 and holding.get("sell_avg_price"):
+                qty_abs = abs(qty)
+                entry["sell_total_cost"] += holding["sell_avg_price"] * qty_abs
+                entry["sell_total_qty"] += qty_abs
             sector_map[entry["sector"]] += max(holding["market_value"], 0.0)
 
     total_investment = aggregate_cost
@@ -8106,7 +8160,19 @@ def summary():
         ],
     }
     performance_summary["series"] = performance_series
-    
+
+    for holding in aggregated_holdings.values():
+        buy_qty = holding.pop("buy_total_qty", 0.0)
+        buy_cost = holding.pop("buy_total_cost", 0.0)
+        sell_qty = holding.pop("sell_total_qty", 0.0)
+        sell_cost = holding.pop("sell_total_cost", 0.0)
+        holding["buy_avg_price"] = (buy_cost / buy_qty) if buy_qty else None
+        holding["sell_avg_price"] = (sell_cost / sell_qty) if sell_qty else None
+        brokers = holding.pop("brokers", set())
+        brokers_list = sorted(brokers)
+        holding["brokers"] = brokers_list
+        holding["primary_broker"] = brokers_list[0] if brokers_list else None
+
     top_holdings = sorted(
         aggregated_holdings.values(), key=lambda h: h["market_value"], reverse=True
     )[:5]
