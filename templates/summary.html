@@ -411,7 +411,7 @@
   .summary-transaction {
     margin-top: 20px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) auto;
     align-items: center;
     gap: 16px;
   }
@@ -430,7 +430,9 @@
     font-size: 12px;
     color: var(--summary-muted);
     white-space: nowrap;
-    text-align: right;
+    text-align: center;
+    justify-self: center;
+    min-width: 120px;
   }
   .summary-transaction .timestamp time {
     display: block;
@@ -677,44 +679,86 @@
           <h2>Top Holdings</h2>
           <a href="#">View All</a>
         </div>
-        <div style="overflow-x:auto;">
-          <table class="summary-table">
-            <thead>
-              <tr>
-                <th>Stock</th>
-                <th style="text-align:right">Qty</th>
-                <th style="text-align:right">Value</th>
-                <th style="text-align:right">P&amp;L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if top_holdings %}
+        <div style="display: block; overflow-x: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+          {% if top_holdings %}
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; color: #1f2937;">
+              <thead>
+                <tr style="border-bottom: 1px solid #e5e7eb; color: #6b7280; text-align: left;">
+                  <th style="text-align: left; padding: 8px 8px; font-weight: 500;">Name</th>
+                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;">Product</th>
+                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;">Qty</th>
+                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">Buy Avg Price</th>
+                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">Sell Avg Price</th>
+                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">LTP</th>
+                  <th style="text-align: right; padding: 8px 8px; font-weight: 500;">P&amp;L</th>
+                  <th style="text-align: center; padding: 8px 8px; font-weight: 500;"></th>
+                </tr>
+              </thead>
+              {% set broker_palette = [
+                {'bg': '#dbeafe', 'color': '#1e40af'},
+                {'bg': '#ffedd5', 'color': '#9a3412'},
+                {'bg': '#d1fae5', 'color': '#065f46'}
+              ] %}
+              <tbody style="font-size: 12px; color: #1f2937;">
                 {% for holding in top_holdings %}
                   {% set pnl_positive = holding.pnl >= 0 %}
-                  <tr>
-                    <td>
-                      <div>
-                        <p style="margin:0; font-weight:700;">{{ holding.symbol }}</p>
-                        <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ holding.sector or '—' }}</p>
+                  {% set symbol_display = holding.symbol or '—' %}
+                  {% set avatar_text = symbol_display[:2].upper() %}
+                  {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
+                  {% set sector_badge = holding.sector and holding.sector[:1].upper() %}
+                  {% set product_label = (holding.product or 'Normal') %}
+                  {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
+                  {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
+                  {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
+                  {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
+                  {% set broker_badge = broker_name[:2].upper() %}
+                  <tr style="border-bottom: 1px solid #e5e7eb; background-color: #ffffff;">
+                    <td style="padding: 10px 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
+                          {{ avatar_text }}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <span style="font-weight: 500; color:#111827;">{{ symbol_display }}</span>
+                          {% if exchange_badge %}
+                            <span style="border: 1px solid rgba(107,114,128,0.3); font-size: 9px; line-height: 1; padding: 2px 4px; height: 16px; border-radius: 4px; color:#374151; background-color:#ffffff;">
+                              {{ exchange_badge }}
+                            </span>
+                          {% endif %}
+                          {% if sector_badge %}
+                            <span style="border: 1px solid #fde68a; background-color:#fffbeb; color:#92400e; font-size: 9px; line-height:1; padding:2px 4px; height:16px; border-radius:4px; font-weight:500;">
+                              {{ sector_badge }}
+                            </span>
+                          {% endif %}
+                        </div>
                       </div>
                     </td>
-                    <td style="text-align:right">{{ format_quantity(holding.quantity) }}</td>
-                    <td style="text-align:right; font-weight:700;">{{ format_currency(holding.market_value) }}</td>
-                    <td style="text-align:right;">
-                      <span style="color:{{ 'var(--summary-green)' if pnl_positive else 'var(--summary-red)' }}; font-weight:700;">{{ format_currency(holding.pnl) }}</span>
-                      <p style="margin:2px 0 0 0; color:{{ 'var(--summary-green)' if pnl_positive else 'var(--summary-red)' }}; font-size:12px;">{{ format_percentage(holding.pnl_percent) }}</p>
+                    <td style="padding: 10px 8px; text-align: center;">
+                      <span style="border:1px solid #10b981; background-color:#ecfdf5; color:#047857; font-size:10px; line-height:1; padding:2px 6px; border-radius:4px; font-weight:500; display:inline-block;">
+                        {{ product_label }}
+                      </span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center; color:#111827;">{{ format_quantity(holding.quantity) }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ buy_avg is not none and format_currency(buy_avg) or '—' }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ sell_avg is not none and format_currency(sell_avg) or '—' }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color:#111827;">{{ format_currency(holding.ltp) }}</td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                      <span style="color:{{ '#16a34a' if pnl_positive else '#dc2626' }}; font-weight:600;">{{ format_currency(holding.pnl) }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                      <div title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; border-radius: 6px; background-color:{{ broker_style.bg }}; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; font-size:10px; font-weight:600; color:{{ broker_style.color }};">
+                        {{ broker_badge }}
+                      </div>
                     </td>
                   </tr>
                 {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="4" style="text-align:center; padding:24px 8px; color:var(--summary-muted);">
-                    No holdings available. Connect an account or refresh your positions.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          {% else %}
+            <div style="padding: 24px 8px; text-align: center; color: #6b7280; font-size: 12px;">
+              No holdings available. Connect an account or refresh your positions.
+            </div>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -819,7 +863,10 @@ window.pageScripts["Summary"] = function () {
 
   let cachedSeries = [];
   let chartInstance = null;
-  const hasTimeScale = !!(chartGlobal?.registry?.getScale?.('time'));
+  const hasTimeScale = !!(
+    chartGlobal?.registry?.getScale?.('time') &&
+    chartGlobal?._adapters?.date
+  );
   const xScaleType = hasTimeScale ? 'time' : 'linear';
 
   function normalizeSeries(series) {
