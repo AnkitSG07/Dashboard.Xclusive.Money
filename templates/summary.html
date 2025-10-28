@@ -730,7 +730,6 @@
       text-align: left;
     }
   }
-
   
   /* default footnote style (used outside the top 4 cards) */
   .summary-stat-footnote {
@@ -738,20 +737,7 @@
     font-size: 12px;
     color: var(--summary-muted);
   }
-    /* Alternative: hard 3 columns, no scroll */
-    @media (max-width: 768px) {
-      .summary-period-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 12px;
-      }
-
-      .summary-period-grid .summary-card,
-      .summary-period-grid .summary-card--muted {
-        min-width: 0; /* allow them to shrink */
-      }
-    }
-    /* === Account Summary mobile layout === */
+/* === Account Summary mobile layout === */
 @media (max-width: 768px) {
   /* Turn the account summary grid into a vertical list on mobile */
   .summary-section-title + .summary-grid.summary-grid-3 {
@@ -784,6 +770,19 @@
     line-height: 1.2;
   }
 }
+  /* Alternative: hard 3 columns, no scroll */
+  @media (max-width: 768px) {
+    .summary-period-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 12px;
+    }
+  
+    .summary-period-grid .summary-card,
+    .summary-period-grid .summary-card--muted {
+      min-width: 0; /* allow them to shrink */
+    }
+  }
 </style>
 {% endblock %}
 
