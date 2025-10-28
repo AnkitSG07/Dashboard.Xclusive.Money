@@ -813,6 +813,7 @@
 @media (min-width: 768px) {
   .account-config-page .mobile-hide.md-show { display: table-cell; }
 }
+
 @media (min-width: 1024px) {
   .account-config-page .mobile-hide.lg-show { display: table-cell; }
 }
@@ -1891,3 +1892,275 @@
   height: 15px;
   flex-shrink: 0;
 }
+/* =========================================
+   RESPONSIVE TOOLBAR LAYOUT (FILTER / SEARCH / KEBAB)
+   ========================================= */
+.account-config-page .toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;          /* keep them on one line */
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+/* broker + search group should sit inline, then kebab right after */
+.account-config-page .toolbar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  flex: 1 1 auto;             /* this group takes the row's width */
+  min-width: 0;               /* allows children to shrink */
+  order: 1;
+}
+
+/* dropdown ("All Brokers") */
+.account-config-page .toolbar-left .broker-filter-select,
+.account-config-page .toolbar-left select.broker-filter-select,
+.account-config-page #broker-filter {
+  flex: 0 0 auto;             /* do not stretch */
+  min-width: 130px;           /* not super wide so search has room */
+  max-width: 160px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 0 32px 0 12px;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+/* search wrapper should flex and shrink */
+.account-config-page .toolbar-left .search-wrapper {
+  position: relative;
+  flex: 1 1 auto;             /* <-- this makes the search take remaining space */
+  min-width: 0;               /* so it can shrink instead of overflow */
+}
+
+.account-config-page .toolbar-left .search-wrapper .search-input {
+  width: 100%;                /* fill the flex space */
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 14px;
+  line-height: 1.3;
+  padding-left: 32px;
+  padding-right: 10px;
+  color: #1f2937;
+  font-weight: 500;
+  min-width: 0;               /* important: allow shrinking */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-config-page .toolbar-left .search-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* kebab menu button (⋮) */
+.account-config-page .toolbar > .dropdown {
+  order: 2;                   /* comes after .toolbar-left, same row */
+  flex: 0 0 auto;             /* fixed, doesn't try to grow or wrap */
+}
+
+.account-config-page .toolbar > .dropdown .btn-ghost.btn-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.account-config-page .toolbar > .dropdown .btn-ghost.btn-icon:hover {
+  background: #f3f4f6;
+}
+
+/* dropdown panel for kebab in toolbar */
+.account-config-page .toolbar > .dropdown .dropdown-menu {
+  right: 0;
+  left: auto;
+  top: 100%;
+  margin-top: 8px;
+  min-width: 180px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 48px -12px rgba(0,0,0,0.15);
+  padding: 8px 0;
+  z-index: 1000;
+}
+.account-config-page .toolbar > .dropdown .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.3;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+.account-config-page .toolbar > .dropdown .dropdown-item.disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+.account-config-page .toolbar > .dropdown .dropdown-item:hover:not(.disabled) {
+  background: #f9fafb;
+}
+
+/* --- super small screens tightening (optional, but helps under ~360px) --- */
+@media (max-width: 400px) {
+  .account-config-page .toolbar-left {
+    gap: 6px;
+  }
+
+  .account-config-page .toolbar-left .broker-filter-select,
+  .account-config-page .toolbar-left select.broker-filter-select,
+  .account-config-page #broker-filter {
+    min-width: 110px;
+    max-width: 130px;
+    font-size: 13px;
+    padding: 0 28px 0 10px;
+    border-radius: 6px;
+    height: 34px;
+  }
+
+  .account-config-page .toolbar-left .search-wrapper .search-input {
+    height: 34px;
+    font-size: 13px;
+    border-radius: 6px;
+    padding-left: 30px;
+  }
+
+  .account-config-page .toolbar > .dropdown .btn-ghost.btn-icon {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 6px;
+  }
+}
+/* =========================================================
+   FINAL TOOLBAR FIX (All Brokers | Search | ⋮ on same row)
+   ========================================================= */
+
+.account-config-page .toolbar {
+  display: flex;
+  flex-direction: row;     /* force horizontal layout */
+  align-items: center;
+  flex-wrap: nowrap;       /* KEEP everything on one line */
+  gap: 8px;
+
+  padding: 12px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* group that contains [All Brokers] and [Search] */
+.account-config-page .toolbar-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+
+  flex: 1 1 auto;                /* this group takes the row width */
+  min-width: 0;                  /* allow children to shrink instead of wrapping */
+  max-width: calc(100% - 40px);  /* leave ~40px space for kebab button */
+  order: 1;
+}
+
+/* the <select> / broker filter */
+.account-config-page .toolbar-left .broker-filter-select,
+.account-config-page .toolbar-left select.broker-filter-select,
+.account-config-page #broker-filter {
+  flex: 0 0 auto;          /* fixed size, no grow */
+  min-width: 120px;
+  max-width: 150px;
+
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 0 32px 0 12px;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+/* wrapper around the search input */
+.account-config-page .toolbar-left .search-wrapper {
+  position: relative;
+  flex: 1 1 auto;     /* grows + shrinks to fill remaining space */
+  min-width: 0;       /* <-- critical: lets it shrink on small screens */
+}
+
+/* the actual input */
+.account-config-page .toolbar-left .search-wrapper .search-input {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 14px;
+  line-height: 1.3;
+  padding-left: 32px;
+  padding-right: 10px;
+  color: #1f2937;
+  font-weight: 500;
+
+  min-width: 0;              /* prevent overflow */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-config-page .toolbar-left .search-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+/* kebab container */
+.account-config-page .toolbar > .dropdown {
+  order: 2;             /* kebab comes AFTER .toolbar-left */
+  flex: 0 0 auto;       /* fixed width; never grows */
+  min-width: 32px;
+  min-height: 32px;
+  align-self: center;
+}
+
+/* kebab button visuals */
+.account-config-page .toolbar > .d
