@@ -7459,6 +7459,11 @@ def demat_notifications():
 @login_required
 def demat_strategies():
     return render_template("demat-strategies.html")
+    
+@app.route('/create-alerts')
+@login_required
+def create_alerts():
+    return render_template("create-alerts.html")
 
 @app.route("/strategy-performance/<int:strategy_id>")
 @login_required
