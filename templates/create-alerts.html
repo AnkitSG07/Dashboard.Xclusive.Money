@@ -1,0 +1,314 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Alerts - DhanBot{% endblock %}
+
+{% block styles %}
+<style>
+  .create-alerts-page-root {
+    background: #f5f5f5;
+    margin: -1.5rem -1.5rem 0;
+    padding: 40px 0;
+  }
+
+  .create-alerts-page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 40px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .create-alerts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .create-alerts-header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+  }
+
+  .create-alerts-header p {
+    color: #6b7280;
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .strategy-btn-new {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .create-alerts-body {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    padding: 32px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  }
+
+  .create-alerts-body h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 16px;
+  }
+
+  .create-alerts-body p {
+    color: #6b7280;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .strategy-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    padding: 40px;
+    overflow-y: auto;
+  }
+
+  .strategy-modal {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .strategy-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .strategy-modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  .strategy-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 28px;
+    color: #6b7280;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .strategy-form-group {
+    margin-bottom: 20px;
+  }
+
+  .strategy-form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .strategy-form-input,
+  .strategy-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .strategy-form-select {
+    cursor: pointer;
+  }
+
+  .strategy-form-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 12px;
+  }
+
+  .strategy-btn-save {
+    flex: 1;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .strategy-btn-cancel {
+    flex: 1;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #e5e7eb;
+    padding: 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  @media (max-width: 768px) {
+    .create-alerts-page-root {
+      margin: -1.5rem -1rem 0;
+      padding: 24px 0;
+    }
+
+    .create-alerts-page {
+      padding: 0 20px 24px;
+    }
+
+    .create-alerts-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .strategy-btn-new {
+      width: 100%;
+      text-align: center;
+    }
+
+    .strategy-modal {
+      padding: 24px;
+    }
+
+    .strategy-modal-overlay {
+      padding: 20px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-alerts-page-root">
+  <div class="create-alerts-page">
+    <div class="create-alerts-header">
+      <div>
+        <h1>Create Alerts</h1>
+        <p>Build alert-to-trade automations tailored to your strategies.</p>
+      </div>
+      <button type="button" class="strategy-btn-new" id="createStrategyBtn">Create New Alert</button>
+    </div>
+
+    <div class="create-alerts-body">
+      <h2>How it works</h2>
+      <p>
+        Start by creating a new alert. Configure the trading account, alert trigger, and execution rules in the form
+        that opens. Once saved, your alert will be available in the existing alerts section for further management.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="editForm" class="strategy-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+  <div class="strategy-modal">
+    <div class="strategy-modal-header">
+      <h2 id="editTitle" class="strategy-modal-title">Create Alert</h2>
+      <button type="button" class="strategy-close-btn" aria-label="Close alert form" data-close="edit">&times;</button>
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="alertName">Alert Name</label>
+      <input type="text" id="alertName" class="strategy-form-input" placeholder="Enter alert name">
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="alertType">Alert Type</label>
+      <select id="alertType" class="strategy-form-select">
+        <option value="">Select alert type</option>
+        <option>Price Movement</option>
+        <option>Volume Spike</option>
+        <option>Custom Strategy Signal</option>
+      </select>
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="alertDescription">Description</label>
+      <input type="text" id="alertDescription" class="strategy-form-input" placeholder="Describe the alert criteria">
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="alertAccount">Trading Account</label>
+      <select id="alertAccount" class="strategy-form-select">
+        <option value="">Select account</option>
+        <option>dhan - Primary</option>
+        <option>zerodha - Equity</option>
+        <option>finvasia - Futures</option>
+      </select>
+    </div>
+    <div class="strategy-form-actions">
+      <button type="button" class="strategy-btn-save" id="saveAlert">Save Alert</button>
+      <button type="button" class="strategy-btn-cancel" data-close="edit">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const createStrategyBtn = document.getElementById('createStrategyBtn');
+    const editForm = document.getElementById('editForm');
+
+    function openAlertForm() {
+      if (editForm) {
+        editForm.style.display = 'block';
+      }
+    }
+
+    function closeAlertForm() {
+      if (editForm) {
+        editForm.style.display = 'none';
+      }
+    }
+
+    if (createStrategyBtn) {
+      createStrategyBtn.addEventListener('click', openAlertForm);
+    }
+
+    document.querySelectorAll('[data-close="edit"]').forEach(function (btn) {
+      btn.addEventListener('click', closeAlertForm);
+    });
+
+    if (editForm) {
+      editForm.addEventListener('click', function (event) {
+        if (event.target === editForm) {
+          closeAlertForm();
+        }
+      });
+    }
+
+    const saveButton = document.getElementById('saveAlert');
+    if (saveButton) {
+      saveButton.addEventListener('click', function () {
+        alert('Alert saved successfully');
+        closeAlertForm();
+      });
+    }
+  });
+</script>
+{% endblock %}
