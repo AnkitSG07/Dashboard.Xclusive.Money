@@ -3142,6 +3142,11 @@ def test_webhook_token_generated_on_page_load(client):
         assert user.webhook_token
 
 
+def test_create_alerts_page_accessible(client):
+    login(client)
+    resp = client.get("/create-alerts")
+    assert resp.status_code == 200
+
 
 def test_orphaned_child_account_shown_as_unassigned(client):
     login(client)
