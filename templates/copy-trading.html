@@ -5,6 +5,8 @@
   {{ super() }}
   <style>
 
+
+
         * {
             margin: 0;
             padding: 0;
@@ -1184,6 +1186,586 @@ td {
   max-width: 200px;
   text-overflow: ellipsis;
   overflow: hidden;
+}
+  /* ==========================================
+   MOBILE VIEW CSS - Add this to your CSS file
+   For screens 768px and below
+   ========================================== */
+
+@media (max-width: 768px) {
+    
+    /* ===== CONTAINER & LAYOUT ===== */
+    .container-xl {
+        padding: 12px;
+        max-width: 100%;
+    }
+    
+    body {
+        font-size: 14px;
+    }
+    
+    /* ===== CARDS ===== */
+    .card {
+        margin-left: 0;
+        margin-bottom: 16px;
+        border-radius: 10px;
+    }
+    
+    .card-header {
+        padding: 16px;
+    }
+    
+    .card-content {
+        padding: 16px;
+    }
+    
+    .card-title {
+        font-size: 18px;
+        flex-wrap: wrap;
+    }
+    
+    .card-description {
+        font-size: 13px;
+    }
+    
+    /* ===== BUTTONS ===== */
+    .btn {
+        padding: 10px 16px;
+        font-size: 14px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .btn-sm {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+    }
+    
+    /* Buttons in flex containers shouldn't be full width */
+    .flex .btn,
+    .filter-section .btn,
+    .card-header .btn {
+        width: auto;
+        flex: 1 1 auto;
+        min-width: fit-content;
+    }
+    
+    /* ===== BADGES ===== */
+    .badge {
+        font-size: 11px;
+        padding: 3px 10px;
+    }
+    
+    /* ===== GRIDS ===== */
+    .grid-cols-3 {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .positions-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    /* ===== TABLES ===== */
+    .table-wrapper,
+    .positions-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+        margin: 0 -16px;
+        padding: 0 16px;
+    }
+    
+    table {
+        min-width: 600px;
+        font-size: 13px;
+    }
+    
+    th {
+        padding: 10px 12px;
+        font-size: 11px;
+        letter-spacing: 0.3px;
+    }
+    
+    td {
+        padding: 12px;
+        font-size: 13px;
+    }
+    
+    /* Action buttons in table cells */
+    td .btn,
+    td button {
+        min-height: 36px;
+        min-width: 36px;
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    
+    td .btn svg,
+    td button svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* ===== TABS ===== */
+    .tabs {
+        gap: 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -16px;
+        padding: 0 16px;
+        scrollbar-width: none;
+    }
+    
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .tab {
+        padding: 10px 4px;
+        font-size: 14px;
+    }
+    
+    .sub-tabs {
+        gap: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -16px;
+        padding: 0 16px;
+        scrollbar-width: none;
+    }
+    
+    .sub-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .sub-tab {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    /* ===== FORMS ===== */
+    input[type="text"],
+    input[type="number"],
+    select {
+        padding: 10px 12px;
+        font-size: 14px;
+        width: 100%;
+    }
+    
+    select {
+        background-position: right 10px center;
+    }
+    
+    /* ===== TYPOGRAPHY ===== */
+    h1, .h1 {
+        font-size: 20px;
+    }
+    
+    h2, .h2 {
+        font-size: 18px;
+    }
+    
+    .section-title-sm {
+        font-size: 14px;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+    }
+    
+    .stat-value {
+        font-size: 18px;
+    }
+    
+    .positions-summary-label {
+        font-size: 11px;
+    }
+    
+    .positions-summary-value {
+        font-size: 18px;
+    }
+    
+    /* ===== POSITION CARDS ===== */
+    .positions-summary-card {
+        padding: 12px;
+    }
+    
+    .position-side {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+    
+    /* ===== ACCOUNT CARDS ===== */
+    .account-mini-card {
+        padding: 12px;
+    }
+    
+    .account-mini-card .account-username {
+        font-size: 12px;
+    }
+    
+    /* ===== ALERTS ===== */
+    .alert {
+        padding: 12px;
+        font-size: 13px;
+    }
+    
+    /* ===== SWITCHES ===== */
+    .switch {
+        width: 40px;
+        height: 22px;
+    }
+    
+    .slider:before {
+        height: 16px;
+        width: 16px;
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(18px);
+    }
+    
+    /* ===== FLEX UTILITIES ===== */
+    .flex {
+        flex-wrap: wrap;
+    }
+    
+    .gap-2 {
+        gap: 6px;
+    }
+    
+    .gap-3 {
+        gap: 10px;
+    }
+    
+    /* ===== FILTER SECTION ===== */
+    .filter-section {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .filter-section input,
+    .filter-section select,
+    .filter-section .btn {
+        width: 100%;
+        min-height: 40px;
+    }
+    
+    /* ===== HEADER ROWS ===== */
+    .card-header-row,
+    .header-flex-row,
+    .position-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .card-header-row .left,
+    .header-flex-row .left,
+    .position-header .left {
+        width: 100%;
+    }
+    
+    .card-header-row .right,
+    .header-flex-row .right,
+    .position-header .right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    /* ===== LIST GROUPS ===== */
+    .list-group-item {
+        padding: 12px;
+        margin-bottom: 6px;
+    }
+    
+    /* ===== ICONS ===== */
+    .icon {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .icon-sm {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .icon-lg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .icon-box {
+        width: 20px;
+        height: 20px;
+    }
+    
+    /* ===== EMPTY STATES ===== */
+    .empty-state {
+        padding: 32px 16px;
+        font-size: 13px;
+    }
+    
+    .empty-state-icon {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+    }
+    
+    .positions-empty-sub {
+        padding: 16px;
+        font-size: 13px;
+    }
+    
+    /* ===== EXPANDED ROW CONTENT ===== */
+    .expanded-row-content {
+        padding: 12px;
+    }
+    
+    /* ===== COPY QUANTITY CONTROL ===== */
+    .copy-qty-control input {
+        width: 54px;
+    }
+    
+    /* ===== DOWNLOAD BUTTON ===== */
+    .download-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    /* ===== HIDE ON MOBILE ===== */
+    .hide-mobile {
+        display: none !important;
+    }
+    
+    /* ===== SCROLLBAR STYLING ===== */
+    .table-wrapper::-webkit-scrollbar,
+    .positions-table-wrapper::-webkit-scrollbar {
+        height: 4px;
+    }
+    
+    .table-wrapper::-webkit-scrollbar-track,
+    .positions-table-wrapper::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+    
+    .table-wrapper::-webkit-scrollbar-thumb,
+    .positions-table-wrapper::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 999px;
+    }
+    
+    /* ===== TEXT UTILITIES ===== */
+    .text-sm {
+        font-size: 13px;
+    }
+    
+    .text-xs {
+        font-size: 11px;
+    }
+    
+    /* ===== SPACING ===== */
+    .p-4 {
+        padding: 12px;
+    }
+    
+    .mb-4 {
+        margin-bottom: 12px;
+    }
+}
+
+/* ==========================================
+   EXTRA SMALL DEVICES (480px and below)
+   ========================================== */
+
+@media (max-width: 480px) {
+    
+    /* Tighter spacing for very small screens */
+    .container-xl {
+        padding: 8px;
+    }
+    
+    .card {
+        margin-bottom: 12px;
+        border-radius: 8px;
+    }
+    
+    .card-header,
+    .card-content {
+        padding: 12px;
+    }
+    
+    .card-title {
+        font-size: 16px;
+    }
+    
+    /* Single column for all grids */
+    .positions-summary-grid,
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    /* Smaller table text */
+    th {
+        font-size: 10px;
+        padding: 8px 10px;
+    }
+    
+    td {
+        font-size: 12px;
+        padding: 10px;
+    }
+    
+    /* Smaller buttons */
+    .btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    
+    .btn-sm {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+    }
+    
+    /* Smaller badges */
+    .badge {
+        font-size: 10px;
+        padding: 2px 8px;
+    }
+    
+    /* Adjusted typography */
+    h1, .h1 {
+        font-size: 18px;
+    }
+    
+    h2, .h2 {
+        font-size: 16px;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+    }
+    
+    .positions-summary-value {
+        font-size: 16px;
+    }
+    
+    /* Tabs */
+    .tab {
+        font-size: 13px;
+        padding: 8px 4px;
+    }
+    
+    .sub-tab {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    /* Forms */
+    input[type="text"],
+    input[type="number"],
+    select {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+    
+    /* Empty states */
+    .empty-state {
+        padding: 24px 12px;
+    }
+    
+    .empty-state-icon {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* ==========================================
+   LANDSCAPE MODE ON MOBILE
+   ========================================== */
+
+@media (max-width: 768px) and (orientation: landscape) {
+    
+    /* Optimize for landscape viewing */
+    .container-xl {
+        padding: 12px 20px;
+    }
+    
+    .positions-summary-grid,
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .card-header,
+    .card-content {
+        padding: 14px;
+    }
+}
+
+/* ==========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ========================================== */
+
+@media (hover: none) and (pointer: coarse) {
+    
+    /* Increase tap targets for touch devices */
+    .btn,
+    button,
+    a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .switch {
+        width: 48px;
+        height: 26px;
+    }
+    
+    .slider:before {
+        height: 20px;
+        width: 20px;
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(22px);
+    }
+    
+    /* Remove hover effects on touch devices */
+    .btn:hover,
+    .tab:hover,
+    .sub-tab:hover,
+    tbody tr:hover,
+    .list-group-item:hover {
+        background: inherit;
+    }
+    
+    /* Better touch feedback */
+    .btn:active,
+    button:active {
+        transform: scale(0.98);
+        opacity: 0.8;
+    }
 }
   </style>
 {% endblock %}
