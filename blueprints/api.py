@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from copy import deepcopy
 from threading import Lock
@@ -35,6 +36,47 @@ _HOLDINGS_INTERVAL = timedelta(
 )
 _BROKER_TIMEOUT_SECONDS = float(os.environ.get("BROKER_TIMEOUT_SECONDS", "4"))
 _EXECUTOR = ThreadPoolExecutor(max_workers=4)
+
+_TRUE_STRINGS = {"true", "1", "yes", "y", "on"}
+_FALSE_STRINGS = {"false", "0", "no", "n", "off"}
+
+
+def _parse_bool(value):
+    """Best-effort parsing of truthy and falsy values from common inputs."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if not text:
+            return None
+        if text in _TRUE_STRINGS:
+            return True
+        if text in _FALSE_STRINGS:
+            return False
+    return None
+
+
+def _bool_or_default(value, default: bool) -> bool:
+    parsed = _parse_bool(value)
+    if parsed is None:
+        return default
+    return parsed
+
+
+_BOOL_FIELDS = {
+    "allow_auto_submit",
+    "allow_live_trading",
+    "allow_any_ticker",
+    "notify_failures_only",
+    "is_active",
+    "track_performance",
+    "is_public",
+}
 
 def snapshot_cache_key_for(user_id: int, client_id: str | None) -> str:
     client_key = client_id or "primary"
@@ -817,7 +859,6 @@ def create_strategy():
     if isinstance(master_accounts, list):
         master_accounts = ",".join(str(a) for a in master_accounts)
     if not data.get("webhook_secret"):
-        import secrets
         data["webhook_secret"] = secrets.token_hex(16)
 
     strategy = Strategy(
@@ -827,21 +868,21 @@ def create_strategy():
         description=data.get("description"),
         asset_class=data.get("asset_class"),
         style=data.get("style"),
-        allow_auto_submit=bool(data.get("allow_auto_submit", True)),
-        allow_live_trading=bool(data.get("allow_live_trading", True)),
-        allow_any_ticker=bool(data.get("allow_any_ticker", True)),
+        allow_auto_submit=_bool_or_default(data.get("allow_auto_submit"), True),
+        allow_live_trading=_bool_or_default(data.get("allow_live_trading"), True),
+        allow_any_ticker=_bool_or_default(data.get("allow_any_ticker"), True),
         allowed_tickers=data.get("allowed_tickers"),
         notification_emails=data.get("notification_emails"),
-        notify_failures_only=bool(data.get("notify_failures_only", False)),
-        is_active=bool(data.get("is_active", False)),
+        notify_failures_only=_bool_or_default(data.get("notify_failures_only"), False),
+        is_active=_bool_or_default(data.get("is_active"), False),
         signal_source=data.get("signal_source"),
         risk_max_positions=_to_int(data.get("risk_max_positions")),
         risk_max_allocation=_to_float(data.get("risk_max_allocation")),
         schedule=data.get("schedule"),
         webhook_secret=data.get("webhook_secret"),
-        track_performance=bool(data.get("track_performance", False)),
+        track_performance=_bool_or_default(data.get("track_performance"), False),
         log_retention_days=_to_int(data.get("log_retention_days")),
-        is_public=bool(data.get("is_public", False)),
+        is_public=_bool_or_default(data.get("is_public"), False),
         icon=data.get("icon"),
         brokers=brokers,
         master_accounts=master_accounts,
@@ -941,6 +982,15 @@ def strategy_detail(strategy_id):
                     setattr(strategy, field, _to_int(data[field]))
                 elif field == "risk_max_allocation":
                     setattr(strategy, field, _to_float(data[field]))
+                elif field in _BOOL_FIELDS:
+                    value = data[field]
+                    if value is None:
+                        setattr(strategy, field, None)
+                    else:
+                        parsed = _parse_bool(value)
+                        if parsed is None:
+                            return jsonify({"error": f"Invalid value for {field}"}), 400
+                        setattr(strategy, field, parsed)
                 else:
                     if field in ["brokers", "master_accounts"] and isinstance(
                         data[field], list
@@ -1113,6 +1163,7 @@ def clone_strategy(strategy_id):
         risk_max_positions=src.risk_max_positions,
         risk_max_allocation=src.risk_max_allocation,
         schedule=src.schedule,
+        webhook_secret=secrets.token_hex(16),
         webhook_secret=src.webhook_secret,
         track_performance=src.track_performance,
         log_retention_days=src.log_retention_days,
