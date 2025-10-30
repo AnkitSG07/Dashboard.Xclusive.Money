@@ -801,68 +801,84 @@
 {% endblock %}
 
 {% block scripts %}
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-  function formatPayloadDisplay(payload) {
-    try {
-      const parsed = JSON.parse(payload);
-      return JSON.stringify(parsed, null, 2);
-    } catch (error) {
+  (function () {
+    function formatPayloadDisplay(payload) {
+      try {
+        const parsed = JSON.parse(payload);
+        return JSON.stringify(parsed, null, 2);
+      } catch (error) {
+  
       return payload;
+      }
     }
-  }
 
-  function toggleStrategyStatus(button) {
-    const card = button.closest('.strategy-card');
-    const badge = card.querySelector('.strategy-badge');
-    const currentStatus = button.getAttribute('data-status');
+    function toggleStrategyStatus(button) {
+      const card = button.closest('.strategy-card');
+      if (!card) return;
+      const badge = card.querySelector('.strategy-badge');
+      const currentStatus = button.getAttribute('data-status');
 
-    if (currentStatus === 'active') {
-      alert('Strategy deactivated');
-      button.textContent = 'Activate';
-      button.setAttribute('data-status', 'inactive');
-      button.style.background = '';
-      badge.textContent = 'Inactive';
-      badge.classList.remove('is-active');
-      badge.classList.add('is-inactive');
-    } else {
-      alert('Strategy activated');
-      button.textContent = 'Deactivate';
-      button.setAttribute('data-status', 'active');
-      button.style.background = '';
-      badge.textContent = 'Active';
-      badge.classList.remove('is-inactive');
-      badge.classList.add('is-active');
+      if (currentStatus === 'active') {
+        alert('Strategy deactivated');
+        button.textContent = 'Activate';
+        button.setAttribute('data-status', 'inactive');
+        if (badge) {
+          badge.textContent = 'Inactive';
+          badge.classList.remove('is-active');
+          badge.classList.add('is-inactive');
+        }
+      } else {
+        alert('Strategy activated');
+        button.textContent = 'Deactivate';
+        button.setAttribute('data-status', 'active');
+        if (badge) {
+          badge.textContent = 'Active';
+          badge.classList.remove('is-inactive');
+          badge.classList.add('is-active');
+        }
+      }
     }
-  }
 
-  function openEditForm(strategyTitle, isNew = false) {
-    const editForm = document.getElementById('editForm');
-    const titleEl = document.getElementById('editTitle');
-    const nameInput = document.getElementById('editStrategyName');
+    function openEditForm(strategyTitle, isNew) {
+      const editForm = document.getElementById('editForm');
+      const titleEl = document.getElementById('editTitle');
+      const nameInput = document.getElementById('editStrategyName');
+      if (!editForm || !titleEl || !nameInput) return;
 
-    titleEl.textContent = isNew ? 'Create Strategy' : 'Edit Strategy: ' + strategyTitle;
-    nameInput.value = isNew ? '' : strategyTitle;
-    editForm.style.display = 'block';
-  }
-
-  function closeStrategyModal(modal) {
-    if (modal) {
-      modal.style.display = 'none';
+      titleEl.textContent = isNew ? 'Create Strategy' : 'Edit Strategy: ' + strategyTitle;
+      nameInput.value = isNew ? '' : strategyTitle;
+      editForm.style.display = 'block';
     }
-  }
 
-  function openPayloadModal(webhook, payload) {
-    const payloadModal = document.getElementById('payloadModal');
-    const webhookEl = document.getElementById('webhookUrl');
-    const payloadEl = document.getElementById('payloadCode');
+    function closeStrategyModal(modal) {
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
 
-    webhookEl.textContent = webhook;
-    payloadEl.textContent = formatPayloadDisplay(payload);
-    payloadModal.style.display = 'block';
-  }
+    function openPayloadModal(webhook, payload) {
+      const payloadModal = document.getElementById('payloadModal');
+      const webhookEl = document.getElementById('webhookUrl');
+      const payloadEl = document.getElementById('payloadCode');
+      if (!payloadModal || !webhookEl || !payloadEl) return;
 
-  function copyToClipboard(text) {
-    if (!navigator.clipboard) {
+      webhookEl.textContent = webhook;
+      payloadEl.textContent = formatPayloadDisplay(payload);
+      payloadModal.style.display = 'block';
+    }
+
+    function copyFallback(text) {
       const tempInput = document.createElement('textarea');
       tempInput.value = text;
       tempInput.style.position = 'fixed';
@@ -877,128 +893,157 @@
         alert('Unable to copy to clipboard');
       }
       document.body.removeChild(tempInput);
-      return;
     }
 
-    navigator.clipboard.writeText(text).then(function () {
-      alert('Copied to clipboard');
-    }).catch(function () {
-      alert('Unable to copy to clipboard');
-    });
-  }
+    function copyToClipboard(text) {
+      if (!navigator.clipboard) {
+        copyFallback(text);
+        return;
+      }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    const createStrategyBtn = document.getElementById('createStrategyBtn');
-    const editForm = document.getElementById('editForm');
-    const payloadModal = document.getElementById('payloadModal');
+      navigator.clipboard.writeText(text).then(function () {
+        alert('Copied to clipboard');
+      }).catch(function () {
+        copyFallback(text);
+      });
+    }
 
-    if (createStrategyBtn) {
-      createStrategyBtn.addEventListener('click', function () {
+    function bindOnce(element, eventName, handler, keySuffix) {
+      if (!element) return;
+      const key = `__strategyBound_${eventName}${keySuffix || ''}`;
+      if (element[key]) return;
+      element.addEventListener(eventName, handler);
+      element[key] = true;
+    }
+
+    function initializeDematStrategiesPage() {
+      const pageRoot = document.querySelector('.strategies-page-root');
+      if (!pageRoot) return;
+
+      const editForm = document.getElementById('editForm');
+      const payloadModal = document.getElementById('payloadModal');
+      const createStrategyBtn = document.getElementById('createStrategyBtn');
+      const saveChangesBtn = document.getElementById('saveStrategyChanges');
+
+      bindOnce(createStrategyBtn, 'click', function () {
         openEditForm('New Strategy', true);
       });
+
+      pageRoot.querySelectorAll('.strategy-btn-status').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          toggleStrategyStatus(btn);
+        }, `status${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-btn-clone').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          alert('Strategy cloned successfully');
+        }, `clone${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-btn-payload').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          const webhook = btn.getAttribute('data-webhook') || '';
+          const payload = btn.getAttribute('data-payload') || '{}';
+          openPayloadModal(webhook, payload);
+        }, `payload${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-btn-logs').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          alert('Opening logs...');
+        }, `logs${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-btn-edit').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          const title = btn.getAttribute('data-strategy-title') || 'Strategy';
+          openEditForm(title, false);
+        }, `edit${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-btn-delete').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          const title = btn.getAttribute('data-strategy-title') || 'this strategy';
+          if (confirm('Are you sure you want to delete ' + title + '?')) {
+            alert('Strategy deleted');
+            const card = btn.closest('.strategy-card');
+            if (card) {
+              card.remove();
+            }
+          }
+        }, `delete${index}`);
+      });
+
+      pageRoot.querySelectorAll('.strategy-icon-btn').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          const action = btn.getAttribute('data-action');
+          if (action === 'copy') {
+            const webhook = btn.getAttribute('data-webhook') || '';
+            copyToClipboard(webhook);
+          } else if (action === 'refresh') {
+            alert('Webhook URL refreshed');
+          } else if (action === 'test') {
+            alert('Testing webhook...');
+          }
+        }, `icon${index}`);
+      });
+
+      document.querySelectorAll('[data-close="edit"]').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          closeStrategyModal(editForm);
+        }, `closeEdit${index}`);
+      });
+
+      document.querySelectorAll('[data-close="payload"]').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          closeStrategyModal(payloadModal);
+        }, `closePayload${index}`);
+      });
+
+      bindOnce(saveChangesBtn, 'click', function () {
+        alert('Changes saved!');
+        closeStrategyModal(editForm);
+      });
+
+      document.querySelectorAll('.strategy-copy-icon-btn').forEach(function (btn, index) {
+        bindOnce(btn, 'click', function () {
+          const target = btn.getAttribute('data-copy-target');
+          if (target === 'webhook') {
+            const webhook = document.getElementById('webhookUrl');
+            if (webhook) {
+              copyToClipboard(webhook.textContent || '');
+            }
+          } else if (target === 'payload') {
+            const payload = document.getElementById('payloadCode');
+            if (payload) {
+              copyToClipboard(payload.textContent || '');
+            }
+          }
+        }, `copy${index}`);
+      });
+
+      bindOnce(editForm, 'click', function (event) {
+        if (event.target === editForm) {
+          closeStrategyModal(editForm);
+        }
+      }, 'overlayEdit');
+
+      bindOnce(payloadModal, 'click', function (event) {
+        if (event.target === payloadModal) {
+          closeStrategyModal(payloadModal);
+        }
+      }, 'overlayPayload');
     }
 
-    document.querySelectorAll('.strategy-btn-status').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        toggleStrategyStatus(btn);
-      });
-    });
+    window.pageScripts = window.pageScripts || {};
+    window.pageScripts['demat-strategies'] = initializeDematStrategiesPage;
 
-    document.querySelectorAll('.strategy-btn-clone').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        alert('Strategy cloned successfully');
-      });
-    });
-
-    document.querySelectorAll('.strategy-btn-payload').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const webhook = btn.getAttribute('data-webhook');
-        const payload = btn.getAttribute('data-payload');
-        openPayloadModal(webhook, payload || '{}');
-      });
-    });
-
-    document.querySelectorAll('.strategy-btn-logs').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        alert('Opening logs...');
-      });
-    });
-
-    document.querySelectorAll('.strategy-btn-edit').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const title = btn.getAttribute('data-strategy-title');
-        openEditForm(title || 'Strategy');
-      });
-    });
-
-    document.querySelectorAll('.strategy-btn-delete').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const title = btn.getAttribute('data-strategy-title') || 'this strategy';
-        if (confirm('Are you sure you want to delete ' + title + '?')) {
-          alert('Strategy deleted');
-          const card = btn.closest('.strategy-card');
-          if (card) {
-            card.remove();
-          }
-        }
-      });
-    });
-
-    document.querySelectorAll('.strategy-icon-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const action = btn.getAttribute('data-action');
-        if (action === 'copy') {
-          const webhook = btn.getAttribute('data-webhook');
-          copyToClipboard(webhook || '');
-        } else if (action === 'refresh') {
-          alert('Webhook URL refreshed');
-        } else if (action === 'test') {
-          alert('Testing webhook...');
-        }
-      });
-    });
-
-    document.querySelectorAll('[data-close="edit"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        closeStrategyModal(editForm);
-      });
-    });
-
-    document.querySelectorAll('[data-close="payload"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        closeStrategyModal(payloadModal);
-      });
-    });
-
-    document.getElementById('saveStrategyChanges').addEventListener('click', function () {
-      alert('Changes saved!');
-      closeStrategyModal(editForm);
-    });
-
-    document.querySelectorAll('.strategy-copy-icon-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const target = btn.getAttribute('data-copy-target');
-        if (target === 'webhook') {
-          const webhook = document.getElementById('webhookUrl').textContent;
-          copyToClipboard(webhook);
-        } else if (target === 'payload') {
-          const payload = document.getElementById('payloadCode').textContent;
-          copyToClipboard(payload);
-        }
-      });
-    });
-
-    editForm.addEventListener('click', function (event) {
-      if (event.target === editForm) {
-        closeStrategyModal(editForm);
-      }
-    });
-
-    payloadModal.addEventListener('click', function (event) {
-      if (event.target === payloadModal) {
-        closeStrategyModal(payloadModal);
-      }
-    });
-  });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeDematStrategiesPage);
+    } else {
+      initializeDematStrategiesPage();
+    }
+  })();
 </script>
 {% endblock %}
