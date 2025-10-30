@@ -4,6 +4,7 @@
 
 {% block styles %}
 <style>
+
   .strategies-page-root {
     background: #f5f5f5;
     margin: -1.5rem -1.5rem 0;
@@ -88,44 +89,6 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-  }
-
-  .strategy-messages {
-    margin-bottom: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .strategy-message {
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    color: #1f2937;
-    font-size: 14px;
-  }
-
-  .strategy-message[hidden] {
-    display: none;
-  }
-
-  .strategy-message.strategy-loading {
-    color: #4b5563;
-    font-style: italic;
-    background: #f9fafb;
-  }
-
-  .strategy-message.strategy-error {
-    border-color: #fca5a5;
-    background: #fef2f2;
-    color: #b91c1c;
-  }
-
-  .strategy-message.strategy-empty {
-    border-style: dashed;
-    color: #6b7280;
-    background: #f9fafb;
   }
 
   .strategy-card {
@@ -233,7 +196,7 @@
     align-items: center;
     gap: 6px;
     background: #f9fafb;
-    padding: 8px 10px;
+    padding: 8px 11px;
     border-radius: 6px;
     border: 1px solid #e5e7eb;
   }
@@ -416,12 +379,6 @@
     cursor: pointer;
   }
 
-  .strategy-payload-subtitle {
-    margin: 4px 0 12px;
-    color: #4b5563;
-    font-size: 14px;
-  }
-
   .strategy-payload-section {
     margin-bottom: 32px;
   }
@@ -526,6 +483,188 @@
       grid-template-columns: repeat(3, 1fr);
     }
   }
+/* ===== FINAL MOBILE FIX for strategy cards ===== */
+@media (max-width: 768px) {
+
+  /* page side padding less so card doesn't look cut */
+  .strategies-page-root {
+    margin: -1.5rem -0.5rem 0 !important;
+    padding: 20px 0 20px !important;
+  }
+  .strategies-page {
+    padding: 0 14px 18px !important;
+  }
+
+  /* card should never be wider than screen */
+  .strategy-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 16px 14px 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* webhook box must wrap */
+  .strategy-webhook-box {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  /* URL goes on its own line */
+  .strategy-webhook-url {
+    width: 100% !important;
+    white-space: normal !important;   /* allow wrap */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* icon buttons stay right but on next line */
+  .strategy-webhook-box .strategy-icon-btn {
+    margin-left: 0 !important;
+  }
+
+  /* buttons grid -> 2 per row */
+  .strategy-btn-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  /* make purple Payload full width like in screenshot */
+  .strategy-btn-payload {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* logs & edit stay tidy */
+  .strategy-btn-logs,
+  .strategy-btn-edit {
+    width: 100% !important;
+  }
+}
+
+/* super small phones */
+@media (max-width: 420px) {
+  .strategy-btn-row {
+    grid-template-columns: 1fr !important;
+  }
+  
+}
+/* ===== HARD OVERRIDE: make strategy cards smaller on desktop ===== */
+
+/* container narrower */
+.strategies-page-root {
+  padding: 28px 0 28px !important;
+}
+.strategies-page {
+  max-width: 1180px !important;
+  padding: 0 20px 28px !important;
+}
+
+/* grid tighter */
+.strategy-cards-grid {
+  gap: 16px !important;
+}
+
+/* card itself */
+.strategy-cards-grid .strategy-card,
+.strategy-card {
+  padding: 14px 14px 12px !important;   /* was 24 */
+  border-radius: 14px !important;
+}
+
+/* header */
+.strategy-card .strategy-card-header {
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+/* avatar small */
+.strategy-card .strategy-avatar {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  font-size: 16px !important;
+}
+
+/* title smaller */
+.strategy-card .strategy-card-title {
+  font-size: 15px !important;
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+/* desc + webhook tighter */
+.strategy-card .strategy-card-desc {
+  margin-bottom: 10px !important;
+}
+.strategy-card .strategy-webhook-section {
+  margin-bottom: 10px !important;
+}
+.strategy-card .strategy-webhook-box {
+  padding: 5px 8px !important;
+}
+.strategy-card .strategy-webhook-url {
+  font-size: 11.5px !important;
+}
+
+/* buttons shorter */
+.strategy-card .strategy-btn-row {
+  gap: 6px !important;
+}
+.strategy-card .strategy-btn {
+  padding: 7px 6px !important;
+  font-size: 12.5px !important;
+  border-radius: 8px !important;
+}
+
+  .strategies-page-root {
+    padding: 28px 0 28px !important;
+  }
+  .strategies-page {
+    max-width: 1180px !important;
+    padding: 0 20px 28px !important;
+  }
+  .strategy-cards-grid {
+    gap: 16px !important;
+  }
+  .strategy-card {
+    padding: 14px 14px 12px !important;
+    border-radius: 14px !important;
+  }
+  .strategy-card-header {
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+  .strategy-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 14px !important;
+    font-size: 16px !important;
+  }
+  .strategy-card-title {
+    font-size: 15px !important;
+    white-space: normal !important;
+    line-height: 1.25 !important;
+  }
+  .strategy-webhook-section {
+    margin-bottom: 10px !important;
+  }
+  .strategy-webhook-box {
+    padding: 5px 8px !important;
+  }
+  .strategy-webhook-url {
+    font-size: 11.5px !important;
+  }
+  .strategy-btn-row {
+    gap: 6px !important;
+  }
+  .strategy-btn {
+    padding: 7px 6px !important;
+    font-size: 12.5px !important;
+    border-radius: 8px !important;
+  }
+
 </style>
 {% endblock %}
 
