@@ -1,1100 +1,1004 @@
 {% extends "layout.html" %}
 
-{% block title %}Strategies - DhanBot{% endblock %}
+{% block title %}Alert to Trade - DhanBot{% endblock %}
+
+{% block styles %}
+<style>
+  .strategies-page-root {
+    background: #f5f5f5;
+    margin: -1.5rem -1.5rem 0;
+    padding: 40px 0;
+  }
+
+  .strategies-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .strategies-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+  }
+
+  .strategies-header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+  }
+
+  .strategies-header p {
+    color: #6b7280;
+    font-size: 16px;
+  }
+
+  .strategy-btn-new {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .strategy-filters {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .strategy-search-box {
+    position: relative;
+    flex: 1;
+  }
+
+  .strategy-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+  }
+
+  .strategy-search-box input,
+  .strategy-filters select {
+    width: 100%;
+    padding: 12px 12px 12px 44px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+  }
+
+  .strategy-filters select {
+    padding: 12px 36px 12px 16px;
+    background: #fff url('data:image/svg+xml;charset=UTF-8,%3csvg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg"%3e%3cpath d="M1 1l6 6 6-6" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/%3e%3c/svg%3e') no-repeat right 12px center;
+    cursor: pointer;
+    appearance: none;
+  }
+
+  .strategy-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .strategy-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .strategy-card-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .strategy-avatar {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #6b7280;
+  }
+
+  .strategy-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .strategy-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .strategy-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a1a1a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .strategy-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #fff;
+  }
+
+  .strategy-badge.is-active {
+    background: #10b981;
+  }
+
+  .strategy-badge.is-inactive {
+    background: #6b7280;
+  }
+
+  .strategy-card-type {
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .strategy-card-desc {
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .strategy-card-section {
+    margin-bottom: 12px;
+  }
+
+  .strategy-card-label {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .strategy-card-value {
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .strategy-webhook-section {
+    margin-bottom: 20px;
+  }
+
+  .strategy-webhook-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f9fafb;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .strategy-webhook-url {
+    flex: 1;
+    font-size: 12px;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+  }
+
+  .strategy-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+  }
+
+  .strategy-btn-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .strategy-btn {
+    border: none;
+    padding: 10px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .strategy-btn-status[data-status="active"] {
+    background: #f97316;
+    color: #fff;
+  }
+
+  .strategy-btn-status[data-status="inactive"] {
+    background: #10b981;
+    color: #fff;
+  }
+
+  .strategy-btn-clone {
+    background: #f3f4f6;
+    color: #1a1a1a;
+  }
+
+  .strategy-btn-payload {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+  }
+
+  .strategy-btn-logs,
+  .strategy-btn-edit {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #e5e7eb;
+  }
+
+  .strategy-btn-delete {
+    background: #ef4444;
+    color: #fff;
+    border: none;
+  }
+
+  .strategy-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    padding: 40px;
+    overflow-y: auto;
+  }
+
+  .strategy-modal {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .strategy-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .strategy-modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  .strategy-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 28px;
+    color: #6b7280;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .strategy-form-group {
+    margin-bottom: 20px;
+  }
+
+  .strategy-form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .strategy-form-input,
+  .strategy-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .strategy-form-select {
+    cursor: pointer;
+  }
+
+  .strategy-form-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 12px;
+  }
+
+  .strategy-btn-save {
+    flex: 1;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .strategy-btn-cancel {
+    flex: 1;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #e5e7eb;
+    padding: 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .strategy-payload-section {
+    margin-bottom: 32px;
+  }
+
+  .strategy-payload-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .strategy-payload-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+  }
+
+  .strategy-payload-box {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+  }
+
+  .strategy-payload-code {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #1a1a1a;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+  }
+
+  .strategy-copy-icon-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .strategy-copy-icon-btn:hover {
+    background: #f3f4f6;
+  }
+
+  @media (max-width: 1024px) {
+    .strategy-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .strategies-page-root {
+      margin: -1.5rem -1rem 0;
+      padding: 24px 0;
+    }
+
+    .strategies-page {
+      padding: 0 20px 20px;
+    }
+
+    .strategies-header {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .strategies-header h1 {
+      font-size: 28px;
+    }
+
+    .strategy-btn-new {
+      width: 100%;
+    }
+
+    .strategy-filters {
+      flex-direction: column;
+    }
+
+    .strategy-filters select {
+      width: 100%;
+    }
+
+    .strategy-search-box input,
+    .strategy-filters select {
+      padding-left: 44px;
+    }
+
+    .strategy-cards-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .strategy-btn-row {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .strategy-btn-row:last-of-type {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
-            <h1 class="display-5 fw-bold text-primary">Your Trading Strategies</h1>
-            <p class="lead text-muted">Manage and create automated trading strategies for your connected accounts.</p>
+<div class="strategies-page-root">
+  <div class="strategies-page">
+    <div class="strategies-header">
+      <div>
+        <h1>Alert to Trade</h1>
+        <p>Manage your trading strategies and alerts</p>
+      </div>
+      <button type="button" class="strategy-btn-new" id="createStrategyBtn">New Strategy</button>
+    </div>
+
+    <div class="strategy-filters">
+      <div class="strategy-search-box">
+        <svg class="strategy-search-icon" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" placeholder="Search strategies by name..." aria-label="Search strategies">
+      </div>
+      <select aria-label="Filter strategies by status">
+        <option>All Statuses</option>
+        <option>Active</option>
+        <option>Inactive</option>
+      </select>
+      <select aria-label="Filter strategies by account" style="min-width: 200px;">
+        <option>All Accounts</option>
+      </select>
+    </div>
+
+    <div class="strategy-cards-grid">
+      <article class="strategy-card" data-strategy-title="test zerodha (idea)">
+        <header class="strategy-card-header">
+          <div class="strategy-avatar" aria-hidden="true">T</div>
+          <div class="strategy-card-info">
+            <div class="strategy-card-title-row">
+              <h3 class="strategy-card-title" title="test zerodha (idea)">test zerodha (i...</h3>
+              <span class="strategy-badge is-active">Active</span>
+            </div>
+            <p class="strategy-card-type">Stocks - Systematic</p>
+          </div>
+        </header>
+        <p class="strategy-card-desc">No description provided for this strategy.</p>
+        <div class="strategy-card-section">
+          <p class="strategy-card-label">Accounts</p>
+          <p class="strategy-card-value">Amit_Zerodha (CX9849) (zerodha)</p>
         </div>
-        <div class="col-md-4 text-end">
-            <button id="create-strategy-btn-alt" class="btn btn-primary btn-lg shadow-sm">
-                <i class="fas fa-plus me-2"></i> Create New Strategy
+        <section class="strategy-webhook-section">
+          <p class="strategy-card-label">Webhook URL</p>
+          <div class="strategy-webhook-box">
+            <code class="strategy-webhook-url" title="https://dashboard.xclusive.money/api/strategies/idea">https://dashboard...</code>
+            <button type="button" class="strategy-icon-btn" data-action="copy" data-webhook="https://dashboard.xclusive.money/api/strategies/idea" aria-label="Copy webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
             </button>
+            <button type="button" class="strategy-icon-btn" data-action="refresh" aria-label="Refresh webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+            <button type="button" class="strategy-icon-btn" data-action="test" aria-label="Test webhook">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+          </div>
+        </section>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-status" data-status="active">Deactivate</button>
+          <button type="button" class="strategy-btn strategy-btn-clone">Clone</button>
+          <button type="button" class="strategy-btn strategy-btn-payload" data-webhook="https://dashboard.xclusive.money/api/strategies/idea" data-payload='{"exchange":"NSE","transactionType":"BUY","orderType":"limit","orderValidity":"day","productType":"intraday","masterAccounts":["Amit_Zerodha (CX9849) (zerodha)"]}'>Payload</button>
         </div>
-    </div>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-logs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            Logs
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-edit" data-strategy-title="test zerodha (idea)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Edit
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-delete" data-strategy-title="test zerodha (idea)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete
+          </button>
+        </div>
+      </article>
 
-    <!-- Search and Filter Bar -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="input-group">
-                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                <input type="text" class="form-control border-start-0" id="strategy-search" placeholder="Search strategies by name...">
+      <article class="strategy-card" data-strategy-title="Amit_Dhan_Strategy_Test">
+        <header class="strategy-card-header">
+          <div class="strategy-avatar" aria-hidden="true">A</div>
+          <div class="strategy-card-info">
+            <div class="strategy-card-title-row">
+              <h3 class="strategy-card-title" title="Amit_Dhan_Strategy_Test">Amit_Dhan_Str...</h3>
+              <span class="strategy-badge is-active">Active</span>
             </div>
+            <p class="strategy-card-type">Stocks - Systematic</p>
+          </div>
+        </header>
+        <p class="strategy-card-desc">No description provided for this strategy.</p>
+        <div class="strategy-card-section">
+          <p class="strategy-card-label">Accounts</p>
+          <p class="strategy-card-value">Amit_Dhan (1100434692) (dhan)</p>
         </div>
-        <div class="col-md-3">
-            <select class="form-select" id="strategy-filter-status">
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-            </select>
+        <section class="strategy-webhook-section">
+          <p class="strategy-card-label">Webhook URL</p>
+          <div class="strategy-webhook-box">
+            <code class="strategy-webhook-url" title="https://dashboard.xclusive.money/api/strategies/dhan">https://dashboard...</code>
+            <button type="button" class="strategy-icon-btn" data-action="copy" data-webhook="https://dashboard.xclusive.money/api/strategies/dhan" aria-label="Copy webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+            <button type="button" class="strategy-icon-btn" data-action="refresh" aria-label="Refresh webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+            <button type="button" class="strategy-icon-btn" data-action="test" aria-label="Test webhook">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+          </div>
+        </section>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-status" data-status="active">Deactivate</button>
+          <button type="button" class="strategy-btn strategy-btn-clone">Clone</button>
+          <button type="button" class="strategy-btn strategy-btn-payload" data-webhook="https://dashboard.xclusive.money/api/strategies/dhan" data-payload='{"exchange":"NSE","transactionType":"BUY","orderType":"limit","orderValidity":"day","productType":"intraday","masterAccounts":["Amit_Dhan (1100434692) (dhan)"]}'>Payload</button>
         </div>
-        <div class="col-md-3">
-            <select class="form-select" id="strategy-filter-account">
-                <option value="">All Accounts</option>
-                <!-- Options populated dynamically by JS -->
-            </select>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-logs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            Logs
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-edit" data-strategy-title="Amit_Dhan_Strategy_Test">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Edit
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-delete" data-strategy-title="Amit_Dhan_Strategy_Test">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete
+          </button>
         </div>
+      </article>
+
+      <article class="strategy-card" data-strategy-title="test - single stock (idea)">
+        <header class="strategy-card-header">
+          <div class="strategy-avatar" aria-hidden="true">T</div>
+          <div class="strategy-card-info">
+            <div class="strategy-card-title-row">
+              <h3 class="strategy-card-title" title="test - single stock (idea)">test - single s...</h3>
+              <span class="strategy-badge is-inactive">Inactive</span>
+            </div>
+            <p class="strategy-card-type">Stocks - Systematic</p>
+          </div>
+        </header>
+        <p class="strategy-card-desc">No description provided for this strategy.</p>
+        <div class="strategy-card-section">
+          <p class="strategy-card-label">Accounts</p>
+          <p class="strategy-card-value">60</p>
+        </div>
+        <section class="strategy-webhook-section">
+          <p class="strategy-card-label">Webhook URL</p>
+          <div class="strategy-webhook-box">
+            <code class="strategy-webhook-url" title="https://dashboard.xclusive.money/api/strategies/single">https://dashboard...</code>
+            <button type="button" class="strategy-icon-btn" data-action="copy" data-webhook="https://dashboard.xclusive.money/api/strategies/single" aria-label="Copy webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+            <button type="button" class="strategy-icon-btn" data-action="refresh" aria-label="Refresh webhook URL">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+            <button type="button" class="strategy-icon-btn" data-action="test" aria-label="Test webhook">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+          </div>
+        </section>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-status" data-status="inactive">Activate</button>
+          <button type="button" class="strategy-btn strategy-btn-clone">Clone</button>
+          <button type="button" class="strategy-btn strategy-btn-payload" data-webhook="https://dashboard.xclusive.money/api/strategies/single" data-payload='{"exchange":"NSE","transactionType":"BUY","orderType":"limit","orderValidity":"day","productType":"intraday","masterAccounts":["60"]}'>Payload</button>
+        </div>
+        <div class="strategy-btn-row">
+          <button type="button" class="strategy-btn strategy-btn-logs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            Logs
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-edit" data-strategy-title="test - single stock (idea)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Edit
+          </button>
+          <button type="button" class="strategy-btn strategy-btn-delete" data-strategy-title="test - single stock (idea)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete
+          </button>
+        </div>
+      </article>
+    </div>
+  </div>
+</div>
+
+<div id="editForm" class="strategy-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+  <div class="strategy-modal">
+    <div class="strategy-modal-header">
+      <h2 id="editTitle" class="strategy-modal-title">Edit Strategy</h2>
+      <button type="button" class="strategy-close-btn" aria-label="Close edit form" data-close="edit">&times;</button>
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="editStrategyName">Strategy Name</label>
+      <input type="text" id="editStrategyName" class="strategy-form-input" placeholder="Enter strategy name">
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="strategyTypeSelect">Type</label>
+      <select id="strategyTypeSelect" class="strategy-form-select">
+        <option>Stocks - Systematic</option>
+        <option>Stocks - Discretionary</option>
+        <option>Options</option>
+        <option>Futures</option>
+      </select>
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="strategyDescription">Description</label>
+      <input type="text" id="strategyDescription" class="strategy-form-input" placeholder="Enter description">
+    </div>
+    <div class="strategy-form-group">
+      <label class="strategy-form-label" for="strategyAccountSelect">Accounts</label>
+      <select id="strategyAccountSelect" class="strategy-form-select">
+        <option>Select account</option>
+        <option>dhan - akku_dhan (1100880151)</option>
+        <option>dhan - Aman_Dhan (1106883507)</option>
+        <option>dhan - Amit_Dhan (1100434692)</option>
+      </select>
+    </div>
+    <div class="strategy-form-actions">
+      <button type="button" class="strategy-btn-save" id="saveStrategyChanges">Save Changes</button>
+      <button type="button" class="strategy-btn-cancel" data-close="edit">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="payloadModal" class="strategy-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="payloadModalTitle">
+  <div class="strategy-modal">
+    <div class="strategy-modal-header">
+      <h2 class="strategy-modal-title" id="payloadModalTitle">Strategy Webhook Details</h2>
+      <button type="button" class="strategy-close-btn" aria-label="Close payload details" data-close="payload">&times;</button>
     </div>
 
-    <div id="no-strategies-state" class="empty-state card shadow-sm p-5 text-center" style="display:none;">
-        <div class="empty-state-icon mb-4">
-            <i class="fas fa-robot fa-4x text-muted"></i>
-        </div>
-        <h3 class="fw-bold text-dark">No Strategies Yet!</h3>
-        <p class="text-muted mb-4">It looks like you haven't created any trading strategies. Let's get started!</p>
-        <button id="create-strategy-btn" class="btn btn-primary btn-lg">
-            <i class="fas fa-plus me-2"></i> Create Your First Strategy
+    <div class="strategy-payload-section">
+      <div class="strategy-payload-label">Webhook URL</div>
+      <div class="strategy-payload-box">
+        <div class="strategy-payload-code" id="webhookUrl">https://dashboard.xclusive.money/api/strategies</div>
+        <button type="button" class="strategy-copy-icon-btn" data-copy-target="webhook" aria-label="Copy webhook URL">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="2" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
         </button>
+      </div>
     </div>
 
-    <div id="strategies-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 my-4" style="display:none;">
-        <!-- Strategy cards will be injected here by JavaScript -->
+    <div class="strategy-payload-section">
+      <div class="strategy-payload-label">JSON Payload</div>
+      <div class="strategy-payload-box">
+        <div class="strategy-payload-code" id="payloadCode">{"exchange":"NSE","transactionType":"BUY"}</div>
+        <button type="button" class="strategy-copy-icon-btn" data-copy-target="payload" aria-label="Copy JSON payload">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="2" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
     </div>
-
-    <!-- Strategy Creation/Edit Modal -->
-    <div class="modal fade" id="strategyModal" tabindex="-1" aria-labelledby="strategyModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content rounded-3 shadow-lg">
-                <form id="strategyForm">
-                    <div class="modal-header bg-primary text-white rounded-top-3">
-                        <h5 class="modal-title fw-bold" id="strategyModalLabel">Create New Strategy</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label for="strategy-name" class="form-label fw-semibold">Strategy Name <span class="text-danger">*</span>
-                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="A unique and descriptive name for your trading strategy."></i>
-                            </label>
-                            <input type="text" class="form-control" id="strategy-name" name="strategyName" required placeholder="e.g., Daily Momentum Scalper">
-                        </div>
-
-                        <div class="mb-4 border-top pt-3">
-                            <label class="form-label fw-semibold">Master Accounts
-                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Select the master trading accounts this strategy will operate on."></i>
-                            </label>
-                            <div id="strategy-accounts" class="d-flex flex-column gap-2 p-3 border rounded bg-light-subtle">
-                                <!-- Master accounts checkboxes will be loaded here -->
-                            </div>
-                            <div class="form-text mt-2">Select connected master accounts for this strategy.</div>
-                        </div>
-
-                        <div class="row g-3 mb-4 border-top pt-3">
-                            <div class="col-md-6">
-                                <label for="exchange" class="form-label fw-semibold">Exchange <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="The stock exchange where the trading symbol is listed."></i>
-                                </label>
-                                <select class="form-select" id="exchange" name="exchange">
-                                    <option value="NSE">NSE</option>
-                                    <option value="BSE">BSE</option>
-                                    <option value="BOTH">Both (NSE &amp; BSE)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="symbol-token" class="form-label fw-semibold">Symbol Token
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Broker-specific token for the trading symbol. Auto-filled for single symbol mode."></i>
-                                </label>
-                                <input type="text" class="form-control" id="symbol-token" name="symbolToken" placeholder="Auto" readonly>
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label fw-semibold">Trading Symbols <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Define how trading symbols are provided for this strategy."></i>
-                                </label>
-                                <div class="mb-2">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="singleSymbolMode" value="single" checked>
-                                        <label class="form-check-label" for="singleSymbolMode">Single Symbol</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="symbolInputMode" id="watchlistMode" value="watchlist">
-                                        <label class="form-check-label" for="watchlistMode">Watchlist (TradingView Alert)</label>
-                                    </div>
-                                </div>
-                                <textarea class="form-control" id="trading-symbols" name="tradingSymbols" rows="1" placeholder="Enter single symbol (e.g., RELIANCE)" required></textarea>
-                                <div class="form-text" id="symbol-input-help">Enter the trading symbol.</div>
-                                <div id="tokens-list" class="small text-muted mt-1"></div>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-4 border-top pt-3">
-                            <div class="col-md-12">
-                                <label class="form-label fw-semibold">Alert Type</label>
-                                <div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="alertType" id="alertTypeStrategy" value="strategy" checked>
-                                        <label class="form-check-label" for="alertTypeStrategy">Strategy alert</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="alertType" id="alertTypeManual" value="manual">
-                                        <label class="form-check-label" for="alertTypeManual">Manual alert</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6" id="strategyActionGroup">
-                                <label for="action-placeholder" class="form-label fw-semibold">Action</label>
-                                <input type="text" class="form-control" id="action-placeholder" value="{% raw %}{{strategy.order.action}}{% endraw %}" readonly>
-                                <div class="form-text">TradingView will replace this with BUY or SELL.</div>
-                            </div>
-                            <div class="col-md-6" id="manualTypeGroup" style="display:none;">
-                                <label for="transaction-type" class="form-label fw-semibold">Type of Transaction <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Whether the strategy will BUY or SELL the specified symbols."></i>
-                                </label>
-                                <select class="form-select" id="transaction-type" name="transactionType">
-                                    <option value="BUY">BUY</option>
-                                    <option value="SELL">SELL</option>
-                                   <option value="BOTH">Both (BUY &amp; SELL)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="order-type" class="form-label fw-semibold">Order Type <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="The type of order to place (Limit for specific price, Market for current market price)."></i>
-                                </label>
-                                <select class="form-select" id="order-type" name="orderType">
-                                    <option value="limit">Limit</option>
-                                    <option value="market">Market</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="order-validity" class="form-label fw-semibold">Order Validity
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="How long the order remains active (Day for end of day, IOC for immediate or cancel)."></i>
-                                </label>
-                                <select class="form-select" id="order-validity" name="orderValidity">
-                                    <option value="day" selected>Day</option>
-                                    <option value="IOC">IOC (Immediate or Cancel)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="product-type" class="form-label fw-semibold">Type of Product <span class="text-danger">*</span>
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="The product type for the trade (Intraday/MIS for same-day square-off, CNC/Longterm for delivery)."></i>
-                                </label>
-                                <select class="form-select" id="product-type" name="productType">
-                                    <option value="intraday">Intraday / MIS</option>
-                                    <option value="cnc">CNC / Longterm</option>
-                                    <option value="mtf">MTF</option>
-                                    <option value="mtf_or_cnc">MTF or Longterm</option>
-                                </select>
-                                <div class="form-text">Intraday/MIS are equivalent, as are CNC/longterm. "MTF or Longterm" attempts MTF first and falls back to CNC if unavailable.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="order-qty" class="form-label fw-semibold">Order Quantity
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="The number of shares/units to trade. Leave empty if specifying Order Value."></i>
-                                </label>
-                                <input type="number" class="form-control" id="order-qty" name="orderQty" min="1" placeholder="e.g., 100">
-                                <div class="form-text">Leave empty if specifying Order Value.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="order-value" class="form-label fw-semibold">Order Value
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="The total monetary value of the order. Quantity will be auto-calculated from live price."></i>
-                                </label>
-                                <input type="number" class="form-control" id="order-value" name="orderValue" min="1" step="0.01" placeholder="e.g., 10000.00">
-                                <div class="form-text">Auto-calculates quantity from live price.</div>
-                            </div>
-                            <div class="col-md-12">
-                                <label for="webhook-preview" class="form-label fw-semibold">Webhook Payload Preview
-                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="This JSON payload will be sent to the webhook URL when triggered."></i>
-                                </label>
-                                <div class="input-group">
-                                    <textarea class="form-control bg-light font-monospace" id="webhook-preview" rows="5" readonly></textarea>
-                                    <button type="button" class="btn btn-outline-secondary" id="copy-preview-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer d-flex justify-content-between">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Save Strategy</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Strategy Payload Modal -->
-    <div class="modal fade" id="payloadModal" tabindex="-1" aria-labelledby="payloadModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-3 shadow-lg">
-                <div class="modal-header bg-info text-white rounded-top-3">
-                    <h5 class="modal-title fw-bold" id="payloadModalLabel">Strategy Webhook Details</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Webhook URL
-                            <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Use this URL in your TradingView alert or other external systems to trigger the strategy."></i>
-                        </label>
-                        <div class="input-group">
-                            <input id="payload-webhook" type="text" class="form-control bg-light font-monospace" readonly>
-                            <button type="button" class="btn btn-outline-secondary" id="copy-webhook-btn" title="Copy Webhook URL"><i class="bi bi-clipboard"></i></button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">JSON Payload
-                            <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="This is the default JSON payload for your strategy. You can customize it in TradingView alerts."></i>
-                        </label>
-                        <div class="input-group">
-                            <textarea id="payload-json" class="form-control bg-light font-monospace" rows="7" readonly></textarea>
-                            <button type="button" class="btn btn-outline-secondary" id="copy-payload-btn" title="Copy Payload"><i class="bi bi-clipboard"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-if (!window.pageScripts) window.pageScripts = {};
-window.pageScripts["demat-strategies"] = function() {
-    const createStrategyBtn = document.getElementById('create-strategy-btn');
-    const createStrategyBtnAlt = document.getElementById('create-strategy-btn-alt');
-    const strategiesGrid = document.getElementById('strategies-grid');
-    const noStrategiesState = document.getElementById('no-strategies-state');
-    const modalEl = document.getElementById('strategyModal');
-    const form = document.getElementById('strategyForm');
-    const tokensList = document.getElementById('tokens-list');
-    const modal = new bootstrap.Modal(modalEl);
-    const payloadModal = new bootstrap.Modal(document.getElementById('payloadModal'));
-    const payloadWebhook = document.getElementById('payload-webhook');
-    const payloadJson = document.getElementById('payload-json');
-    const webhookPreview = document.getElementById('webhook-preview');
-    const alertTypeStrategy = document.getElementById('alertTypeStrategy');
-    const alertTypeManual = document.getElementById('alertTypeManual');
-    const strategyActionGroup = document.getElementById('strategyActionGroup');
-    const manualTypeGroup = document.getElementById('manualTypeGroup');
-    const userToken = '{{ logged_in_user.webhook_token }}';
-    const bothOption = document.getElementById('transaction-type').querySelector('option[value="BOTH"]');
-    let symbolMap = {};
-    let editingId = null;
-    const BROKER_KEYS = ['dhan','aliceblue','angelone','iifl','kotak','upstox'];
+  function formatPayloadDisplay(payload) {
+    try {
+      const parsed = JSON.parse(payload);
+      return JSON.stringify(parsed, null, 2);
+    } catch (error) {
+      return payload;
+    }
+  }
 
-    // Tooltip initialization
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
+  function toggleStrategyStatus(button) {
+    const card = button.closest('.strategy-card');
+    const badge = card.querySelector('.strategy-badge');
+    const currentStatus = button.getAttribute('data-status');
 
-    document.getElementById('copy-webhook-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(payloadWebhook.value);});
-    document.getElementById('copy-payload-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(payloadJson.value);});
-    document.getElementById('copy-preview-btn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();navigator.clipboard.writeText(webhookPreview.value);});
-    
-    function fetchJson(url, opts={}) {
-        return fetch(url, opts).then(r => {
-            if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Request failed'); });
-            return r.json();
-        });
+    if (currentStatus === 'active') {
+      alert('Strategy deactivated');
+      button.textContent = 'Activate';
+      button.setAttribute('data-status', 'inactive');
+      button.style.background = '';
+      badge.textContent = 'Inactive';
+      badge.classList.remove('is-active');
+      badge.classList.add('is-inactive');
+    } else {
+      alert('Strategy activated');
+      button.textContent = 'Deactivate';
+      button.setAttribute('data-status', 'active');
+      button.style.background = '';
+      badge.textContent = 'Active';
+      badge.classList.remove('is-inactive');
+      badge.classList.add('is-active');
+    }
+  }
+
+  function openEditForm(strategyTitle, isNew = false) {
+    const editForm = document.getElementById('editForm');
+    const titleEl = document.getElementById('editTitle');
+    const nameInput = document.getElementById('editStrategyName');
+
+    titleEl.textContent = isNew ? 'Create Strategy' : 'Edit Strategy: ' + strategyTitle;
+    nameInput.value = isNew ? '' : strategyTitle;
+    editForm.style.display = 'block';
+  }
+
+  function closeStrategyModal(modal) {
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  function openPayloadModal(webhook, payload) {
+    const payloadModal = document.getElementById('payloadModal');
+    const webhookEl = document.getElementById('webhookUrl');
+    const payloadEl = document.getElementById('payloadCode');
+
+    webhookEl.textContent = webhook;
+    payloadEl.textContent = formatPayloadDisplay(payload);
+    payloadModal.style.display = 'block';
+  }
+
+  function copyToClipboard(text) {
+    if (!navigator.clipboard) {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      tempInput.style.position = 'fixed';
+      tempInput.style.opacity = '0';
+      document.body.appendChild(tempInput);
+      tempInput.focus();
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        alert('Copied to clipboard');
+      } catch (error) {
+        alert('Unable to copy to clipboard');
+      }
+      document.body.removeChild(tempInput);
+      return;
     }
 
-    function loadSymbols(){
-        fetchJson('/api/symbols').then(list => {
-            list.forEach(item => {
-                symbolMap[item.symbol.toUpperCase()] = item;
-            });
-        }).catch(() => {});
+    navigator.clipboard.writeText(text).then(function () {
+      alert('Copied to clipboard');
+    }).catch(function () {
+      alert('Unable to copy to clipboard');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const createStrategyBtn = document.getElementById('createStrategyBtn');
+    const editForm = document.getElementById('editForm');
+    const payloadModal = document.getElementById('payloadModal');
+
+    if (createStrategyBtn) {
+      createStrategyBtn.addEventListener('click', function () {
+        openEditForm('New Strategy', true);
+      });
     }
 
-    function loadMasterAccounts(selected){
-        const container = document.getElementById('strategy-accounts');
-        const filterAccountSelect = document.getElementById('strategy-filter-account');
-        // Clear previous options in filter
-        filterAccountSelect.innerHTML = '<option value="">All Accounts</option>';
-
-        return fetchJson('/api/accounts?cache_only=1').then(data=>{
-            const masters = Array.isArray(data.masters) ? data.masters : [];
-            container.innerHTML = masters.map(m => {
-                const id = `acc-${m.id}`;
-                const name = m.username ? `${m.username} (${m.client_id})` : m.client_id;
-                // Add to filter options
-                filterAccountSelect.insertAdjacentHTML('beforeend', `<option value="${m.id}">${m.broker || ''} - ${name}</option>`);
-                return `<div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="masterAccounts" value="${m.id}" id="${id}">
-                            <label class="form-check-label" for="${id}">${m.broker || ''} - ${name}</label>
-                        </div>`;
-            }).join('');
-            if(selected){
-                const vals = Array.isArray(selected) ? selected : String(selected).split(',');
-                vals.forEach(v => {
-                    const cb = container.querySelector(`input[value="${v}"]`);
-                    if(cb) cb.checked = true;
-                });
-            }
-        }).catch(()=>{});
-    }
-
-    function getSelectedAccounts(){
-        const container = document.getElementById('strategy-accounts');
-        return Array.from(container.querySelectorAll('input[name="masterAccounts"]:checked')).map(cb => cb.value);
-    }
-    
-    function expandBoth(value, bothValues){
-        if (Array.isArray(value)) return value;
-        return String(value).toUpperCase() === 'BOTH' ? bothValues : value;
-    }
-
-    function buildPayloadFromStrategy(strategy){
-        if(!strategy) return {};
-        const payload = {
-            exchange: expandBoth(strategy.exchange || 'NSE', ['NSE','BSE']),
-            transactionType: expandBoth(strategy.transaction_type || 'BUY', ['BUY','SELL']),
-            orderType: strategy.order_type || 'limit',
-            orderValidity: strategy.order_validity || 'day',
-            productType: strategy.product_type || 'intraday',
-            masterAccounts: strategy.master_accounts ? String(strategy.master_accounts).split(',') : []
-        };
-        if(strategy.order_qty) payload.orderQty = strategy.order_qty;
-        if(strategy.order_value) payload.orderValue = strategy.order_value;
-        if(strategy.allowed_tickers === '__WATCHLIST_DYNAMIC__'){
-            payload.tradingSymbols = ["{% raw %}{{ticker}}{% endraw %}"];
-        } else if(strategy.allowed_tickers){
-            payload.tradingSymbols = String(strategy.allowed_tickers).split(',').map(s=>s.trim()).filter(Boolean);
-        } else {
-            payload.tradingSymbols = [];
-        }
-        return payload;
-    }
-
-    function getSymbols(){
-        if (singleSymbolModeRadio.checked) {
-            return [tradingSymbolsTextarea.value.trim()].filter(Boolean);
-        } else { // watchlistModeRadio.checked
-           return ["{% raw %}{{ticker}}{% endraw %}"]; // For display/preview purposes in the UI
-        }
-    }
-
-    function updateTokens(){
-        const syms = getSymbols();
-        const tokenText = syms.map(s => {
-            if (s === "{% raw %}{{ticker}}{% endraw %}") {
-                return "Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})";
-            }
-            const info = symbolMap[s.toUpperCase()];
-            if(!info) return s;
-            const parts = BROKER_KEYS.map(k => info[k] ? `${k}:${info[k]}` : null).filter(Boolean);
-            return parts.length ? `${s} (${parts.join(', ')})` : s;
-        }).join(', ');
-        tokensList.textContent = tokenText;
-
-        if(singleSymbolModeRadio.checked && syms.length === 1){
-            const info = symbolMap[syms[0].toUpperCase()];
-            if(info){
-                for(const k of BROKER_KEYS){
-                    if(info[k]){ form.symbolToken.value = info[k]; break; }
-                }
-            } else {
-                form.symbolToken.value = '';
-            }
-        } else {
-            form.symbolToken.value = '';
-        }
-        updateQtyFromValue();
-    }
-    form.tradingSymbols.addEventListener('input', updateTokens);
-
-    const singleSymbolModeRadio = document.getElementById('singleSymbolMode');
-    const watchlistModeRadio = document.getElementById('watchlistMode');
-    const tradingSymbolsTextarea = document.getElementById('trading-symbols');
-    const symbolInputHelp = document.getElementById('symbol-input-help');
-
-    function updateSymbolInputMode() {
-        if (singleSymbolModeRadio.checked) {
-            tradingSymbolsTextarea.rows = 1;
-            tradingSymbolsTextarea.placeholder = "Enter single symbol (e.g., RELIANCE)";
-            tradingSymbolsTextarea.disabled = false;
-            tradingSymbolsTextarea.name = "tradingSymbols"; // Ensure name is correct for single mode
-            symbolInputHelp.textContent = "Enter the trading symbol.";
-            // If switching from watchlist mode, clear dynamic placeholder value
-            if (tradingSymbolsTextarea.value === "{% raw %}{{ticker}}{% endraw %}") {
-                tradingSymbolsTextarea.value = "";
-            }
-        } else { // watchlistModeRadio.checked
-            tradingSymbolsTextarea.rows = 1;
-            tradingSymbolsTextarea.placeholder = "Symbols will be dynamically provided by TradingView ({% raw %}{{ticker}}{% endraw %})";
-            tradingSymbolsTextarea.value = ""; // Explicitly clear any content
-            tradingSymbolsTextarea.disabled = true; // Disable the input
-            tradingSymbolsTextarea.name = "disabledTradingSymbols"; // Change name to prevent accidental submission
-            symbolInputHelp.textContent = "For TradingView Watchlist alerts, symbols will be passed dynamically. No input needed here.";
-        }
-        updateTokens();
-        updateWebhookPreview();
-    }
-
-    singleSymbolModeRadio.addEventListener('change', updateSymbolInputMode);
-    watchlistModeRadio.addEventListener('change', updateSymbolInputMode);
-    function updateAlertMode() {
-        if (alertTypeStrategy.checked) {
-            strategyActionGroup.style.display = '';
-            manualTypeGroup.style.display = 'none';
-            if (bothOption) {
-                bothOption.hidden = false;
-                form.transactionType.value = 'BOTH';
-            }
-        } else {
-            strategyActionGroup.style.display = 'none';
-            manualTypeGroup.style.display = '';
-            if (bothOption) {
-                bothOption.hidden = true;
-                if (form.transactionType.value === 'BOTH') {
-                    form.transactionType.value = 'BUY';
-                }
-            }
-        }
-        updateWebhookPreview();
-    }
-    alertTypeStrategy.addEventListener('change', updateAlertMode);
-    alertTypeManual.addEventListener('change', updateAlertMode);
-    
-    function updateWebhookPreview() {
-        const selectedAccounts = getSelectedAccounts();
-
-        const exch = expandBoth(form.exchange.value, ['NSE','BSE']);
-        const previewPayload = {
-            exchange: exch,
-            orderType: form.orderType.value,
-            orderValidity: form.orderValidity.value,
-            productType: form.productType.value,
-            masterAccounts: selectedAccounts,
-        };
-        if (alertTypeStrategy.checked) {
-            previewPayload.action = "{% raw %}{{strategy.order.action}}{% endraw %}";
-        } else {
-            previewPayload.transactionType = form.transactionType.value;
-        }
-        if(form.orderQty.value){
-            previewPayload.orderQty = parseFloat(form.orderQty.value);
-        } else if(form.orderValue.value){
-            previewPayload.orderValue = parseFloat(form.orderValue.value);
-        }
-
-        if (singleSymbolModeRadio.checked) {
-            const currentSymbol = tradingSymbolsTextarea.value.trim();
-            previewPayload.tradingSymbols = currentSymbol ? [currentSymbol] : [];
-        } else { // Watchlist mode
-            previewPayload.tradingSymbols = ["{% raw %}{{ticker}}{% endraw %}"];
-        }
-
-        document.getElementById('webhook-preview').value = JSON.stringify(previewPayload, null, 2);
-    }
-
-    form.strategyName.addEventListener('input', updateWebhookPreview);
-    form.exchange.addEventListener('change', updateWebhookPreview);
-    form.transactionType.addEventListener('change', updateWebhookPreview);
-    form.orderType.addEventListener('change', updateWebhookPreview);
-    form.orderValidity.addEventListener('change', updateWebhookPreview);
-    form.productType.addEventListener('change', updateWebhookPreview);
-    form.orderQty.addEventListener('input', updateWebhookPreview);
-    form.orderValue.addEventListener('input', updateWebhookPreview);
-
-
-    updateSymbolInputMode();
-    updateAlertMode();
-    
-    function resetForm(){
-        editingId = null;
-        form.reset();
-        tokensList.textContent = '';
-        form.orderValue.disabled = false;
-        form.orderQty.disabled = false;
-        singleSymbolModeRadio.checked = true;
-        alertTypeStrategy.checked = true;
-        updateSymbolInputMode();
-        updateAlertMode();
-        updateTokens();
-        loadMasterAccounts(); // Reload accounts to ensure all are unchecked
-        modalEl.querySelector('.modal-title').textContent = 'Create New Strategy';
-        updateWebhookPreview();
-    }
-    form.orderQty.addEventListener('input', ()=>{ form.orderValue.disabled = !!form.orderQty.value; });
-    form.orderValue.addEventListener('input', ()=>{ form.orderQty.disabled = !!form.orderValue.value; });
-
-    async function updateQtyFromValue(){
-        if(!form.orderValue.value || (singleSymbolModeRadio.checked && getSymbols().length !== 1)) {
-            form.orderQty.value = ''; // Clear quantity if value is empty or not single symbol
-            return;
-        }
-
-        if (!singleSymbolModeRadio.checked) {
-            form.orderQty.value = ''; // Quantity cannot be calculated for dynamic symbols
-            return;
-        }
-
-        try{
-            const sym = getSymbols()[0];
-            const data = await fetchJson(`/api/quote/${encodeURIComponent(sym)}`);
-            const price = parseFloat(data.price);
-            if(price>0){
-                const qty = parseFloat(form.orderValue.value) / price;
-                form.orderQty.value = qty.toFixed(2);
-            } else {
-                form.orderQty.value = ''; // Clear if price is not valid
-            }
-        }catch(e){
-            form.orderQty.value = ''; // Clear on error
-        }
-    }
-
-    form.orderValue.addEventListener('change', updateQtyFromValue);
-
-    let allStrategies = []; // Store all strategies for filtering
-
-    function renderStrategies(strategiesToRender) {
-        const accMap = {};
-        // Re-fetch accounts to ensure accMap is up-to-date for rendering
-        fetchJson('/api/accounts?cache_only=1').then(accData => {
-            (accData.accounts || []).forEach(a => {
-                const name = a.username ? `${a.username} (${a.client_id})` : a.client_id;
-                accMap[a.id] = `${name} (${a.broker})`;
-            });
-
-            strategiesGrid.innerHTML = '';
-            if (!strategiesToRender || strategiesToRender.length === 0) {
-                strategiesGrid.style.display = 'none';
-                noStrategiesState.style.display = 'block';
-                return;
-            }
-            strategiesGrid.style.display = 'flex';
-            noStrategiesState.style.display = 'none';
-
-            strategiesToRender.forEach(s => {
-                const accText = s.master_accounts ? s.master_accounts.split(',').map(id => accMap[id.trim()] || id.trim()).join(', ') : 'All Connected Accounts';
-                const webhookUrl = `${window.location.origin}/webhook/${userToken}?secret=${encodeURIComponent(s.webhook_secret || '')}`;
-                const cardHtml = `
-                <div class="col strategy-card-item" data-strategy-name="${s.name.toLowerCase()}" data-strategy-status="${s.is_active ? 'active' : 'inactive'}" data-strategy-accounts="${s.master_accounts || ''}">
-                  <div class="card h-100 shadow-sm border-0 rounded-3">
-                    <div class="card-body d-flex flex-column p-4">
-                      <div class="d-flex align-items-center mb-3">
-                        ${s.icon ? `<img src="${s.icon}" class="rounded-circle me-3" style="width:56px;height:56px;object-fit:contain; border: 2px solid var(--bs-primary);" alt="${s.name} icon">` : '<div class="me-3 d-flex align-items-center justify-content-center bg-light-subtle rounded-circle" style="width:56px;height:56px; border: 2px solid var(--bs-gray-300);"><i class="fas fa-chart-line fa-2x text-primary"></i></div>'}
-                        <div class="flex-grow-1">
-                          <h5 class="card-title mb-1 fw-bold text-dark">${s.name}</h5>
-                          <p class="card-subtitle text-muted small">${s.asset_class || 'Stocks'} - ${s.style || 'Systematic'}</p>
-                        </div>
-                        <span class="badge ${s.is_active ? 'bg-success-subtle text-success':'bg-secondary-subtle text-secondary'} fw-semibold py-2 px-3 rounded-pill">${s.is_active ? 'Active':'Inactive'}</span>
-                      </div>
-                      <p class="card-text text-muted mb-3">${s.description || 'No description provided for this strategy.'}</p>
-                      <p class="small text-muted mb-3"><i class="fas fa-users me-2"></i> Accounts: ${accText}</p>
-                      
-                      <div class="mb-3">
-                        <label class="form-label small text-muted mb-1">Webhook URL</label>
-                        <div class="input-group input-group-sm">
-                          <input type="text" class="form-control bg-light font-monospace" value="${webhookUrl}" readonly>
-                          <button class="btn btn-outline-secondary copy-btn" data-clipboard-text="${webhookUrl}" title="Copy Webhook URL"><i class="bi bi-clipboard"></i></button>
-                          <button class="btn btn-outline-secondary regen-btn" data-strategy-id="${s.id}" title="Regenerate Secret"><i class="bi bi-arrow-clockwise"></i></button>
-                          <button class="btn btn-outline-secondary test-btn" data-strategy-id="${s.id}" title="Test Webhook"><i class="bi bi-play-circle"></i></button>
-                        </div>
-                      </div>
-                      
-                      <div class="mt-auto d-flex flex-wrap justify-content-end gap-2 pt-3 border-top">
-                        <button class="btn btn-sm ${s.is_active?'btn-warning':'btn-success'} activate-toggle-btn" data-strategy-id="${s.id}">
-                          <i class="bi ${s.is_active ? 'bi-pause-circle':'bi-play-circle'} me-1"></i> ${s.is_active ? 'Deactivate':'Activate'}
-                        </button>
-                        <button class="btn btn-sm btn-info clone-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-copy me-1"></i> Clone
-                        </button>
-                        <button class="btn btn-sm btn-secondary payload-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-file-earmark-text me-1"></i> Payload
-                        </button>    
-                        <a href="/strategy-performance/${s.id}" class="btn btn-sm btn-outline-secondary">
-                          <i class="bi bi-graph-up me-1"></i> Logs
-                        </a>
-                        <button class="btn btn-sm btn-primary edit-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-pencil me-1"></i> Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-strategy-id="${s.id}">
-                          <i class="bi bi-trash me-1"></i> Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
-                strategiesGrid.insertAdjacentHTML('beforeend', cardHtml);
-            });
-
-            // Re-attach event listeners after rendering
-            attachStrategyEventListeners();
-        }).catch(error => {
-            console.error("Error loading accounts for rendering:", error);
-            // Fallback to showing no strategies if accounts fail to load
-            strategiesGrid.style.display = 'none';
-            noStrategiesState.style.display = 'block';
-        });
-    }
-
-    function attachStrategyEventListeners() {
-        document.querySelectorAll('.copy-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>navigator.clipboard.writeText(btn.dataset.clipboardText));
-        });
-        document.querySelectorAll('.regen-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                if(!confirm('Are you sure you want to regenerate the secret for this strategy? This will invalidate any existing webhook URLs using the old secret.')) return;
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}/regenerate-secret`,{method:'POST'}).then(loadStrategies);
-            });
-        });
-        document.querySelectorAll('.test-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}/test-webhook`,{method:'POST'}).then(o=>alert('Webhook test status: ' + (o.status || 'Unknown')));
-            });
-        });
-        document.querySelectorAll('.activate-toggle-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                const action=btn.textContent.includes('Deactivate')?'deactivate':'activate';
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}/${action}`,{method:'POST'}).then(loadStrategies);
-            });
-        });
-        document.querySelectorAll('.clone-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}/clone`,{method:'POST'}).then(loadStrategies);
-            });
-        });
-        document.querySelectorAll('.payload-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                const sid = btn.dataset.strategyId;
-                const webhookUrl = btn.closest('.card').querySelector('input.form-control').value;
-                let payloadObj = {};
-                try {
-                    payloadObj = JSON.parse(localStorage.getItem('strategyPayload_'+sid) || '{}');
-                } catch(e) {}
-
-                if(Object.keys(payloadObj).length === 0){
-                    const strategy = allStrategies.find(s => String(s.id) === String(sid));
-                    payloadObj = buildPayloadFromStrategy(strategy);
-                }
-
-                payloadObj.exchange = expandBoth(payloadObj.exchange, ['NSE','BSE']);
-                if(payloadObj.transactionType){
-                    payloadObj.transactionType = expandBoth(payloadObj.transactionType, ['BUY','SELL']);
-                }
-                localStorage.setItem('strategyPayload_'+sid, JSON.stringify(payloadObj));
-
-                payloadWebhook.value = webhookUrl;
-                payloadJson.value = JSON.stringify(payloadObj, null, 2);
-                payloadModal.show();
-            });
-        });
-        document.querySelectorAll('.edit-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}`).then(data=>{
-                    editingId = data.id;
-                    modalEl.querySelector('.modal-title').textContent = 'Edit Strategy';
-                    
-                    const storedAllowedTickers = data.allowed_tickers || '';
-                    let baseName = data.name || '';
-                    if (storedAllowedTickers && storedAllowedTickers !== '__WATCHLIST_DYNAMIC__') {
-                        const suffix = ` (${storedAllowedTickers})`;
-                        if (baseName.endsWith(suffix)) {
-                            baseName = baseName.slice(0, -suffix.length);
-                        }
-                    }
-                    form.strategyName.value = baseName;
-                    loadMasterAccounts(data.master_accounts ? data.master_accounts.split(',') : []);
-
-                    // Load any locally stored payload details
-                    let savedPayload = {};
-                    try {
-                        savedPayload = JSON.parse(localStorage.getItem('strategyPayload_'+data.id) || '{}');
-                    } catch(e) {}
-                    
-                    if (storedAllowedTickers === '__WATCHLIST_DYNAMIC__') {
-                        watchlistModeRadio.checked = true;
-                    } else {
-                        singleSymbolModeRadio.checked = true;
-                        tradingSymbolsTextarea.value = storedAllowedTickers;
-                    }
-                    // Set other form fields, preferring saved payload values
-                    const exchField = savedPayload.exchange ?? data.exchange;
-                    if (Array.isArray(exchField)) {
-                        form.exchange.value = exchField.length === 2 ? 'BOTH' : exchField[0];
-                    } else {
-                        const val = String(exchField || 'NSE').toUpperCase();
-                        form.exchange.value = val === 'BOTH' ? 'BOTH' : (exchField || 'NSE');
-                    }
-                    const tTypeField = savedPayload.transactionType ?? data.transaction_type;
-                    if (Array.isArray(tTypeField)) {
-                        form.transactionType.value = tTypeField.length === 2 ? 'BOTH' : tTypeField[0];
-                    } else {
-                        const val = String(tTypeField || 'BUY').toUpperCase();
-                        form.transactionType.value = val === 'BOTH' ? 'BOTH' : (tTypeField || 'BUY');
-                    }
-
-                    const isManualMode = !savedPayload.action && !Array.isArray(tTypeField) && String(tTypeField || '').toUpperCase() !== 'BOTH';
-                    alertTypeManual.checked = isManualMode;
-                    alertTypeStrategy.checked = !isManualMode;
-
-                    form.orderType.value = savedPayload.orderType || data.order_type || 'limit';
-                    form.orderValidity.value = savedPayload.orderValidity || data.order_validity || 'day';
-                    form.productType.value = savedPayload.productType || data.product_type || 'intraday';
-                    form.orderQty.value = (savedPayload.orderQty ?? data.order_qty) || '';
-                    form.orderValue.value = (savedPayload.orderValue ?? data.order_value) || '';
-
-                    // Disable/enable quantity/value fields based on which one has a value
-                    form.orderQty.disabled = !!form.orderValue.value;
-                    form.orderValue.disabled = !!form.orderQty.value;
-
-                    updateSymbolInputMode(); // This also calls updateTokens and updateWebhookPreview
-                    updateAlertMode();
-
-                    // Reapply quantity/value after updates to avoid recalculation
-                    form.orderQty.value = (savedPayload.orderQty ?? data.order_qty) || '';
-                    form.orderValue.value = (savedPayload.orderValue ?? data.order_value) || '';
-                    form.orderQty.disabled = !!form.orderValue.value;
-                    form.orderValue.disabled = !!form.orderQty.value;
-
-                    updateWebhookPreview();
-                    modal.show();
-                });
-            });
-        });
-        document.querySelectorAll('.delete-btn').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                if(!confirm('Are you sure you want to delete this strategy? This action cannot be undone.')) return;
-                fetchJson(`/api/strategies/${btn.dataset.strategyId}`,{method:'DELETE'}).then(()=>{
-                    localStorage.removeItem('strategyPayload_'+btn.dataset.strategyId);
-                    loadStrategies();
-                });
-            });
-        });
-    }
-
-    function loadStrategies(){
-        Promise.all([
-            fetchJson('/api/strategies'),
-            fetchJson('/api/accounts?cache_only=1') // Ensure accounts are loaded for filter dropdown
-        ]).then(([list, accData]) => {
-            allStrategies = list; // Store all strategies
-            renderStrategies(allStrategies); // Render initially
-            // Populate account filter dropdown
-            const filterAccountSelect = document.getElementById('strategy-filter-account');
-            filterAccountSelect.innerHTML = '<option value="">All Accounts</option>'; // Reset
-            const uniqueAccounts = new Set();
-            (accData.accounts || []).forEach(a => {
-                const name = a.username ? `${a.username} (${a.client_id})` : a.client_id;
-                uniqueAccounts.add(JSON.stringify({id: a.id, name: `${a.broker || ''} - ${name}`}));
-            });
-            Array.from(uniqueAccounts).map(JSON.parse).sort((a,b) => a.name.localeCompare(b.name)).forEach(acc => {
-                filterAccountSelect.insertAdjacentHTML('beforeend', `<option value="${acc.id}">${acc.name}</option>`);
-            });
-        }).catch(error => {
-            console.error("Error loading strategies:", error);
-            strategiesGrid.style.display = 'none';
-            noStrategiesState.style.display = 'block';
-        });
-    }
-
-    // Filtering logic
-    const strategySearchInput = document.getElementById('strategy-search');
-    const strategyFilterStatus = document.getElementById('strategy-filter-status');
-    const strategyFilterAccount = document.getElementById('strategy-filter-account');
-
-    function applyFilters() {
-        const searchTerm = strategySearchInput.value.toLowerCase();
-        const filterStatus = strategyFilterStatus.value;
-        const filterAccount = strategyFilterAccount.value;
-
-        const filteredStrategies = allStrategies.filter(s => {
-            const matchesSearch = s.name.toLowerCase().includes(searchTerm);
-            const matchesStatus = filterStatus === '' || (s.is_active ? 'active' : 'inactive') === filterStatus;
-            const matchesAccount = filterAccount === '' || (s.master_accounts && s.master_accounts.split(',').includes(filterAccount));
-            
-            return matchesSearch && matchesStatus && matchesAccount;
-        });
-        renderStrategies(filteredStrategies);
-    }
-
-    strategySearchInput.addEventListener('input', applyFilters);
-    strategyFilterStatus.addEventListener('change', applyFilters);
-    strategyFilterAccount.addEventListener('change', applyFilters);
-
-
-    createStrategyBtn && createStrategyBtn.addEventListener('click', ()=>{ resetForm(); modal.show(); });
-    createStrategyBtnAlt && createStrategyBtnAlt.addEventListener('click', ()=>{ resetForm(); modal.show(); });
-
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        const name = form.strategyName.value.trim();
-        const selectedAccounts = getSelectedAccounts();
-
-        if(!name){ alert('Strategy Name is required'); return; }
-
-        const isSingleSymbolMode = singleSymbolModeRadio.checked;
-        let symbolsToProcessForPreview = [];
-        let strategyNameForDB = name;
-        let tradingSymbolsForDb = '';
-
-        if (isSingleSymbolMode) {
-            const singleSymbol = tradingSymbolsTextarea.value.trim();
-            if (!singleSymbol) {
-                alert('Enter a trading symbol for single symbol mode');
-                return;
-            }
-            symbolsToProcessForPreview = [singleSymbol];
-            tradingSymbolsForDb = singleSymbol;
-            // For single symbol mode, append symbol to strategy name for clarity in DB
-            strategyNameForDB = `${name} (${singleSymbol})`; 
-        } else {
-            symbolsToProcessForPreview = ["{% raw %}{{ticker}}{% endraw %}"];
-            tradingSymbolsForDb = "__WATCHLIST_DYNAMIC__";
-            strategyNameForDB = name; // Keep original name for dynamic watchlist
-        }
-
-        const exchVal = expandBoth(form.exchange.value, ['NSE','BSE']);
-        const ttypeVal = expandBoth(form.transactionType.value, ['BUY','SELL']);
-        const commonPayload = {
-            name: strategyNameForDB,
-            master_accounts: selectedAccounts.join(','), // Store as comma-separated string
-            allowed_tickers: tradingSymbolsForDb,
-            exchange: exchVal,
-            transaction_type: ttypeVal,
-            order_type: form.orderType.value,
-            order_validity: form.orderValidity.value,
-            product_type: form.productType.value,
-            order_qty: form.orderQty.value ? parseFloat(form.orderQty.value) : null,
-            order_value: form.orderValue.value ? parseFloat(form.orderValue.value) : null,
-            asset_class:'Stocks', // Default for now, could be a form field later
-            style:'Systematic' // Default for now, could be a form field later
-        };
-
-        let apiCall;
-        if(editingId){
-            apiCall = fetchJson(`/api/strategies/${editingId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(commonPayload)});
-        } else {
-            apiCall = fetchJson('/api/strategies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(commonPayload)});
-        }
-
-        apiCall.then(res=>{
-            const strategyId = editingId || res.id; // Get ID for local storage
-            let cp = {};
-            try {
-                cp = JSON.parse(webhookPreview.value || '{}');
-            } catch(e) {}
-            localStorage.setItem('strategyPayload_'+strategyId, JSON.stringify(cp));
-            modal.hide();
-            loadStrategies();
-        })
-        .catch(error => {
-            alert('Error saving strategy: ' + error.message);
-            console.error('Error saving strategy:', error);
-        });
-
-        updateWebhookPreview();
+    document.querySelectorAll('.strategy-btn-status').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        toggleStrategyStatus(btn);
+      });
     });
 
-    loadSymbols();
-    loadMasterAccounts(); // This also populates the filter dropdown
-    loadStrategies();
-};
+    document.querySelectorAll('.strategy-btn-clone').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        alert('Strategy cloned successfully');
+      });
+    });
+
+    document.querySelectorAll('.strategy-btn-payload').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const webhook = btn.getAttribute('data-webhook');
+        const payload = btn.getAttribute('data-payload');
+        openPayloadModal(webhook, payload || '{}');
+      });
+    });
+
+    document.querySelectorAll('.strategy-btn-logs').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        alert('Opening logs...');
+      });
+    });
+
+    document.querySelectorAll('.strategy-btn-edit').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const title = btn.getAttribute('data-strategy-title');
+        openEditForm(title || 'Strategy');
+      });
+    });
+
+    document.querySelectorAll('.strategy-btn-delete').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const title = btn.getAttribute('data-strategy-title') || 'this strategy';
+        if (confirm('Are you sure you want to delete ' + title + '?')) {
+          alert('Strategy deleted');
+          const card = btn.closest('.strategy-card');
+          if (card) {
+            card.remove();
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll('.strategy-icon-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const action = btn.getAttribute('data-action');
+        if (action === 'copy') {
+          const webhook = btn.getAttribute('data-webhook');
+          copyToClipboard(webhook || '');
+        } else if (action === 'refresh') {
+          alert('Webhook URL refreshed');
+        } else if (action === 'test') {
+          alert('Testing webhook...');
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-close="edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        closeStrategyModal(editForm);
+      });
+    });
+
+    document.querySelectorAll('[data-close="payload"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        closeStrategyModal(payloadModal);
+      });
+    });
+
+    document.getElementById('saveStrategyChanges').addEventListener('click', function () {
+      alert('Changes saved!');
+      closeStrategyModal(editForm);
+    });
+
+    document.querySelectorAll('.strategy-copy-icon-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const target = btn.getAttribute('data-copy-target');
+        if (target === 'webhook') {
+          const webhook = document.getElementById('webhookUrl').textContent;
+          copyToClipboard(webhook);
+        } else if (target === 'payload') {
+          const payload = document.getElementById('payloadCode').textContent;
+          copyToClipboard(payload);
+        }
+      });
+    });
+
+    editForm.addEventListener('click', function (event) {
+      if (event.target === editForm) {
+        closeStrategyModal(editForm);
+      }
+    });
+
+    payloadModal.addEventListener('click', function (event) {
+      if (event.target === payloadModal) {
+        closeStrategyModal(payloadModal);
+      }
+    });
+  });
 </script>
-{% endblock %}
-
-{% block style %}
-<style>
-/* General Styling */
-body {
-    font-family: 'Inter', sans-serif; /* Modern sans-serif font */
-    background-color: #f8f9fa; /* Light background */
-    color: #343a40; /* Darker text for readability */
-}
-
-.container-fluid {
-    max-width: 1400px; /* Max width for content */
-}
-
-/* Headings */
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif; /* A more distinct font for headings */
-    font-weight: 600;
-    color: #212529;
-}
-
-.display-5 {
-    font-size: 2.5rem;
-}
-
-.text-primary {
-    color: #007bff !important; /* Bootstrap primary blue */
-}
-
-.text-muted {
-    color: #6c757d !important;
-}
-
-/* Buttons */
-.btn-primary {
-    background-color: #007bff;
-    border-color: #007bff;
-    transition: all 0.2s ease-in-out;
-}
-.btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-    transform: translateY(-1px);
-}
-.btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1.1rem;
-    border-radius: 0.5rem;
-}
-.btn-sm {
-    padding: 0.3rem 0.75rem;
-    font-size: 0.875rem;
-    border-radius: 0.3rem;
-}
-
-/* Cards */
-.card {
-    border-radius: 0.75rem;
-    border: none; /* Remove default border */
-    transition: all 0.2s ease-in-out;
-}
-.card.shadow-sm {
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important;
-}
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 .25rem .5rem rgba(0, 0, 0, .1) !important;
-}
-
-/* Empty State */
-.empty-state {
-    background-color: #ffffff;
-    border: 2px dashed #e9ecef;
-    border-radius: 1rem;
-    color: #6c757d;
-}
-.empty-state-icon {
-    color: #adb5bd;
-}
-
-/* Search and Filter Bar */
-.input-group .form-control,
-.input-group .input-group-text,
-.form-select {
-    border-radius: 0.5rem;
-    border-color: #ced4da;
-}
-.input-group-text {
-    background-color: #f8f9fa;
-}
-.form-select {
-    background-color: #ffffff;
-}
-
-/* Strategy Card Specifics */
-.strategy-card-item .card-body {
-    display: flex;
-    flex-direction: column;
-}
-.strategy-card-item .card-title {
-    font-size: 1.35rem;
-    margin-bottom: 0.25rem;
-}
-.strategy-card-item .card-subtitle {
-    font-size: 0.9rem;
-}
-.strategy-card-item .badge {
-    font-size: 0.85em;
-    padding: 0.5em 0.8em;
-    border-radius: 1rem;
-}
-.bg-success-subtle {
-    background-color: #d4edda !important;
-}
-.text-success {
-    color: #28a745 !important;
-}
-.bg-secondary-subtle {
-    background-color: #e2e3e5 !important;
-}
-.text-secondary {
-    color: #6c757d !important;
-}
-
-.strategy-card-item .input-group-sm .form-control,
-.strategy-card-item .input-group-sm .btn {
-    font-size: 0.8rem;
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.3rem;
-}
-.strategy-card-item .input-group-sm .btn {
-    border-color: #ced4da;
-}
-
-.strategy-card-item .mt-auto {
-    padding-top: 1rem;
-    border-top: 1px solid #e9ecef;
-}
-.strategy-card-item .btn {
-    white-space: nowrap; /* Prevent buttons from wrapping text */
-}
-
-/* Modal Styling */
-.modal-content {
-    border-radius: 1rem;
-    border: none;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-.modal-header {
-    border-bottom: none;
-    padding: 1.5rem;
-}
-.modal-title {
-    font-size: 1.5rem;
-}
-.modal-body {
-    padding: 2rem;
-}
-.modal-footer {
-    border-top: none;
-    padding: 1.5rem;
-}
-.btn-close-white {
-    filter: invert(1) grayscale(100%) brightness(200%); /* Makes close button white */
-}
-
-/* Form Elements in Modal */
-.form-label {
-    font-weight: 600;
-    color: #495057;
-    display: flex;
-    align-items: center;
-}
-.form-control, .form-select {
-    border-radius: 0.4rem;
-    border: 1px solid #ced4da;
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-}
-.form-control:focus, .form-select:focus {
-    border-color: #80bdff;
-    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
-}
-.form-text {
-    font-size: 0.875rem;
-    color: #6c757d;
-}
-.bg-light-subtle {
-    background-color: #f0f2f5 !important;
-}
-.font-monospace {
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace !important;
-}
-
-/* Tooltip Icon */
-.form-label .fa-info-circle {
-    cursor: help;
-    font-size: 0.9em;
-    color: #adb5bd;
-    transition: color 0.2s ease-in-out;
-}
-.form-label .fa-info-circle:hover {
-    color: #6c757d;
-}
-
-/* Custom styles for specific elements */
-#strategy-accounts {
-    max-height: 150px;
-    overflow-y: auto;
-}
-</style>
 {% endblock %}
