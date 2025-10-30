@@ -5,6 +5,8 @@
 {% block styles %}
 <style>
 
+
+
   .strategies-page-root {
     background: #f5f5f5;
     margin: -1.5rem -1.5rem 0;
@@ -665,6 +667,67 @@
     border-radius: 8px !important;
   }
 
+/* Compact + properly sized cards grid fix */
+.strategy-cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)) !important;
+  gap: 14px !important;
+  justify-content: center !important;
+  align-items: start !important;
+}
+
+/* Restrict card width to prevent full stretch */
+.strategy-card {
+  max-width: 360px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  padding: 10px 12px 10px !important;
+  border-radius: 14px !important;
+}
+
+/* Make overall layout tighter */
+.strategies-page {
+  max-width: 1180px !important;
+  padding: 0 20px 28px !important;
+  margin-left: 10px;
+}
+
+/* Reduce header and button spacing */
+.strategy-card-header {
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+.strategy-btn-row {
+  gap: 6px !important;
+}
+.strategy-btn {
+  padding: 7px 6px !important;
+  font-size: 12.5px !important;
+  border-radius: 8px !important;
+}
+
+/* Avatar and title adjustments */
+.strategy-avatar {
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 16px !important;
+}
+.strategy-card-title {
+  font-size: 15px !important;
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+/* Webhook and label spacing */
+.strategy-webhook-section {
+  margin-bottom: 10px !important;
+}
+.strategy-webhook-box {
+  padding: 5px 8px !important;
+}
+.strategy-webhook-url {
+  font-size: 11.5px !important;
+}
 </style>
 {% endblock %}
 
