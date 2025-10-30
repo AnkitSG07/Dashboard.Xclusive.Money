@@ -1164,7 +1164,6 @@ def clone_strategy(strategy_id):
         risk_max_allocation=src.risk_max_allocation,
         schedule=src.schedule,
         webhook_secret=secrets.token_hex(16),
-        webhook_secret=src.webhook_secret,
         track_performance=src.track_performance,
         log_retention_days=src.log_retention_days,
         is_public=src.is_public,
