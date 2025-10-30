@@ -7458,7 +7458,14 @@ def demat_notifications():
 @app.route('/demat-strategies')
 @login_required
 def demat_strategies():
-    return render_template("demat-strategies.html")
+    user = current_user()
+    webhook_base = ""
+    if user and user.webhook_token:
+        try:
+            webhook_base = url_for("webhook", token=user.webhook_token, _external=True)
+        except RuntimeError:
+            webhook_base = url_for("webhook", token=user.webhook_token, _external=False)
+    return render_template("demat-strategies.html", webhook_base=webhook_base)
     
 @app.route('/create-alerts')
 @login_required
