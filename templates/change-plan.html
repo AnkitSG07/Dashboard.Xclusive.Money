@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+
   :root {
     --cp-page-bg: #f3f4ff;
     --cp-bg: #eef0ff;
@@ -477,6 +478,85 @@
       text-align: left !important;
     }
   }
+/* ==== FORCE DESKTOP-STYLE TABLE ON MOBILE ==== */
+@media (max-width: 768px) {
+
+  /* 1. bring table elements back to normal */
+  .cp-features-table,
+  .cp-features-table tbody,
+  .cp-features-table tr,
+  .cp-features-table td,
+  .cp-features-table thead,
+  .cp-features-table th {
+    display: table;
+  }
+
+  .cp-features-table {
+    width: 100%;
+    table-layout: fixed;      /* fit 4 columns */
+    border-collapse: collapse;
+    
+  }
+
+  /* 2. show header again */
+  .cp-features-table thead {
+    margin-bottom: 12px;
+  }
+
+  /* 3. cells + header compact */
+  .cp-features-table thead th {
+    display: inline;
+    font-size: 0.78rem;
+    padding: 6px 29px;
+    text-align: center;
+    white-space: normal;
+    background: none;
+  }
+  .cp-features-table thead th:first-child {
+    text-align: left;
+    width: 34%;
+  }
+
+  .cp-features-table tbody tr {
+    display: table-row;
+  }
+
+  .cp-features-table tbody td {
+    display: table-cell;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 0.72rem;
+    vertical-align: middle;
+  }
+  .cp-features-table tbody td:first-child {
+    text-align: left;
+    font-weight: 500;
+  }
+
+  /* 4. equal plan columns */
+  .cp-features-table thead th:nth-child(n+2),
+  .cp-features-table tbody td:nth-child(n+2) {
+    width: 22%;
+  }
+
+  /* 5. icons smaller */
+  .cp-check {
+    width: 14px;
+    height: 14px;
+    font-size: 0.55rem;
+  }
+  .cp-xmark {
+    font-size: 0.85rem;
+  }
+
+  /* 6. wrapper */
+  .cp-table-card {
+    overflow: visible;
+    padding-inline: 11px;
+    padding-block-end: 12px;
+  }
+}
+
 </style>
 <div class="cp-page">
   <div class="cp-content">
