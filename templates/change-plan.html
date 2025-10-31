@@ -1,498 +1,716 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
 {% block title %}Change Plan{% endblock %}
+
 {% block content %}
 <style>
-  .change-plan-wrapper {
-    max-width: 1100px;
+  :root {
+    --cp-page-bg: #f3f4ff;
+    --cp-bg: #eef0ff;
+    --cp-surface: #ffffff;
+    --cp-hero-bg: radial-gradient(circle at top, rgba(106, 98, 255, 0.16), #f6f5ff 55%);
+    --cp-border: rgba(110, 116, 134, 0.22);
+    --cp-line: rgba(15, 23, 42, 0.06);
+    --cp-text: #0f172a;
+    --cp-muted: #6b7280;
+    --cp-heading: #0c1220;
+    --cp-accent: #f97316;
+    --cp-accent2: #f68e24;
+    --cp-purple-chip: #e2d5ff;
+    --cp-lavender: #ece7ff;
+    --cp-lavender-soft: #f3f0ff;
+    --cp-check: #22c55e;
+    --cp-x: #ef4444;
+    --cp-radius-lg: 1.4rem;
+  }
+
+  .cp-page {
+    min-height: 100vh;
+    background: #edf0ff;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--cp-text);
+  }
+
+  .cp-content {
+    max-width: 1180px;
     margin: 0 auto;
-    padding: 2.5rem 1.5rem 3rem;
+    padding: 16px 12px 40px;
   }
 
-  .change-plan-wrapper h1 {
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    color: var(--text-primary);
+  @media (min-width: 768px) {
+    .cp-content {
+      padding: 24px 0 50px;
+    }
   }
 
-  .billing-toggle {
-    display: inline-flex;
-    padding: 0.25rem;
-    border-radius: 999px;
-    background: var(--surface-muted);
-    gap: 0.35rem;
-    margin-bottom: 2rem;
+  .cp-hero {
+    background: var(--cp-hero-bg);
+    border: 1px solid rgba(122, 122, 211, 0.18);
+    border-radius: 1.25rem;
+    padding: 22px 20px 26px;
+    margin-bottom: 16px;
+    box-shadow: 0 3px 10px rgba(132, 128, 255, 0.06);
   }
 
-  .billing-toggle__btn {
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
+  .cp-hero-label {
+    font-size: 0.62rem;
+    letter-spacing: .14em;
     text-transform: uppercase;
-    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    padding: 0.55rem 1.35rem;
-    border-radius: 999px;
-    transition: all 0.2s ease;
-    cursor: pointer;
+    color: #6f6bb2;
+    margin-bottom: 10px;
   }
 
-  .billing-toggle__btn.is-active {
-    background: #111;
-    color: #fff;
-    box-shadow: 0 8px 16px rgba(17, 17, 17, 0.2);
+  .cp-hero-title {
+    font-size: clamp(2.1rem, 3.3vw, 2.4rem);
+    font-weight: 700;
+    line-height: 1.05;
+    color: #0f172a;
   }
 
-  [data-theme="dark"] .billing-toggle__btn.is-active {
-    background: #f5f5f5;
-    color: #111;
+  .cp-hero-sub {
+    font-size: clamp(2rem, 3vw, 2.3rem);
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 3px;
   }
 
-  .plan-cycles {
-    position: relative;
+  .cp-card {
+    background: var(--cp-surface);
+    border: 1px solid rgba(134, 137, 170, 0.22);
+    border-radius: 1.1rem;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.02);
+    margin-bottom: 16px;
   }
 
-  .plan-cycle {
-    display: none;
+  .cp-card-header {
+    padding: 14px 16px 6px;
   }
 
-  .plan-cycle.is-active {
-    display: block;
+  .cp-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #01040c;
+    margin-bottom: 4px;
   }
 
-  .plan-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1.75rem;
+  .cp-card-sub {
+    font-size: 0.8rem;
+    color: var(--cp-muted);
   }
 
-  .plan-card {
-    border-radius: 24px;
-    padding: 2.2rem 2rem;
-    background: var(--surface-card);
-    position: relative;
-    box-shadow: 0 25px 45px rgba(17, 24, 64, 0.08);
-    border: 1px solid rgba(17, 24, 64, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+  .cp-card-body {
+    padding: 10px 16px 16px;
   }
 
-  .plan-card--professional {
-    background: linear-gradient(180deg, #fff9eb 0%, #ffe8b8 100%);
-  }
-
-  .plan-card--enterprise {
-    background: linear-gradient(180deg, #e9fff6 0%, #c9ffe7 100%);
-  }
-
-  .plan-card--custom {
-    background: linear-gradient(180deg, #ffeef5 0%, #ffd9e6 100%);
-  }
-
-  .plan-card__header {
+  .cp-subscription-box {
+    background: var(--cp-surface);
+    border: 1px solid rgba(124, 126, 143, 0.16);
+    border-radius: .85rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
+    padding: 14px 14px;
   }
 
-  .plan-card__name {
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .cp-subscription-box p {
+    margin: 0;
   }
 
-  .plan-card__badge {
-    background: #111;
-    color: #fff;
-    border-radius: 999px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.7rem;
+  .cp-sub-title {
     font-weight: 600;
-    text-transform: uppercase;
+    font-size: .92rem;
   }
 
-  .plan-card__price {
+  .cp-sub-date {
+    font-size: .7rem;
+    color: var(--cp-muted);
+    margin-top: .2rem;
+  }
+
+  .cp-btn-outlined {
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: var(--cp-surface);
+    border-radius: 999px;
+    font-size: .7rem;
+    padding: 7px 18px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .cp-pricing-card {
+    background: var(--cp-surface);
+    border: 1px solid rgba(134, 137, 170, 0.22);
+    border-radius: 1.1rem;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+
+  .cp-pricing-header {
+    padding: 14px 16px 8px;
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+  }
+
+  .cp-pricing-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 14px;
+    background: #f2ebff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #5f3fff;
+    font-size: .8rem;
+  }
+
+  .cp-pricing-title {
+    font-weight: 700;
+    font-size: .95rem;
+  }
+
+  .cp-pricing-sub {
+    font-size: .7rem;
+    color: var(--cp-muted);
+  }
+
+  .cp-pricing-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 8px 16px 0;
+  }
+
+  .cp-form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 5px;
   }
 
-  .plan-card__amount {
+  .cp-form-label {
+    font-size: .62rem;
+    font-weight: 600;
+    color: var(--cp-text);
+  }
+
+  .cp-select-box {
+    position: relative;
+  }
+
+  .cp-select-box select {
+    width: 100%;
+    padding: 8px 30px 8px 10px;
+    border-radius: .65rem;
+    border: 1px solid rgba(121, 125, 165, 0.4);
+    background: var(--cp-surface);
+    font-size: .74rem;
+    outline: none;
+    appearance: none;
+  }
+
+  .cp-select-box::after {
+    content: "▾";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .6rem;
+    color: var(--cp-muted);
+    pointer-events: none;
+  }
+
+  .cp-calc-panel {
+    margin: 14px 16px 0;
+    background: #ece7ff;
+    border: 1px solid rgba(118, 111, 217, 0.2);
+    border-radius: 1rem;
+    padding: 22px 16px 14px;
+  }
+
+  .cp-calc-price {
+    text-align: center;
+  }
+
+  .cp-calc-label-top {
+    font-size: .55rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--cp-muted);
+    margin-bottom: 6px;
+  }
+
+  .cp-calc-amount {
     font-size: 2.4rem;
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1;
   }
 
-  .plan-card__strikethrough {
-    font-size: 0.95rem;
-    text-decoration: line-through;
-    color: rgba(0, 0, 0, 0.45);
+  .cp-calc-per {
+    font-size: .7rem;
+    color: var(--cp-muted);
+    display: block;
+    margin-top: 3px;
   }
 
-  .plan-card__gst {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+  .cp-calc-meta {
+    margin-top: 6px;
+    font-size: .65rem;
+    color: #4b5563;
   }
 
-  .plan-card__features {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-    font-size: 0.95rem;
-  }
-
-  .plan-card__cta {
+  .cp-btn-pay {
+    width: 160px;
+    height: 32px;
     border: none;
-    border-radius: 999px;
-    padding: 0.75rem 1.25rem;
-    font-weight: 600;
-    background: #111;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f97316 0%, #f5b300 100%);
     color: #fff;
+    font-size: .73rem;
+    font-weight: 600;
+    margin: 10px auto 0;
+    display: block;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
   }
 
-  .plan-card__cta:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 20px rgba(17, 17, 17, 0.18);
-  }
-
-  .plan-card__cta--secondary {
-    background: transparent;
-    color: #111;
-    border: 1px solid rgba(17, 17, 17, 0.2);
-    box-shadow: none;
-  }
-
-  .plan-card__meta {
-    margin: 0;
-    font-size: 0.85rem;
+  .cp-pill-refund {
+    width: max-content;
+    margin: 10px auto 0;
+    background: rgba(133, 92, 248, 0.12);
+    color: #5f3fff;
+    font-size: .6rem;
+    padding: 5px 14px 5px;
+    border-radius: 999px;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.6);
   }
 
-  .plan-card__form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
+  .cp-safe-box {
+    margin-top: 14px;
+    background: var(--cp-surface);
+    border-radius: .7rem;
+    padding: 12px 14px 12px;
+    border: 1px solid rgba(134, 137, 170, 0.25);
   }
 
-  .plan-card__label {
-    font-size: 0.78rem;
+  .cp-safe-title {
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: .78rem;
+    margin-bottom: 3px;
   }
 
-  .plan-card__input {
-    border-radius: 14px;
+  .cp-safe-sub {
+    font-size: .6rem;
+    color: var(--cp-muted);
+    margin-bottom: 10px;
+  }
+
+  .cp-safe-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .cp-safe-pill {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    background: #e2ddff;
+    border-radius: .6rem;
+    padding: 5px 10px 5px;
+    font-size: .6rem;
+    font-weight: 500;
+    color: #2e2565;
+  }
+
+  .cp-payment-icons span {
+    display: inline-block;
+    width: 26px;
+    height: 16px;
+    background: #f4f4f4;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+
+  .cp-table-card {
+    background: var(--cp-surface);
+    border: 1px solid rgba(124, 126, 143, 0.18);
+    border-radius: 1.1rem;
+    overflow: hidden;
+  }
+
+  .cp-table-header {
+    padding: 16px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .cp-features-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .73rem;
+  }
+
+  .cp-features-table thead th {
+    background: #f5f4ff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .cp-features-table thead th:not(:first-child) {
+    text-align: center;
+  }
+
+  .cp-features-table tbody td {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.025);
+    padding: 9px 12px;
+  }
+
+  .cp-features-table tbody td:nth-child(1) {
+    font-weight: 500;
+    width: 32%;
+  }
+
+  .cp-features-table tbody td:not(:first-child) {
+    text-align: center;
+  }
+
+  .cp-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(25, 190, 107, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .6rem;
+    color: var(--cp-check);
+  }
+
+  .cp-xmark {
+    font-size: 1rem;
+    color: var(--cp-x);
+    font-weight: 600;
+    line-height: 0;
+    display: inline-block;
+    transform: translateY(2px);
+  }
+
+  .cp-faq-card {
+    background: var(--cp-surface);
+    border: 1px solid rgba(124, 126, 143, 0.14);
+    border-radius: 1.1rem;
+    margin-top: 16px;
+  }
+
+  .cp-faq-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 16px 16px 4px;
+  }
+
+  .cp-faq-item {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  }
+
+  .cp-faq-btn {
+    width: 100%;
+    padding: 10px 16px 10px;
+    background: none;
     border: none;
-    padding: 0.6rem 0.85rem;
-    font-size: 0.95rem;
-    background: rgba(255, 255, 255, 0.85);
+    text-align: left;
+    font-weight: 500;
+    font-size: .78rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
   }
 
-  .plan-card--custom .plan-card__cta {
-    align-self: flex-start;
-    margin-top: 0.5rem;
-    background: #111;
-    color: #fff;
+  .cp-faq-content {
+    display: none;
+    padding: 0 16px 12px;
+    font-size: .7rem;
+    color: var(--cp-muted);
   }
 
-  @media (max-width: 768px) {
-    .change-plan-wrapper {
-      padding: 2rem 0.5rem 2.5rem;
+  .cp-faq-item.cp-active .cp-faq-content {
+    display: block;
+  }
+
+  @media (max-width: 900px) {
+    .cp-pricing-filters {
+      grid-template-columns: 1fr;
     }
 
-    .plan-card {
-      padding: 2rem 1.5rem;
+    .cp-calc-panel {
+      padding: 20px 10px 14px;
     }
 
-    .plan-card__amount {
-      font-size: 2rem;
+    .cp-features-table thead {
+      display: none;
+    }
+
+    .cp-features-table,
+    .cp-features-table tbody,
+    .cp-features-table tr,
+    .cp-features-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .cp-features-table tr {
+      border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+      padding: 8px 0;
+    }
+
+    .cp-features-table td {
+      text-align: left !important;
     }
   }
 </style>
-<div class="change-plan-wrapper">
-  <div class="billing-toggle" role="tablist" aria-label="Billing cycle selector">
-    <button type="button" class="billing-toggle__btn is-active" data-cycle="monthly" role="tab" aria-selected="true">monthly</button>
-    <button type="button" class="billing-toggle__btn" data-cycle="quarterly" role="tab" aria-selected="false">quarterly</button>
-    <button type="button" class="billing-toggle__btn" data-cycle="half-yearly" role="tab" aria-selected="false">half-yearly</button>
-    <button type="button" class="billing-toggle__btn" data-cycle="yearly" role="tab" aria-selected="false">yearly</button>
-  </div>
+<div class="cp-page">
+  <div class="cp-content">
+    <div class="cp-hero">
+      <div class="cp-hero-label">Plans &amp; Packages</div>
+      <h1 class="cp-hero-title">Choose the Product</h1>
+      <h2 class="cp-hero-sub">That's Right for Your Business</h2>
+    </div>
 
-  <div class="plan-cycles">
-    <section class="plan-cycle is-active" data-cycle="monthly">
-      <div class="plan-grid">
-        <article class="plan-card plan-card--professional">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Professional</span>
-            <span class="plan-card__badge">Active</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">1899</span>
-            <span class="plan-card__strikethrough">2499</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>30 Days</li>
-            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
-            <li>3 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta plan-card__cta--secondary" type="button">Extend</button>
-          <p class="plan-card__meta">Validity to May 2025</p>
-        </article>
-
-        <article class="plan-card plan-card--enterprise">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Enterprise</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">3099</span>
-            <span class="plan-card__strikethrough">3799</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>30 Days</li>
-            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
-            <li>5 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Validity 30 Days</p>
-        </article>
-
-        <article class="plan-card plan-card--custom">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Custom</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">1899</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>Copy Trading with tailored limits</li>
-          </ul>
-          <form class="plan-card__form" action="#" method="post">
-            <label class="plan-card__label" for="custom-master-monthly">No of Master Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-master-monthly" name="master_accounts_monthly" value="3" min="1">
-            <label class="plan-card__label" for="custom-child-monthly">No of Child Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-child-monthly" name="child_accounts_monthly" value="30" min="0">
-            <label class="plan-card__label" for="custom-validity-monthly">Validity (in Days)</label>
-            <input class="plan-card__input" type="number" id="custom-validity-monthly" name="validity_monthly" value="30" min="1">
-            <button class="plan-card__cta" type="submit">Subscribe</button>
-          </form>
-        </article>
+    <div class="cp-card">
+      <div class="cp-card-header">
+        <div class="cp-card-title">Current Subscription</div>
+        <div class="cp-card-sub">Manage your active subscription</div>
       </div>
-    </section>
-
-    <section class="plan-cycle" data-cycle="quarterly">
-      <div class="plan-grid">
-        <article class="plan-card plan-card--professional">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Professional</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">4999</span>
-            <span class="plan-card__strikethrough">5799</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
+      <div class="cp-card-body">
+        <div class="cp-subscription-box">
+          <div>
+            <p class="cp-sub-title">Pro Plan</p>
+            <p class="cp-sub-date">Next billing date: January 15, 2026</p>
           </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>90 Days</li>
-            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
-            <li>3 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed every 3 months</p>
-        </article>
-
-        <article class="plan-card plan-card--enterprise">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Enterprise</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">7899</span>
-            <span class="plan-card__strikethrough">8699</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>90 Days</li>
-            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
-            <li>5 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed every 3 months</p>
-        </article>
-
-        <article class="plan-card plan-card--custom">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Custom</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">4999</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>Flexible trade limits</li>
-          </ul>
-          <form class="plan-card__form" action="#" method="post">
-            <label class="plan-card__label" for="custom-master-quarterly">No of Master Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-master-quarterly" name="master_accounts_quarterly" value="3" min="1">
-            <label class="plan-card__label" for="custom-child-quarterly">No of Child Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-child-quarterly" name="child_accounts_quarterly" value="42" min="0">
-            <label class="plan-card__label" for="custom-validity-quarterly">Validity (in Days)</label>
-            <input class="plan-card__input" type="number" id="custom-validity-quarterly" name="validity_quarterly" value="90" min="1">
-            <button class="plan-card__cta" type="submit">Subscribe</button>
-          </form>
-        </article>
+          <button class="cp-btn-outlined">Manage Subscription</button>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <section class="plan-cycle" data-cycle="half-yearly">
-      <div class="plan-grid">
-        <article class="plan-card plan-card--professional">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Professional</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">9299</span>
-            <span class="plan-card__strikethrough">9999</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>180 Days</li>
-            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
-            <li>3 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed every 6 months</p>
-        </article>
-
-        <article class="plan-card plan-card--enterprise">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Enterprise</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">13999</span>
-            <span class="plan-card__strikethrough">15199</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>180 Days</li>
-            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
-            <li>5 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed every 6 months</p>
-        </article>
-
-        <article class="plan-card plan-card--custom">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Custom</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">9299</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
-          </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>Dedicated success manager</li>
-          </ul>
-          <form class="plan-card__form" action="#" method="post">
-            <label class="plan-card__label" for="custom-master-half-yearly">No of Master Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-master-half-yearly" name="master_accounts_half_yearly" value="4" min="1">
-            <label class="plan-card__label" for="custom-child-half-yearly">No of Child Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-child-half-yearly" name="child_accounts_half_yearly" value="60" min="0">
-            <label class="plan-card__label" for="custom-validity-half-yearly">Validity (in Days)</label>
-            <input class="plan-card__input" type="number" id="custom-validity-half-yearly" name="validity_half_yearly" value="180" min="1">
-            <button class="plan-card__cta" type="submit">Subscribe</button>
-          </form>
-        </article>
+    <div class="cp-pricing-card" id="pricing-card">
+      <div class="cp-pricing-header">
+        <div class="cp-pricing-icon">₹</div>
+        <div>
+          <div class="cp-pricing-title">Pricing Calculator</div>
+          <div class="cp-pricing-sub">Customize your plan and see the cost</div>
+        </div>
       </div>
-    </section>
-
-    <section class="plan-cycle" data-cycle="yearly">
-      <div class="plan-grid">
-        <article class="plan-card plan-card--professional">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Professional</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">16999</span>
-            <span class="plan-card__strikethrough">18999</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
+      <div class="cp-pricing-filters">
+        <div class="cp-form-group">
+          <label class="cp-form-label" for="cp-product">Product (Select Multiple)</label>
+          <div class="cp-select-box">
+            <select id="cp-product">
+              <option value="copy-trading">1 product selected</option>
+              <option value="xm-gpt">XM GPT</option>
+              <option value="alert2trade">Alert2Trade</option>
+            </select>
           </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>365 Days</li>
-            <li>Copy Trading upto 32 Accounts (Excluding Masters)</li>
-            <li>3 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed annually</p>
-        </article>
-
-        <article class="plan-card plan-card--enterprise">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Enterprise</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">24999</span>
-            <span class="plan-card__strikethrough">26999</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
+        </div>
+        <div class="cp-form-group">
+          <label class="cp-form-label" for="cp-billing">Billing Cycle</label>
+          <div class="cp-select-box">
+            <select id="cp-billing">
+              <option value="monthly" selected>Monthly</option>
+              <option value="quarterly">Quarterly (-10%)</option>
+              <option value="yearly">Yearly (-25%)</option>
+            </select>
           </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>365 Days</li>
-            <li>Copy Trading upto 42 Accounts (Excluding Masters)</li>
-            <li>5 Master Accounts</li>
-          </ul>
-          <button class="plan-card__cta" type="button">Subscribe</button>
-          <p class="plan-card__meta">Billed annually</p>
-        </article>
-
-        <article class="plan-card plan-card--custom">
-          <header class="plan-card__header">
-            <span class="plan-card__name">Custom</span>
-          </header>
-          <div class="plan-card__price">
-            <span class="plan-card__amount">16999</span>
-            <span class="plan-card__gst">+18% GST applicable</span>
+        </div>
+        <div class="cp-form-group">
+          <label class="cp-form-label" for="cp-plan-tier">Plan Tier</label>
+          <div class="cp-select-box">
+            <select id="cp-plan-tier">
+              <option value="pro" selected>Pro</option>
+              <option value="basic">Basic</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
           </div>
-          <ul class="plan-card__features">
-            <li>Auto Login</li>
-            <li>Enterprise SLA</li>
-          </ul>
-          <form class="plan-card__form" action="#" method="post">
-            <label class="plan-card__label" for="custom-master-yearly">No of Master Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-master-yearly" name="master_accounts_yearly" value="5" min="1">
-            <label class="plan-card__label" for="custom-child-yearly">No of Child Accounts</label>
-            <input class="plan-card__input" type="number" id="custom-child-yearly" name="child_accounts_yearly" value="100" min="0">
-            <label class="plan-card__label" for="custom-validity-yearly">Validity (in Days)</label>
-            <input class="plan-card__input" type="number" id="custom-validity-yearly" name="validity_yearly" value="365" min="1">
-            <button class="plan-card__cta" type="submit">Subscribe</button>
-          </form>
-        </article>
+        </div>
       </div>
-    </section>
+
+      <div class="cp-calc-panel" id="cp-calc-panel">
+        <div class="cp-calc-price">
+          <div class="cp-calc-label-top">Your total</div>
+          <div class="cp-calc-amount" id="cp-price-text">$79</div>
+          <span class="cp-calc-per" id="cp-price-period">/ month</span>
+          <div class="cp-calc-meta" id="cp-price-meta">Copy Trading • Pro • Monthly</div>
+        </div>
+        <button class="cp-btn-pay">Pay Now</button>
+        <div class="cp-pill-refund">30 days refund guarantee</div>
+        <div class="cp-safe-box">
+          <div class="cp-safe-title">Safe and Secure Checkout</div>
+          <div class="cp-safe-sub">Payments are processed securely</div>
+          <div class="cp-safe-row">
+            <div class="cp-safe-pill">
+              <span style="width:18px;height:18px;border-radius:999px;background:#fff;display:inline-block;"></span>
+              <span>SECURE</span>
+              <span style="font-size:.5rem;opacity:.8;">SSL Encryption</span>
+            </div>
+            <div class="cp-payment-icons">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cp-table-card">
+      <div class="cp-table-header">Compare Plan Features</div>
+      <table class="cp-features-table">
+        <thead>
+          <tr>
+            <th>Features</th>
+            <th>Basic</th>
+            <th>Pro</th>
+            <th>Enterprise</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Trading Accounts</td>
+            <td>5</td>
+            <td>20</td>
+            <td>Unlimited</td>
+          </tr>
+          <tr>
+            <td>Real-time Alerts</td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Copy trading</td>
+            <td>Basic</td>
+            <td>Advanced</td>
+            <td>Advanced + Custom</td>
+          </tr>
+          <tr>
+            <td>AI Analysis</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>API Access</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Custom Automation</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Advanced Analytics</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Priority Support</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>24/7 Dedicated Support</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>White-label Solution</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Custom Integrations</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>Team Management</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+          <tr>
+            <td>SLA Guarantee</td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-xmark">×</span></td>
+            <td><span class="cp-check">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cp-faq-card" id="cp-faq">
+      <div class="cp-faq-title">Frequently Asked Questions</div>
+      <div class="cp-faq-item">
+        <button class="cp-faq-btn">
+          <span>Does this work with my broker?</span>
+          <span>▾</span>
+        </button>
+        <div class="cp-faq-content">
+          Yes! TradeEdge Pro integrates with Alert2Trade, which supports 100+ brokers including Zerodha, Interactive Brokers, TD Ameritrade, Binance, and more.
+        </div>
+      </div>
+      <div class="cp-faq-item">
+        <button class="cp-faq-btn">
+          <span>What if I'm new to Pine Script?</span>
+          <span>▾</span>
+        </button>
+        <div class="cp-faq-content">
+          No problem! We provide tutorials, documentation, and support to help you get started quickly.
+        </div>
+      </div>
+      <div class="cp-faq-item">
+        <button class="cp-faq-btn">
+          <span>How is this different from other TradingView strategies?</span>
+          <span>▾</span>
+        </button>
+        <div class="cp-faq-content">
+          Our platform offers advanced automation, real-time alerts, copy trading capabilities, and seamless broker integration.
+        </div>
+      </div>
+      <div class="cp-faq-item">
+        <button class="cp-faq-btn">
+          <span>Can I use this for crypto trading?</span>
+          <span>▾</span>
+        </button>
+        <div class="cp-faq-content">
+          Yes, we support popular exchanges via Alert2Trade integration.
+        </div>
+      </div>
+      <div class="cp-faq-item">
+        <button class="cp-faq-btn">
+          <span>What about risk management?</span>
+          <span>▾</span>
+        </button>
+        <div class="cp-faq-content">
+          We provide built-in risk tools including stop-loss, take-profit, and position sizing.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -501,26 +719,56 @@
 {{ super() }}
 <script>
   (function () {
-    const toggleButtons = document.querySelectorAll('.billing-toggle__btn');
-    const cycles = document.querySelectorAll('.plan-cycle');
+    const billing = document.getElementById("cp-billing");
+    const product = document.getElementById("cp-product");
+    const planTier = document.getElementById("cp-plan-tier");
+    const priceText = document.getElementById("cp-price-text");
+    const priceMeta = document.getElementById("cp-price-meta");
+    const pricePeriod = document.getElementById("cp-price-period");
 
-    toggleButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const selectedCycle = button.getAttribute('data-cycle');
+    function basePrice(planVal) {
+      if (planVal === "basic") return 29;
+      if (planVal === "enterprise") return 199;
+      return 79;
+    }
 
-        toggleButtons.forEach((btn) => {
-          const isActive = btn === button;
-          btn.classList.toggle('is-active', isActive);
-          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        });
+    function getDiscount(cycle) {
+      if (cycle === "quarterly") return 0.10;
+      if (cycle === "yearly") return 0.25;
+      return 0;
+    }
 
-        cycles.forEach((cycle) => {
-          const match = cycle.getAttribute('data-cycle') === selectedCycle;
-          cycle.classList.toggle('is-active', match);
-          cycle.setAttribute('aria-hidden', match ? 'false' : 'true');
-        });
-      });
-    });
+    function recalc() {
+      const p = product.value;
+      const b = billing.value;
+      const plan = planTier.value;
+      const base = basePrice(plan);
+      const disc = getDiscount(b);
+      const final = Math.round(base * (1 - disc));
+      priceText.textContent = "$" + final;
+      pricePeriod.textContent = "/ " + (b === "monthly" ? "month" : b);
+      const productName = p === "copy-trading" ? "Copy Trading" : p === "xm-gpt" ? "XM GPT" : "Alert2Trade";
+      const planName = plan === "pro" ? "Pro" : plan === "basic" ? "Basic" : "Enterprise";
+      const billingName = b === "monthly" ? "Monthly" : b === "quarterly" ? "Quarterly" : "Yearly";
+      priceMeta.textContent = productName + " • " + planName + " • " + billingName;
+    }
+
+    billing.addEventListener("change", recalc);
+    product.addEventListener("change", recalc);
+    planTier.addEventListener("change", recalc);
+    recalc();
   })();
+
+  document.querySelectorAll(".cp-faq-item").forEach(function (item) {
+    item.querySelector(".cp-faq-btn").addEventListener("click", function () {
+      const active = item.classList.contains("cp-active");
+      document.querySelectorAll(".cp-faq-item").forEach(function (i) {
+        i.classList.remove("cp-active");
+      });
+      if (!active) {
+        item.classList.add("cp-active");
+      }
+    });
+  });
 </script>
 {% endblock %}
