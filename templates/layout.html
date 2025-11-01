@@ -172,7 +172,7 @@
       box-shadow: 0 0 0 2px hsl(var(--primary));
     }
 
-    .header #notificationsToggle .notification-counter {
+    .header #notificationsToggle .header-notification-badge {
       position: absolute;
       top: -4px;
       right: -4px;
@@ -337,12 +337,12 @@
       display: flex;
     }
 
-    body.sidebar-open {
-      overflow: hidden;
-    }  
-
     /* Mobile Responsiveness */
     @media (max-width: 767.98px) {
+      body.sidebar-open {
+        overflow: hidden;
+      }
+
       .sidebar {
         position: fixed;
         left: 0;
@@ -712,7 +712,7 @@
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
-          <span class="badge notification-counter" id="notificationBadge" style="display: none;">0</span>
+          <span class="badge header-notification-badge" id="notificationBadge" style="display: none;">0</span>
         </button>
         <button class="btn btn-ghost btn-icon" id="themeToggle">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1018,25 +1018,24 @@
 
       const isCurrentlyOpen = sidebar.classList.contains('open');
       const shouldOpen = forceOpen !== undefined ? forceOpen : !isCurrentlyOpen;
-      
-      if (shouldOpen) {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('active');
-        document.body.classList.add('sidebar-open');
-      } else {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('active');
-        document.body.classList.remove('sidebar-open');
-      }
+
+      sidebar.classList.toggle('open', shouldOpen);
+      sidebarOverlay.classList.toggle('active', shouldOpen);
+      document.body.classList.toggle('sidebar-open', shouldOpen);
     }
 
-    menuToggle.addEventListener('click', () => {
-      toggleSidebar();
-    });
+    if (menuToggle) {
+      menuToggle.addEventListener('click', () => {
+        const shouldOpen = !sidebar.classList.contains('open');
+        toggleSidebar(shouldOpen);
+      });
+    }
 
-    sidebarOverlay.addEventListener('click', () => {
-      toggleSidebar(false);
-    });
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', () => {
+        toggleSidebar(false);
+      });
+    }
 
     // Alert to Trade collapsible
     const alertToggle = document.getElementById('alertToTradeToggle');
