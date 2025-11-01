@@ -59,6 +59,19 @@
       padding: 0;
     }
 
+    .page-wrapper {
+      width: 100%;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+
+    @media (max-width: 576px) {
+      .page-wrapper {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
     /* Header/Navbar Styles */
     .header {
       position: sticky;
@@ -904,7 +917,7 @@
 
   <!-- Main Content -->
   <div class="main-content">
-    <div class="container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
+    <div class="page-wrapper py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
       {% block content %}{% endblock %}
     </div>
   </div>
@@ -1111,34 +1124,6 @@
       document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(trigger => {
         bootstrap.Dropdown.getOrCreateInstance(trigger);
       });
-    }
-
-    // Notifications toggle
-    const notificationsToggle = document.getElementById('notificationsToggle');
-    const notificationsBackdrop = document.getElementById('notificationsBackdrop');
-    const notificationsPanel = document.getElementById('notificationsPanel');
-    const notificationsClose = document.getElementById('notificationsClose');
-    const notificationsCloseFooter = document.getElementById('notificationsCloseFooter');
-
-    function toggleNotifications() {
-      const isActive = notificationsPanel.classList.contains('is-active');
-      notificationsPanel.classList.toggle('is-active');
-      notificationsBackdrop.classList.toggle('is-active');
-      notificationsPanel.setAttribute('aria-hidden', isActive ? 'true' : 'false');
-      notificationsBackdrop.setAttribute('aria-hidden', isActive ? 'true' : 'false');
-    }
-
-    if (notificationsToggle) {
-      notificationsToggle.addEventListener('click', toggleNotifications);
-    }
-    if (notificationsClose) {
-      notificationsClose.addEventListener('click', toggleNotifications);
-    }
-    if (notificationsCloseFooter) {
-      notificationsCloseFooter.addEventListener('click', toggleNotifications);
-    }
-    if (notificationsBackdrop) {
-      notificationsBackdrop.addEventListener('click', toggleNotifications);
     }
 
     // SPA Navigation
@@ -1374,6 +1359,7 @@
       enableDropdowns();
       highlightActivePage();
       setupSidebarSPALinks();
+      window.initializeNotificationsPanel?.();
       setTimeout(reinitializePageScripts, 50);
     });
   </script>
