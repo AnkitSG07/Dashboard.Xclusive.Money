@@ -101,7 +101,7 @@
       width: auto;
     }
 
-    .header :is(button.btn, a.btn) {
+    .header .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -111,7 +111,6 @@
       transition: all 0.2s;
       cursor: pointer;
       border: 1px solid transparent;
-      outline: none;
     }
 
     .header .btn-ghost {
@@ -141,12 +140,11 @@
       padding: 0;
     }
 
-    .header .dropdown :is(button.btn, a.btn) {
+    .header .dropdown .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border: 1px solid transparent;
-      outline: none;
     }
 
     .avatar {
@@ -262,8 +260,6 @@
       font-weight: 500;
       transition: all 0.2s;
       cursor: pointer;
-      border: none;
-      outline: none;
       background: transparent;
       color: hsl(var(--muted-foreground));
     }
