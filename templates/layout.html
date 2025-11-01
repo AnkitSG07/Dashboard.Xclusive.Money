@@ -61,14 +61,40 @@
 
     .page-wrapper {
       width: 100%;
-      padding-left: 1.5rem;
-      padding-right: 1.5rem;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: var(--bs-gutter-x, 0.75rem);
+      padding-right: var(--bs-gutter-x, 0.75rem);
     }
 
-    @media (max-width: 576px) {
+    @media (min-width: 576px) {
       .page-wrapper {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        max-width: 540px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .page-wrapper {
+        max-width: 720px;
+      }
+    }
+
+    @media (min-width: 992px) {
+      .page-wrapper {
+        max-width: 960px;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .page-wrapper {
+        max-width: 1140px;
+      }
+    }
+
+    @media (min-width: 1400px) {
+      .page-wrapper {
+        max-width: 1320px;
       }
     }
 
@@ -383,6 +409,8 @@
 
     /* Main Content Area */
     .main-content {
+      display: flex;
+      flex-direction: column;
       margin-left: 0;
       min-height: 100vh;
       padding-top: 64px;
@@ -917,7 +945,7 @@
 
   <!-- Main Content -->
   <div class="main-content">
-    <div class="page-wrapper py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
+    <div class="page-wrapper container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
       {% block content %}{% endblock %}
     </div>
   </div>
