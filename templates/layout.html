@@ -101,7 +101,7 @@
       width: auto;
     }
 
-    .header .btn {
+    .header :is(button.btn, a.btn) {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -110,7 +110,7 @@
       font-weight: 500;
       transition: all 0.2s;
       cursor: pointer;
-      border: none;
+      border: 1px solid transparent;
       outline: none;
     }
 
@@ -141,11 +141,11 @@
       padding: 0;
     }
 
-    .header .dropdown .btn {
+    .header .dropdown :is(button.btn, a.btn) {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border: none;
+      border: 1px solid transparent;
       outline: none;
     }
 
