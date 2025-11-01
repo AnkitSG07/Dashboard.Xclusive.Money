@@ -674,7 +674,7 @@ p {
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  border: none;
+  border: 1px solid transparent;
   width: 100%; /* Full width on mobile by default */
   margin-bottom: 0.5rem;
   letter-spacing: 0.02em; /* Subtle letter spacing */
