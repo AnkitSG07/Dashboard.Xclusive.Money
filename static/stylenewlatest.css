@@ -662,7 +662,7 @@ p {
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
-  border: none;
+  border: 1px solid transparent;
   width: 100%; /* Full width on mobile by default */
   margin-bottom: 0.5rem; /* Add margin for stacked buttons */
 }
@@ -1730,7 +1730,7 @@ body {
   padding: 0.625rem 1.25rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: none;
+  border: 1px solid transparent;
   width: 100%;
   text-align: center;
   white-space: nowrap;
@@ -2708,7 +2708,7 @@ p {
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  border: none;
+  border: 1px solid transparent;
   width: 100%; /* Full width on mobile by default */
   margin-bottom: 0.5rem;
   letter-spacing: 0.02em; /* Subtle letter spacing */
