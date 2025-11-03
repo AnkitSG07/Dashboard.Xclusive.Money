@@ -7424,6 +7424,13 @@ def profile_image_file(filename):
 def home():
     return render_template("index.html")
 
+
+@app.route('/call')
+def call_support():
+    """Display the contact page for call support."""
+
+    return render_template("call.html")
+
 @app.route("/alert-to-trade")
 def alert_to_trade():
     """Landing page for the alert-to-trade flow."""
