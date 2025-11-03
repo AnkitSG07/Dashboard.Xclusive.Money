@@ -266,24 +266,51 @@ def get_cached_dashboard_snapshot(
     if entry and isinstance(entry.get("timestamp"), datetime):
         entry_age = now - entry["timestamp"]
 
-    if prefer_cache and entry:
-        response = _prepare_snapshot_for_response(entry)
-        if entry_age is None or entry_age >= _SNAPSHOT_INTERVAL:
-            response["stale"] = response.get("stale") or True
-            scheduled = _enqueue_snapshot_refresh(account, key)
-            if scheduled is False:
-                errors = response.setdefault("errors", {})
-                message = "Snapshot refresh deferred: background queue unavailable"
-                if errors.get("snapshot"):
-                    errors["snapshot"] = f"{errors['snapshot']}; {message}"
-                else:
-                    errors["snapshot"] = message
-                logger.warning(
-                    "Skipping synchronous snapshot refresh for user %s client %s; background queue unavailable",
-                    account.user_id,
-                    account.client_id or "primary",
-                )
-        return response
+    if prefer_cache:
+        if entry:
+            response = _prepare_snapshot_for_response(entry)
+            if entry_age is None or entry_age >= _SNAPSHOT_INTERVAL:
+                response["stale"] = response.get("stale") or True
+                scheduled = _enqueue_snapshot_refresh(account, key)
+                if scheduled is False:
+                    errors = response.setdefault("errors", {})
+                    message = "Snapshot refresh deferred: background queue unavailable"
+                    if errors.get("snapshot"):
+                        errors["snapshot"] = f"{errors['snapshot']}; {message}"
+                    else:
+                        errors["snapshot"] = message
+                    logger.warning(
+                        "Skipping synchronous snapshot refresh for user %s client %s; background queue unavailable",
+                        account.user_id,
+                        account.client_id or "primary",
+                    )
+            return response
+
+        placeholder_entry = {
+            "timestamp": now,
+            "data": {
+                "portfolio": [],
+                "orders": {"items": [], "summary": _default_order_summary()},
+                "account": {},
+                "errors": {},
+                "stale": True,
+            },
+        }
+        placeholder = _prepare_snapshot_for_response(placeholder_entry)
+        placeholder["stale"] = True
+
+        scheduled = _enqueue_snapshot_refresh(account, key)
+        if scheduled is False:
+            errors = placeholder.setdefault("errors", {})
+            message = "Snapshot refresh deferred: background queue unavailable"
+            errors["snapshot"] = message
+            logger.warning(
+                "Unable to schedule snapshot refresh for user %s client %s; background queue unavailable",
+                account.user_id,
+                account.client_id or "primary",
+            )
+
+        return placeholder
 
     if entry and entry_age is not None and entry_age < _SNAPSHOT_INTERVAL:
         return _prepare_snapshot_for_response(entry)
