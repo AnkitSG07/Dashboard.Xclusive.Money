@@ -23,6 +23,7 @@
   {% block styles %}{% endblock %}
   <style data-global-style="true">
   <style>
+
     .collapse:not(.tw-collapse) {
       visibility: visible !important;
     }
@@ -722,6 +723,62 @@
       object-fit: cover;
       border: 2px solid hsl(var(--primary));
     }
+  /* Mobile Header Compact Override */
+
+/* Even more compact header for mobile */
+@media (max-width: 767.98px) {
+  .header {
+    height: 64px !important;
+  }
+
+  .header-content {
+    padding: 0 0px !important;
+  }
+
+  .header-left {
+    gap: 1px !important;
+    margin: 10px;
+  }
+
+  .header-right {
+    gap: 1px !important;
+    margin-right: 18px;
+  }
+
+  .logo {
+    height: 40px !important;
+  }
+
+  .header .btn-icon {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .header .btn-primary {
+    padding: 6px 10px !important;
+    font-size: 0px !important;
+    margin-right: 12px
+  }
+
+  .avatar {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 14px !important;
+  }
+
+  .header #notificationsToggle .header-notification-badge {
+    top: -3px !important;
+    right: -3px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    font-size: 9px !important;
+  }
+
+  /* Hamburger menu button */
+  .header .btn-ghost {
+    padding: 6px !important;
+  }
+}
   </style>
   <script>
     (function() {
