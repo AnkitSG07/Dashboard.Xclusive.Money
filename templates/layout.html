@@ -1,3 +1,12 @@
+{% set spa_partial = spa_partial if spa_partial is defined else request.headers.get('X-Requested-With') == 'XMLHttpRequest' %}
+{% if spa_partial %}
+  <title>{{ self.title() }}</title>
+  <div class="page-wrapper container py-4" id="page-container" data-page="{{ request.path|replace('/', '') }}">
+    {{ self.content() }}
+  </div>
+  {{ self.styles() }}
+  {{ self.scripts() }}
+{% else %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,13 +14,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}DhanBot - Modern Trading Platform{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.umd.min.js" defer></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" data-global-style="true">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" data-global-style="true">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" data-global-style="true">
+  <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet" data-global-style="true">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer data-global-script="true"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.umd.min.js" defer data-global-script="true"></script>
   {% block styles %}{% endblock %}
+  <style data-global-style="true">
   <style>
     .collapse:not(.tw-collapse) {
       visibility: visible !important;
@@ -1009,9 +1019,9 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="{{ url_for('static', filename='js/notifications-panel.js') }}" defer></script>
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" data-global-script="true"></script>
+  <script src="{{ url_for('static', filename='js/notifications-panel.js') }}" defer data-global-script="true"></script>
+  <script id="spa-script" data-global-script="true">
     // Theme toggle functionality
     (function() {
       const storageKey = 'dashboard-theme';
@@ -1163,7 +1173,16 @@
     const PAGE_SCRIPT_KEY_ATTR = 'data-page-script-key';
     const PAGE_STYLE_ATTR = 'data-page-style';
     const PAGE_STYLE_KEY_ATTR = 'data-page-style-key';
+    const spaCache = new Map();
 
+    function getCacheKey(url) {
+      try {
+        return new URL(url, window.location.origin).pathname;
+      } catch (error) {
+        return url;
+      }
+    }
+    
     function setActiveSidebarLink(link) {
       document.querySelectorAll('.sidebar .sidebar-item.active').forEach(activeLink => {
         if (activeLink !== link) {
@@ -1193,19 +1212,6 @@
       return `inline:${inlineContent}`;
     }
 
-    function hasScriptWithKey(key) {
-      if (!key) return false;
-      const scripts = document.querySelectorAll('script');
-      for (const existing of scripts) {
-        if (existing.id === SPA_SCRIPT_ID) continue;
-        const existingKey = existing.getAttribute(PAGE_SCRIPT_KEY_ATTR) || computeScriptKey(existing);
-        if (existingKey === key) {
-          return true;
-        }
-      }
-      return false;
-    }
-
     function normalizeStylesheetHref(href) {
       try {
         return new URL(href, window.location.href).href;
@@ -1231,16 +1237,107 @@
       return null;
     }
 
-    function hasStyleWithKey(key) {
-      if (!key) return false;
-      const styles = document.querySelectorAll('link[rel="stylesheet"], style');
-      for (const existing of styles) {
-        const existingKey = existing.getAttribute(PAGE_STYLE_KEY_ATTR) || computeStyleKey(existing);
-        if (existingKey === key) {
-          return true;
-        }
+    function describeStyleElement(styleEl) {
+      const descriptor = {
+        tag: styleEl.tagName.toLowerCase(),
+        attrs: {},
+        text: ''
+      };
+      Array.from(styleEl.attributes || []).forEach(attr => {
+        descriptor.attrs[attr.name] = attr.value;
+      });
+      if (descriptor.tag === 'style') {
+        descriptor.text = styleEl.textContent || '';
       }
-      return false;
+      descriptor.key = computeStyleKey(styleEl);
+      return descriptor;
+    }
+
+    function describeScriptElement(scriptEl) {
+      const descriptor = {
+        attrs: {},
+        src: '',
+        text: ''
+      };
+      Array.from(scriptEl.attributes || []).forEach(attr => {
+        if (attr.name === 'src') {
+          descriptor.src = attr.value;
+        } else {
+          descriptor.attrs[attr.name] = attr.value;
+        }
+      });
+      descriptor.key = computeScriptKey(scriptEl);
+      if (!descriptor.src) {
+        descriptor.text = scriptEl.textContent || '';
+      }
+      return descriptor;
+    }
+
+    function parsePageFragment(html, url) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const container = doc.querySelector('#page-container');
+      if (!container) {
+        return null;
+      }
+
+      const fragment = {
+        url,
+        html: container.innerHTML,
+        page: container.dataset.page || '',
+        styles: [],
+        scripts: [],
+        title: doc.querySelector('title')?.textContent?.trim() || ''
+      };
+
+      doc.querySelectorAll('link[rel="stylesheet"], style').forEach(styleEl => {
+        fragment.styles.push(describeStyleElement(styleEl));
+      });
+
+      doc.querySelectorAll('script').forEach(scriptEl => {
+        if (scriptEl.id === SPA_SCRIPT_ID) return;
+        fragment.scripts.push(describeScriptElement(scriptEl));
+      });
+
+      return fragment;
+    }
+
+    function injectStyleDescriptor(descriptor) {
+      const element = descriptor.tag === 'link'
+        ? document.createElement('link')
+        : document.createElement('style');
+      Object.entries(descriptor.attrs || {}).forEach(([name, value]) => {
+        if (value != null) {
+          element.setAttribute(name, value);
+        }
+      });
+      if (descriptor.tag === 'style' && descriptor.text) {
+        element.textContent = descriptor.text;
+      }
+      element.setAttribute(PAGE_STYLE_ATTR, 'true');
+      if (descriptor.key) {
+        element.setAttribute(PAGE_STYLE_KEY_ATTR, descriptor.key);
+      }
+      document.head.appendChild(element);
+    }
+
+    function injectScriptDescriptor(descriptor) {
+      const script = document.createElement('script');
+      Object.entries(descriptor.attrs || {}).forEach(([name, value]) => {
+        if (value != null) {
+          script.setAttribute(name, value);
+        }
+      });
+      if (descriptor.src) {
+        script.src = descriptor.src;
+      } else if (descriptor.text) {
+        script.textContent = descriptor.text;
+      }
+      script.setAttribute(PAGE_SCRIPT_ATTR, 'true');
+      if (descriptor.key) {
+        script.setAttribute(PAGE_SCRIPT_KEY_ATTR, descriptor.key);
+      }
+      document.body.appendChild(script);
     }
 
     function removeInjectedPageScripts() {
@@ -1259,9 +1356,111 @@
       }
     }
 
+    function applyPageFragment(fragment, { url, navigation = 'push' } = {}) {
+      const pageContainer = document.querySelector('#page-container');
+      if (!pageContainer || !fragment) return false;
+
+      pageContainer.innerHTML = fragment.html;
+      if (fragment.page) {
+        pageContainer.dataset.page = fragment.page;
+      }
+
+      if (fragment.title) {
+        document.title = fragment.title;
+      }
+
+      removeInjectedPageScripts();
+      removeInjectedPageStyles();
+
+      fragment.styles.forEach(descriptor => injectStyleDescriptor(descriptor));
+      fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
+
+      if (url) {
+        if (navigation === 'replace') {
+          history.replaceState(null, '', url);
+        } else if (navigation === 'push') {
+          history.pushState(null, '', url);
+        }
+      }
+
+      highlightActivePage();
+      enableDropdowns();
+
+      setTimeout(reinitializePageScripts, 50);
+      window.initializeNotificationsPanel?.();
+      return true;
+    }
+
+    function cacheFragment(cacheKey, fragment) {
+      if (fragment) {
+        spaCache.set(cacheKey, fragment);
+      }
+      return fragment;
+    }
+
+    function fetchPageFragment(url, { signal } = {}) {
+      return fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to load ${url}: ${res.status}`);
+        }
+        return res.text();
+      })
+      .then(html => parsePageFragment(html, url));
+    }
+
+    function schedulePrefetch(url) {
+      const cacheKey = getCacheKey(url);
+      if (!url || spaCache.has(cacheKey)) return;
+
+      const task = () => {
+        fetchPageFragment(url)
+          .then(fragment => cacheFragment(cacheKey, fragment))
+          .catch(() => {});
+      };
+
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(task, { timeout: 3000 });
+      } else {
+        setTimeout(task, 300);
+      }
+    }
+
+    function prefetchSidebarRoutes() {
+      const links = Array.from(document.querySelectorAll('.sidebar .sidebar-item[href^="/"]'));
+      const urls = Array.from(new Set(links.map(link => link.getAttribute('href')).filter(Boolean)));
+      urls.forEach(url => schedulePrefetch(url));
+    }
+
+    function tagInitialPageAssets() {
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach(styleEl => {
+        if (styleEl.hasAttribute('data-global-style')) return;
+        styleEl.setAttribute(PAGE_STYLE_ATTR, 'true');
+        const key = computeStyleKey(styleEl);
+        if (key) {
+          styleEl.setAttribute(PAGE_STYLE_KEY_ATTR, key);
+        }
+      });
+
+      document.querySelectorAll('script').forEach(scriptEl => {
+        if (scriptEl.id === SPA_SCRIPT_ID) return;
+        if (scriptEl.hasAttribute('data-global-script')) return;
+        scriptEl.setAttribute(PAGE_SCRIPT_ATTR, 'true');
+        const key = computeScriptKey(scriptEl);
+        if (key) {
+          scriptEl.setAttribute(PAGE_SCRIPT_KEY_ATTR, key);
+        }
+      });
+    }
+    
     function setupSidebarSPALinks() {
       document.querySelectorAll('.sidebar .sidebar-item').forEach(link => {
         if (link.tagName !== 'A') return;
+        if (link.dataset.spaBound === 'true') return;
+        link.dataset.spaBound = 'true';  
         
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
@@ -1287,95 +1486,41 @@
             document.body.classList.remove('sidebar-open');
           }
 
-          fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            signal: abortController.signal
-          })
-          .then(res => {
-            if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
-            return res.text();
-          })
-          .then(html => {
-            if (requestId !== currentSPARequestId) return;
+          const cacheKey = getCacheKey(url);
+          const cachedFragment = spaCache.get(cacheKey);
+          if (cachedFragment) {
+            applyPageFragment(cachedFragment, { url, navigation: 'push' });
+          }
 
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newContent = doc.querySelector('#page-container');
-            const pageContainer = document.querySelector('#page-container');
-            
-            if (newContent && pageContainer) {
-              pageContainer.innerHTML = newContent.innerHTML;
-              if (newContent.dataset.page) {
-                pageContainer.dataset.page = newContent.dataset.page;
+          fetchPageFragment(url, { signal: abortController.signal })
+            .then(fragment => {
+              if (requestId !== currentSPARequestId) return;
+
+              if (!fragment) {
+                if (!cachedFragment) {
+                  window.location.href = url;
+                }
+                return;
               }
-              
-              // Remove old page-specific scripts and styles
-              removeInjectedPageScripts();
-              removeInjectedPageStyles();
 
-              // Inject page-specific styles
-              doc.querySelectorAll('link[rel="stylesheet"], style').forEach(styleEl => {
-                const key = computeStyleKey(styleEl);
-                if (hasStyleWithKey(key)) return;
-                const clone = styleEl.cloneNode(true);
-                clone.setAttribute(PAGE_STYLE_ATTR, 'true');
-                if (key) {
-                  clone.setAttribute(PAGE_STYLE_KEY_ATTR, key);
-                }
-                document.head.appendChild(clone);
-              });
-              
-              // Inject page-specific scripts
-              doc.querySelectorAll('script').forEach(srcEl => {
-                if (srcEl.id === SPA_SCRIPT_ID) return;
-                const key = computeScriptKey(srcEl);
-                if (hasScriptWithKey(key)) return;
-                const s = document.createElement('script');
-                Array.from(srcEl.attributes || []).forEach(attr => {
-                  if (attr.name === 'src') return;
-                  s.setAttribute(attr.name, attr.value);
-                });
-                
-                if (srcEl.src) {
-                  s.src = srcEl.src;
-                } else if (srcEl.textContent) {
-                  s.textContent = srcEl.textContent;
-                }
-                s.setAttribute(PAGE_SCRIPT_ATTR, 'true');
-                if (key) {
-                  s.setAttribute(PAGE_SCRIPT_KEY_ATTR, key);
-                }
-                document.body.appendChild(s);
-              });
-              
-              history.pushState(null, '', url);
-              highlightActivePage();
-              enableDropdowns();
-              
-              // Reinitialize page-specific scripts
-              setTimeout(reinitializePageScripts, 50);
-              
-              // Reinitialize notifications panel if available
-              window.initializeNotificationsPanel?.();
-              
+              cacheFragment(cacheKey, fragment);
+              const navigation = cachedFragment ? 'replace' : 'push';
+              applyPageFragment(fragment, { url, navigation });
+
               if (currentSPAFetchController === abortController) {
                 currentSPAFetchController = null;
               }
-            } else if (requestId === currentSPARequestId) {
+            })
+            .catch(err => {
+              if (abortController.signal.aborted) return;
               if (currentSPAFetchController === abortController) {
                 currentSPAFetchController = null;
               }
-              window.location.href = url;
-            }
-          })
-          .catch(err => {
-            if (abortController.signal.aborted) return;
-            if (currentSPAFetchController === abortController) {
-              currentSPAFetchController = null;
-            }
-            console.error('Failed to load:', err);
-            window.location.href = url;
-          });
+              console.error('Failed to load:', err);
+              if (!cachedFragment) {
+                window.location.href = url;
+              }
+            });
         });
       });
     }
@@ -1387,12 +1532,14 @@
     window.addEventListener('DOMContentLoaded', () => {
       enableDropdowns();
       highlightActivePage();
+      tagInitialPageAssets();
       setupSidebarSPALinks();
+      prefetchSidebarRoutes();
       window.initializeNotificationsPanel?.();
       setTimeout(reinitializePageScripts, 50);
     });
   </script>
-  <script>
+  <script data-global-script="true">
     (function () {
       if (window.__csrfInitialized) return;
       window.__csrfInitialized = true;
@@ -1428,3 +1575,4 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+{% endif %}
