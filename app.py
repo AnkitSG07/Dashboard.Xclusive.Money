@@ -7431,6 +7431,13 @@ def call_support():
 
     return render_template("call.html")
 
+
+@app.route('/tutorials')
+def tutorials():
+    """Render the tutorials hub with quick links to broker walkthroughs."""
+
+    return render_template("tutorials.html")
+
 @app.route("/alert-to-trade")
 def alert_to_trade():
     """Landing page for the alert-to-trade flow."""
