@@ -1066,6 +1066,28 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const openAddAccountParam = urlParams.get('openAddAccount');
+  const normalizedParam = (openAddAccountParam || '').toLowerCase();
+  const shouldOpenAddAccount = openAddAccountParam !== null && !['0', 'false', 'no'].includes(normalizedParam);
+  if (shouldOpenAddAccount) {
+    openAddAccountForm();
+    populateBrokerCarousel();
+
+    const section = document.getElementById('add-account-section');
+    if (section) {
+      window.requestAnimationFrame(() => {
+        const sectionTop = section.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({ top: Math.max(sectionTop - 16, 0), behavior: 'smooth' });
+      });
+    }
+
+    urlParams.delete('openAddAccount');
+    const newQuery = urlParams.toString();
+    const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', newUrl);
+  }
+
   const cancelAddAccountBtn = document.getElementById('cancel-add-account-btn');
   if (cancelAddAccountBtn) {
     cancelAddAccountBtn.addEventListener('click', hideBrokerForm);
