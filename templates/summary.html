@@ -904,14 +904,24 @@
                     <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ account.client_id }}</p>
                   </div>
                 </div>
-                <div class="summary-account-status {{ 'summary-account-status--error' if has_error else 'summary-account-status--ok' }}">
-                  {{ 'Failed' if has_error else 'Connected' }}
-                </div>
+              <div class="summary-account-status {{ 'summary-account-status--error' if has_error else 'summary-account-status--ok' }}">
+                {{ 'Failed' if has_error else 'Connected' }}
               </div>
-              {% if has_error %}
-                <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
-              {% endif %}  
             </div>
+            {% if account.stale and not has_error %}
+              <div style="margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+                <span class="summary-stale-indicator">Refreshing data…</span>
+                {% if account.cached_at %}
+                  <span style="font-size:12px; color:var(--summary-muted);">Last updated {{ format_datetime(account.cached_at) }}</span>
+                {% endif %}
+              </div>
+            {% elif account.cached_at %}
+              <p class="summary-stat-footnote" style="margin:12px 0 0 0; color:var(--summary-muted);">Last updated {{ format_datetime(account.cached_at) }}</p>
+            {% endif %}
+            {% if has_error %}
+              <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
+            {% endif %}
+          </div>
           {% endfor %}
         {% else %}
           <div class="summary-card summary-card--muted" style="grid-column:1/-1;">
