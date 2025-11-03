@@ -1,0 +1,448 @@
+{% extends "layout.html" %}
+
+{% block title %}Tutorials · DhanBot{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+    .tutorials-page {
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .tutorials-page .header {
+      margin-bottom: 2rem;
+    }
+
+    .tutorials-page .title {
+      font-size: 1.875rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .tutorials-page .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: hsl(240 3.8% 46.1%);
+    }
+
+    .tutorials-page .breadcrumb .current {
+      color: hsl(240 10% 3.9%);
+    }
+
+    .tutorials-page .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .tutorials-page .card {
+      background: hsl(0 0% 100%);
+      border: 1px solid hsl(240 5.9% 90%);
+      border-radius: 0.5rem;
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .tutorials-page .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .tutorials-page .video-container {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, #22d3ee, #5eead4, #fde047);
+    }
+
+    .tutorials-page .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.2);
+      transition: background 0.3s ease;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .tutorials-page .card:hover .overlay {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .tutorials-page .overlay:focus-visible {
+      outline: 3px solid rgba(220, 38, 38, 0.8);
+      outline-offset: 4px;
+    }
+
+    .tutorials-page .play-button {
+      background: #dc2626;
+      border-radius: 50%;
+      padding: 1rem;
+      transition: transform 0.3s ease;
+    }
+
+    .tutorials-page .card:hover .play-button {
+      transform: scale(1.1);
+    }
+
+    .tutorials-page .play-icon {
+      width: 2rem;
+      height: 2rem;
+      color: white;
+    }
+
+    .tutorials-page .sound-wave-container {
+      position: absolute;
+      bottom: 0.5rem;
+      left: 0.5rem;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 9999px;
+      padding: 0.5rem;
+    }
+
+    .tutorials-page .sound-wave {
+      width: 2rem;
+      height: 2rem;
+      background: linear-gradient(135deg, #4ade80, #3b82f6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.125rem;
+    }
+
+    .tutorials-page .wave-bar {
+      width: 0.25rem;
+      height: 0.75rem;
+      background: white;
+      border-radius: 0.125rem;
+      animation: tutorials-pulse 1s ease-in-out infinite;
+    }
+
+    .tutorials-page .wave-bar:nth-child(2) {
+      animation-delay: 0.075s;
+    }
+
+    .tutorials-page .wave-bar:nth-child(3) {
+      animation-delay: 0.15s;
+    }
+
+    @keyframes tutorials-pulse {
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .tutorials-page .card-content {
+      padding: 1rem;
+    }
+
+    .tutorials-page .card-title {
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+
+    @media (min-width: 768px) {
+      .tutorials-page {
+        padding: 2rem;
+      }
+
+      .tutorials-page .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .tutorials-page .grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <section class="tutorials-page" data-page="tutorials">
+    <div class="header">
+      <h1 class="title">Tutorials</h1>
+      <div class="breadcrumb">
+        <span>Support</span>
+        <span>•</span>
+        <span class="current">Tutorials</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Replace each *_VIDEO_URL placeholder with the actual tutorial link when available.
+           Example: the Zerodha card below now points at https://www.youtube.com/watch?v=w87LbYc4s9M -->
+      <div class="card">
+        <div class="video-container">
+          <!-- Zerodha tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="https://www.youtube.com/watch?v=w87LbYc4s9M"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Zerodha accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Zerodha accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Fyers tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="FYERS_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Fyers accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Fyers accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Alice Blue tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="ALICE_BLUE_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Alice Blue accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Alice Blue accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Finvasia tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="FINVASIA_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Finvasia accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Finvasia accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Dhan tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="DHAN_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Dhan accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add DHAN accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Flattrade tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="FLATTRADE_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Flattrade accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Flattrade accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Motilal Oswal tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="MOTILAL_OSWAL_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Motilal Oswal accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Motilal Oswal accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Kotak Neo tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="KOTAK_NEO_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play How to add Kotak NEO accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">How to add Kotak NEO accounts</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="video-container">
+          <!-- Master and Child configuration tutorial link placeholder -->
+          <a
+            class="overlay"
+            href="MASTER_CHILD_CONFIG_VIDEO_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Play Configure Master and Child accounts tutorial"
+          >
+            <div class="play-button">
+              <svg class="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </a>
+          <div class="sound-wave-container">
+            <div class="sound-wave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">Configure Master and Child accounts</h3>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
