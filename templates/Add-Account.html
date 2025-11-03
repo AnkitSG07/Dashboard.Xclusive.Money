@@ -403,6 +403,11 @@ window.pageScripts["Add-Account"] = function() {
     zerodha: "bg-orange"
   };
 
+  const brokerRedirectPaths = {
+    zerodha: 'zerodha_redirects',
+    fyers: 'fyers_redirects'
+  };
+
   let allAccounts = [];
   let statusFilter = 'all';
   let brokerFilter = '';
@@ -447,6 +452,26 @@ window.pageScripts["Add-Account"] = function() {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function getBaseAppUrl() {
+    if (window.appBaseUrl) {
+      return String(window.appBaseUrl).replace(/\/$/, '');
+    }
+    const origin = window.location.origin;
+    if (origin) {
+      return origin.replace(/\/$/, '');
+    }
+    const fallback = `${window.location.protocol}//${window.location.host}`;
+    return fallback.replace(/\/$/, '');
+  }
+
+  function buildRedirectUrl(broker, clientId) {
+    const path = brokerRedirectPaths[broker];
+    const id = String(clientId || '').trim();
+    if (!path || !id) return '';
+    const base = getBaseAppUrl();
+    return `${base}/${path}/${encodeURIComponent(id)}`;
   }
 
   function capitalizeWords(str) {
@@ -596,6 +621,54 @@ window.pageScripts["Add-Account"] = function() {
 
     if (submitBtn) submitBtn.style.display = 'inline-flex';
     if (formActions) formActions.style.display = 'flex';
+
+
+    if (brokerRedirectPaths[broker]) {
+      const redirectInputId = `${broker}-redirect-url`;
+      const brokerDisplayName = formatBrokerName(broker);
+      const redirectGroup = document.createElement('div');
+      redirectGroup.className = 'form-group full-width redirect-url-group';
+      redirectGroup.innerHTML = `
+        <label class="form-label" for="${escapeHtml(redirectInputId)}">${escapeHtml(brokerDisplayName)} Redirect URL</label>
+        <div class="copy-field">
+          <input class="form-input" type="text" id="${escapeHtml(redirectInputId)}" readonly placeholder="Enter Client ID to generate redirect URL">
+          <button class="btn btn-outline" type="button" data-action="copy-redirect">Copy URL</button>
+        </div>
+        <p class="form-helper">Use this redirect URL while configuring your ${escapeHtml(brokerDisplayName)} app.</p>
+      `;
+
+      container.appendChild(redirectGroup);
+
+      const redirectInput = redirectGroup.querySelector(`#${CSS.escape(redirectInputId)}`);
+      const copyBtn = redirectGroup.querySelector('[data-action="copy-redirect"]');
+      const clientInput = container.querySelector('input[name="client_id"]');
+
+      const updateRedirectUrl = () => {
+        const value = clientInput ? clientInput.value : '';
+        const url = buildRedirectUrl(broker, value);
+        if (redirectInput) redirectInput.value = url;
+        if (copyBtn) copyBtn.disabled = !url;
+      };
+
+      if (clientInput) {
+        clientInput.addEventListener('input', updateRedirectUrl);
+        updateRedirectUrl();
+      } else if (copyBtn) {
+        copyBtn.disabled = true;
+      }
+
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          if (copyBtn.disabled) return;
+          const value = redirectInput ? redirectInput.value : '';
+          if (!value) {
+            showToast('Enter client ID to generate redirect URL first.', 'warning');
+            return;
+          }
+          copyToClipboard(value, 'Redirect URL copied to clipboard.');
+        });
+      }
+    }
   }
 
   function openAddAccountForm() {
@@ -1199,6 +1272,7 @@ window.pageScripts["Add-Account"] = function() {
           if (k === 'client_id') {
             inp.readOnly = true;
             inp.classList.add('bg-light');
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
           }
         }
       });
