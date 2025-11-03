@@ -1,439 +1,457 @@
 {% extends "layout.html" %}
 
-{% block title %}User Profile - DhanBot{% endblock %}
+{% block title %}User - Profile Management{% endblock %}
 
 {% block styles %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-    .user-page {
-        background: #f5f7fb;
+  .user-page {
+    min-height: 100vh;
+    background-color: hsl(0 0% 100%);
+    padding: 96px 16px 32px;
+  }
+
+  .user-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .user-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .user-header h1 {
+    font-size: 30px;
+    font-weight: 700;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .user-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .user-breadcrumb span {
+    color: hsl(240 10% 3.9%);
+  }
+
+  .user-tabs {
+    background-color: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .tab-buttons {
+    display: flex;
+    gap: 4px;
+    background-color: hsl(240 4.8% 95.9%);
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .tab-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: hsl(240 5.9% 10%);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .tab-button.active {
+    background-color: hsl(0 0% 100%);
+    color: hsl(240 10% 3.9%);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel.active {
+    display: block;
+  }
+
+  .general-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .avatar-card,
+  .form-card,
+  .security-card {
+    background-color: hsl(0 0% 100%);
+    border: 1px solid hsl(240 5.9% 90%);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .avatar-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .avatar-circle {
+    width: 192px;
+    height: 192px;
+    border-radius: 50%;
+    background-color: hsl(240 4.8% 95.9%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 600;
+    color: hsl(240 10% 3.9%);
+    overflow: hidden;
+  }
+
+  .avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .avatar-username {
+    font-size: 18px;
+    font-weight: 500;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .avatar-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid hsl(240 5.9% 10%);
+    background-color: transparent;
+    color: hsl(240 5.9% 10%);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .avatar-upload:hover {
+    background-color: hsl(240 5.9% 10%);
+    color: hsl(0 0% 98%);
+  }
+
+  .avatar-upload input[type="file"] {
+    display: none;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-field label {
+    font-size: 14px;
+    font-weight: 500;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .form-field input,
+  .form-field select {
+    height: 40px;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid hsl(240 5.9% 90%);
+    background-color: hsl(0 0% 100%);
+    padding: 8px 12px;
+    font-size: 14px;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+
+  .primary-btn {
+    height: 44px;
+    padding: 0 32px;
+    background-color: hsl(240 5.9% 10%);
+    color: hsl(0 0% 98%);
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .security-grid {
+    max-width: 448px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .security-field {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .security-field label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .security-helper {
+    font-size: 14px;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  @media (min-width: 992px) {
+    .general-grid {
+      grid-template-columns: 1fr 2fr;
     }
-    .profile-wrapper {
-        background: transparent;
+
+    .form-grid {
+      grid-template-columns: repeat(2, 1fr);
     }
-    .profile-header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1.5rem;
-        margin-bottom: 2.5rem;
+  }
+
+  @media (min-width: 768px) and (max-width: 991.98px) {
+    .form-grid {
+      grid-template-columns: repeat(2, 1fr);
     }
-    .profile-heading {
-        color: #111827;
-        font-weight: 700;
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-    }
-    .profile-breadcrumb {
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #6b7280;
-        font-weight: 600;
-    }
-    .profile-breadcrumb span {
-        margin: 0 0.5rem;
-        color: #9ca3af;
-    }
-    .profile-description {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
-        padding: 1.5rem 2rem;
-        max-width: 420px;
-    }
-    .profile-description h6 {
-        font-weight: 700;
-        color: #111827;
-        margin-bottom: 0.5rem;
-    }
-    .profile-description p {
-        margin: 0;
-        color: #6b7280;
-        line-height: 1.6;
-    }
-    .profile-panel {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 20px;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
-        overflow: hidden;
-    }
-    .profile-tab-list {
-        display: flex;
-        gap: 1.75rem;
-        margin: 0;
-        padding: 1.25rem 2rem 0.5rem;
-        list-style: none;
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .profile-tab-list .profile-tab {
-        background: transparent;
-        border: none;
-        font-weight: 500;
-        color: #6b7280;
-        padding: 0 0 1rem;
-        position: relative;
-        transition: color 0.2s ease;
-    }
-    .profile-tab:focus {
-        outline: none;
-        box-shadow: none;
-    }
-    .profile-tab:hover {
-        color: #111827;
-    }
-    .profile-tab::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -1px;
-        height: 3px;
-        border-radius: 3px;
-        background: transparent;
-        transform: scaleX(0);
-        transform-origin: center;
-        transition: transform 0.25s ease, background 0.25s ease;
-    }
-    .profile-tab.active {
-        color: #111827;
-        font-weight: 700;
-    }
-    .profile-tab.active::after {
-        background: #4f46e5;
-        transform: scaleX(1);
-    }
-    .profile-tab-body {
-        padding: 2rem;
-    }
-    .profile-general-layout {
-        align-items: stretch;
-    }
-    .profile-avatar-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
-        height: 100%;
-    }
-    .profile-avatar-card .card-body {
-        padding: 2rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1.5rem;
-        text-align: center;
-    }
-    .profile-avatar {
-        width: 140px;
-        height: 140px;
-        object-fit: cover;
-        border-radius: 50%;
-        border: 4px solid #f3f4f6;
-        box-shadow: 0 12px 30px rgba(79, 70, 229, 0.18);
-    }
-    .avatar-placeholder {
-        width: 140px;
-        height: 140px;
-        border-radius: 50%;
-        background: #f3f4f6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: inset 0 0 0 3px #e5e7eb;
-    }
-    .upload-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 1.25rem;
-        border-radius: 999px;
-        border: 1px solid #4f46e5;
-        background: rgba(79, 70, 229, 0.08);
-        color: #4f46e5;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s ease, color 0.2s ease;
-    }
-    .upload-btn:hover {
-        background: #4f46e5;
-        color: #ffffff;
-    }
-    .upload-btn input[type="file"] {
-        display: none;
-    }
-    .profile-form-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
-        padding: 2rem;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    .profile-form-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1.25rem 1.75rem;
-        flex: 1 1 auto;
-    }
-    .profile-form-card label {
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 0.4rem;
-        font-size: 0.9rem;
-    }
-    .profile-input,
-    .profile-form-card select {
-        background: #f8f9fc;
-        border: 1px solid #d1d5db;
-        border-radius: 12px;
-        padding: 0.75rem 1rem;
-        font-size: 0.95rem;
-        color: #111827;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    }
-    .profile-input:focus,
-    .profile-form-card select:focus {
-        border-color: #4f46e5;
-        background: #ffffff;
-        box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.15);
-        outline: none;
-    }
-    .profile-input[readonly] {
-        background: #edeff5;
-        color: #6b7280;
-    }
-    .profile-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: auto;
-    }
-    .profile-submit-btn {
-        background: #111827;
-        border-color: #111827;
-        color: #ffffff;
-        border-radius: 999px;
-        padding: 0.75rem 1.75rem;
-        font-weight: 600;
-        box-shadow: 0 10px 25px rgba(17, 24, 39, 0.35);
-    }
-    .profile-submit-btn:hover {
-        background: #1f2937;
-        border-color: #1f2937;
-        color: #ffffff;
-    }
-    .security-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
-        padding: 2.25rem 2rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    .security-field label {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 0.4rem;
-    }
-    .security-field label i {
-        color: #4f46e5;
-    }
-    .security-helper {
-        font-size: 0.85rem;
-        color: #6b7280;
-    }
-    @media (max-width: 767.98px) {
-        .profile-tab-list {
-            padding-left: 1.25rem;
-            padding-right: 1.25rem;
-            gap: 1.25rem;
-        }
-        .profile-tab-body {
-            padding: 1.5rem;
-        }
-        .profile-form-card,
-        .profile-avatar-card,
-        .security-card,
-        .profile-description {
-            padding: 1.5rem;
-        }
-        .profile-description {
-            width: 100%;
-        }
-    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5 user-page">
-    <div class="profile-wrapper">
-        <div class="profile-header">
-            <h1 class="profile-heading mb-0">User Profile</h1>
-        </div>
-
-        {% if message %}
-            <div class="alert alert-info">{{ message }}</div>
-        {% endif %}
-
-        <div class="profile-panel">
-            <ul class="profile-tab-list nav" id="profileTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="profile-tab active" id="info-tab" data-bs-toggle="tab" data-bs-target="#profile-info" type="button" role="tab" aria-controls="profile-info" aria-selected="true">General</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="profile-tab" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">Security</button>
-                </li>
-            </ul>
-            <div class="tab-content profile-tab-body" id="profileTabContent">
-                <div class="tab-pane fade show active" id="profile-info" role="tabpanel" aria-labelledby="info-tab">
-                    <form method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="save_profile">
-                        <div class="row g-4 profile-general-layout">
-                            <div class="col-12 col-lg-4">
-                                <div class="card profile-avatar-card h-100">
-                                    <div class="card-body">
-                                        <div id="profileImageContainer">
-                                            {% if user.profile_image %}
-                                                <img src="{{ user.profile_image }}" alt="Profile" class="profile-avatar" id="profileAvatar">
-                                            {% else %}
-                                                <div class="avatar-placeholder" id="avatarPlaceholder">
-                                                    <i class="bi bi-person-fill fs-1 text-secondary"></i>
-                                                </div>
-                                                <img src="" alt="Profile" class="profile-avatar d-none" id="profileAvatar">
-                                            {% endif %}
-                                        </div>
-                                        <label for="profileImageInput" class="upload-btn">
-                                            <i class="bi bi-camera-fill"></i>
-                                            <span>Upload Photo</span>
-                                            <input type="file" id="profileImageInput" name="profile_image" accept="image/*">
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-8">
-                                <div class="profile-form-card">
-                                    <div class="profile-form-grid">
-                                        <div>
-                                            <label for="firstName">First Name</label>
-                                            <input type="text" id="firstName" name="first_name" class="profile-input" value="{{ user.first_name or '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label for="lastName">Last Name</label>
-                                            <input type="text" id="lastName" name="last_name" class="profile-input" value="{{ user.last_name or '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label for="email">Email Address</label>
-                                            <input type="email" id="email" class="profile-input" value="{{ user.email or '' }}" readonly>
-                                        </div>
-                                        <div>
-                                            <label for="phone">Phone Number</label>
-                                            <input type="tel" id="phone" name="phone" class="profile-input" value="{{ user.phone or '' }}" placeholder="Enter phone number">
-                                        </div>
-                                        <div>
-                                            <label for="address1">Address Line 1</label>
-                                            <input type="text" id="address1" name="address1" class="profile-input" value="{{ user.address1 or '' }}" placeholder="Street address">
-                                        </div>
-                                        <div>
-                                            <label for="address2">Address Line 2</label>
-                                            <input type="text" id="address2" name="address2" class="profile-input" value="{{ user.address2 or '' }}" placeholder="Apartment, suite, etc.">
-                                        </div>
-                                        <div>
-                                            <label for="state">State</label>
-                                            <select id="state" name="state" class="profile-input">
-                                                <option value="" {% if not user.state %}selected{% endif %}>Select State</option>
-                                                <option value="Andhra Pradesh" {% if user.state == 'Andhra Pradesh' %}selected{% endif %}>Andhra Pradesh</option>
-                                                <option value="Delhi" {% if user.state == 'Delhi' %}selected{% endif %}>Delhi</option>
-                                                <option value="Karnataka" {% if user.state == 'Karnataka' %}selected{% endif %}>Karnataka</option>
-                                                <option value="Maharashtra" {% if user.state == 'Maharashtra' %}selected{% endif %}>Maharashtra</option>
-                                                <option value="Tamil Nadu" {% if user.state == 'Tamil Nadu' %}selected{% endif %}>Tamil Nadu</option>
-                                                <option value="Telangana" {% if user.state == 'Telangana' %}selected{% endif %}>Telangana</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="zipCode">Zip Code</label>
-                                            <input type="text" id="zipCode" name="zip_code" class="profile-input" value="{{ user.zip_code or '' }}" placeholder="Postal code">
-                                        </div>
-                                        <div>
-                                            <label for="gstin">GSTIN (Optional)</label>
-                                            <input type="text" id="gstin" name="gstin" class="profile-input" value="{{ user.gstin or '' }}" placeholder="Enter GSTIN">
-                                        </div>
-                                    </div>
-                                    <div class="profile-actions">
-                                        <button type="submit" class="btn profile-submit-btn">Save Changes</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
-                    <form method="post">
-                        <input type="hidden" name="action" value="change_password">
-                        <div class="security-card">
-                            <div class="security-field">
-                                <label for="currentPassword"><i class="bi bi-shield-lock"></i> Current Password</label>
-                                <input type="password" id="currentPassword" name="current_password" class="profile-input" required>
-                            </div>
-                            <div class="security-field">
-                                <label for="newPassword"><i class="bi bi-lock"></i> New Password</label>
-                                <input type="password" id="newPassword" name="new_password" class="profile-input" required>
-                            </div>
-                            <div class="security-field">
-                                <label for="confirmPassword"><i class="bi bi-lock-fill"></i> Confirm New Password</label>
-                                <input type="password" id="confirmPassword" name="confirm_password" class="profile-input" required>
-                            </div>
-                            <div class="security-helper">Password must be minimum 6+</div>
-                            <div class="profile-actions">
-                                <button type="submit" class="btn profile-submit-btn">Update Password</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div class="user-page">
+  <div class="user-container">
+    <div class="user-header">
+      <h1>User</h1>
+      <div class="user-breadcrumb">
+        <span>Management</span>
+        <span>&bull;</span>
+        <span>User</span>
+      </div>
     </div>
+
+    {% if message %}
+      <div class="alert alert-info mb-0">{{ message }}</div>
+    {% endif %}
+
+    <div class="user-tabs">
+      <div class="tab-buttons">
+        <button class="tab-button active" data-tab="general">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+            <path d="M2 10h20"></path>
+          </svg>
+          <span>General</span>
+        </button>
+        <button class="tab-button" data-tab="security">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="m15 6.5-1 2.5 3 3 2-5.5"></path>
+            <path d="m12.4 3.8 1.7 4.3c.2.5.4.9.8 1.3l2.9 2.9c.4.4.8.6 1.3.8l4.3 1.7c.3.1.6.5.6 1 0 .4-.2.8-.6 1l-4.3 1.7c-.5.2-.9.4-1.3.8L15 21.2c-.4.4-.6.8-.8 1.3l-1.7 4.3c-.1.3-.5.6-1 .6-.4 0-.8-.2-1-.6l-1.7-4.3c-.2-.5-.4-.9-.8-1.3L5.1 18.3c-.4-.4-.8-.6-1.3-.8L-.5 15.8c-.3-.1-.6-.5-.6-1 0-.4.2-.8.6-1l4.3-1.7c.5-.2.9-.4 1.3-.8l2.9-2.9c.4-.4.6-.8.8-1.3l1.7-4.3c.1-.3.5-.6 1-.6.4 0 .8.2 1 .6z"></path>
+          </svg>
+          <span>Security</span>
+        </button>
+      </div>
+
+      <div class="tab-panel active" id="general">
+        <form method="post" enctype="multipart/form-data" class="general-form">
+          <input type="hidden" name="action" value="save_profile">
+          <div class="general-grid">
+            <div class="avatar-card">
+              <div class="avatar-circle" id="avatarCircle">
+                {% if user.profile_image %}
+                  <img src="{{ user.profile_image }}" alt="Profile avatar" id="profileAvatar">
+                {% else %}
+                {% set first_initial = (user.first_name[0] if user.first_name else '') %}
+                {% set last_initial = (user.last_name[0] if user.last_name else '') %}
+                {% set initials = (first_initial ~ last_initial) | upper %}
+                <span id="avatarInitials">{{ initials if initials else 'U' }}</span>
+                <img src="" alt="Profile avatar" id="profileAvatar" class="d-none">
+              {% endif %}
+            </div>
+            <p class="avatar-username">{{ user.username or user.email }}</p>
+            <label class="avatar-upload">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M12 16v-8"></path>
+                <path d="m9 11 3-3 3 3"></path>
+                <path d="M20 21H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4l2-3h4l2 3h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2Z"></path>
+              </svg>
+              <span>Upload Photo</span>
+              <input type="file" id="profileImageInput" name="profile_image" accept="image/*">
+            </label>
+            </div>
+            <div class="form-card">
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="firstName">First Name</label>
+                  <input type="text" id="firstName" name="first_name" value="{{ user.first_name or '' }}" required>
+                </div>
+                <div class="form-field">
+                  <label for="lastName">Last Name</label>
+                  <input type="text" id="lastName" name="last_name" value="{{ user.last_name or '' }}" required>
+                </div>
+                <div class="form-field">
+                  <label for="email">Email Address</label>
+                  <input type="email" id="email" value="{{ user.email or '' }}" readonly>
+                </div>
+                <div class="form-field">
+                  <label for="phone">Phone Number</label>
+                  <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="Enter phone number">
+                </div>
+                <div class="form-field">
+                  <label for="address1">Address Line 1</label>
+                  <input type="text" id="address1" name="address1" value="{{ user.address1 or '' }}" placeholder="Street address">
+                </div>
+                <div class="form-field">
+                  <label for="address2">Address Line 2</label>
+                  <input type="text" id="address2" name="address2" value="{{ user.address2 or '' }}" placeholder="Apartment, suite, etc.">
+                </div>
+                <div class="form-field">
+                  <label for="state">State</label>
+                  <select id="state" name="state">
+                    <option value="" {% if not user.state %}selected{% endif %}>Select State</option>
+                    <option value="Andhra Pradesh" {% if user.state == 'Andhra Pradesh' %}selected{% endif %}>Andhra Pradesh</option>
+                    <option value="Delhi" {% if user.state == 'Delhi' %}selected{% endif %}>Delhi</option>
+                    <option value="Karnataka" {% if user.state == 'Karnataka' %}selected{% endif %}>Karnataka</option>
+                    <option value="Maharashtra" {% if user.state == 'Maharashtra' %}selected{% endif %}>Maharashtra</option>
+                    <option value="Tamil Nadu" {% if user.state == 'Tamil Nadu' %}selected{% endif %}>Tamil Nadu</option>
+                    <option value="Telangana" {% if user.state == 'Telangana' %}selected{% endif %}>Telangana</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="zipCode">Zip/Code</label>
+                  <input type="text" id="zipCode" name="zip_code" value="{{ user.zip_code or '' }}" placeholder="Postal code">
+                </div>
+                <div class="form-field">
+                  <label for="gstin">GSTN (Optional)</label>
+                  <input type="text" id="gstin" name="gstin" value="{{ user.gstin or '' }}" placeholder="Enter GSTIN">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="tab-panel" id="security">
+        <div class="security-card">
+          <form method="post">
+            <input type="hidden" name="action" value="change_password">
+            <div class="security-grid">
+              <div class="security-field">
+                <label for="currentPassword">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                  </svg>
+                  Current Password
+                </label>
+                <input type="password" id="currentPassword" name="current_password" required>
+              </div>
+              <div class="security-field">
+                <label for="newPassword">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  New Password
+                </label>
+                <input type="password" id="newPassword" name="new_password" required>
+              </div>
+              <div class="security-field">
+                <label for="confirmPassword">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  Confirm New Password
+                </label>
+                <input type="password" id="confirmPassword" name="confirm_password" required>
+              </div>
+              <p class="security-helper">Password must be minimum 6+</p>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Update Password</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const imageInput = document.getElementById('profileImageInput');
-        const profileAvatar = document.getElementById('profileAvatar');
-        const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    const imageInput = document.getElementById('profileImageInput');
+    const profileAvatar = document.getElementById('profileAvatar');
+    const avatarInitials = document.getElementById('avatarInitials');
 
-        if (imageInput) {
-            imageInput.addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        if (profileAvatar) {
-                             profileAvatar.src = e.target.result;
-                             profileAvatar.classList.remove('d-none');
-                        }
-                        if(avatarPlaceholder) {
-                            avatarPlaceholder.classList.add('d-none');
-                        }
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.getAttribute('data-tab');
+
+        tabButtons.forEach((btn) => btn.classList.toggle('active', btn === button));
+        tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === target));
+      });
     });
+
+    if (imageInput) {
+      imageInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (profileAvatar) {
+            profileAvatar.src = e.target.result;
+            profileAvatar.classList.remove('d-none');
+          }
+          if (avatarInitials) {
+            avatarInitials.classList.add('d-none');
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  });
 </script>
 {% endblock %}
