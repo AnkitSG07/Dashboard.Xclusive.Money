@@ -968,6 +968,36 @@
       });
     }
 
+    function expandBoth(value, bothValues) {
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (value === null || value === undefined) {
+        return bothValues[0];
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return bothValues[0];
+        }
+        if ((trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed;
+            }
+          } catch (error) {
+            // ignore malformed arrays
+          }
+        }
+        if (trimmed.toUpperCase() === 'BOTH') {
+          return bothValues.slice();
+        }
+        return trimmed;
+      }
+      return value;
+    }
+
     async function fetchJson(url, options = {}) {
       const response = await fetch(url, options);
       const contentType = response.headers.get('Content-Type') || '';
@@ -1065,15 +1095,13 @@
         }
 
         if (this.createButton) {
-          this.createButton.addEventListener('click', () => this.openEditModal(null));
+          this.createButton.addEventListener('click', () => {
+            window.location.href = '/create-alerts';
+          });
         }
 
         if (this.container) {
           this.container.addEventListener('click', (event) => this.handleContainerClick(event));
-        }
-
-        if (this.saveButton) {
-          this.saveButton.addEventListener('click', () => this.handleSave());
         }
 
         document.querySelectorAll('[data-close="edit"]').forEach(btn => {
@@ -1120,10 +1148,30 @@
             fetchJson('/api/accounts?cache_only=1'),
             fetchJson('/api/strategies')
           ]);
+          const masters = Array.isArray(accountsPayload?.masters) ? accountsPayload.masters : [];  
           const accounts = Array.isArray(accountsPayload?.accounts) ? accountsPayload.accounts : [];
-          this.state.accounts = accounts;
-          this.accountIdMap = new Map(accounts.map(acc => [String(acc.id), acc]));
-          this.accountClientMap = new Map(accounts.map(acc => [String(acc.client_id), acc]));
+          const combined = [];
+          const seenIds = new Set();
+          [...masters, ...accounts].forEach(acc => {
+            if (!acc) {
+              return;
+            }
+            const id = acc.id !== undefined && acc.id !== null ? String(acc.id) : null;
+            if (id) {
+              if (seenIds.has(id)) {
+                return;
+              }
+              seenIds.add(id);
+            }
+            combined.push(acc);
+          });
+          this.state.accounts = combined;
+          this.accountIdMap = new Map(combined
+            .filter(acc => acc && acc.id !== undefined && acc.id !== null)
+            .map(acc => [String(acc.id), acc]));
+          this.accountClientMap = new Map(combined
+            .filter(acc => acc && acc.client_id)
+            .map(acc => [String(acc.client_id), acc]));
           this.accountVersion += 1;
           this.populateAccountFilters();
           const strategies = Array.isArray(strategiesPayload) ? strategiesPayload : [];
@@ -1383,41 +1431,93 @@
         return results;
       }
 
-      buildWebhookUrl(strategy) {
-        if (!this.webhookBase) {
+      buildWebhookUrl(strategy) {        const base = this.webhookBase;
+        if (!base) {
           return '';
         }
+        const origin = window.location.origin.replace(/\/$/, '');
+        const trimmedBase = base.startsWith('http') ? base : `${origin}/${base.replace(/^\//, '')}`;
+        if (!strategy?.webhook_secret) {
+          return trimmedBase;
+        }
+        const separator = trimmedBase.includes('?') ? '&' : '?';
+        return `${trimmedBase}${separator}secret=${encodeURIComponent(strategy.webhook_secret)}`;
+      }
+
+      getPayloadStorageKey(id) {
+        return `strategyPayload_${id}`;
+      }
+
+      getStoredPayload(id) {
+        if (!id && id !== 0) {
+          return null;
+        }
         try {
-          const url = new URL(this.webhookBase, window.location.origin);
-          url.searchParams.set('strategy_id', strategy.id);
-          if (strategy.webhook_secret) {
-            url.searchParams.set('secret', strategy.webhook_secret);
+          const raw = window.localStorage.getItem(this.getPayloadStorageKey(id));
+          if (!raw) {
+            return null;
           }
-          return url.toString();
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            return parsed;
+          }
         } catch (error) {
-          return this.webhookBase;
+          console.warn('Failed to parse stored payload', error);
+        }
+        return null;
+      }
+
+      savePayload(id, payload) {
+        if (!id && id !== 0) {
+          return;
+        }
+        try {
+          window.localStorage.setItem(this.getPayloadStorageKey(id), JSON.stringify(payload));
+        } catch (error) {
+          console.warn('Failed to persist payload preview', error);
         }
       }
 
-      buildPayload(strategy) {
-        const payload = {
-          symbol: 'RELIANCE',
-          exchange: 'NSE',
-          transactionType: 'BUY',
-          orderType: 'MARKET',
-          orderValidity: 'DAY',
-          productType: 'INTRADAY',
-          quantity: 1,
-          strategyId: strategy.id
-        };
-        if (strategy.webhook_secret) {
-          payload.secret = strategy.webhook_secret;
+      buildPayloadFromStrategy(strategy) {
+        if (!strategy) {
+          return {};
         }
-        const accounts = this.getResolvedAccounts(strategy).map(item => item.label);
-        if (accounts.length) {
-          payload.masterAccounts = accounts;
+        const payload = {
+          exchange: expandBoth(strategy.exchange || 'NSE', ['NSE', 'BSE']),
+          transactionType: expandBoth(strategy.transaction_type || 'BUY', ['BUY', 'SELL']),
+          orderType: strategy.order_type || 'limit',
+          orderValidity: strategy.order_validity || 'day',
+          productType: strategy.product_type || 'intraday',
+          masterAccounts: normalizeListField(strategy.master_accounts).map(value => String(value))
+        };
+        if (strategy.order_qty) {
+          const qty = Number(strategy.order_qty);
+          if (!Number.isNaN(qty)) {
+            payload.orderQty = qty;
+          }
+        }
+        if (strategy.order_value) {
+          const orderValue = Number(strategy.order_value);
+          if (!Number.isNaN(orderValue)) {
+            payload.orderValue = orderValue;
+          }
+        }
+        if (strategy.allowed_tickers === '__WATCHLIST_DYNAMIC__') {
+          payload.tradingSymbols = ["{{ticker}}"];
+        } else if (strategy.allowed_tickers) {
+          payload.tradingSymbols = normalizeListField(strategy.allowed_tickers);
+        } else {
+          payload.tradingSymbols = [];
         }
         return payload;
+      }
+
+      buildPayload(strategy) {
+        const stored = this.getStoredPayload(strategy?.id);
+        if (stored) {
+          return stored;
+        }
+        return this.buildPayloadFromStrategy(strategy);
       }
 
       openPayloadModal(strategy) {
@@ -1434,6 +1534,7 @@
         if (this.payloadCode) {
           const payload = this.buildPayload(strategy);
           this.payloadCode.textContent = JSON.stringify(payload, null, 2);
+          this.savePayload(strategy.id, payload);
         }
         this.payloadModal.style.display = 'block';
       }
@@ -1445,37 +1546,8 @@
       }
 
       openEditModal(strategy) {
-        this.state.editing = strategy;
-        if (this.editTitle) {
-          this.editTitle.textContent = strategy ? `Edit Strategy: ${strategy.name || 'Strategy'}` : 'Create Strategy';
-        }
-        if (this.nameInput) {
-          this.nameInput.value = strategy ? (strategy.name || '') : '';
-        }
-        if (this.descriptionInput) {
-          this.descriptionInput.value = strategy ? (strategy.description || '') : '';
-        }
-        if (this.typeSelect) {
-          const asset = strategy?.asset_class || 'Stocks';
-          const style = strategy?.style || 'Systematic';
-          const value = `${asset}|${style}`;
-          this.ensureTypeOption(value);
-          this.typeSelect.value = value;
-        }
-        if (this.accountSelect) {
-          const accountId = strategy?.account_id ? String(strategy.account_id) : '';
-          if (accountId && !this.accountSelect.querySelector(`option[value="${accountId}"]`)) {
-            const option = document.createElement('option');
-            option.value = accountId;
-            option.textContent = accountId;
-            option.dataset.missing = 'true';
-            this.accountSelect.appendChild(option);
-          }
-          this.accountSelect.value = accountId;
-        }
-        if (this.editModal) {
-          this.editModal.style.display = 'block';
-        }
+        const url = strategy && strategy.id ? `/create-alerts?strategy_id=${encodeURIComponent(strategy.id)}` : '/create-alerts';
+        window.location.href = url;
       }
 
       ensureTypeOption(value) {
@@ -1499,55 +1571,6 @@
           this.editModal.style.display = 'none';
         }
         this.state.editing = null;
-      }
-
-      async handleSave() {
-        if (this.isSaving) {
-          return;
-        }
-        if (!this.nameInput) {
-          return;
-        }
-        const name = this.nameInput.value.trim();
-        if (!name) {
-          this.showError('Strategy name is required.');
-          return;
-        }
-        const typeValue = this.typeSelect ? this.typeSelect.value : 'Stocks|Systematic';
-        const [assetClass, style] = (typeValue || 'Stocks|Systematic').split('|');
-        const accountId = this.accountSelect ? this.accountSelect.value : '';
-        const payload = {
-          name,
-          description: this.descriptionInput ? this.descriptionInput.value.trim() : '',
-          asset_class: assetClass || 'Stocks',
-          style: style || 'Systematic',
-          account_id: accountId ? parseInt(accountId, 10) : null
-        };
-        const isEdit = Boolean(this.state.editing);
-        const url = isEdit ? `/api/strategies/${this.state.editing.id}` : '/api/strategies';
-        const method = isEdit ? 'PUT' : 'POST';
-        this.isSaving = true;
-        if (this.saveButton) {
-          this.saveButton.disabled = true;
-        }
-        this.showError();
-        try {
-          await fetchJson(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          this.closeEditModal();
-          await this.reload();
-          window.alert('Strategy saved successfully.');
-        } catch (error) {
-          this.showError(error.message || 'Failed to save strategy.');
-        } finally {
-          this.isSaving = false;
-          if (this.saveButton) {
-            this.saveButton.disabled = false;
-          }
-        }
       }
 
       async toggleStatus(strategy, button) {
@@ -1600,6 +1623,11 @@
         try {
           await fetchJson(`/api/strategies/${strategy.id}`, { method: 'DELETE' });
           this.state.strategies = this.state.strategies.filter(item => item.id !== strategy.id);
+          try {
+            window.localStorage.removeItem(this.getPayloadStorageKey(strategy.id));
+          } catch (error) {
+            console.warn('Failed to remove stored payload', error);
+          }
           this.renderStrategies();
           window.alert('Strategy deleted.');
         } catch (error) {
@@ -1620,6 +1648,11 @@
           const data = await fetchJson(`/api/strategies/${strategy.id}/regenerate-secret`, { method: 'POST' });
           if (data?.webhook_secret) {
             strategy.webhook_secret = data.webhook_secret;
+            try {
+              window.localStorage.removeItem(this.getPayloadStorageKey(strategy.id));
+            } catch (error) {
+              console.warn('Failed to reset stored payload after secret regen', error);
+            }
             this.renderStrategies();
             window.alert('Generated a new webhook secret.');
           }
