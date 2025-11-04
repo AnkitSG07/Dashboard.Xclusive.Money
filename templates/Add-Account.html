@@ -985,6 +985,31 @@ window.pageScripts["Add-Account"] = function() {
     return matches;
   }
 
+  function getFilteredAccounts() {
+    return allAccounts.filter(acc => matchesFilters(acc));
+  }
+
+  function updateFooterCounts(filteredAccounts) {
+    const filteredTotal = filteredAccounts.length;
+    const overallTotal = allAccounts.length;
+
+    const summary = document.getElementById('accounts-summary');
+    if (summary) {
+      if (!filteredTotal) {
+        summary.textContent = 'No accounts to display';
+      } else if (filteredTotal === overallTotal) {
+        summary.textContent = `Showing ${filteredTotal} account${filteredTotal === 1 ? '' : 's'}`;
+      } else {
+        summary.textContent = `Showing ${filteredTotal} of ${overallTotal} accounts`;
+      }
+    }
+
+    const range = document.getElementById('accounts-range');
+    if (range) {
+      range.textContent = filteredTotal ? `1-${filteredTotal} of ${filteredTotal}` : '0-0 of 0';
+    }
+  }
+
   function updateEmptyState() {
     const tbody = document.getElementById('accounts-table-body');
     const emptyState = document.getElementById('accounts-empty-state');
@@ -996,13 +1021,16 @@ window.pageScripts["Add-Account"] = function() {
   function applyFilters() {
     const tbody = document.getElementById('accounts-table-body');
     if (!tbody) return;
+    const filteredAccounts = getFilteredAccounts();
+    const visibleIds = new Set(
+      filteredAccounts.map(acc => sanitizeClientId(acc.client_id || acc.username || ''))
+    );
+
     Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-      const clientId = row.dataset.clientId;
-      const acc = allAccounts.find(a => sanitizeClientId(a.client_id || a.username || '') === clientId);
-      if (!acc) return;
-      row.style.display = matchesFilters(acc) ? '' : 'none';
+      row.style.display = visibleIds.has(row.dataset.clientId) ? '' : 'none';
     });
     updateEmptyState();
+    updateFooterCounts(filteredAccounts);
   }
 
   function updateCounts() {
@@ -1024,14 +1052,7 @@ window.pageScripts["Add-Account"] = function() {
     setText('current-plan', 'Professional');
     setText('plan-validity', '--');
 
-    const summary = document.getElementById('accounts-summary');
-    if (summary) {
-      summary.textContent = total ? `Showing ${total} account${total === 1 ? '' : 's'}` : 'No accounts to display';
-    }
-    const range = document.getElementById('accounts-range');
-    if (range) {
-      range.textContent = total ? `1-${total} of ${total}` : '0-0 of 0';
-    }
+    updateFooterCounts(getFilteredAccounts());
   }
 
   function updateAccountCard() {
