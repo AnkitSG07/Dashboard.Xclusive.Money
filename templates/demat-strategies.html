@@ -7,15 +7,16 @@
 
 
 
+
   .strategies-page-root {
     background: #f5f5f5;
-    margin: -1.5rem -1.5rem 0;
+    margin: -1.2rem -1.1rem 0;
     padding: 40px 0;
   }
 
   .strategies-page {
     max-width: 1400px;
-    margin: 0 auto;
+    margin: 12px;
     padding: 0 40px 40px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
@@ -670,7 +671,7 @@
 /* Compact + properly sized cards grid fix */
 .strategy-cards-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 5fr)) !important;
   gap: 14px !important;
   justify-content: center !important;
   align-items: start !important;
@@ -756,6 +757,134 @@
     font-size: 12px !important;
   }
 }
+/* --- SEARCH BAR OVERRIDE --- */
+.strategy-filters{
+  display: grid !important;
+  grid-template-columns: 1fr 260px 260px !important; /* search grows, filters fixed */
+  gap: 16px !important;
+  align-items: center !important;
+}
+
+.strategy-search-box{
+  flex: 1 1 auto !important;
+  min-width: 380px !important;
+}
+
+.strategy-search-icon{
+  left: 16px !important;
+  width: 20px !important;
+  height: 20px !important;
+  opacity: .55 !important;
+}
+
+.strategy-search-box input{
+  height: 44px !important;              /* taller */
+  padding: 14px 16px 14px 48px !important; /* room for icon */
+  border-radius: 14px !important;       /* pill-ish */
+  border: 1px solid #e7e9f2 !important;
+  background: #fff !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  box-shadow: 0 1px 2px rgba(16,24,40,.06) !important;
+  transition: box-shadow .15s ease, border-color .15s ease !important;
+}
+
+.strategy-search-box input::placeholder{
+  color: #9aa0ab !important;
+}
+
+/* match filter height/shape to search box */
+.strategy-filters select{
+  height: 44px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  padding: 14px 40px px 16px !important;
+  border: 1px solid #e7e9f2 !important;
+  background-color: #fff !important;
+  background-position: right 14px center !important;
+}
+
+/* focus state like the mock */
+.strategy-search-box input:focus,
+.strategy-filters select:focus{
+  outline: none !important;
+  border-color: #cfd5e3 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,.15) !important;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 960px){
+  .strategy-filters{
+    grid-template-columns: 1fr !important;
+  }
+  .strategy-search-box{ min-width: 0 !important; }
+}
+/* ===== DESKTOP STRATEGY CARD COMPACT OVERRIDE ===== */
+@media (min-width: 1025px) {
+  .strategy-cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 18px !important;
+    justify-content: center !important;
+    align-items: start !important;
+  }
+
+  .strategy-card {
+    max-width: 320px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 16px 18px 14px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  .strategy-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    font-size: 15px !important;
+    border-radius: 10px !important;
+  }
+
+  .strategy-card-header {
+    gap: 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .strategy-card-title {
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+  }
+
+  .strategy-card-type,
+  .strategy-card-desc,
+  .strategy-card-value {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  .strategy-card-desc {
+    margin-bottom: 10px !important;
+  }
+
+  .strategy-webhook-box {
+    padding: 6px 8px !important;
+  }
+
+  .strategy-webhook-url {
+    font-size: 11.5px !important;
+  }
+
+  .strategy-btn-row {
+    gap: 6px !important;
+  }
+
+  .strategy-btn {
+    padding: 7px 8px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+  }
+}
+
 </style>
 {% endblock %}
 
