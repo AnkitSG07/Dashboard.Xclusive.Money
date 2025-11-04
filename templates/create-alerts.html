@@ -9,52 +9,55 @@
     padding: 0;
     box-sizing: border-box;
   }
-    
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: hsl(0, 0%, 100%);
     color: hsl(240, 10%, 3.9%);
     line-height: 1.5;
   }
-    
+
   .strategy-container {
     max-width: 1024px;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 2rem 1rem 4rem;
   }
 
   .strategy-card {
     background-color: hsl(0, 0%, 100%);
     border: 1px solid hsl(240, 5.9%, 90%);
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
     overflow: hidden;
   }
 
   .strategy-card-header {
     background-color: hsl(240, 5.9%, 10%);
     color: hsl(0, 0%, 98%);
-    padding: 1.5rem;
+    padding: 1.75rem 2rem;
   }
 
   .strategy-card-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 700;
   }
 
   .strategy-card-body {
-    padding: 2rem;
+    padding: 2.25rem 2rem;
   }
 
   .strategy-form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
   }
 
   .strategy-form-label {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.65rem;
+    color: hsl(240, 10%, 3.9%);
   }
 
   .strategy-required {
@@ -65,12 +68,12 @@
   .strategy-textarea,
   .strategy-select {
     width: 100%;
-    padding: 0.625rem 0.75rem;
+    padding: 0.75rem 0.85rem;
     font-size: 1rem;
     border: 1px solid hsl(240, 5.9%, 90%);
-    border-radius: 0.375rem;
+    border-radius: 0.45rem;
     background-color: hsl(0, 0%, 100%);
-    transition: all 0.2s;
+    transition: all 0.2s ease;
   }
 
   .strategy-input:focus,
@@ -78,19 +81,22 @@
   .strategy-select:focus {
     outline: none;
     border-color: hsl(240, 5.9%, 10%);
-    box-shadow: 0 0 0 2px hsla(240, 5.9%, 10%, 0.1);
+    box-shadow: 0 0 0 3px hsla(240, 5.9%, 10%, 0.12);
   }
 
-  .strategy-input:disabled {
-    opacity: 0.5;
+  .strategy-input:disabled,
+  .strategy-textarea:disabled,
+  .strategy-select:disabled {
+    opacity: 0.65;
     cursor: not-allowed;
     background-color: hsl(240, 4.8%, 95.9%);
   }
 
   .strategy-textarea {
-    resize: none;
-    min-height: 80px;
-    font-family: monospace;
+    resize: vertical;
+    min-height: 90px;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    line-height: 1.6;
   }
 
   .strategy-textarea.readonly {
@@ -100,34 +106,45 @@
   .strategy-form-hint {
     font-size: 0.875rem;
     color: hsl(240, 3.8%, 46.1%);
-    margin-top: 0.5rem;
+    margin-top: 0.45rem;
   }
 
-  .strategy-checkbox-group {
+  .strategy-accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border: 1px solid hsl(240, 5.9%, 90%);
+    border-radius: 0.6rem;
+    background: hsl(240, 4.8%, 95.9%);
+  }
+
+  .strategy-account-item {
     display: flex;
     align-items: center;
-    padding: 1rem;
-    border: 1px solid hsl(240, 5.9%, 90%);
-    border-radius: 0.5rem;
-    margin-bottom: 0.75rem;
+    gap: 0.65rem;
   }
 
   .strategy-checkbox {
-    width: 1.25rem;
-    height: 1.25rem;
-    margin-right: 0.75rem;
+    width: 1.2rem;
+    height: 1.2rem;
     cursor: pointer;
+    accent-color: hsl(240, 5.9%, 10%);
   }
 
   .strategy-checkbox-label {
-    font-size: 0.875rem;
+    font-size: 0.925rem;
     font-weight: 500;
+    color: hsl(240, 5%, 35%);
     cursor: pointer;
   }
 
   .strategy-radio-group {
     display: flex;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1.25rem;
     margin-bottom: 0.75rem;
   }
 
@@ -138,14 +155,10 @@
   }
 
   .strategy-radio {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1.1rem;
+    height: 1.1rem;
     cursor: pointer;
-  }
-
-  .strategy-radio-label {
-    font-weight: 400;
-    cursor: pointer;
+    accent-color: hsl(240, 5.9%, 10%);
   }
 
   .strategy-grid-2 {
@@ -156,7 +169,7 @@
 
   @media (min-width: 640px) {
     .strategy-grid-2 {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -166,58 +179,66 @@
 
   .strategy-copy-button {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 0.5rem;
+    top: 0.6rem;
+    right: 0.6rem;
+    padding: 0.45rem;
     background: transparent;
-    border: none;
+    border: 1px solid hsl(240, 5.9%, 90%);
+    border-radius: 0.4rem;
     cursor: pointer;
-    border-radius: 0.375rem;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s ease;
   }
 
   .strategy-copy-button:hover {
     background-color: hsl(240, 4.8%, 95.9%);
   }
 
-  .strategy-button-group {
+  .tokens-list {
+    font-size: 0.875rem;
+    color: hsl(240, 3.8%, 46.1%);
+    margin-top: 0.35rem;
+    min-height: 1.2rem;
+  }
+
+  .strategy-button-row {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
+    gap: 0.85rem;
+    margin-top: 2rem;
   }
 
   @media (min-width: 640px) {
-    .strategy-button-group {
+    .strategy-button-row {
       flex-direction: row;
-      justify-content: space-between;
+      justify-content: flex-end;
     }
   }
 
   .strategy-button {
-    padding: 0.625rem 2rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 0.5rem;
+    padding: 0.75rem 2.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 0.55rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     border: none;
   }
 
   .strategy-button-primary {
-    background-color: hsl(240, 5.9%, 10%);
-    color: hsl(0, 0%, 98%);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.25);
   }
 
   .strategy-button-primary:hover {
-    background-color: hsl(240, 5.9%, 20%);
+    transform: translateY(-1px);
+    box-shadow: 0 16px 36px rgba(99, 102, 241, 0.3);
   }
 
   .strategy-button-outline {
     background-color: transparent;
     color: hsl(240, 10%, 3.9%);
-    border: 1px solid hsl(240, 5.9%, 90%);
+    border: 1px solid hsl(240, 5.9%, 85%);
   }
 
   .strategy-button-outline:hover {
@@ -225,12 +246,16 @@
   }
 
   @media (max-width: 640px) {
-    .strategy-card-header h1 {
-      font-size: 1.25rem;
+    .strategy-card-header {
+      padding: 1.5rem;
     }
 
     .strategy-card-body {
-      padding: 1rem;
+      padding: 1.5rem 1.25rem;
+    }
+
+    .strategy-card-header h1 {
+      font-size: 1.45rem;
     }
   }
 </style>
@@ -242,255 +267,230 @@
       <div class="strategy-card-header">
         <h1>Create New Strategy</h1>
       </div>
-
       <div class="strategy-card-body">
-        <div class="strategy-form-group">
-          <label for="strategyName" class="strategy-form-label">
-            Strategy Name <span class="strategy-required">*</span>
-          </label>
-          <input
-            type="text"
-            id="strategyName"
-            class="strategy-input"
-            placeholder="e.g., Daily Momentum Scalper"
-          />
-        </div>
-
-        <div class="strategy-form-group">
-          <label class="strategy-form-label">Master Accounts</label>
-          <div class="strategy-checkbox-group">
-            <input type="checkbox" id="account1" class="strategy-checkbox" />
-            <label for="account1" class="strategy-checkbox-label">
-              zerodha - Amit_Zerodha (CX9849)
-            </label>
-          </div>
-          <p class="strategy-form-hint">
-            Select connected master accounts for this strategy.
-          </p>
-        </div>
-
-        <div class="strategy-grid-2">
+        <form id="createStrategyForm">
           <div class="strategy-form-group">
-            <label for="exchange" class="strategy-form-label">
-              Exchange <span class="strategy-required">*</span>
+            <label for="strategyName" class="strategy-form-label">
+              Strategy Name <span class="strategy-required">*</span>
             </label>
-            <select id="exchange" class="strategy-select">
-              <option value="NSE">NSE</option>
-              <option value="BSE">BSE</option>
-              <option value="NSE and BSE">NSE and BSE</option>
-              <option value="NFO">NFO</option>
-              <option value="MCX">MCX</option>
-            </select>
-          </div>
-
-          <div class="strategy-form-group">
-            <label for="symbolToken" class="strategy-form-label">Symbol Token</label>
             <input
               type="text"
-              id="symbolToken"
+              id="strategyName"
+              name="strategyName"
               class="strategy-input"
-              value="Auto"
-            />
-          </div>
-        </div>
-
-        <div class="strategy-form-group">
-          <label class="strategy-form-label">
-            Trading Symbols <span class="strategy-required">*</span>
-          </label>
-          <div class="strategy-radio-group">
-            <div class="strategy-radio-item">
-              <input
-                type="radio"
-                id="single"
-                name="tradingSymbolType"
-                value="single"
-                class="strategy-radio"
-                checked
-                onchange="toggleTradingSymbol()"
-              />
-              <label for="single" class="strategy-radio-label">Single Symbol</label>
-            </div>
-            <div class="strategy-radio-item">
-              <input
-                type="radio"
-                id="watchlist"
-                name="tradingSymbolType"
-                value="watchlist"
-                class="strategy-radio"
-                onchange="toggleTradingSymbol()"
-              />
-              <label for="watchlist" class="strategy-radio-label">Watchlist (TradingView Alert)</label>
-            </div>
-          </div>
-          <textarea
-            id="singleSymbolInput"
-            class="strategy-textarea"
-            placeholder="Enter single symbol (e.g., RELIANCE)"
-          ></textarea>
-          <textarea
-            id="watchlistInput"
-            class="strategy-textarea readonly"
-            readonly
-            style="display: none;"
-          >Symbols will be dynamically provided by TradingView ({% raw %}{{ticker}}{% endraw %})</textarea>
-          <p id="tradingSymbolHint" class="strategy-form-hint">
-            Enter the trading symbol.
-          </p>
-        </div>
-
-        <div class="strategy-form-group">
-          <label class="strategy-form-label">Alert Type</label>
-          <div class="strategy-radio-group">
-            <div class="strategy-radio-item">
-              <input
-                type="radio"
-                id="strategy"
-                name="alertType"
-                value="strategy"
-                class="strategy-radio"
-                checked
-                onchange="toggleAlertType()"
-              />
-              <label for="strategy" class="strategy-radio-label">Strategy alert</label>
-            </div>
-            <div class="strategy-radio-item">
-              <input
-                type="radio"
-                id="manual"
-                name="alertType"
-                value="manual"
-                class="strategy-radio"
-                onchange="toggleAlertType()"
-              />
-              <label for="manual" class="strategy-radio-label">Manual alert</label>
-            </div>
-          </div>
-        </div>
-
-        <div class="strategy-grid-2">
-          <div class="strategy-form-group" id="actionGroup">
-            <label for="action" class="strategy-form-label">Action</label>
-            <input
-              type="text"
-              id="action"
-              class="strategy-input"
-              value="{{ strategy.order.action }}"
-              style="font-family: monospace;"
-            />
-            <p class="strategy-form-hint">
-              TradingView will replace this with BUY or SELL.
-            </p>
+              placeholder="e.g., Daily Momentum Scalper"
+              required
+            >
+            <p class="strategy-form-hint">Choose a descriptive name so you can identify this strategy later.</p>
           </div>
 
-          <div class="strategy-form-group" id="transactionGroup" style="display: none;">
-            <label for="transactionType" class="strategy-form-label">
-              Type of Transaction <span class="strategy-required">*</span>
+          <div class="strategy-form-group">
+            <label class="strategy-form-label">Master Accounts</label>
+            <div id="masterAccountsContainer" class="strategy-accounts-list" aria-live="polite"></div>
+            <p class="strategy-form-hint">Select the connected master accounts that should execute this strategy.</p>
+          </div>
+
+          <div class="strategy-grid-2">
+            <div class="strategy-form-group">
+              <label for="exchange" class="strategy-form-label">
+                Exchange <span class="strategy-required">*</span>
+              </label>
+              <select id="exchange" name="exchange" class="strategy-select">
+                <option value="NSE">NSE</option>
+                <option value="BSE">BSE</option>
+                <option value="BOTH">Both (NSE &amp; BSE)</option>
+              </select>
+            </div>
+
+            <div class="strategy-form-group">
+              <label for="symbolToken" class="strategy-form-label">Symbol Token</label>
+              <input
+                type="text"
+                id="symbolToken"
+                name="symbolToken"
+                class="strategy-input"
+                placeholder="Auto"
+                readonly
+              >
+              <p class="strategy-form-hint">Automatically populated for supported brokers when a single symbol is selected.</p>
+            </div>
+          </div>
+
+          <div class="strategy-form-group">
+            <label class="strategy-form-label">
+              Trading Symbols <span class="strategy-required">*</span>
             </label>
-            <select id="transactionType" class="strategy-select">
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
-            </select>
-          </div>
-
-          <div class="strategy-form-group">
-            <label for="orderType" class="strategy-form-label">
-              Order Type <span class="strategy-required">*</span>
-            </label>
-            <select id="orderType" class="strategy-select">
-              <option value="Limit">Limit</option>
-              <option value="Market">Market</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="strategy-grid-2">
-          <div class="strategy-form-group">
-            <label for="orderValidity" class="strategy-form-label">Order Validity</label>
-            <select id="orderValidity" class="strategy-select">
-              <option value="Day">Day</option>
-              <option value="IOC">IOC (Immediate or Cancel)</option>
-            </select>
-          </div>
-
-          <div class="strategy-form-group">
-            <label for="productType" class="strategy-form-label">
-              Type of Product <span class="strategy-required">*</span>
-            </label>
-            <select id="productType" class="strategy-select">
-              <option value="Intraday / MIS">Intraday / MIS</option>
-              <option value="CNC / Longterm">CNC / Longterm</option>
-              <option value="MTF">MTF</option>
-              <option value="MTF or Longterm">MTF or Longterm</option>
-            </select>
-            <p class="strategy-form-hint">
-              Intraday/MIS are equivalent, as are CNC/longterm. "MTF or Longterm" attempts MTF first and falls back to CNC if unavailable.
-            </p>
-          </div>
-        </div>
-
-        <div class="strategy-grid-2">
-          <div class="strategy-form-group">
-            <label for="orderQuantity" class="strategy-form-label">Order Quantity</label>
-            <input
-              type="number"
-              id="orderQuantity"
-              class="strategy-input"
-              placeholder="e.g., 100"
-              oninput="handleQuantityChange(this)"
-            />
-            <p class="strategy-form-hint">
-              Leave empty if specifying Order Value.
-            </p>
-          </div>
-
-          <div class="strategy-form-group">
-            <label for="orderValue" class="strategy-form-label">Order Value</label>
-            <input
-              type="number"
-              id="orderValue"
-              class="strategy-input"
-              placeholder="e.g., 10000.00"
-              oninput="handleValueChange(this)"
-            />
-            <p class="strategy-form-hint">
-              Auto-calculates quantity from live price.
-            </p>
-          </div>
-        </div>
-
-        <div class="strategy-form-group">
-          <label class="strategy-form-label">Webhook Payload Preview</label>
-          <div class="strategy-payload-container">
+            <div class="strategy-radio-group">
+              <label class="strategy-radio-item" for="singleSymbolMode">
+                <input
+                  type="radio"
+                  id="singleSymbolMode"
+                  name="symbolInputMode"
+                  value="single"
+                  class="strategy-radio"
+                  checked
+                >
+                <span class="strategy-radio-label">Single Symbol</span>
+              </label>
+              <label class="strategy-radio-item" for="watchlistMode">
+                <input
+                  type="radio"
+                  id="watchlistMode"
+                  name="symbolInputMode"
+                  value="watchlist"
+                  class="strategy-radio"
+                >
+                <span class="strategy-radio-label">Watchlist (TradingView Alert)</span>
+              </label>
+            </div>
             <textarea
-              id="webhookPayload"
-              class="strategy-textarea readonly"
-              readonly
-              style="min-height: 180px;"
-            >{
-  "orderValidity": "day",
-  "productType": "intraday",
-  "masterAccounts": [],
-  "action": "{{ strategy.order.action }}",
-  "tradingSymbols": []
-}</textarea>
-            <button class="strategy-copy-button" onclick="copyPayload()" title="Copy to clipboard">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-              </svg>
-            </button>
+              id="tradingSymbols"
+              name="tradingSymbols"
+              class="strategy-textarea"
+              placeholder="Enter single symbol (e.g., RELIANCE)"
+              required
+            ></textarea>
+            <p class="strategy-form-hint" id="symbolInputHelp">Enter the trading symbol.</p>
+            <div id="tokensList" class="tokens-list"></div>
           </div>
-        </div>
 
-        <div class="strategy-button-group">
-          <button class="strategy-button strategy-button-outline" onclick="handleCancel()">
-            Cancel
-          </button>
-          <button class="strategy-button strategy-button-primary" onclick="handleSave()">
-            Save Strategy
-          </button>
-        </div>
+          <div class="strategy-form-group">
+            <label class="strategy-form-label">Alert Type</label>
+            <div class="strategy-radio-group">
+              <label class="strategy-radio-item" for="alertTypeStrategy">
+                <input
+                  type="radio"
+                  id="alertTypeStrategy"
+                  name="alertType"
+                  value="strategy"
+                  class="strategy-radio"
+                  checked
+                >
+                <span class="strategy-radio-label">Strategy alert</span>
+              </label>
+              <label class="strategy-radio-item" for="alertTypeManual">
+                <input
+                  type="radio"
+                  id="alertTypeManual"
+                  name="alertType"
+                  value="manual"
+                  class="strategy-radio"
+                >
+                <span class="strategy-radio-label">Manual alert</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="strategy-grid-2">
+            <div class="strategy-form-group" id="actionGroup">
+              <label for="actionPlaceholder" class="strategy-form-label">Action</label>
+              <input
+                type="text"
+                id="actionPlaceholder"
+                class="strategy-input"
+                value="{% raw %}{{strategy.order.action}}{% endraw %}"
+                readonly
+              >
+              <p class="strategy-form-hint">TradingView will replace this placeholder with BUY or SELL.</p>
+            </div>
+            <div class="strategy-form-group" id="transactionGroup" style="display: none;">
+              <label for="transactionType" class="strategy-form-label">
+                Type of Transaction <span class="strategy-required">*</span>
+              </label>
+              <select id="transactionType" name="transactionType" class="strategy-select">
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+                <option value="BOTH">Both (BUY &amp; SELL)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="strategy-grid-2">
+            <div class="strategy-form-group">
+              <label for="orderType" class="strategy-form-label">
+                Order Type <span class="strategy-required">*</span>
+              </label>
+              <select id="orderType" name="orderType" class="strategy-select">
+                <option value="limit">Limit</option>
+                <option value="market">Market</option>
+              </select>
+            </div>
+            <div class="strategy-form-group">
+              <label for="orderValidity" class="strategy-form-label">Order Validity</label>
+              <select id="orderValidity" name="orderValidity" class="strategy-select">
+                <option value="day">Day</option>
+                <option value="IOC">IOC (Immediate or Cancel)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="strategy-grid-2">
+            <div class="strategy-form-group">
+              <label for="productType" class="strategy-form-label">
+                Type of Product <span class="strategy-required">*</span>
+              </label>
+              <select id="productType" name="productType" class="strategy-select">
+                <option value="intraday">Intraday / MIS</option>
+                <option value="cnc">CNC / Longterm</option>
+                <option value="mtf">MTF</option>
+                <option value="mtf_or_cnc">MTF or Longterm</option>
+              </select>
+              <p class="strategy-form-hint">Intraday/MIS are equivalent, as are CNC/Longterm. "MTF or Longterm" attempts MTF first and falls back to CNC if unavailable.</p>
+            </div>
+            <div class="strategy-form-group">
+              <label for="orderQuantity" class="strategy-form-label">Order Quantity</label>
+              <input
+                type="number"
+                id="orderQuantity"
+                name="orderQty"
+                class="strategy-input"
+                min="1"
+                step="1"
+                placeholder="e.g., 100"
+              >
+              <p class="strategy-form-hint">Leave empty if specifying Order Value.</p>
+            </div>
+          </div>
+
+          <div class="strategy-grid-2">
+            <div class="strategy-form-group">
+              <label for="orderValue" class="strategy-form-label">Order Value</label>
+              <input
+                type="number"
+                id="orderValue"
+                name="orderValue"
+                class="strategy-input"
+                min="1"
+                step="0.01"
+                placeholder="e.g., 10000.00"
+              >
+              <p class="strategy-form-hint">We will auto-calculate quantity from the latest price for single symbol mode.</p>
+            </div>
+          </div>
+
+          <div class="strategy-form-group">
+            <label class="strategy-form-label">Webhook Payload Preview</label>
+            <div class="strategy-payload-container">
+              <textarea
+                id="webhookPreview"
+                class="strategy-textarea readonly"
+                rows="8"
+                readonly
+              ></textarea>
+              <button type="button" class="strategy-copy-button" id="copyPreviewBtn" title="Copy payload">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="strategy-button-row">
+            <button type="button" class="strategy-button strategy-button-outline" id="cancelButton">Cancel</button>
+            <button type="submit" class="strategy-button strategy-button-primary">Save Strategy</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -498,72 +498,452 @@
 
 {% block scripts %}
 <script>
-  function toggleTradingSymbol() {
-    const singleRadio = document.getElementById('single');
-    const singleInput = document.getElementById('singleSymbolInput');
-    const watchlistInput = document.getElementById('watchlistInput');
-    const hint = document.getElementById('tradingSymbolHint');
-
-    if (singleRadio.checked) {
-      singleInput.style.display = 'block';
-      watchlistInput.style.display = 'none';
-      hint.textContent = 'Enter the trading symbol.';
-    } else {
-      singleInput.style.display = 'none';
-      watchlistInput.style.display = 'block';
-      hint.textContent = 'For TradingView Watchlist alerts, symbols will be passed dynamically. No input needed here. Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})';
+  if (!window.pageScripts) window.pageScripts = {};
+  window.pageScripts['create-alerts'] = function () {
+    const form = document.getElementById('createStrategyForm');
+    if (!form) {
+      return;
     }
-  }
 
-  function toggleAlertType() {
-    const strategyRadio = document.getElementById('strategy');
+    const BROKER_KEYS = ['dhan', 'aliceblue', 'angelone', 'iifl', 'kotak', 'upstox'];
+
+    const masterAccountsContainer = document.getElementById('masterAccountsContainer');
+    const exchangeSelect = document.getElementById('exchange');
+    const symbolTokenInput = document.getElementById('symbolToken');
+    const singleSymbolRadio = document.getElementById('singleSymbolMode');
+    const watchlistRadio = document.getElementById('watchlistMode');
+    const tradingSymbolsInput = document.getElementById('tradingSymbols');
+    const symbolHelp = document.getElementById('symbolInputHelp');
+    const tokensList = document.getElementById('tokensList');
+    const alertTypeStrategy = document.getElementById('alertTypeStrategy');
+    const alertTypeManual = document.getElementById('alertTypeManual');
     const actionGroup = document.getElementById('actionGroup');
     const transactionGroup = document.getElementById('transactionGroup');
+    const transactionTypeSelect = document.getElementById('transactionType');
+    const orderTypeSelect = document.getElementById('orderType');
+    const orderValiditySelect = document.getElementById('orderValidity');
+    const productTypeSelect = document.getElementById('productType');
+    const orderQuantityInput = document.getElementById('orderQuantity');
+    const orderValueInput = document.getElementById('orderValue');
+    const webhookPreview = document.getElementById('webhookPreview');
+    const copyPreviewBtn = document.getElementById('copyPreviewBtn');
+    const cancelButton = document.getElementById('cancelButton');
 
-    if (strategyRadio.checked) {
-      actionGroup.style.display = 'block';
-      transactionGroup.style.display = 'none';
-    } else {
-      actionGroup.style.display = 'none';
-      transactionGroup.style.display = 'block';
+    const bothTransactionOption = transactionTypeSelect?.querySelector('option[value="BOTH"]') || null;
+
+    let symbolMap = {};
+
+    function copyToClipboard(text) {
+      if (!navigator.clipboard) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          window.alert('Copied to clipboard');
+        } catch (error) {
+          console.error('Clipboard copy failed', error);
+        }
+        document.body.removeChild(textarea);
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        window.alert('Copied to clipboard');
+      }).catch(() => {
+        window.alert('Unable to copy payload.');
+      });
     }
-  }
 
-  function handleQuantityChange(input) {
-    const valueInput = document.getElementById('orderValue');
-    if (input.value) {
-      valueInput.disabled = true;
-      valueInput.value = '';
-    } else {
-      valueInput.disabled = false;
+    function fetchJson(url, options = {}) {
+      return fetch(url, options).then(async response => {
+        const contentType = response.headers.get('Content-Type') || '';
+        let payload = null;
+        if (contentType.includes('application/json')) {
+          payload = await response.json();
+        } else {
+          const text = await response.text();
+          if (text) {
+            try {
+              payload = JSON.parse(text);
+            } catch (error) {
+              payload = { message: text };
+            }
+          }
+        }
+        if (!response.ok) {
+          const message = payload && (payload.error || payload.message);
+          throw new Error(message || 'Request failed');
+        }
+        return payload;
+      });
     }
-  }
 
-  function handleValueChange(input) {
-    const quantityInput = document.getElementById('orderQuantity');
-    if (input.value) {
-      quantityInput.disabled = true;
-      quantityInput.value = '';
-    } else {
-      quantityInput.disabled = false;
+    function expandBoth(value, bothValues) {
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (String(value).toUpperCase() === 'BOTH') {
+        return bothValues;
+      }
+      return value;
     }
-  }
 
-  function copyPayload() {
-    const payload = document.getElementById('webhookPayload');
-    navigator.clipboard.writeText(payload.value).then(() => {
-      alert('Payload copied to clipboard!');
+    function getSelectedAccounts() {
+      if (!masterAccountsContainer) {
+        return [];
+      }
+      return Array.from(masterAccountsContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    }
+
+    function getSymbols() {
+      if (singleSymbolRadio.checked) {
+        const value = tradingSymbolsInput.value.trim();
+        return value ? [value] : [];
+      }
+      return ['{% raw %}{{ticker}}{% endraw %}'];
+    }
+
+    function updateTokens() {
+      const symbols = getSymbols();
+      const parts = symbols.map(symbol => {
+        if (symbol === '{% raw %}{{ticker}}{% endraw %}') {
+          return 'Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})';
+        }
+        const info = symbolMap[symbol.toUpperCase()];
+        if (!info) {
+          return symbol;
+        }
+        const brokerTokens = BROKER_KEYS.map(key => info[key] ? `${key}:${info[key]}` : null).filter(Boolean);
+        return brokerTokens.length ? `${symbol} (${brokerTokens.join(', ')})` : symbol;
+      });
+      tokensList.textContent = parts.join(', ');
+
+      if (singleSymbolRadio.checked && symbols.length === 1) {
+        const info = symbolMap[symbols[0].toUpperCase()];
+        if (info) {
+          for (const key of BROKER_KEYS) {
+            if (info[key]) {
+              symbolTokenInput.value = info[key];
+              break;
+            }
+          }
+        } else {
+          symbolTokenInput.value = '';
+        }
+      } else {
+        symbolTokenInput.value = '';
+      }
+
+      updateQtyFromValue();
+    }
+
+    function updateWebhookPreview() {
+      const selectedAccounts = getSelectedAccounts();
+      const exchangeValue = expandBoth(exchangeSelect.value, ['NSE', 'BSE']);
+      const preview = {
+        exchange: exchangeValue,
+        orderType: orderTypeSelect.value,
+        orderValidity: orderValiditySelect.value,
+        productType: productTypeSelect.value,
+        masterAccounts: selectedAccounts,
+      };
+
+      if (alertTypeStrategy.checked) {
+        preview.action = '{% raw %}{{strategy.order.action}}{% endraw %}';
+      } else {
+        preview.transactionType = transactionTypeSelect.value;
+      }
+
+      const qtyValue = orderQuantityInput.value.trim();
+      const orderValue = orderValueInput.value.trim();
+      if (qtyValue) {
+        preview.orderQty = parseFloat(qtyValue);
+      } else if (orderValue) {
+        preview.orderValue = parseFloat(orderValue);
+      }
+
+      if (singleSymbolRadio.checked) {
+        const value = tradingSymbolsInput.value.trim();
+        preview.tradingSymbols = value ? [value] : [];
+      } else {
+        preview.tradingSymbols = ['{% raw %}{{ticker}}{% endraw %}'];
+      }
+
+      webhookPreview.value = JSON.stringify(preview, null, 2);
+    }
+
+    function updateSymbolInputMode() {
+      if (singleSymbolRadio.checked) {
+        tradingSymbolsInput.disabled = false;
+        tradingSymbolsInput.placeholder = 'Enter single symbol (e.g., RELIANCE)';
+        tradingSymbolsInput.required = true;
+        tradingSymbolsInput.name = 'tradingSymbols';
+        if (tradingSymbolsInput.value === '{% raw %}{{ticker}}{% endraw %}') {
+          tradingSymbolsInput.value = '';
+        }
+        symbolHelp.textContent = 'Enter the trading symbol.';
+      } else {
+        tradingSymbolsInput.value = '';
+        tradingSymbolsInput.disabled = true;
+        tradingSymbolsInput.required = false;
+        tradingSymbolsInput.name = 'disabledTradingSymbols';
+        symbolHelp.textContent = 'For TradingView Watchlist alerts, symbols will be provided dynamically via {% raw %}{{ticker}}{% endraw %}.';
+      }
+      updateTokens();
+      updateWebhookPreview();
+    }
+
+    function updateAlertMode() {
+      if (alertTypeStrategy.checked) {
+        actionGroup.style.display = '';
+        transactionGroup.style.display = 'none';
+        if (bothTransactionOption) {
+          bothTransactionOption.hidden = false;
+          transactionTypeSelect.value = 'BOTH';
+        }
+      } else {
+        actionGroup.style.display = 'none';
+        transactionGroup.style.display = '';
+        if (bothTransactionOption) {
+          bothTransactionOption.hidden = true;
+          if (transactionTypeSelect.value === 'BOTH') {
+            transactionTypeSelect.value = 'BUY';
+          }
+        }
+      }
+      updateWebhookPreview();
+    }
+
+    async function updateQtyFromValue() {
+      const valueRaw = orderValueInput.value.trim();
+      if (!valueRaw) {
+        orderQuantityInput.value = '';
+        updateWebhookPreview();
+        return;
+      }
+      if (!singleSymbolRadio.checked) {
+        orderQuantityInput.value = '';
+        updateWebhookPreview();
+        return;
+      }
+      const symbols = getSymbols();
+      if (symbols.length !== 1) {
+        orderQuantityInput.value = '';
+        updateWebhookPreview();
+        return;
+      }
+      try {
+        const symbol = symbols[0];
+        const quote = await fetchJson(`/api/quote/${encodeURIComponent(symbol)}`);
+        const price = parseFloat(quote.price);
+        if (Number.isFinite(price) && price > 0) {
+          const qty = parseFloat(valueRaw) / price;
+          orderQuantityInput.value = qty.toFixed(2);
+        } else {
+          orderQuantityInput.value = '';
+        }
+      } catch (error) {
+        console.warn('Failed to fetch quote for quantity calculation', error);
+        orderQuantityInput.value = '';
+      } finally {
+        updateWebhookPreview();
+      }
+    }
+
+    function bindAccountCheckboxes() {
+      if (!masterAccountsContainer) {
+        return;
+      }
+      masterAccountsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', updateWebhookPreview);
+      });
+    }
+
+    function renderAccounts(accounts) {
+      if (!masterAccountsContainer) {
+        return;
+      }
+      if (!accounts.length) {
+        masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0;">No master accounts connected yet.</p>';
+        return;
+      }
+      masterAccountsContainer.innerHTML = accounts.map(account => {
+        const id = `master-${account.id}`;
+        const labelParts = [];
+        if (account.broker) {
+          labelParts.push(account.broker);
+        }
+        if (account.username) {
+          labelParts.push(account.username);
+        }
+        if (account.client_id) {
+          labelParts.push(`(${account.client_id})`);
+        }
+        const label = labelParts.join(' ');
+        return `
+          <label class="strategy-account-item" for="${id}">
+            <input type="checkbox" class="strategy-checkbox" id="${id}" value="${account.id}">
+            <span class="strategy-checkbox-label">${label || 'Account'}</span>
+          </label>
+        `;
+      }).join('');
+      bindAccountCheckboxes();
+    }
+
+    function loadMasterAccounts() {
+      if (!masterAccountsContainer) {
+        return;
+      }
+      masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0;">Loading accounts...</p>';
+      fetchJson('/api/accounts?cache_only=1').then(payload => {
+        const accounts = Array.isArray(payload?.masters) ? payload.masters : Array.isArray(payload?.accounts) ? payload.accounts : [];
+        renderAccounts(accounts);
+        updateWebhookPreview();
+      }).catch(error => {
+        console.error('Failed to load accounts', error);
+        masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0; color: #ef4444;">Failed to load accounts. Please try again.</p>';
+      });
+    }
+
+    function loadSymbols() {
+      fetchJson('/api/symbols').then(list => {
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (item?.symbol) {
+              symbolMap[item.symbol.toUpperCase()] = item;
+            }
+          });
+          updateTokens();
+        }
+      }).catch(error => {
+        console.warn('Unable to load symbol metadata', error);
+      });
+    }
+
+    singleSymbolRadio.addEventListener('change', updateSymbolInputMode);
+    watchlistRadio.addEventListener('change', updateSymbolInputMode);
+    tradingSymbolsInput.addEventListener('input', () => {
+      updateTokens();
+      updateWebhookPreview();
     });
-  }
 
-  function handleCancel() {
-    if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
-      window.location.href = '/';
-    }
-  }
+    alertTypeStrategy.addEventListener('change', updateAlertMode);
+    alertTypeManual.addEventListener('change', updateAlertMode);
 
-  function handleSave() {
-    alert('Strategy saved successfully!');
-  }
+    exchangeSelect.addEventListener('change', updateWebhookPreview);
+    orderTypeSelect.addEventListener('change', updateWebhookPreview);
+    orderValiditySelect.addEventListener('change', updateWebhookPreview);
+    productTypeSelect.addEventListener('change', updateWebhookPreview);
+    transactionTypeSelect.addEventListener('change', updateWebhookPreview);
+
+    orderQuantityInput.addEventListener('input', () => {
+      if (orderQuantityInput.value) {
+        orderValueInput.value = '';
+        orderValueInput.disabled = true;
+      } else {
+        orderValueInput.disabled = false;
+      }
+      updateWebhookPreview();
+    });
+
+    orderValueInput.addEventListener('input', () => {
+      if (orderValueInput.value) {
+        orderQuantityInput.value = '';
+        orderQuantityInput.disabled = true;
+      } else {
+        orderQuantityInput.disabled = false;
+      }
+      updateWebhookPreview();
+    });
+
+    orderValueInput.addEventListener('change', updateQtyFromValue);
+
+    copyPreviewBtn.addEventListener('click', () => copyToClipboard(webhookPreview.value || ''));
+
+    cancelButton.addEventListener('click', () => {
+      if (window.confirm('Are you sure you want to cancel? All changes will be lost.')) {
+        window.location.href = '/demat-strategies';
+      }
+    });
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+
+      const name = form.strategyName.value.trim();
+      if (!name) {
+        window.alert('Strategy Name is required.');
+        return;
+      }
+
+      const selectedAccounts = getSelectedAccounts();
+      const isSingleSymbol = singleSymbolRadio.checked;
+
+      let tradingSymbolsForDb = '';
+      let strategyNameForDb = name;
+
+      if (isSingleSymbol) {
+        const singleSymbol = tradingSymbolsInput.value.trim();
+        if (!singleSymbol) {
+          window.alert('Enter a trading symbol for single symbol mode.');
+          return;
+        }
+        tradingSymbolsForDb = singleSymbol;
+        strategyNameForDb = `${name} (${singleSymbol})`;
+      } else {
+        tradingSymbolsForDb = '__WATCHLIST_DYNAMIC__';
+      }
+
+      const exchangeValue = expandBoth(exchangeSelect.value, ['NSE', 'BSE']);
+      const transactionValue = expandBoth(transactionTypeSelect.value, ['BUY', 'SELL']);
+
+      const payload = {
+        name: strategyNameForDb,
+        master_accounts: selectedAccounts.join(','),
+        allowed_tickers: tradingSymbolsForDb,
+        exchange: exchangeValue,
+        transaction_type: transactionValue,
+        order_type: orderTypeSelect.value,
+        order_validity: orderValiditySelect.value,
+        product_type: productTypeSelect.value,
+        order_qty: orderQuantityInput.value ? parseFloat(orderQuantityInput.value) : null,
+        order_value: orderValueInput.value ? parseFloat(orderValueInput.value) : null,
+        asset_class: 'Stocks',
+        style: 'Systematic'
+      };
+
+      const previewPayload = webhookPreview.value;
+
+      fetchJson('/api/strategies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(result => {
+        const strategyId = result?.id;
+        if (strategyId && previewPayload) {
+          try {
+            const parsedPreview = JSON.parse(previewPayload);
+            localStorage.setItem(`strategyPayload_${strategyId}`, JSON.stringify(parsedPreview));
+          } catch (error) {
+            console.warn('Unable to persist payload preview', error);
+          }
+        }
+        window.alert('Strategy created successfully.');
+        window.location.href = '/demat-strategies';
+      }).catch(error => {
+        window.alert(error.message || 'Failed to create strategy.');
+      });
+    });
+
+    updateSymbolInputMode();
+    updateAlertMode();
+    updateTokens();
+    updateWebhookPreview();
+    loadMasterAccounts();
+    loadSymbols();
+  };
 </script>
 {% endblock %}
