@@ -258,10 +258,68 @@ if (!window.pageScripts) window.pageScripts = {};
 if (!window.pageScriptStates) window.pageScriptStates = {};
 
 window.pageScripts["Add-Account"] = function() {
-  if (window.pageScriptStates["Add-Account"]) {
-    return;
+  const previousState = window.pageScriptStates["Add-Account"];
+  if (previousState && typeof previousState.cleanup === 'function') {
+    try {
+      previousState.cleanup();
+    } catch (error) {
+      console.warn('Failed to cleanup previous Add Account state:', error);
+    }
   }
-  window.pageScriptStates["Add-Account"] = true;
+
+  let isActive = true;
+
+  const state = {
+    listeners: [],
+    abortControllers: [],
+    cleanup() {
+      if (!isActive) {
+        return;
+      }
+      isActive = false;
+      this.abortControllers.forEach(controller => {
+        try {
+          controller.abort();
+        } catch (err) {
+          console.warn('Failed to abort fetch controller:', err);
+        }
+      });
+      this.abortControllers = [];
+      this.listeners.forEach(removeListener => {
+        try {
+          removeListener();
+        } catch (err) {
+          console.warn('Failed to remove event listener:', err);
+        }
+      });
+      this.listeners = [];
+    }
+  };
+
+  window.pageScriptStates["Add-Account"] = state;
+
+  const registerListener = (target, type, handler, options) => {
+    if (!target || typeof target.addEventListener !== 'function') {
+      return;
+    }
+    target.addEventListener(type, handler, options);
+    state.listeners.push(() => {
+      if (target && typeof target.removeEventListener === 'function') {
+        target.removeEventListener(type, handler, options);
+      }
+    });
+  };
+
+  const registerAbortController = controller => {
+    if (!controller) {
+      return () => {};
+    }
+    state.abortControllers.push(controller);
+    return () => {
+      state.abortControllers = state.abortControllers.filter(c => c !== controller);
+    };
+  };
+
   const brokerIcons = {{ (broker_icons or {}) | tojson }};
   window.brokerIcons = brokerIcons;
 
@@ -982,13 +1040,18 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   async function attemptAutoLoginForAccount(acc) {
+    if (!isActive) return;
     autoLoginResults[acc.client_id] = { status: 'checking' };
+    const controller = new AbortController();
+    const unregister = registerAbortController(controller);
     try {
       const resp = await fetchJson('/api/reconnect-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: acc.client_id })
+        body: JSON.stringify({ client_id: acc.client_id }),
+        signal: controller.signal
       });
+      if (!isActive) return;
       if (resp.message) {
         autoLoginResults[acc.client_id] = { status: 'success' };
         const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
@@ -1002,28 +1065,42 @@ window.pageScripts["Add-Account"] = function() {
         }
       }
     } catch (err) {
+      if (controller.signal.aborted || !isActive) {
+        return;
+      }
       autoLoginResults[acc.client_id] = { status: 'error', error: err.message };
       const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
       if (updatedAcc) {
         updatedAcc.status = 'failed';
         updatedAcc.last_error = err.message;
       }
+    } finally {
+      unregister();
     }
   }
 
   async function refreshBalanceForAccount(acc) {
+    if (!isActive) return;
+    const controller = new AbortController();
+    const unregister = registerAbortController(controller);
     try {
       const resp = await fetchJson('/api/account-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: acc.client_id })
+        body: JSON.stringify({ client_id: acc.client_id }),
+        signal: controller.signal
       });
+      if (!isActive) return;
       if (typeof resp.balance === 'number') {
         const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
         if (updatedAcc) updatedAcc.opening_balance = resp.balance;
       }
     } catch (err) {
-      console.error(`Balance refresh failed for ${acc.client_id}:`, err);
+      if (!controller.signal.aborted && isActive) {
+        console.error(`Balance refresh failed for ${acc.client_id}:`, err);
+      }
+    } finally {
+      unregister();
     }
   }
 
@@ -1054,7 +1131,7 @@ window.pageScripts["Add-Account"] = function() {
 
   const addAccountBtn = document.getElementById('add-account-btn');
   if (addAccountBtn) {
-    addAccountBtn.addEventListener('click', () => {
+    registerListener(addAccountBtn, 'click', () => {
       const section = document.getElementById('add-account-section');
       const isHidden = !section || section.style.display === 'none' || getComputedStyle(section).display === 'none';
       if (isHidden) {
@@ -1090,19 +1167,19 @@ window.pageScripts["Add-Account"] = function() {
 
   const cancelAddAccountBtn = document.getElementById('cancel-add-account-btn');
   if (cancelAddAccountBtn) {
-    cancelAddAccountBtn.addEventListener('click', hideBrokerForm);
+    registerListener(cancelAddAccountBtn, 'click', hideBrokerForm);
   }
 
   const brokerSearchInput = document.getElementById('broker-search');
   if (brokerSearchInput) {
-    brokerSearchInput.addEventListener('input', event => {
+    registerListener(brokerSearchInput, 'input', event => {
       populateBrokerCarousel(event.target.value || '');
     });
   }
 
   const brokerForm = document.getElementById('broker-credentials-form');
   if (brokerForm) {
-    brokerForm.addEventListener('submit', function(e) {
+    registerListener(brokerForm, 'submit', function(e) {
       e.preventDefault();
       const formData = new FormData(this);
       const data = {};
@@ -1147,7 +1224,7 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   document.querySelectorAll('#status-tabs .status-tab').forEach(button => {
-    button.addEventListener('click', e => {
+    registerListener(button, 'click', e => {
       e.preventDefault();
       document.querySelectorAll('#status-tabs .status-tab').forEach(l => l.classList.remove('active'));
       button.classList.add('active');
@@ -1158,7 +1235,7 @@ window.pageScripts["Add-Account"] = function() {
 
   const brokerFilterSelect = document.getElementById('broker-filter');
   if (brokerFilterSelect) {
-    brokerFilterSelect.addEventListener('change', e => {
+    registerListener(brokerFilterSelect, 'change', e => {
       brokerFilter = e.target.value;
       applyFilters();
     });
@@ -1166,7 +1243,7 @@ window.pageScripts["Add-Account"] = function() {
 
   const accountSearchInput = document.getElementById('account-search');
   if (accountSearchInput) {
-    accountSearchInput.addEventListener('input', e => {
+    registerListener(accountSearchInput, 'input', e => {
       searchFilter = e.target.value;
       applyFilters();
     });
@@ -1174,7 +1251,7 @@ window.pageScripts["Add-Account"] = function() {
 
   const accountsTableBody = document.getElementById('accounts-table-body');
   if (accountsTableBody) {
-    accountsTableBody.addEventListener('click', event => {
+    registerListener(accountsTableBody, 'click', event => {
       const actionButton = event.target.closest('[data-action]');
       if (!actionButton) return;
       const row = actionButton.closest('tr');
@@ -1217,7 +1294,7 @@ window.pageScripts["Add-Account"] = function() {
     });
   }
 
-  document.addEventListener('click', event => {
+  registerListener(document, 'click', event => {
     const toggle = event.target.closest('[data-dropdown-toggle]');
     if (toggle) {
       event.preventDefault();
@@ -1248,7 +1325,7 @@ window.pageScripts["Add-Account"] = function() {
 
   const exportButton = document.querySelector('[data-action="export-accounts"]');
   if (exportButton) {
-    exportButton.addEventListener('click', () => {
+    registerListener(exportButton, 'click', () => {
       showToast('Export functionality is coming soon.', 'info');
       const dropdown = exportButton.closest('.dropdown');
       if (dropdown) dropdown.classList.remove('open');
@@ -1314,8 +1391,12 @@ window.pageScripts["Add-Account"] = function() {
     .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
   };
 
-  fetchJson('/api/accounts?cache_only=1')
+  const accountsFetchController = new AbortController();
+  const unregisterAccountsController = registerAbortController(accountsFetchController);
+
+  fetchJson('/api/accounts?cache_only=1', { signal: accountsFetchController.signal })
     .then(data => {
+      if (!isActive) return;
       allAccounts = data.accounts || [];
       renderAccounts(allAccounts);
       populateBrokerCarousel();
@@ -1329,15 +1410,38 @@ window.pageScripts["Add-Account"] = function() {
           autoLoginResults[acc.client_id] = { status: 'success' };
         } else {
           attemptAutoLoginForAccount(acc)
-            .then(() => { updateCounts(); updateAccountCard(); })
-            .catch(() => { updateCounts(); updateAccountCard(); });
+            .then(() => {
+              if (!isActive) return;
+              updateCounts();
+              updateAccountCard();
+            })
+            .catch(() => {
+              if (!isActive) return;
+              updateCounts();
+              updateAccountCard();
+            });
         }
         refreshBalanceForAccount(acc)
-          .then(() => { updateCounts(); updateAccountCard(); })
-          .catch(() => { updateAccountCard(); });
+          .then(() => {
+            if (!isActive) return;
+            updateCounts();
+            updateAccountCard();
+          })
+          .catch(() => {
+            if (!isActive) return;
+            updateAccountCard();
+          });
       });
     })
-    .catch(error => showToast(`Failed to load accounts: ${error.message}`, 'error'));
+    .catch(error => {
+      if (!isActive || accountsFetchController.signal.aborted) {
+        return;
+      }
+      showToast(`Failed to load accounts: ${error.message}`, 'error');
+    })
+    .finally(() => {
+      unregisterAccountsController();
+    });
 };
 </script>
 {% endblock %}
