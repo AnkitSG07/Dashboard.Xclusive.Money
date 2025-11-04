@@ -3567,7 +3567,7 @@ def zerodha_redirect_handler(client_id):
                     acc_obj = Account.query.filter_by(user_id=user_obj.id, client_id=client_id).first()
                     if acc_obj:
                         clear_connection_error_logs(acc_obj)
-
+                        _update_alert_guard(user_obj.id, acc_obj)
                 set_pending_zerodha(pending)
 
                 logger.info(f"Successfully connected Zerodha account for {client_id}")
