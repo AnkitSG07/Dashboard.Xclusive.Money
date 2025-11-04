@@ -1,314 +1,569 @@
 {% extends "layout.html" %}
 
-{% block title %}Create Alerts - DhanBot{% endblock %}
+{% block title %}Create New Strategy - Alert to Trade{% endblock %}
 
 {% block styles %}
 <style>
-  .create-alerts-page-root {
-    background: #f5f5f5;
-    margin: -1.5rem -1.5rem 0;
-    padding: 40px 0;
-  }
-
-  .create-alerts-page {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 0 40px 40px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-
-  .create-alerts-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 24px;
-    margin-bottom: 32px;
-  }
-
-  .create-alerts-header h1 {
-    font-size: 36px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 8px;
-  }
-
-  .create-alerts-header p {
-    color: #6b7280;
-    font-size: 16px;
+  * {
     margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
-
-  .strategy-btn-new {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    border: none;
-    padding: 12px 28px;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
+    
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: hsl(0, 0%, 100%);
+    color: hsl(240, 10%, 3.9%);
+    line-height: 1.5;
   }
-
-  .create-alerts-body {
-    background: #fff;
-    border-radius: 16px;
-    border: 1px solid #e5e7eb;
-    padding: 32px;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-  }
-
-  .create-alerts-body h2 {
-    font-size: 24px;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin-bottom: 16px;
-  }
-
-  .create-alerts-body p {
-    color: #6b7280;
-    font-size: 15px;
-    line-height: 1.6;
-  }
-
-  .strategy-modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1050;
-    padding: 40px;
-    overflow-y: auto;
-  }
-
-  .strategy-modal {
-    max-width: 600px;
+    
+  .strategy-container {
+    max-width: 1024px;
     margin: 0 auto;
-    background: #fff;
-    border-radius: 12px;
-    padding: 32px;
-    max-height: 90vh;
-    overflow-y: auto;
+    padding: 2rem 1rem;
   }
 
-  .strategy-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
+  .strategy-card {
+    background-color: hsl(0, 0%, 100%);
+    border: 1px solid hsl(240, 5.9%, 90%);
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    overflow: hidden;
   }
 
-  .strategy-modal-title {
-    font-size: 24px;
+  .strategy-card-header {
+    background-color: hsl(240, 5.9%, 10%);
+    color: hsl(0, 0%, 98%);
+    padding: 1.5rem;
+  }
+
+  .strategy-card-header h1 {
+    font-size: 1.5rem;
     font-weight: 700;
-    color: #1a1a1a;
   }
 
-  .strategy-close-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 28px;
-    color: #6b7280;
-    line-height: 1;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .strategy-card-body {
+    padding: 2rem;
   }
 
   .strategy-form-group {
-    margin-bottom: 20px;
+    margin-bottom: 1.5rem;
   }
 
   .strategy-form-label {
     display: block;
-    margin-bottom: 6px;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
-    color: #1a1a1a;
+    margin-bottom: 0.5rem;
   }
 
-  .strategy-form-input,
-  .strategy-form-select {
+  .strategy-required {
+    color: hsl(0, 84.2%, 60.2%);
+  }
+
+  .strategy-input,
+  .strategy-textarea,
+  .strategy-select {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 0.625rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid hsl(240, 5.9%, 90%);
+    border-radius: 0.375rem;
+    background-color: hsl(0, 0%, 100%);
+    transition: all 0.2s;
   }
 
-  .strategy-form-select {
-    cursor: pointer;
+  .strategy-input:focus,
+  .strategy-textarea:focus,
+  .strategy-select:focus {
+    outline: none;
+    border-color: hsl(240, 5.9%, 10%);
+    box-shadow: 0 0 0 2px hsla(240, 5.9%, 10%, 0.1);
   }
 
-  .strategy-form-actions {
+  .strategy-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: hsl(240, 4.8%, 95.9%);
+  }
+
+  .strategy-textarea {
+    resize: none;
+    min-height: 80px;
+    font-family: monospace;
+  }
+
+  .strategy-textarea.readonly {
+    background-color: hsl(240, 4.8%, 95.9%);
+  }
+
+  .strategy-form-hint {
+    font-size: 0.875rem;
+    color: hsl(240, 3.8%, 46.1%);
+    margin-top: 0.5rem;
+  }
+
+  .strategy-checkbox-group {
     display: flex;
-    gap: 10px;
-    padding-top: 12px;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid hsl(240, 5.9%, 90%);
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
   }
 
-  .strategy-btn-save {
-    flex: 1;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
+  .strategy-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 0.75rem;
+    cursor: pointer;
+  }
+
+  .strategy-checkbox-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .strategy-radio-group {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .strategy-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .strategy-radio {
+    width: 1.125rem;
+    height: 1.125rem;
+    cursor: pointer;
+  }
+
+  .strategy-radio-label {
+    font-weight: 400;
+    cursor: pointer;
+  }
+
+  .strategy-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .strategy-grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .strategy-payload-container {
+    position: relative;
+  }
+
+  .strategy-copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.5rem;
+    background: transparent;
     border: none;
-    padding: 11px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
   }
 
-  .strategy-btn-cancel {
-    flex: 1;
-    background: #fff;
-    color: #1a1a1a;
-    border: 1px solid #e5e7eb;
-    padding: 11px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+  .strategy-copy-button:hover {
+    background-color: hsl(240, 4.8%, 95.9%);
   }
 
-  @media (max-width: 768px) {
-    .create-alerts-page-root {
-      margin: -1.5rem -1rem 0;
-      padding: 24px 0;
+  .strategy-button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .strategy-button-group {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+  }
+
+  .strategy-button {
+    padding: 0.625rem 2rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .strategy-button-primary {
+    background-color: hsl(240, 5.9%, 10%);
+    color: hsl(0, 0%, 98%);
+  }
+
+  .strategy-button-primary:hover {
+    background-color: hsl(240, 5.9%, 20%);
+  }
+
+  .strategy-button-outline {
+    background-color: transparent;
+    color: hsl(240, 10%, 3.9%);
+    border: 1px solid hsl(240, 5.9%, 90%);
+  }
+
+  .strategy-button-outline:hover {
+    background-color: hsl(240, 4.8%, 95.9%);
+  }
+
+  @media (max-width: 640px) {
+    .strategy-card-header h1 {
+      font-size: 1.25rem;
     }
 
-    .create-alerts-page {
-      padding: 0 20px 24px;
-    }
-
-    .create-alerts-header {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .strategy-btn-new {
-      width: 100%;
-      text-align: center;
-    }
-
-    .strategy-modal {
-      padding: 24px;
-    }
-
-    .strategy-modal-overlay {
-      padding: 20px;
+    .strategy-card-body {
+      padding: 1rem;
     }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="create-alerts-page-root">
-  <div class="create-alerts-page">
-    <div class="create-alerts-header">
-      <div>
-        <h1>Create Alerts</h1>
-        <p>Build alert-to-trade automations tailored to your strategies.</p>
+  <div class="strategy-container">
+    <div class="strategy-card">
+      <div class="strategy-card-header">
+        <h1>Create New Strategy</h1>
       </div>
-      <button type="button" class="strategy-btn-new" id="createStrategyBtn">Create New Alert</button>
-    </div>
 
-    <div class="create-alerts-body">
-      <h2>How it works</h2>
-      <p>
-        Start by creating a new alert. Configure the trading account, alert trigger, and execution rules in the form
-        that opens. Once saved, your alert will be available in the existing alerts section for further management.
-      </p>
+      <div class="strategy-card-body">
+        <div class="strategy-form-group">
+          <label for="strategyName" class="strategy-form-label">
+            Strategy Name <span class="strategy-required">*</span>
+          </label>
+          <input
+            type="text"
+            id="strategyName"
+            class="strategy-input"
+            placeholder="e.g., Daily Momentum Scalper"
+          />
+        </div>
+
+        <div class="strategy-form-group">
+          <label class="strategy-form-label">Master Accounts</label>
+          <div class="strategy-checkbox-group">
+            <input type="checkbox" id="account1" class="strategy-checkbox" />
+            <label for="account1" class="strategy-checkbox-label">
+              zerodha - Amit_Zerodha (CX9849)
+            </label>
+          </div>
+          <p class="strategy-form-hint">
+            Select connected master accounts for this strategy.
+          </p>
+        </div>
+
+        <div class="strategy-grid-2">
+          <div class="strategy-form-group">
+            <label for="exchange" class="strategy-form-label">
+              Exchange <span class="strategy-required">*</span>
+            </label>
+            <select id="exchange" class="strategy-select">
+              <option value="NSE">NSE</option>
+              <option value="BSE">BSE</option>
+              <option value="NSE and BSE">NSE and BSE</option>
+              <option value="NFO">NFO</option>
+              <option value="MCX">MCX</option>
+            </select>
+          </div>
+
+          <div class="strategy-form-group">
+            <label for="symbolToken" class="strategy-form-label">Symbol Token</label>
+            <input
+              type="text"
+              id="symbolToken"
+              class="strategy-input"
+              value="Auto"
+            />
+          </div>
+        </div>
+
+        <div class="strategy-form-group">
+          <label class="strategy-form-label">
+            Trading Symbols <span class="strategy-required">*</span>
+          </label>
+          <div class="strategy-radio-group">
+            <div class="strategy-radio-item">
+              <input
+                type="radio"
+                id="single"
+                name="tradingSymbolType"
+                value="single"
+                class="strategy-radio"
+                checked
+                onchange="toggleTradingSymbol()"
+              />
+              <label for="single" class="strategy-radio-label">Single Symbol</label>
+            </div>
+            <div class="strategy-radio-item">
+              <input
+                type="radio"
+                id="watchlist"
+                name="tradingSymbolType"
+                value="watchlist"
+                class="strategy-radio"
+                onchange="toggleTradingSymbol()"
+              />
+              <label for="watchlist" class="strategy-radio-label">Watchlist (TradingView Alert)</label>
+            </div>
+          </div>
+          <textarea
+            id="singleSymbolInput"
+            class="strategy-textarea"
+            placeholder="Enter single symbol (e.g., RELIANCE)"
+          ></textarea>
+          <textarea
+            id="watchlistInput"
+            class="strategy-textarea readonly"
+            readonly
+            style="display: none;"
+          >Symbols will be dynamically provided by TradingView ({% raw %}{{ticker}}{% endraw %})</textarea>
+          <p id="tradingSymbolHint" class="strategy-form-hint">
+            Enter the trading symbol.
+          </p>
+        </div>
+
+        <div class="strategy-form-group">
+          <label class="strategy-form-label">Alert Type</label>
+          <div class="strategy-radio-group">
+            <div class="strategy-radio-item">
+              <input
+                type="radio"
+                id="strategy"
+                name="alertType"
+                value="strategy"
+                class="strategy-radio"
+                checked
+                onchange="toggleAlertType()"
+              />
+              <label for="strategy" class="strategy-radio-label">Strategy alert</label>
+            </div>
+            <div class="strategy-radio-item">
+              <input
+                type="radio"
+                id="manual"
+                name="alertType"
+                value="manual"
+                class="strategy-radio"
+                onchange="toggleAlertType()"
+              />
+              <label for="manual" class="strategy-radio-label">Manual alert</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="strategy-grid-2">
+          <div class="strategy-form-group" id="actionGroup">
+            <label for="action" class="strategy-form-label">Action</label>
+            <input
+              type="text"
+              id="action"
+              class="strategy-input"
+              value="{{ strategy.order.action }}"
+              style="font-family: monospace;"
+            />
+            <p class="strategy-form-hint">
+              TradingView will replace this with BUY or SELL.
+            </p>
+          </div>
+
+          <div class="strategy-form-group" id="transactionGroup" style="display: none;">
+            <label for="transactionType" class="strategy-form-label">
+              Type of Transaction <span class="strategy-required">*</span>
+            </label>
+            <select id="transactionType" class="strategy-select">
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </div>
+
+          <div class="strategy-form-group">
+            <label for="orderType" class="strategy-form-label">
+              Order Type <span class="strategy-required">*</span>
+            </label>
+            <select id="orderType" class="strategy-select">
+              <option value="Limit">Limit</option>
+              <option value="Market">Market</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="strategy-grid-2">
+          <div class="strategy-form-group">
+            <label for="orderValidity" class="strategy-form-label">Order Validity</label>
+            <select id="orderValidity" class="strategy-select">
+              <option value="Day">Day</option>
+              <option value="IOC">IOC (Immediate or Cancel)</option>
+            </select>
+          </div>
+
+          <div class="strategy-form-group">
+            <label for="productType" class="strategy-form-label">
+              Type of Product <span class="strategy-required">*</span>
+            </label>
+            <select id="productType" class="strategy-select">
+              <option value="Intraday / MIS">Intraday / MIS</option>
+              <option value="CNC / Longterm">CNC / Longterm</option>
+              <option value="MTF">MTF</option>
+              <option value="MTF or Longterm">MTF or Longterm</option>
+            </select>
+            <p class="strategy-form-hint">
+              Intraday/MIS are equivalent, as are CNC/longterm. "MTF or Longterm" attempts MTF first and falls back to CNC if unavailable.
+            </p>
+          </div>
+        </div>
+
+        <div class="strategy-grid-2">
+          <div class="strategy-form-group">
+            <label for="orderQuantity" class="strategy-form-label">Order Quantity</label>
+            <input
+              type="number"
+              id="orderQuantity"
+              class="strategy-input"
+              placeholder="e.g., 100"
+              oninput="handleQuantityChange(this)"
+            />
+            <p class="strategy-form-hint">
+              Leave empty if specifying Order Value.
+            </p>
+          </div>
+
+          <div class="strategy-form-group">
+            <label for="orderValue" class="strategy-form-label">Order Value</label>
+            <input
+              type="number"
+              id="orderValue"
+              class="strategy-input"
+              placeholder="e.g., 10000.00"
+              oninput="handleValueChange(this)"
+            />
+            <p class="strategy-form-hint">
+              Auto-calculates quantity from live price.
+            </p>
+          </div>
+        </div>
+
+        <div class="strategy-form-group">
+          <label class="strategy-form-label">Webhook Payload Preview</label>
+          <div class="strategy-payload-container">
+            <textarea
+              id="webhookPayload"
+              class="strategy-textarea readonly"
+              readonly
+              style="min-height: 180px;"
+            >{
+  "orderValidity": "day",
+  "productType": "intraday",
+  "masterAccounts": [],
+  "action": "{{ strategy.order.action }}",
+  "tradingSymbols": []
+}</textarea>
+            <button class="strategy-copy-button" onclick="copyPayload()" title="Copy to clipboard">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="strategy-button-group">
+          <button class="strategy-button strategy-button-outline" onclick="handleCancel()">
+            Cancel
+          </button>
+          <button class="strategy-button strategy-button-primary" onclick="handleSave()">
+            Save Strategy
+          </button>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-
-<div id="editForm" class="strategy-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
-  <div class="strategy-modal">
-    <div class="strategy-modal-header">
-      <h2 id="editTitle" class="strategy-modal-title">Create Alert</h2>
-      <button type="button" class="strategy-close-btn" aria-label="Close alert form" data-close="edit">&times;</button>
-    </div>
-    <div class="strategy-form-group">
-      <label class="strategy-form-label" for="alertName">Alert Name</label>
-      <input type="text" id="alertName" class="strategy-form-input" placeholder="Enter alert name">
-    </div>
-    <div class="strategy-form-group">
-      <label class="strategy-form-label" for="alertType">Alert Type</label>
-      <select id="alertType" class="strategy-form-select">
-        <option value="">Select alert type</option>
-        <option>Price Movement</option>
-        <option>Volume Spike</option>
-        <option>Custom Strategy Signal</option>
-      </select>
-    </div>
-    <div class="strategy-form-group">
-      <label class="strategy-form-label" for="alertDescription">Description</label>
-      <input type="text" id="alertDescription" class="strategy-form-input" placeholder="Describe the alert criteria">
-    </div>
-    <div class="strategy-form-group">
-      <label class="strategy-form-label" for="alertAccount">Trading Account</label>
-      <select id="alertAccount" class="strategy-form-select">
-        <option value="">Select account</option>
-        <option>dhan - Primary</option>
-        <option>zerodha - Equity</option>
-        <option>finvasia - Futures</option>
-      </select>
-    </div>
-    <div class="strategy-form-actions">
-      <button type="button" class="strategy-btn-save" id="saveAlert">Save Alert</button>
-      <button type="button" class="strategy-btn-cancel" data-close="edit">Cancel</button>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const createStrategyBtn = document.getElementById('createStrategyBtn');
-    const editForm = document.getElementById('editForm');
+  function toggleTradingSymbol() {
+    const singleRadio = document.getElementById('single');
+    const singleInput = document.getElementById('singleSymbolInput');
+    const watchlistInput = document.getElementById('watchlistInput');
+    const hint = document.getElementById('tradingSymbolHint');
 
-    function openAlertForm() {
-      if (editForm) {
-        editForm.style.display = 'block';
-      }
+    if (singleRadio.checked) {
+      singleInput.style.display = 'block';
+      watchlistInput.style.display = 'none';
+      hint.textContent = 'Enter the trading symbol.';
+    } else {
+      singleInput.style.display = 'none';
+      watchlistInput.style.display = 'block';
+      hint.textContent = 'For TradingView Watchlist alerts, symbols will be passed dynamically. No input needed here. Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})';
     }
+  }
 
-    function closeAlertForm() {
-      if (editForm) {
-        editForm.style.display = 'none';
-      }
+  function toggleAlertType() {
+    const strategyRadio = document.getElementById('strategy');
+    const actionGroup = document.getElementById('actionGroup');
+    const transactionGroup = document.getElementById('transactionGroup');
+
+    if (strategyRadio.checked) {
+      actionGroup.style.display = 'block';
+      transactionGroup.style.display = 'none';
+    } else {
+      actionGroup.style.display = 'none';
+      transactionGroup.style.display = 'block';
     }
+  }
 
-    if (createStrategyBtn) {
-      createStrategyBtn.addEventListener('click', openAlertForm);
+  function handleQuantityChange(input) {
+    const valueInput = document.getElementById('orderValue');
+    if (input.value) {
+      valueInput.disabled = true;
+      valueInput.value = '';
+    } else {
+      valueInput.disabled = false;
     }
+  }
 
-    document.querySelectorAll('[data-close="edit"]').forEach(function (btn) {
-      btn.addEventListener('click', closeAlertForm);
+  function handleValueChange(input) {
+    const quantityInput = document.getElementById('orderQuantity');
+    if (input.value) {
+      quantityInput.disabled = true;
+      quantityInput.value = '';
+    } else {
+      quantityInput.disabled = false;
+    }
+  }
+
+  function copyPayload() {
+    const payload = document.getElementById('webhookPayload');
+    navigator.clipboard.writeText(payload.value).then(() => {
+      alert('Payload copied to clipboard!');
     });
+  }
 
-    if (editForm) {
-      editForm.addEventListener('click', function (event) {
-        if (event.target === editForm) {
-          closeAlertForm();
-        }
-      });
+  function handleCancel() {
+    if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+      window.location.href = '/';
     }
+  }
 
-    const saveButton = document.getElementById('saveAlert');
-    if (saveButton) {
-      saveButton.addEventListener('click', function () {
-        alert('Alert saved successfully');
-        closeAlertForm();
-      });
-    }
-  });
+  function handleSave() {
+    alert('Strategy saved successfully!');
+  }
 </script>
 {% endblock %}
