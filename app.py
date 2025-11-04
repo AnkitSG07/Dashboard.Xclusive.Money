@@ -7425,11 +7425,11 @@ def home():
     return render_template("index.html")
 
 
-@app.route('/call')
-def call_support():
+@app.route('/WhatsApp')
+def Whatsapp_support():
     """Display the contact page for call support."""
 
-    return render_template("call.html")
+    return render_template("whatsapp.html")
 
 
 @app.route('/tutorials')
