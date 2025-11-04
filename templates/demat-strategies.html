@@ -728,6 +728,34 @@
 .strategy-webhook-url {
   font-size: 11.5px !important;
 }
+/* Fix button colors based on status - MUST BE LAST */
+.strategy-btn-status[data-status="active"] {
+  background: #f97316 !important;  /* Orange for Deactivate */
+  color: #fff !important;
+}
+
+.strategy-btn-status[data-status="inactive"] {
+  background: #10b981 !important;  /* Green for Activate */
+  color: #fff !important;
+}
+
+/* Mobile button layout fix - 2x3 grid */
+@media (max-width: 768px) {
+  .strategy-btn-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  
+  .strategy-btn-payload {
+    grid-column: auto !important;
+  }
+  
+  .strategy-btn {
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+  }
+}
 </style>
 {% endblock %}
 
@@ -1284,7 +1312,7 @@
           </div>
         </section>
         <div class="strategy-btn-row">
-          <button type="button" class="strategy-btn strategy-btn-status" data-action="toggle-status" data-id="${strategy.id}">${toggleLabel}</button>
+          <button type="button" class="strategy-btn strategy-btn-status" data-action="toggle-status" data-id="${strategy.id}" data-status="${isActive ? 'active' : 'inactive'}">${toggleLabel}</button>
           <button type="button" class="strategy-btn strategy-btn-clone" data-action="clone" data-id="${strategy.id}">Clone</button>
           <button type="button" class="strategy-btn strategy-btn-payload" data-action="show-payload" data-id="${strategy.id}">Payload</button>
         </div>
