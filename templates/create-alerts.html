@@ -265,7 +265,7 @@
   <div class="strategy-container">
     <div class="strategy-card">
       <div class="strategy-card-header">
-        <h1>Create New Strategy</h1>
+        <h1 id="pageTitle">Create New Strategy</h1>
       </div>
       <div class="strategy-card-body">
         <form id="createStrategyForm">
@@ -488,7 +488,7 @@
 
           <div class="strategy-button-row">
             <button type="button" class="strategy-button strategy-button-outline" id="cancelButton">Cancel</button>
-            <button type="submit" class="strategy-button strategy-button-primary">Save Strategy</button>
+            <button type="submit" id="submitButton" class="strategy-button strategy-button-primary">Save Strategy</button>
           </div>
         </form>
       </div>
@@ -532,7 +532,16 @@
     const bothTransactionOption = transactionTypeSelect?.querySelector('option[value="BOTH"]') || null;
 
     let symbolMap = {};
+    const pageTitle = document.getElementById('pageTitle');
+    const submitButton = document.getElementById('submitButton');
+    const params = new URLSearchParams(window.location.search);
+    const editingStrategyId = params.get('strategy_id');
+    const isEditMode = Boolean(editingStrategyId);
+    const DYNAMIC_TICKER_TOKEN = '{% raw %}{{ticker}}{% endraw %}';
 
+    let initialMasterAccounts = [];
+    let suppressPreviewUpdates = false;
+   
     function copyToClipboard(text) {
       if (!navigator.clipboard) {
         const textarea = document.createElement('textarea');
@@ -592,6 +601,35 @@
       return value;
     }
 
+    function parseMasterAccounts(value) {
+      if (!value) {
+        return [];
+      }
+      if (Array.isArray(value)) {
+        return value.map(item => String(item));
+      }
+      return String(value)
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(item => String(item));
+    }
+
+    function escapeRegExp(value) {
+      return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function setSelectValue(select, value) {
+      if (!select || value === undefined || value === null) {
+        return;
+      }
+      const normalized = String(value);
+      const option = select.querySelector(`option[value="${normalized}"]`);
+      if (option) {
+        select.value = normalized;
+      }
+    }
+  
     function getSelectedAccounts() {
       if (!masterAccountsContainer) {
         return [];
@@ -604,13 +642,13 @@
         const value = tradingSymbolsInput.value.trim();
         return value ? [value] : [];
       }
-      return ['{% raw %}{{ticker}}{% endraw %}'];
+      return [DYNAMIC_TICKER_TOKEN];
     }
 
     function updateTokens() {
       const symbols = getSymbols();
       const parts = symbols.map(symbol => {
-        if (symbol === '{% raw %}{{ticker}}{% endraw %}') {
+        if (symbol === DYNAMIC_TICKER_TOKEN) {
           return 'Dynamic (TradingView {% raw %}{{ticker}}{% endraw %})';
         }
         const info = symbolMap[symbol.toUpperCase()];
@@ -642,6 +680,9 @@
     }
 
     function updateWebhookPreview() {
+      if (suppressPreviewUpdates) {
+        return;
+      }
       const selectedAccounts = getSelectedAccounts();
       const exchangeValue = expandBoth(exchangeSelect.value, ['NSE', 'BSE']);
       const preview = {
@@ -670,7 +711,7 @@
         const value = tradingSymbolsInput.value.trim();
         preview.tradingSymbols = value ? [value] : [];
       } else {
-        preview.tradingSymbols = ['{% raw %}{{ticker}}{% endraw %}'];
+        preview.tradingSymbols = [DYNAMIC_TICKER_TOKEN];
       }
 
       webhookPreview.value = JSON.stringify(preview, null, 2);
@@ -682,7 +723,7 @@
         tradingSymbolsInput.placeholder = 'Enter single symbol (e.g., RELIANCE)';
         tradingSymbolsInput.required = true;
         tradingSymbolsInput.name = 'tradingSymbols';
-        if (tradingSymbolsInput.value === '{% raw %}{{ticker}}{% endraw %}') {
+        if (tradingSymbolsInput.value === DYNAMIC_TICKER_TOKEN) {
           tradingSymbolsInput.value = '';
         }
         symbolHelp.textContent = 'Enter the trading symbol.';
@@ -719,6 +760,9 @@
     }
 
     async function updateQtyFromValue() {
+      if (suppressPreviewUpdates) {
+        return;
+      } 
       const valueRaw = orderValueInput.value.trim();
       if (!valueRaw) {
         orderQuantityInput.value = '';
@@ -791,6 +835,14 @@
           </label>
         `;
       }).join('');
+      if (isEditMode && initialMasterAccounts.length) {
+        const selected = new Set(initialMasterAccounts.map(value => String(value)));
+        masterAccountsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          if (selected.has(cb.value)) {
+            cb.checked = true;
+          }
+        });
+      }
       bindAccountCheckboxes();
     }
 
@@ -824,6 +876,166 @@
       });
     }
 
+    function applyPayloadToForm(payload, strategy) {
+      suppressPreviewUpdates = true;
+
+      const payloadObject = payload && typeof payload === 'object' ? payload : null;
+      let useWatchlist = false;
+      let singleSymbol = '';
+
+      if (payloadObject && Array.isArray(payloadObject.tradingSymbols)) {
+        const symbols = payloadObject.tradingSymbols
+          .map(symbol => (typeof symbol === 'string' ? symbol : String(symbol)))
+          .filter(Boolean);
+        if (symbols.includes(DYNAMIC_TICKER_TOKEN)) {
+          useWatchlist = true;
+        } else if (symbols.length) {
+          singleSymbol = symbols[0];
+        }
+      }
+
+      if (!useWatchlist && !singleSymbol && strategy?.allowed_tickers && strategy.allowed_tickers !== '__WATCHLIST_DYNAMIC__') {
+        singleSymbol = String(strategy.allowed_tickers);
+      }
+
+      if (useWatchlist) {
+        watchlistRadio.checked = true;
+        singleSymbolRadio.checked = false;
+      } else {
+        singleSymbolRadio.checked = true;
+        watchlistRadio.checked = false;
+      }
+
+      if (!useWatchlist) {
+        tradingSymbolsInput.value = singleSymbol || '';
+      }
+
+      updateSymbolInputMode();
+
+      if (payloadObject && Array.isArray(payloadObject.masterAccounts)) {
+        initialMasterAccounts = payloadObject.masterAccounts.map(value => String(value));
+      }
+
+      if (payloadObject) {
+        const exchangeValue = payloadObject.exchange;
+        if (Array.isArray(exchangeValue)) {
+          const normalized = exchangeValue.map(value => String(value).toUpperCase());
+          if (normalized.includes('NSE') && normalized.includes('BSE')) {
+            setSelectValue(exchangeSelect, 'BOTH');
+          } else if (normalized.includes('BSE')) {
+            setSelectValue(exchangeSelect, 'BSE');
+          } else if (normalized.includes('NSE')) {
+            setSelectValue(exchangeSelect, 'NSE');
+          }
+        } else if (typeof exchangeValue === 'string') {
+          const upper = exchangeValue.toUpperCase();
+          if (upper === 'BOTH') {
+            setSelectValue(exchangeSelect, 'BOTH');
+          } else if (upper === 'BSE') {
+            setSelectValue(exchangeSelect, 'BSE');
+          } else if (upper === 'NSE') {
+            setSelectValue(exchangeSelect, 'NSE');
+          }
+        }
+
+        if (payloadObject.orderType) {
+          setSelectValue(orderTypeSelect, payloadObject.orderType);
+        }
+        if (payloadObject.orderValidity) {
+          setSelectValue(orderValiditySelect, payloadObject.orderValidity);
+        }
+        if (payloadObject.productType) {
+          setSelectValue(productTypeSelect, payloadObject.productType);
+        }
+      }
+
+      if (payloadObject && payloadObject.transactionType) {
+        alertTypeManual.checked = true;
+        alertTypeStrategy.checked = false;
+      } else {
+        alertTypeStrategy.checked = true;
+        alertTypeManual.checked = false;
+      }
+      updateAlertMode();
+      if (payloadObject && payloadObject.transactionType) {
+        setSelectValue(transactionTypeSelect, payloadObject.transactionType);
+      }
+
+      if (payloadObject && payloadObject.orderQty !== undefined && payloadObject.orderQty !== null) {
+        orderQuantityInput.disabled = false;
+        orderQuantityInput.value = payloadObject.orderQty;
+        orderValueInput.value = '';
+        orderValueInput.disabled = true;
+      } else if (payloadObject && payloadObject.orderValue !== undefined && payloadObject.orderValue !== null) {
+        orderValueInput.disabled = false;
+        orderValueInput.value = payloadObject.orderValue;
+        orderQuantityInput.value = '';
+        orderQuantityInput.disabled = true;
+      } else {
+        orderQuantityInput.disabled = false;
+        orderValueInput.disabled = false;
+      }
+
+      suppressPreviewUpdates = false;
+      updateWebhookPreview();
+    }
+
+    async function loadStrategyForEdit() {
+      if (!isEditMode) {
+        return;
+      }
+      try {
+        if (pageTitle) {
+          pageTitle.textContent = 'Edit Strategy';
+        }
+        if (submitButton) {
+          submitButton.textContent = 'Update Strategy';
+        }
+        const strategy = await fetchJson(`/api/strategies/${encodeURIComponent(editingStrategyId)}`);
+        initialMasterAccounts = parseMasterAccounts(strategy?.master_accounts);
+
+        let payload = null;
+        try {
+          const stored = window.localStorage.getItem(`strategyPayload_${editingStrategyId}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') {
+              payload = parsed;
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to parse stored payload for strategy', error);
+        }
+
+        if (payload && Array.isArray(payload.masterAccounts)) {
+          initialMasterAccounts = payload.masterAccounts.map(value => String(value));
+        }
+
+        let inferredSymbol = '';
+        if (payload && Array.isArray(payload.tradingSymbols)) {
+          inferredSymbol = payload.tradingSymbols.find(symbol => symbol && symbol !== DYNAMIC_TICKER_TOKEN) || '';
+        }
+        if (!inferredSymbol && strategy?.allowed_tickers && strategy.allowed_tickers !== '__WATCHLIST_DYNAMIC__') {
+          inferredSymbol = String(strategy.allowed_tickers);
+        }
+
+        if (form.strategyName) {
+          let baseName = strategy?.name || '';
+          if (inferredSymbol) {
+            const suffixRegex = new RegExp(`\\s*\\(${escapeRegExp(inferredSymbol)}\\)\\s*$`);
+            baseName = baseName.replace(suffixRegex, '').trim();
+          }
+          form.strategyName.value = baseName;
+        }
+
+        applyPayloadToForm(payload, strategy);
+      } catch (error) {
+        console.error('Failed to load strategy for editing', error);
+        window.alert('Unable to load strategy details. Returning to strategies list.');
+        window.location.href = '/demat-strategies';
+      }
+    }
+  
     singleSymbolRadio.addEventListener('change', updateSymbolInputMode);
     watchlistRadio.addEventListener('change', updateSymbolInputMode);
     tradingSymbolsInput.addEventListener('input', () => {
@@ -892,7 +1104,9 @@
           return;
         }
         tradingSymbolsForDb = singleSymbol;
-        strategyNameForDb = `${name} (${singleSymbol})`;
+        const suffixRegex = new RegExp(`\\s*\\(${escapeRegExp(singleSymbol)}\\)\\s*$`);
+        const baseName = name.replace(suffixRegex, '').trim();
+        strategyNameForDb = `${baseName} (${singleSymbol})`.trim();
       } else {
         tradingSymbolsForDb = '__WATCHLIST_DYNAMIC__';
       }
@@ -917,12 +1131,15 @@
 
       const previewPayload = webhookPreview.value;
 
-      fetchJson('/api/strategies', {
-        method: 'POST',
+      const requestUrl = isEditMode ? `/api/strategies/${encodeURIComponent(editingStrategyId)}` : '/api/strategies';
+      const requestMethod = isEditMode ? 'PUT' : 'POST';
+
+      fetchJson(requestUrl, {
+        method: requestMethod,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).then(result => {
-        const strategyId = result?.id;
+        const strategyId = isEditMode ? editingStrategyId : result?.id;
         if (strategyId && previewPayload) {
           try {
             const parsedPreview = JSON.parse(previewPayload);
@@ -931,10 +1148,10 @@
             console.warn('Unable to persist payload preview', error);
           }
         }
-        window.alert('Strategy created successfully.');
+        window.alert(isEditMode ? 'Strategy updated successfully.' : 'Strategy created successfully.');
         window.location.href = '/demat-strategies';
       }).catch(error => {
-        window.alert(error.message || 'Failed to create strategy.');
+        window.alert(error.message || (isEditMode ? 'Failed to update strategy.' : 'Failed to create strategy.'));
       });
     });
 
@@ -943,6 +1160,17 @@
     updateTokens();
     updateWebhookPreview();
     loadMasterAccounts();
+
+    if (isEditMode) {
+      loadStrategyForEdit().then(() => {
+        loadMasterAccounts();
+      }).catch(() => {
+        loadMasterAccounts();
+      });
+    } else {
+      loadMasterAccounts();
+    }
+ 
     loadSymbols();
   };
 </script>
