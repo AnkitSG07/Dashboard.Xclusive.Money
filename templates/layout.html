@@ -23,7 +23,7 @@
   {% block styles %}{% endblock %}
   <style data-global-style="true">
   <style>
-
+    
     .collapse:not(.tw-collapse) {
       visibility: visible !important;
     }
@@ -554,7 +554,7 @@
       right: 0;
       width: min(450px, 100vw);
       height: 100vh;
-      background-color: hsl(var(--background));
+      background-color: white;
       box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
       border-left: 1px solid hsl(var(--border));
       transform: translateX(100%);
@@ -1579,6 +1579,13 @@
 .sidebar .collapsible-content .sidebar-item{
   margin-left:8px;
 } 
+    /* === COMPAT SHIM: unify tokens to full hsl(...) strings and expose any missing vars === */
+:root {
+  --background: hsl(240, 20%, 97%);
+  --foreground: hsl(240, 10%, 15%);
+  --card: hsl(0, 0%, 100%);
+}
+    
   </style>
   <script>
     (function() {
