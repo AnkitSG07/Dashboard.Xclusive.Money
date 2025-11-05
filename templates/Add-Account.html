@@ -1,9 +1,13 @@
 {% extends "layout.html" %}
+
 {% block title %}Account Configuration - DhanBot{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='addaccount.css') }}">
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='addaccount.css') }}">
+{% endblock %}
 
+{% block content %}
 <div class="account-config-page">
     <div class="background-shapes">
         <div class="shape shape1"></div>
