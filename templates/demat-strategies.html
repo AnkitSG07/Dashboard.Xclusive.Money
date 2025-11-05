@@ -2068,10 +2068,7 @@
         if (!strategy) {
           return;
         }
-        if (!this.logsModal) {
-          window.location.href = `/strategy-performance/${strategy.id}`;
-          return;
-        }
+
         this.currentLogsStrategy = strategy;
         this.logsRequestId += 1;
         const requestId = this.logsRequestId;
@@ -2292,10 +2289,6 @@ ${responseText || ''}`);
         }
       }
 
-      viewLogs(strategy) {
-        window.location.href = `/strategy-performance/${strategy.id}`;
-      }
-
       handleContainerClick(event) {
         const button = event.target.closest('[data-action]');
         if (!button || !this.container.contains(button)) {
@@ -2325,7 +2318,7 @@ ${responseText || ''}`);
           const url = this.buildWebhookUrl(strategy);
           copyToClipboard(url || '');
         } else if (action === 'view-logs') {
-          this.viewLogs(strategy);
+          this.openLogsModal(strategy);
         }
       }
     }
