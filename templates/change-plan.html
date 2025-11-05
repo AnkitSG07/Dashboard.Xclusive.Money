@@ -1,852 +1,1503 @@
 {% extends "layout.html" %}
 
-{% block title %}Change Plan{% endblock %}
+{% block title %}Pricing - XClusive Money{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+    <style>
+        /* Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Design System Colors (from index.css) */
+        :root {
+            --background: hsl(240, 20%, 97%);
+            --foreground: hsl(240, 10%, 15%);
+            --card: hsl(0, 0%, 100%);
+            --card-foreground: hsl(240, 10%, 15%);
+            --primary: hsl(250, 70%, 60%);
+            --primary-foreground: hsl(0, 0%, 100%);
+            --secondary: hsl(240, 5%, 96%);
+            --secondary-foreground: hsl(240, 10%, 15%);
+            --muted: hsl(240, 5%, 96%);
+            --muted-foreground: hsl(240, 4%, 46%);
+            --accent: hsl(250, 70%, 60%);
+            --border: hsl(240, 6%, 90%);
+            --success: hsl(142, 76%, 36%);
+            --radius: 0.75rem;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .main-container {
+            min-height: 100vh;
+            background: var(--background);
+            padding: 16px;
+        }
+
+        .content-wrapper {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* Hero Banner */
+        .hero-banner {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            background: linear-gradient(to bottom right, 
+                hsla(250, 70%, 60%, 0.1), 
+                var(--background), 
+                hsla(250, 70%, 60%, 0.1));
+            border: 1px solid var(--border);
+            padding: 48px 32px;
+            margin-bottom: 32px;
+        }
+
+        .hero-subtitle {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--muted-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .hero-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--foreground);
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+            padding: 24px;
+            padding-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--card-foreground);
+        }
+
+        .card-description {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-top: 4px;
+        }
+
+        .card-content {
+            padding: 24px;
+        }
+
+        /* Current Subscription Section */
+        .subscription-section {
+            margin-bottom: 32px;
+        }
+
+        .subscription-inner-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .subscription-content {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .plan-details {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .plan-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .billing-date {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 150ms;
+            cursor: pointer;
+            outline: none;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-lg {
+            padding: 12px 32px;
+            font-size: 1rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--foreground);
+        }
+
+        .btn-outline:hover {
+            background: var(--secondary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(to right, hsl(24, 95%, 53%), hsl(48, 96%, 53%));
+            color: white;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(to right, hsl(24, 95%, 48%), hsl(48, 96%, 48%));
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Pricing Calculator */
+        .calculator-card {
+            border: 2px solid hsla(250, 70%, 60%, 0.2);
+            background: linear-gradient(to bottom right, 
+                hsla(250, 70%, 60%, 0.05), 
+                var(--background));
+            margin-bottom: 32px;
+        }
+
+        .calculator-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .calculator-icon-wrapper {
+            padding: 8px;
+            border-radius: 8px;
+            background: hsla(250, 70%, 60%, 0.1);
+        }
+
+        .calculator-icon {
+            width: 24px;
+            height: 24px;
+            color: var(--primary);
+        }
+
+        .calculator-title-wrapper h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .calculator-title-wrapper p {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        .calculator-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .custom-select {
+            height: 48px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            color: var(--foreground);
+            cursor: pointer;
+        }
+
+        .custom-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px hsla(250, 70%, 60%, 0.1);
+        }
+
+        /* Multi-select dropdown */
+        .multi-select-wrapper {
+            position: relative;
+        }
+
+        .multi-select-trigger {
+            height: 48px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .multi-select-trigger:hover {
+            background: hsl(240, 5%, 94%);
+        }
+
+        .multi-select-text {
+            color: var(--foreground);
+        }
+
+        .multi-select-text.placeholder {
+            color: var(--muted-foreground);
+        }
+
+        .chevron-down {
+            width: 16px;
+            height: 16px;
+            opacity: 0.5;
+            flex-shrink: 0;
+        }
+
+        .multi-select-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+        }
+
+        .multi-select-dropdown.active {
+            display: block;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid var(--primary);
+            accent-color: var(--primary);
+        }
+
+        .checkbox-item label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            flex: 1;
+            line-height: 1;
+        }
+
+        /* Price Summary */
+        .price-summary {
+            background: linear-gradient(to bottom right, 
+                hsla(250, 70%, 60%, 0.1), 
+                hsla(268, 65%, 66%, 0.1));
+            border: 2px solid hsla(250, 70%, 60%, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .price-display-section {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .price-label-text {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-bottom: 8px;
+        }
+
+        .price-wrapper {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .price-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--foreground);
+        }
+
+        .price-period {
+            font-size: 1.125rem;
+            color: var(--muted-foreground);
+        }
+
+        .price-breakdown {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-top: 16px;
+            padding: 0 16px;
+        }
+
+        .price-per-product {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin-top: 8px;
+        }
+
+        .pay-button {
+            max-width: 28rem;
+            margin: 0 auto 24px 335px;
+            padding: 20px 24px;
+            font-size: 1.125rem;
+        }
+
+        .guarantee-badge {
+            display: inline-block;
+            background: hsla(268, 65%, 66%, 0.2);
+            color: hsl(271, 76%, 53%);
+            padding: 6px 24px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        /* Security Card */
+        .security-card {
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 36rem;
+            margin: 0 auto;
+        }
+
+        .security-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .security-subtitle {
+            color: var(--muted-foreground);
+            margin-bottom: 16px;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .security-icons-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .security-feature {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .security-icon-box {
+            padding: 8px;
+            background: hsla(250, 70%, 60%, 0.1);
+            border-radius: 6px;
+        }
+
+        .security-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
+        }
+
+        .security-text-box p:first-child {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .security-text-box p:last-child {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+        }
+
+        .security-icons {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Comparison Table */
+        .comparison-wrapper {
+            margin-top: 32px;
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .table-container {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+            background: var(--card);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead tr {
+            background: hsla(250, 70%, 60%, 0.1);
+            border-bottom: 2px solid hsla(250, 70%, 60%, 0.2);
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: var(--foreground);
+        }
+
+        th:first-child {
+            width: 140px;
+            position: sticky;
+            left: 0;
+            background: hsla(250, 70%, 60%, 0.1);
+            z-index: 10;
+        }
+
+        th:not(:first-child) {
+            text-align: center;
+            width: 90px;
+        }
+
+        @media (max-width: 640px) {
+            table {
+                width: 100%;
+            }
+
+            th {
+                padding: 8px 4px;
+                font-size: 0.75rem;
+            }
+
+            th:first-child {
+                width: 100px;
+                padding-left: 12px;
+            }
+
+            th:not(:first-child) {
+                width: 70px;
+                padding: 8px 2px;
+            }
+
+            .product-name-row td {
+                padding: 12px 4px;
+                font-size: 0.875rem;
+            }
+
+            .tier-header-row td {
+                padding: 6px 4px;
+                font-size: 0.75rem;
+            }
+
+            .tier-header-row td:first-child {
+                padding-left: 12px;
+            }
+
+            td {
+                padding: 8px 4px;
+                font-size: 0.75rem;
+            }
+
+            td:first-child {
+                width: 100px;
+                padding-left: 12px;
+            }
+
+            td:not(:first-child) {
+                padding: 8px 2px;
+            }
+
+            .check-mark, .x-mark {
+                width: 16px;
+                height: 16px;
+            }
+
+            .table-container {
+                overflow-x: visible;
+            }
+        }
+
+        .product-name-row td {
+            background: hsla(250, 70%, 60%, 0.2);
+            font-weight: 700;
+            text-align: center;
+            padding: 12px 16px;
+            font-size: 1.125rem;
+        }
+
+        .tier-header-row {
+            background: hsla(0, 0%, 0%, 0.02);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tier-header-row td {
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .tier-header-row td:first-child {
+            background: hsla(0, 0%, 0%, 0.02);
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        .tier-header-row td:not(:first-child) {
+            text-align: center;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid hsla(240, 6%, 90%, 0.5);
+        }
+
+        tbody tr:hover {
+            background: hsla(240, 5%, 96%, 0.3);
+        }
+
+        td {
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        td:first-child {
+            font-weight: 500;
+            background: var(--card);
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        td:not(:first-child) {
+            text-align: center;
+        }
+
+        .check-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            color: var(--success);
+        }
+
+        .x-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            color: hsl(var(--muted-foreground));
+            opacity: 0.3;
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            margin-top: 32px;
+        }
+
+        .faq-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .faq-container {
+            padding: 24px;
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-trigger {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .faq-trigger:hover {
+            text-decoration: underline;
+        }
+
+        .faq-arrow {
+            transition: transform 0.2s;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .faq-item.active .faq-arrow {
+            transform: rotate(180deg);
+        }
+
+        .faq-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+        }
+
+        .faq-item.active .faq-content {
+            max-height: 500px;
+            transition: max-height 0.3s ease-in;
+        }
+
+        .faq-answer {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            padding-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 8px;
+            }
+            .pay-button {
+                max-width: 28rem;
+                margin: 0 auto 24px;
+                padding: 20px 24px;
+            }
+            .hero-banner {
+                padding: 32px 20px;
+            }
+
+            .hero-title {
+                font-size: 1.875rem;
+            }
+
+            .subscription-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .calculator-inputs {
+                grid-template-columns: 1fr;
+            }
+
+            .price-value {
+                font-size: 2.5rem;
+            }
+
+            .card-header, .card-content {
+                padding: 16px;
+            }
+
+            th, td {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+            }
+
+            th:first-child,
+            td:first-child {
+                min-width: 140px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-title {
+                font-size: 1.5rem;
+            }
+
+            .price-value {
+                font-size: 2rem;
+            }
+
+            .card-title {
+                font-size: 1.25rem;
+            }
+
+            .comparison-title,
+            .faq-title {
+                font-size: 1.25rem;
+            }
+
+            th, td {
+                padding: 6px 8px;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
-<style>
-
-  :root {
-    --cp-page-bg: #f3f4ff;
-    --cp-bg: #eef0ff;
-    --cp-surface: #ffffff;
-    --cp-hero-bg: radial-gradient(circle at top, rgba(106, 98, 255, 0.16), #f6f5ff 55%);
-    --cp-border: rgba(110, 116, 134, 0.22);
-    --cp-line: rgba(15, 23, 42, 0.06);
-    --cp-text: #0f172a;
-    --cp-muted: #6b7280;
-    --cp-heading: #0c1220;
-    --cp-accent: #f97316;
-    --cp-accent2: #f68e24;
-    --cp-purple-chip: #e2d5ff;
-    --cp-lavender: #ece7ff;
-    --cp-lavender-soft: #f3f0ff;
-    --cp-check: #22c55e;
-    --cp-x: #ef4444;
-    --cp-radius-lg: 1.4rem;
-  }
-
-  .cp-page {
-    min-height: 100vh;
-    background: #edf0ff;
-    padding: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: var(--cp-text);
-  }
-
-  .cp-content {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 16px 12px 40px;
-  }
-
-  @media (min-width: 768px) {
-    .cp-content {
-      padding: 24px 0 50px;
-    }
-  }
-
-  .cp-hero {
-    background: var(--cp-hero-bg);
-    border: 1px solid rgba(122, 122, 211, 0.18);
-    border-radius: 1.25rem;
-    padding: 22px 20px 26px;
-    margin-bottom: 16px;
-    box-shadow: 0 3px 10px rgba(132, 128, 255, 0.06);
-  }
-
-  .cp-hero-label {
-    font-size: 0.62rem;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: #6f6bb2;
-    margin-bottom: 10px;
-  }
-
-  .cp-hero-title {
-    font-size: clamp(2.1rem, 3.3vw, 2.4rem);
-    font-weight: 700;
-    line-height: 1.05;
-    color: #0f172a;
-  }
-
-  .cp-hero-sub {
-    font-size: clamp(2rem, 3vw, 2.3rem);
-    font-weight: 700;
-    color: #0f172a;
-    margin-top: 3px;
-  }
-
-  .cp-card {
-    background: var(--cp-surface);
-    border: 1px solid rgba(134, 137, 170, 0.22);
-    border-radius: 1.1rem;
-    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.02);
-    margin-bottom: 16px;
-  }
-
-  .cp-card-header {
-    padding: 14px 16px 6px;
-  }
-
-  .cp-card-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #01040c;
-    margin-bottom: 4px;
-  }
-
-  .cp-card-sub {
-    font-size: 0.8rem;
-    color: var(--cp-muted);
-  }
-
-  .cp-card-body {
-    padding: 10px 16px 16px;
-  }
-
-  .cp-subscription-box {
-    background: var(--cp-surface);
-    border: 1px solid rgba(124, 126, 143, 0.16);
-    border-radius: .85rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 14px 14px;
-  }
-
-  .cp-subscription-box p {
-    margin: 0;
-  }
-
-  .cp-sub-title {
-    font-weight: 600;
-    font-size: .92rem;
-  }
-
-  .cp-sub-date {
-    font-size: .7rem;
-    color: var(--cp-muted);
-    margin-top: .2rem;
-  }
-
-  .cp-btn-outlined {
-    border: 1px solid rgba(15, 23, 42, 0.15);
-    background: var(--cp-surface);
-    border-radius: 999px;
-    font-size: .7rem;
-    padding: 7px 18px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .cp-pricing-card {
-    background: var(--cp-surface);
-    border: 1px solid rgba(134, 137, 170, 0.22);
-    border-radius: 1.1rem;
-    margin-bottom: 16px;
-    padding-bottom: 14px;
-  }
-
-  .cp-pricing-header {
-    padding: 14px 16px 8px;
-    display: flex;
-    gap: .6rem;
-    align-items: center;
-  }
-
-  .cp-pricing-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 14px;
-    background: #f2ebff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: #5f3fff;
-    font-size: .8rem;
-  }
-
-  .cp-pricing-title {
-    font-weight: 700;
-    font-size: .95rem;
-  }
-
-  .cp-pricing-sub {
-    font-size: .7rem;
-    color: var(--cp-muted);
-  }
-
-  .cp-pricing-filters {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    padding: 8px 16px 0;
-  }
-
-  .cp-form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .cp-form-label {
-    font-size: .62rem;
-    font-weight: 600;
-    color: var(--cp-text);
-  }
-
-  .cp-select-box {
-    position: relative;
-  }
-
-  .cp-select-box select {
-    width: 100%;
-    padding: 8px 30px 8px 10px;
-    border-radius: .65rem;
-    border: 1px solid rgba(121, 125, 165, 0.4);
-    background: var(--cp-surface);
-    font-size: .74rem;
-  }
-
-  .cp-select-box::after {
-    content: "▾";
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: .6rem;
-    color: var(--cp-muted);
-    pointer-events: none;
-  }
-
-  .cp-calc-panel {
-    margin: 14px 16px 0;
-    background: #ece7ff;
-    border: 1px solid rgba(118, 111, 217, 0.2);
-    border-radius: 1rem;
-    padding: 22px 16px 14px;
-  }
-
-  .cp-calc-price {
-    text-align: center;
-  }
-
-  .cp-calc-label-top {
-    font-size: .55rem;
-    letter-spacing: .18em;
-    text-transform: uppercase;
-    color: var(--cp-muted);
-    margin-bottom: 6px;
-  }
-
-  .cp-calc-amount {
-    font-size: 2.4rem;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .cp-calc-per {
-    font-size: .7rem;
-    color: var(--cp-muted);
-    display: block;
-    margin-top: 3px;
-  }
-
-  .cp-calc-meta {
-    margin-top: 6px;
-    font-size: .65rem;
-    color: #4b5563;
-  }
-
-  .cp-btn-pay {
-    width: 160px;
-    height: 32px;
-    border: none;
-    border-radius: 6px;
-    background: linear-gradient(90deg, #f97316 0%, #f5b300 100%);
-    color: #fff;
-    font-size: .73rem;
-    font-weight: 600;
-    margin: 10px auto 0;
-    display: block;
-    cursor: pointer;
-  }
-
-  .cp-pill-refund {
-    width: max-content;
-    margin: 10px auto 0;
-    background: rgba(133, 92, 248, 0.12);
-    color: #5f3fff;
-    font-size: .6rem;
-    padding: 5px 14px 5px;
-    border-radius: 999px;
-    font-weight: 500;
-  }
-
-  .cp-safe-box {
-    margin-top: 14px;
-    background: var(--cp-surface);
-    border-radius: .7rem;
-    padding: 12px 14px 12px;
-    border: 1px solid rgba(134, 137, 170, 0.25);
-  }
-
-  .cp-safe-title {
-    font-weight: 600;
-    font-size: .78rem;
-    margin-bottom: 3px;
-  }
-
-  .cp-safe-sub {
-    font-size: .6rem;
-    color: var(--cp-muted);
-    margin-bottom: 10px;
-  }
-
-  .cp-safe-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .cp-safe-pill {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    background: #e2ddff;
-    border-radius: .6rem;
-    padding: 5px 10px 5px;
-    font-size: .6rem;
-    font-weight: 500;
-    color: #2e2565;
-  }
-
-  .cp-payment-icons span {
-    display: inline-block;
-    width: 26px;
-    height: 16px;
-    background: #f4f4f4;
-    border-radius: 4px;
-    margin-right: 4px;
-  }
-
-  .cp-table-card {
-    background: var(--cp-surface);
-    border: 1px solid rgba(124, 126, 143, 0.18);
-    border-radius: 1.1rem;
-    overflow: hidden;
-  }
-
-  .cp-table-header {
-    padding: 16px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 1rem;
-  }
-
-  .cp-features-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: .73rem;
-  }
-
-  .cp-features-table thead th {
-    background: #f5f4ff;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.03);
-    padding: 10px 12px;
-    text-align: left;
-    font-weight: 700;
-  }
-
-  .cp-features-table thead th:not(:first-child) {
-    text-align: center;
-  }
-
-  .cp-features-table tbody td {
-    border-bottom: 1px solid rgba(15, 23, 42, 0.025);
-    padding: 9px 12px;
-  }
-
-  .cp-features-table tbody td:nth-child(1) {
-    font-weight: 500;
-    width: 32%;
-  }
-
-  .cp-features-table tbody td:not(:first-child) {
-    text-align: center;
-  }
-
-  .cp-check {
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    background: rgba(25, 190, 107, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.28);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .6rem;
-    color: var(--cp-check);
-  }
-
-  .cp-xmark {
-    font-size: 1rem;
-    color: var(--cp-x);
-    font-weight: 600;
-    line-height: 0;
-    display: inline-block;
-    transform: translateY(2px);
-  }
-
-  .cp-faq-card {
-    background: var(--cp-surface);
-    border: 1px solid rgba(124, 126, 143, 0.14);
-    border-radius: 1.1rem;
-    margin-top: 16px;
-  }
-
-  .cp-faq-title {
-    text-align: center;
-    font-weight: 700;
-    font-size: 1rem;
-    padding: 16px 16px 4px;
-  }
-
-  .cp-faq-item {
-    border-bottom: 1px solid rgba(15, 23, 42, 0.04);
-  }
-
-  .cp-faq-btn {
-    width: 100%;
-    padding: 10px 16px 10px;
-    background: none;
-    border: none;
-    text-align: left;
-    font-weight: 500;
-    font-size: .78rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    cursor: pointer;
-  }
-
-  .cp-faq-content {
-    display: none;
-    padding: 0 16px 12px;
-    font-size: .7rem;
-    color: var(--cp-muted);
-  }
-
-  .cp-faq-item.cp-active .cp-faq-content {
-    display: block;
-  }
-
-  @media (max-width: 900px) {
-    .cp-pricing-filters {
-      grid-template-columns: 1fr;
-    }
-
-    .cp-calc-panel {
-      padding: 20px 10px 14px;
-    }
-
-    .cp-features-table thead {
-      display: none;
-    }
-
-    .cp-features-table,
-    .cp-features-table tbody,
-    .cp-features-table tr,
-    .cp-features-table td {
-      display: block;
-      width: 100%;
-    }
-
-    .cp-features-table tr {
-      border-bottom: 1px solid rgba(15, 23, 42, 0.04);
-      padding: 8px 0;
-    }
-
-    .cp-features-table td {
-      text-align: left !important;
-    }
-  }
-/* ==== FORCE DESKTOP-STYLE TABLE ON MOBILE ==== */
-@media (max-width: 768px) {
-
-  /* 1. bring table elements back to normal */
-  .cp-features-table,
-  .cp-features-table tbody,
-  .cp-features-table tr,
-  .cp-features-table td,
-  .cp-features-table thead,
-  .cp-features-table th {
-    display: table;
-  }
-
-  .cp-features-table {
-    width: 100%;
-    table-layout: fixed;      /* fit 4 columns */
-    border-collapse: collapse;
-    
-  }
-
-  /* 2. show header again */
-  .cp-features-table thead {
-    margin-bottom: 12px;
-  }
-
-  /* 3. cells + header compact */
-  .cp-features-table thead th {
-    display: inline;
-    font-size: 0.78rem;
-    padding: 6px 29px;
-    text-align: center;
-    white-space: normal;
-    background: none;
-  }
-  .cp-features-table thead th:first-child {
-    text-align: left;
-    width: 34%;
-  }
-
-  .cp-features-table tbody tr {
-    display: table-row;
-  }
-
-  .cp-features-table tbody td {
-    display: table-cell;
-    padding: 10px 8px;
-    text-align: center;
-    font-size: 0.72rem;
-    vertical-align: middle;
-  }
-  .cp-features-table tbody td:first-child {
-    text-align: left;
-    font-weight: 500;
-  }
-
-  /* 4. equal plan columns */
-  .cp-features-table thead th:nth-child(n+2),
-  .cp-features-table tbody td:nth-child(n+2) {
-    width: 22%;
-  }
-
-  /* 5. icons smaller */
-  .cp-check {
-    width: 14px;
-    height: 14px;
-    font-size: 0.55rem;
-  }
-  .cp-xmark {
-    font-size: 0.85rem;
-  }
-
-  /* 6. wrapper */
-  .cp-table-card {
-    overflow: visible;
-    padding-inline: 11px;
-    padding-block-end: 12px;
-  }
-}
-
-</style>
-<div class="cp-page">
-  <div class="cp-content">
-    <div class="cp-hero">
-      <div class="cp-hero-label">Plans &amp; Packages</div>
-      <h1 class="cp-hero-title">Choose the Product</h1>
-      <h2 class="cp-hero-sub">That's Right for Your Business</h2>
-    </div>
-
-    <div class="cp-card">
-      <div class="cp-card-header">
-        <div class="cp-card-title">Current Subscription</div>
-        <div class="cp-card-sub">Manage your active subscription</div>
-      </div>
-      <div class="cp-card-body">
-        <div class="cp-subscription-box">
-          <div>
-            <p class="cp-sub-title">Pro Plan</p>
-            <p class="cp-sub-date">Next billing date: January 15, 2026</p>
-          </div>
-          <button class="cp-btn-outlined">Manage Subscription</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="cp-pricing-card" id="pricing-card">
-      <div class="cp-pricing-header">
-        <div class="cp-pricing-icon">₹</div>
-        <div>
-          <div class="cp-pricing-title">Pricing Calculator</div>
-          <div class="cp-pricing-sub">Customize your plan and see the cost</div>
-        </div>
-      </div>
-      <div class="cp-pricing-filters">
-        <div class="cp-form-group">
-          <label class="cp-form-label" for="cp-product">Product (Select Multiple)</label>
-          <div class="cp-select-box">
-            <select id="cp-product">
-              <option value="copy-trading">1 product selected</option>
-              <option value="xm-gpt">XM GPT</option>
-              <option value="alert2trade">Alert2Trade</option>
-            </select>
-          </div>
-        </div>
-        <div class="cp-form-group">
-          <label class="cp-form-label" for="cp-billing">Billing Cycle</label>
-          <div class="cp-select-box">
-            <select id="cp-billing">
-              <option value="monthly" selected>Monthly</option>
-              <option value="quarterly">Quarterly (-10%)</option>
-              <option value="yearly">Yearly (-25%)</option>
-            </select>
-          </div>
-        </div>
-        <div class="cp-form-group">
-          <label class="cp-form-label" for="cp-plan-tier">Plan Tier</label>
-          <div class="cp-select-box">
-            <select id="cp-plan-tier">
-              <option value="pro" selected>Pro</option>
-              <option value="basic">Basic</option>
-              <option value="enterprise">Enterprise</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="cp-calc-panel" id="cp-calc-panel">
-        <div class="cp-calc-price">
-          <div class="cp-calc-label-top">Your total</div>
-          <div class="cp-calc-amount" id="cp-price-text">$79</div>
-          <span class="cp-calc-per" id="cp-price-period">/ month</span>
-          <div class="cp-calc-meta" id="cp-price-meta">Copy Trading • Pro • Monthly</div>
-        </div>
-        <button class="cp-btn-pay">Pay Now</button>
-        <div class="cp-pill-refund">30 days refund guarantee</div>
-        <div class="cp-safe-box">
-          <div class="cp-safe-title">Safe and Secure Checkout</div>
-          <div class="cp-safe-sub">Payments are processed securely</div>
-          <div class="cp-safe-row">
-            <div class="cp-safe-pill">
-              <span style="width:18px;height:18px;border-radius:999px;background:#fff;display:inline-block;"></span>
-              <span>SECURE</span>
-              <span style="font-size:.5rem;opacity:.8;">SSL Encryption</span>
+    <div class="main-container">
+        <div class="content-wrapper">
+            <!-- Hero Banner Section -->
+            <div class="hero-banner">
+                <div>
+                    <p class="hero-subtitle">PLANS & PACKAGES</p>
+                    <h1 class="hero-title">Choose the Product</h1>
+                    <h2 class="hero-title">That's Right for Your Business</h2>
+                </div>
             </div>
-            <div class="cp-payment-icons">
-              <span></span><span></span><span></span><span></span>
+
+            <!-- Current Subscription Section -->
+            <div class="card subscription-section">
+                <div class="card-header">
+                    <h2 class="card-title">Current Subscription</h2>
+                    <p class="card-description">Manage your active subscription</p>
+                </div>
+                <div class="card-content">
+                    <div class="subscription-inner-card">
+                        <div class="subscription-content">
+                            <div class="plan-details">
+                                <p class="plan-name">Pro Plan</p>
+                                <p class="billing-date">Next billing date: January 15, 2026</p>
+                            </div>
+                            <button class="btn btn-outline btn-lg" onclick="alert('Manage subscription functionality')">
+                                Manage Subscription
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="cp-table-card">
-      <div class="cp-table-header">Compare Plan Features</div>
-      <table class="cp-features-table">
-        <thead>
-          <tr>
-            <th>Features</th>
-            <th>Basic</th>
-            <th>Pro</th>
-            <th>Enterprise</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Trading Accounts</td>
-            <td>5</td>
-            <td>20</td>
-            <td>Unlimited</td>
-          </tr>
-          <tr>
-            <td>Real-time Alerts</td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Copy trading</td>
-            <td>Basic</td>
-            <td>Advanced</td>
-            <td>Advanced + Custom</td>
-          </tr>
-          <tr>
-            <td>AI Analysis</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>API Access</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Custom Automation</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Advanced Analytics</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Priority Support</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>24/7 Dedicated Support</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>White-label Solution</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Custom Integrations</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>Team Management</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-          <tr>
-            <td>SLA Guarantee</td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-xmark">×</span></td>
-            <td><span class="cp-check">✓</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            <!-- Pricing Calculator -->
+            <div class="card calculator-card">
+                <div class="card-content">
+                    <div class="calculator-header">
+                        <div class="calculator-icon-wrapper">
+                            <svg class="calculator-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                                <line x1="8" y1="6" x2="16" y2="6"/>
+                                <line x1="16" y1="14" x2="16" y2="14"/>
+                                <line x1="8" y1="14" x2="8" y2="14"/>
+                                <line x1="12" y1="14" x2="12" y2="14"/>
+                                <line x1="8" y1="18" x2="8" y2="18"/>
+                                <line x1="12" y1="18" x2="12" y2="18"/>
+                                <line x1="16" y1="18" x2="16" y2="18"/>
+                            </svg>
+                        </div>
+                        <div class="calculator-title-wrapper">
+                            <h2>Pricing Calculator</h2>
+                            <p>Customize your plan and see the cost</p>
+                        </div>
+                    </div>
 
-    <div class="cp-faq-card" id="cp-faq">
-      <div class="cp-faq-title">Frequently Asked Questions</div>
-      <div class="cp-faq-item">
-        <button class="cp-faq-btn">
-          <span>Does this work with my broker?</span>
-          <span>▾</span>
-        </button>
-        <div class="cp-faq-content">
-          Yes! TradeEdge Pro integrates with Alert2Trade, which supports 100+ brokers including Zerodha, Interactive Brokers, TD Ameritrade, Binance, and more.
+                    <div class="calculator-inputs">
+                        <!-- Products Multi-Select -->
+                        <div class="input-group">
+                            <label class="input-label">Products (Select Multiple)</label>
+                            <div class="multi-select-wrapper">
+                                <div class="multi-select-trigger" onclick="toggleDropdown()">
+                                    <span class="multi-select-text" id="selectedProductsText">1 product selected</span>
+                                    <svg class="chevron-down" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="multi-select-dropdown" id="productsDropdown">
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="product-xm-gpt" value="xm-gpt" onchange="updateSelectedProducts()">
+                                        <label for="product-xm-gpt">XM GPT</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="product-copy-trading" value="copy-trading" checked onchange="updateSelectedProducts()">
+                                        <label for="product-copy-trading">Copy Trading</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="product-alert2trade" value="alert2trade" onchange="updateSelectedProducts()">
+                                        <label for="product-alert2trade">Alert2Trade</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Billing Cycle -->
+                        <div class="input-group">
+                            <label class="input-label">Billing Cycle</label>
+                            <select class="custom-select" id="billingCycle" onchange="updatePrice()">
+                                <option value="trial">7 Day Free Trial</option>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="quarterly">Quarterly (Save 10%)</option>
+                                <option value="yearly">Yearly (Save 25%)</option>
+                            </select>
+                        </div>
+
+                        <!-- Plan Tier -->
+                        <div class="input-group">
+                            <label class="input-label">Plan Tier</label>
+                            <select class="custom-select" id="planTier" onchange="updatePrice()">
+                                <option value="basic">Basic</option>
+                                <option value="pro" selected>Pro</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Price Summary -->
+                    <div class="price-summary">
+                        <div class="price-display-section">
+                            <p class="price-label-text">Your Total</p>
+                            <div class="price-wrapper">
+                                <span class="price-value" id="totalPrice">$79</span>
+                                <span class="price-period" id="pricePeriod">/ month</span>
+                            </div>
+                            <p class="price-breakdown" id="priceBreakdown">Copy Trading • Pro • Monthly</p>
+                            <p class="price-per-product" id="perProductPrice"></p>
+                        </div>
+
+                        <button class="btn btn-primary btn-full pay-button" id="payButton">
+                            Pay Now
+                        </button>
+
+                        <div style="text-align: center;">
+                            <div class="guarantee-badge">30 days refund guarantee</div>
+                        </div>
+
+                        <div class="security-card">
+                            <h3 class="security-title">Safe and Secure Checkout</h3>
+                            <p class="security-subtitle">Payments are processed securely</p>
+                            <div class="security-icons-wrapper">
+                                <div class="security-feature">
+                                    <div class="security-icon-box">
+                                        <svg class="security-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                    </div>
+                                    <div class="security-text-box">
+                                        <p>SECURE</p>
+                                        <p>SSL Encryption</p>
+                                    </div>
+                                </div>
+                                <div class="security-icons">
+                                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                    </svg>
+                                    <svg style="width: 24px; height: 24px; color: hsl(240, 4%, 46%);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                                        <line x1="1" y1="10" x2="23" y2="10"/>
+                                    </svg>
+                                    <svg style="width: 24px; height: 24px; color: hsl(240, 4%, 46%);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                                        <line x1="1" y1="10" x2="23" y2="10"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Table -->
+                    <div class="comparison-wrapper">
+                        <h3 class="comparison-title">Compare Plan Features</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Features</th>
+                                        <th>Basic</th>
+                                        <th>Pro</th>
+                                        <th>Enterprise</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- XM GPT -->
+                                    <tr class="product-name-row">
+                                        <td colspan="4">XM GPT</td>
+                                    </tr>
+                                    <tr class="tier-header-row">
+                                        <td></td>
+                                        <td>Basic</td>
+                                        <td>Pro</td>
+                                        <td>Enterprise</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trading Accounts</td>
+                                        <td>5</td>
+                                        <td>20</td>
+                                        <td>Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Real-time Alerts</td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>AI Analysis</td>
+                                        <td><span class="x-mark">✗</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>API Access</td>
+                                        <td><span class="x-mark">✗</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Custom Automation</td>
+                                        <td><span class="x-mark">✗</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Advanced Analytics</td>
+                                        <td><span class="x-mark">✗</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                        <td><span class="check-mark">✓</span></td>
+                                    </tr>
+
+                                    <!-- Copy Trading -->
+                                    <tr class="product-name-row">
+                                        <td colspan="4">Copy Trading</td>
+                                    </tr>
+                                    <tr class="tier-header-row">
+                                        <td></td>
+                                        <td>Basic</td>
+                                        <td>Pro</td>
+                                        <td>Enterprise</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trading Accounts</td>
+                                        <td>5</td>
+                                        <td>20</td>
+                                        <td>Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Real-time Alerts</td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>AI Analysis</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>API Access</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Custom Automation</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Advanced Analytics</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Alert2 Trade -->
+                                    <tr class="product-name-row">
+                                        <td colspan="4">Alert2 Trade</td>
+                                    </tr>
+                                    <tr class="tier-header-row">
+                                        <td></td>
+                                        <td>Basic</td>
+                                        <td>Pro</td>
+                                        <td>Enterprise</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trading Accounts</td>
+                                        <td>5</td>
+                                        <td>20</td>
+                                        <td>Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Real-time Alerts</td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>AI Analysis</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>API Access</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Custom Automation</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Advanced Analytics</td>
+                                        <td>
+                                            <svg class="x-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <svg class="check-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="card faq-section">
+                <div class="card-header">
+                    <h2 class="faq-title">Frequently Asked Questions</h2>
+                </div>
+                <div class="faq-container">
+                    <div class="faq-item">
+                        <button class="faq-trigger" onclick="toggleFAQ(this.parentElement)">
+                            <span>Does this work with my broker?</span>
+                            <svg class="faq-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="faq-content">
+                            <div class="faq-answer">
+                                Yes! TradeEdge Pro integrates with Alert2Trade, which supports 100+ brokers including Zerodha, Interactive Brokers, TD Ameritrade, Binance, and more.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" onclick="toggleFAQ(this.parentElement)">
+                            <span>What if I'm new to Pine Script?</span>
+                            <svg class="faq-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="faq-content">
+                            <div class="faq-answer">
+                                No problem! Our platform is designed for traders of all experience levels. We provide comprehensive tutorials, documentation, and support to help you get started with automated trading strategies.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" onclick="toggleFAQ(this.parentElement)">
+                            <span>How is this different from other TradingView strategies?</span>
+                            <svg class="faq-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="faq-content">
+                            <div class="faq-answer">
+                                Our platform offers advanced automation, real-time alerts, copy trading capabilities, and seamless broker integration. We focus on making automated trading accessible and reliable for everyone.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" onclick="toggleFAQ(this.parentElement)">
+                            <span>Can I use this for crypto trading?</span>
+                            <svg class="faq-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="faq-content">
+                            <div class="faq-answer">
+                                Absolutely! Our platform supports crypto trading through multiple exchanges including Binance, Coinbase, and other major platforms via Alert2Trade integration.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" onclick="toggleFAQ(this.parentElement)">
+                            <span>What about risk management?</span>
+                            <svg class="faq-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="faq-content">
+                            <div class="faq-answer">
+                                We provide built-in risk management tools including stop-loss, take-profit automation, position sizing calculators, and portfolio diversification features to help protect your capital.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="cp-faq-item">
-        <button class="cp-faq-btn">
-          <span>What if I'm new to Pine Script?</span>
-          <span>▾</span>
-        </button>
-        <div class="cp-faq-content">
-          No problem! We provide tutorials, documentation, and support to help you get started quickly.
-        </div>
-      </div>
-      <div class="cp-faq-item">
-        <button class="cp-faq-btn">
-          <span>How is this different from other TradingView strategies?</span>
-          <span>▾</span>
-        </button>
-        <div class="cp-faq-content">
-          Our platform offers advanced automation, real-time alerts, copy trading capabilities, and seamless broker integration.
-        </div>
-      </div>
-      <div class="cp-faq-item">
-        <button class="cp-faq-btn">
-          <span>Can I use this for crypto trading?</span>
-          <span>▾</span>
-        </button>
-        <div class="cp-faq-content">
-          Yes, we support popular exchanges via Alert2Trade integration.
-        </div>
-      </div>
-      <div class="cp-faq-item">
-        <button class="cp-faq-btn">
-          <span>What about risk management?</span>
-          <span>▾</span>
-        </button>
-        <div class="cp-faq-content">
-          We provide built-in risk tools including stop-loss, take-profit, and position sizing.
-        </div>
-      </div>
     </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-<script>
-  (function () {
-    const billing = document.getElementById("cp-billing");
-    const product = document.getElementById("cp-product");
-    const planTier = document.getElementById("cp-plan-tier");
-    const priceText = document.getElementById("cp-price-text");
-    const priceMeta = document.getElementById("cp-price-meta");
-    const pricePeriod = document.getElementById("cp-price-period");
 
-    function basePrice(planVal) {
-      if (planVal === "basic") return 29;
-      if (planVal === "enterprise") return 199;
-      return 79;
-    }
+    <script>
+        // Product selection state
+        let selectedProducts = ['copy-trading'];
 
-    function getDiscount(cycle) {
-      if (cycle === "quarterly") return 0.10;
-      if (cycle === "yearly") return 0.25;
-      return 0;
-    }
+        // Pricing data
+        const tierPrices = {
+            basic: 29,
+            pro: 79,
+            enterprise: 199
+        };
 
-    function recalc() {
-      const p = product.value;
-      const b = billing.value;
-      const plan = planTier.value;
-      const base = basePrice(plan);
-      const disc = getDiscount(b);
-      const final = Math.round(base * (1 - disc));
-      priceText.textContent = "$" + final;
-      pricePeriod.textContent = "/ " + (b === "monthly" ? "month" : b);
-      const productName = p === "copy-trading" ? "Copy Trading" : p === "xm-gpt" ? "XM GPT" : "Alert2Trade";
-      const planName = plan === "pro" ? "Pro" : plan === "basic" ? "Basic" : "Enterprise";
-      const billingName = b === "monthly" ? "Monthly" : b === "quarterly" ? "Quarterly" : "Yearly";
-      priceMeta.textContent = productName + " • " + planName + " • " + billingName;
-    }
+        const cycleDiscounts = {
+            trial: 1,
+            monthly: 0,
+            quarterly: 0.10,
+            yearly: 0.25
+        };
 
-    billing.addEventListener("change", recalc);
-    product.addEventListener("change", recalc);
-    planTier.addEventListener("change", recalc);
-    recalc();
-  })();
+        const productNames = {
+            'xm-gpt': 'XM GPT',
+            'copy-trading': 'Copy Trading',
+            'alert2trade': 'Alert2Trade'
+        };
 
-  document.querySelectorAll(".cp-faq-item").forEach(function (item) {
-    item.querySelector(".cp-faq-btn").addEventListener("click", function () {
-      const active = item.classList.contains("cp-active");
-      document.querySelectorAll(".cp-faq-item").forEach(function (i) {
-        i.classList.remove("cp-active");
-      });
-      if (!active) {
-        item.classList.add("cp-active");
-      }
-    });
-  });
-</script>
+        const tierNames = {
+            basic: 'Basic',
+            pro: 'Pro',
+            enterprise: 'Enterprise'
+        };
+
+        const cycleNames = {
+            trial: '7 Day Free Trial',
+            monthly: 'Monthly',
+            quarterly: 'Quarterly',
+            yearly: 'Yearly'
+        };
+
+        // Toggle multi-select dropdown
+        function toggleDropdown() {
+            const dropdown = document.getElementById('productsDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const wrapper = document.querySelector('.multi-select-wrapper');
+            if (wrapper && !wrapper.contains(event.target)) {
+                document.getElementById('productsDropdown').classList.remove('active');
+            }
+        });
+
+        // Update selected products
+        function updateSelectedProducts() {
+            selectedProducts = [];
+            const checkboxes = document.querySelectorAll('#productsDropdown input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedProducts.push(checkbox.value);
+                }
+            });
+
+            // Update display text
+            const displayText = document.getElementById('selectedProductsText');
+            if (selectedProducts.length === 0) {
+                displayText.textContent = 'Select products...';
+                displayText.classList.add('placeholder');
+            } else {
+                displayText.textContent = `${selectedProducts.length} product${selectedProducts.length > 1 ? 's' : ''} selected`;
+                displayText.classList.remove('placeholder');
+            }
+
+            // Auto-switch to Basic if trial is selected
+            const cycle = document.getElementById('billingCycle').value;
+            if (cycle === 'trial') {
+                document.getElementById('planTier').value = 'basic';
+                document.getElementById('planTier').disabled = true;
+            } else {
+                document.getElementById('planTier').disabled = false;
+            }
+
+            updatePrice();
+        }
+
+        // Update price calculation
+        function updatePrice() {
+            const cycle = document.getElementById('billingCycle').value;
+            const tier = document.getElementById('planTier').value;
+
+            // Auto-switch to Basic if trial is selected
+            if (cycle === 'trial') {
+                document.getElementById('planTier').value = 'basic';
+                document.getElementById('planTier').disabled = true;
+            } else {
+                document.getElementById('planTier').disabled = false;
+            }
+
+            // Calculate price
+            const basePrice = tierPrices[tier];
+            const discount = cycleDiscounts[cycle];
+            const productCount = selectedProducts.length || 1;
+            const pricePerProduct = basePrice * (1 - discount);
+            const totalPrice = Math.round(pricePerProduct * productCount);
+
+            // Determine period
+            let period = 'month';
+            if (cycle === 'trial') period = '7 days';
+            else if (cycle === 'quarterly') period = '3 months';
+            else if (cycle === 'yearly') period = 'year';
+
+            // Update display
+            document.getElementById('totalPrice').textContent = `$${totalPrice}`;
+            document.getElementById('pricePeriod').textContent = `/ ${period}`;
+
+            // Build breakdown text
+            const productText = selectedProducts.length === 0 
+                ? 'No products selected'
+                : selectedProducts.map(id => productNames[id]).join(' + ');
+            
+            document.getElementById('priceBreakdown').textContent = 
+                `${productText} • ${tierNames[tier]} • ${cycleNames[cycle]}`;
+
+            // Show per-product price if multiple products
+            const perProductElement = document.getElementById('perProductPrice');
+            if (selectedProducts.length > 1) {
+                perProductElement.textContent = `$${Math.round(totalPrice / productCount)} per product`;
+            } else {
+                perProductElement.textContent = '';
+            }
+
+            // Disable pay button if no products selected
+            const payButton = document.getElementById('payButton');
+            if (selectedProducts.length === 0) {
+                payButton.disabled = true;
+            } else {
+                payButton.disabled = false;
+            }
+        }
+
+        // Toggle FAQ item
+        function toggleFAQ(element) {
+            const isActive = element.classList.contains('active');
+            
+            // Close all FAQ items
+            document.querySelectorAll('.faq-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Open clicked item if it wasn't active
+            if (!isActive) {
+                element.classList.add('active');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            updateSelectedProducts();
+            updatePrice();
+        });
+    </script>
 {% endblock %}
