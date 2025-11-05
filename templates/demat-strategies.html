@@ -668,6 +668,291 @@
     border-radius: 8px !important;
   }
 
+  .strategy-logs-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 140;
+  }
+
+  .strategy-logs-overlay.is-visible {
+    display: flex;
+    animation: strategyLogsFadeIn 0.2s ease-out;
+  }
+
+  .strategy-logs-dialog {
+    position: relative;
+    width: 90%;
+    max-width: 768px;
+    max-height: 85vh;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    animation: strategyLogsSlideIn 0.2s ease-out;
+  }
+
+  body.dark .strategy-logs-dialog,
+  body.dark-mode .strategy-logs-dialog {
+    background: #0f172a;
+    border-color: #1e293b;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.6);
+  }
+
+  .strategy-logs-header {
+    padding: 24px 24px 20px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  body.dark .strategy-logs-header,
+  body.dark-mode .strategy-logs-header {
+    border-bottom-color: #1e293b;
+  }
+
+  .strategy-logs-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #0f172a;
+  }
+
+  body.dark .strategy-logs-title,
+  body.dark-mode .strategy-logs-title {
+    color: #e2e8f0;
+  }
+
+  .strategy-logs-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  body.dark .strategy-logs-subtitle,
+  body.dark-mode .strategy-logs-subtitle {
+    color: #cbd5f5;
+  }
+
+  .strategy-logs-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: 100%;
+  }
+
+  .strategy-logs-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .strategy-logs-body::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 4px;
+  }
+
+  body.dark .strategy-logs-body::-webkit-scrollbar-track,
+  body.dark-mode .strategy-logs-body::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+
+  .strategy-logs-body::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+  }
+
+  body.dark .strategy-logs-body::-webkit-scrollbar-thumb,
+  body.dark-mode .strategy-logs-body::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
+  .strategy-logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .strategy-log-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    transition: background-color 0.2s ease;
+  }
+
+  .strategy-log-item:hover {
+    background: rgba(226, 232, 240, 0.5);
+  }
+
+  body.dark .strategy-log-item,
+  body.dark-mode .strategy-log-item {
+    border-color: #1e293b;
+  }
+
+  body.dark .strategy-log-item:hover,
+  body.dark-mode .strategy-log-item:hover {
+    background: rgba(30, 41, 59, 0.5);
+  }
+
+  .strategy-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .strategy-log-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .strategy-log-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  .strategy-log-badge-error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+  }
+
+  .strategy-log-badge-warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+  }
+
+  .strategy-log-badge-info {
+    background: rgba(226, 232, 240, 1);
+    color: #0f172a;
+    border: 1px solid rgba(226, 232, 240, 1);
+  }
+
+  body.dark .strategy-log-badge-info,
+  body.dark-mode .strategy-log-badge-info {
+    background: rgba(30, 41, 59, 1);
+    color: #e2e8f0;
+    border-color: rgba(30, 41, 59, 1);
+  }
+
+  .strategy-log-timestamp {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+
+  body.dark .strategy-log-timestamp,
+  body.dark-mode .strategy-log-timestamp {
+    color: #cbd5f5;
+  }
+
+  .strategy-log-message {
+    margin-top: 8px;
+    font-size: 0.875rem;
+    color: #0f172a;
+    line-height: 1.5;
+  }
+
+  body.dark .strategy-log-message,
+  body.dark-mode .strategy-log-message {
+    color: #e2e8f0;
+  }
+
+  .strategy-logs-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .strategy-logs-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+
+  body.dark .strategy-logs-close,
+  body.dark-mode .strategy-logs-close {
+    color: #cbd5f5;
+  }
+
+  body.dark .strategy-logs-close:hover,
+  body.dark-mode .strategy-logs-close:hover {
+    background: #1e293b;
+    color: #f8fafc;
+  }
+
+  .strategy-logs-loading,
+  .strategy-logs-empty {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-align: center;
+    padding: 16px 0;
+  }
+
+  body.dark .strategy-logs-loading,
+  body.dark-mode .strategy-logs-loading,
+  body.dark .strategy-logs-empty,
+  body.dark-mode .strategy-logs-empty {
+    color: #cbd5f5;
+  }
+
+  @keyframes strategyLogsFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes strategyLogsSlideIn {
+    from {
+      transform: translateY(-8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .strategy-logs-dialog {
+      width: 95%;
+      max-height: 90vh;
+    }
+
+    .strategy-logs-title {
+      font-size: 1.25rem;
+    }
+
+    .strategy-logs-body {
+      padding: 20px;
+    }
+
+    .strategy-log-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
 /* Compact + properly sized cards grid fix */
 .strategy-cards-grid {
   display: grid !important;
@@ -999,6 +1284,26 @@
     </div>
   </div>
 </div>
+
+<div id="logsModal" class="strategy-logs-overlay" role="dialog" aria-modal="true" aria-labelledby="logsTitle" style="display: none;">
+  <div class="strategy-logs-dialog">
+    <button type="button" class="strategy-logs-close" aria-label="Close strategy logs" data-close="logs">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <div class="strategy-logs-header">
+      <h2 class="strategy-logs-title" id="logsTitle">Strategy Logs</h2>
+      <p class="strategy-logs-subtitle" id="logsSubtitle"></p>
+    </div>
+    <div class="strategy-logs-body">
+      <div id="logsLoading" class="strategy-logs-loading">Loading logs...</div>
+      <div id="logsEmpty" class="strategy-logs-empty" style="display: none;">No logs available yet.</div>
+      <div id="logsContainer" class="strategy-logs-container"></div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1172,6 +1477,12 @@
         this.payloadWebhook = document.getElementById('webhookUrl');
         this.payloadCode = document.getElementById('payloadCode');
         this.payloadName = document.getElementById('payloadStrategyName');
+        this.logsModal = document.getElementById('logsModal');
+        this.logsTitle = document.getElementById('logsTitle');
+        this.logsSubtitle = document.getElementById('logsSubtitle');
+        this.logsContainer = document.getElementById('logsContainer');
+        this.logsLoading = document.getElementById('logsLoading');
+        this.logsEmpty = document.getElementById('logsEmpty');
         this.state = {
           strategies: [],
           accounts: [],
@@ -1189,6 +1500,13 @@
         this.isSaving = false;
         this.webhookBase = root.dataset.webhookBase || '';
         this.webhookToken = root.dataset.webhookToken || '';
+        this.logsRequestId = 0;
+        this.currentLogsStrategy = null;
+        this.handleGlobalKeydown = (event) => {
+          if (event.key === 'Escape') {
+            this.closeLogsModal();
+          }
+        };
         if (!this.webhookBase && this.webhookToken) {
           const origin = window.location.origin.replace(/\/$/, '');
           this.webhookBase = origin + '/webhook/' + this.webhookToken;
@@ -1267,6 +1585,20 @@
             }
           });
         }
+
+        document.querySelectorAll('[data-close="logs"]').forEach(btn => {
+          btn.addEventListener('click', () => this.closeLogsModal());
+        });
+
+        if (this.logsModal) {
+          this.logsModal.addEventListener('click', (event) => {
+            if (event.target === this.logsModal) {
+              this.closeLogsModal();
+            }
+          });
+        }
+
+        document.addEventListener('keydown', this.handleGlobalKeydown);
       }
 
       async reload() {
@@ -1672,6 +2004,149 @@
         if (this.payloadModal) {
           this.payloadModal.style.display = 'none';
         }
+      }
+
+      formatLogTimestamp(value) {
+        if (!value) {
+          return '';
+        }
+        try {
+          const date = new Date(value);
+          if (!Number.isNaN(date.getTime())) {
+            return date.toLocaleString();
+          }
+        } catch (error) {
+          // ignore
+        }
+        return String(value);
+      }
+
+      formatLogLevel(level) {
+        const normalized = String(level || 'INFO').trim();
+        return normalized ? normalized.toUpperCase() : 'INFO';
+      }
+
+      getLogBadgeClass(level) {
+        const normalized = String(level || '').toLowerCase();
+        if (normalized === 'success' || normalized === 'ok') {
+          return 'strategy-log-badge-success';
+        }
+        if (normalized === 'error' || normalized === 'fail' || normalized === 'failure' || normalized === 'critical') {
+          return 'strategy-log-badge-error';
+        }
+        if (normalized === 'warning' || normalized === 'warn') {
+          return 'strategy-log-badge-warning';
+        }
+        return 'strategy-log-badge-info';
+      }
+
+      renderLogs(logs) {
+        if (!this.logsContainer) {
+          return;
+        }
+        const items = logs.map(log => {
+          const badgeClass = this.getLogBadgeClass(log?.level);
+          const levelLabel = escapeHtml(this.formatLogLevel(log?.level));
+          const timestamp = escapeHtml(this.formatLogTimestamp(log?.timestamp));
+          const message = escapeHtml(log?.message || '');
+          const displayedMessage = message || '—';
+          return `
+            <div class="strategy-log-item">
+              <div class="strategy-log-header">
+                <span class="strategy-log-badge ${badgeClass}">${levelLabel}</span>
+                <span class="strategy-log-timestamp">${timestamp}</span>
+              </div>
+              <p class="strategy-log-message">${displayedMessage}</p>
+            </div>
+          `;
+        }).join('');
+        this.logsContainer.innerHTML = items;
+        this.logsContainer.scrollTop = 0;
+      }
+
+      openLogsModal(strategy) {
+        if (!strategy) {
+          return;
+        }
+        if (!this.logsModal) {
+          window.location.href = `/strategy-performance/${strategy.id}`;
+          return;
+        }
+        this.currentLogsStrategy = strategy;
+        this.logsRequestId += 1;
+        const requestId = this.logsRequestId;
+        this.logsModal.style.display = 'flex';
+        this.logsModal.classList.add('is-visible');
+        if (this.logsTitle) {
+          this.logsTitle.textContent = 'Strategy Logs';
+        }
+        if (this.logsSubtitle) {
+          this.logsSubtitle.textContent = strategy.name || `Strategy #${strategy.id}`;
+        }
+        if (this.logsContainer) {
+          this.logsContainer.innerHTML = '';
+        }
+        if (this.logsLoading) {
+          this.logsLoading.style.display = 'block';
+        }
+        if (this.logsEmpty) {
+          this.logsEmpty.style.display = 'none';
+          this.logsEmpty.textContent = 'No logs available yet.';
+        }
+
+        fetchJson(`/api/strategies/${strategy.id}/logs`).then(logs => {
+          if (requestId !== this.logsRequestId) {
+            return;
+          }
+          if (Array.isArray(logs) && logs.length) {
+            this.renderLogs(logs);
+            if (this.logsEmpty) {
+              this.logsEmpty.style.display = 'none';
+            }
+          } else {
+            if (this.logsContainer) {
+              this.logsContainer.innerHTML = '';
+            }
+            if (this.logsEmpty) {
+              this.logsEmpty.textContent = 'No logs available yet.';
+              this.logsEmpty.style.display = 'block';
+            }
+          }
+        }).catch(error => {
+          if (requestId !== this.logsRequestId) {
+            return;
+          }
+          console.error('Failed to load strategy logs', error);
+          if (this.logsContainer) {
+            this.logsContainer.innerHTML = '';
+          }
+          if (this.logsEmpty) {
+            this.logsEmpty.textContent = error.message || 'Failed to load strategy logs.';
+            this.logsEmpty.style.display = 'block';
+          }
+        }).finally(() => {
+          if (requestId !== this.logsRequestId) {
+            return;
+          }
+          if (this.logsLoading) {
+            this.logsLoading.style.display = 'none';
+          }
+        });
+      }
+
+      closeLogsModal() {
+        this.logsRequestId += 1;
+        if (this.logsModal) {
+          this.logsModal.classList.remove('is-visible');
+          this.logsModal.style.display = 'none';
+        }
+        if (this.logsLoading) {
+          this.logsLoading.style.display = 'none';
+        }
+        if (this.logsEmpty) {
+          this.logsEmpty.style.display = 'none';
+        }
+        this.currentLogsStrategy = null;
       }
 
       openEditModal(strategy) {
