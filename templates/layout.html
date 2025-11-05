@@ -532,31 +532,30 @@
       border: 1px solid hsl(var(--border));
     }
 
-    /* Notifications Panel */
-    .notifications-backdrop {
+    /* Notification Drawer */
+    .drawer-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(10, 18, 37, 0.45);
-      backdrop-filter: blur(4px);
+      background-color: rgba(0, 0, 0, 0.5);
       opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
       z-index: 1040;
     }
 
-    .notifications-backdrop.is-active {
+    .drawer-overlay.active {
       opacity: 1;
-      pointer-events: auto;
+      visibility: visible;
     }
 
-    .notifications-panel {
+    .notification-drawer {
       position: fixed;
       top: 0;
       right: 0;
-      width: min(420px, 90vw);
+      width: min(450px, 100vw);
       height: 100vh;
-      background: hsl(var(--sidebar-background));
-      box-shadow: -12px 0 32px rgba(13, 19, 36, 0.25);
+      background-color: hsl(var(--background));
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
       border-left: 1px solid hsl(var(--border));
       transform: translateX(100%);
       transition: transform 0.3s ease;
@@ -565,123 +564,283 @@
       z-index: 1050;
     }
 
-    .notifications-panel.is-active {
+    .notification-drawer.active {
       transform: translateX(0);
     }
 
-    .notifications-panel__header {
-      padding: 1.5rem;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
+    .drawer-header {
+      position: relative;
+      padding: 16px;
       border-bottom: 1px solid hsl(var(--border));
     }
 
-    .notifications-panel__title {
-      font-size: 1.25rem;
-      margin: 0;
+    .drawer-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      margin-bottom: 8px;
+    }
+
+    .notification-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .unread-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      background-color: hsl(0, 72%, 51%);
+      color: hsl(0, 0%, 100%);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .unread-text {
+      font-size: 14px;
+      color: hsl(0, 72%, 51%);
+      font-weight: 500;
+    }
+
+    .close-button {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: hsl(var(--muted-foreground));
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .close-button:hover {
       color: hsl(var(--foreground));
     }
 
-    .notifications-panel__subtitle {
-      font-size: 0.85rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 0;
+    .drawer-tabs {
+      padding: 12px 16px 8px;
+      border-bottom: 1px solid hsl(var(--border));
+      background-color: hsl(var(--background));
     }
 
-    .notifications-panel__close {
-      border: none;
+    .tabs-list {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-button {
+      padding: 6px 16px;
       background: transparent;
-      color: hsl(var(--muted-foreground));
-      font-size: 1.1rem;
-      line-height: 1;
-      padding: 0.25rem;
-      transition: color 0.2s ease;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+      transition: all 0.2s ease;
     }
 
-    .notifications-panel__close:hover {
-      color: hsl(var(--primary));
+    .tab-button:hover {
+      background-color: hsl(240, 5%, 96%);
     }
 
-    .notifications-panel__body {
+    .tab-button.active {
+      background-color: hsla(142, 76%, 36%, 0.12);
+      color: hsl(142, 76%, 36%);
+    }
+
+    .drawer-content {
       flex: 1;
       overflow-y: auto;
-      padding: 1rem 1.5rem;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      background: hsl(var(--background));
+      gap: 8px;
     }
 
-    .notifications-state {
+    .drawer-loading {
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      padding: 2rem 1rem;
+      gap: 12px;
+      padding: 48px 16px;
+      font-size: 14px;
       color: hsl(var(--muted-foreground));
+    }
+
+    .drawer-loading .loader {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(79, 70, 229, 0.2);
+      border-top-color: hsl(250, 70%, 60%);
+      animation: drawerSpinner 0.75s linear infinite;
+    }
+
+    @keyframes drawerSpinner {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .drawer-content .empty-state {
       text-align: center;
+      padding: 60px 20px;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .drawer-content .empty-state-text {
+      font-size: 14px;
     }
 
     .notifications-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 8px;
     }
 
-    .notifications-item {
-      background: hsl(var(--card));
+    .notification-card {
+      background-color: hsla(38, 92%, 50%, 0.05);
+      border: 1px solid hsla(38, 92%, 50%, 0.2);
+      border-radius: 12px;
+      padding: 12px;
+      transition: background-color 0.2s ease;
+    }
+
+    .notification-card:hover {
+      background-color: hsla(38, 92%, 50%, 0.1);
+    }
+
+    .notification-inner {
+      display: flex;
+      gap: 12px;
+    }
+
+    .badge-column {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .type-badge.level-info {
+      background-color: hsl(219, 81%, 66%);
+      color: #fff;
+    }
+
+    .type-badge.level-success {
+      background-color: hsl(142, 76%, 36%);
+      color: #fff;
+    }
+
+    .type-badge.level-warning {
+      background-color: hsl(38, 92%, 50%);
+      color: #3f2a02;
+    }
+
+    .type-badge.level-error {
+      background-color: hsl(0, 72%, 51%);
+      color: #fff;
+    }
+
+    .type-badge.level-default {
+      background-color: hsl(240, 5%, 80%);
+      color: hsl(240, 10%, 20%);
+    }
+
+    .notification-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notification-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .notification-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      line-height: 1.3;
+      margin: 0;
+    }
+
+    .notification-time {
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
+      white-space: nowrap;
+    }
+
+    .notification-description {
+      font-size: 14px;
+      color: hsl(var(--foreground));
+      opacity: 0.8;
+      line-height: 1.5;
+      margin: 0 0 8px;
+    }
+
+    .notification-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .account-badge {
+      display: inline-block;
+      padding: 2px 8px;
       border: 1px solid hsl(var(--border));
       border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 10px 25px var(--shadow-soft);
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.75rem;
-      align-items: flex-start;
-    }
-
-    .notifications-panel__footer {
-      padding: 1rem 1.5rem;
-      border-top: 1px solid hsl(var(--border));
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: hsl(var(--sidebar-background));
-    }
-
-    .notifications-panel__footer .btn {
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 14px;
+      font-size: 12px;
+      color: hsl(var(--foreground));
       font-weight: 500;
-      transition: all 0.2s;
     }
 
-    .notifications-panel__footer .btn-primary {
-      background: hsl(var(--primary));
-      color: hsl(var(--primary-foreground));
-      border: none;
-    }
-
-    .notifications-panel__footer .btn-link {
-      background: transparent;
+    .date-text {
+      font-size: 12px;
       color: hsl(var(--muted-foreground));
-      text-decoration: none;
-      padding: 0;
-      border: none;
     }
 
-    .notifications-panel__footer .btn-link:hover {
-      color: hsl(var(--primary));
-      text-decoration: underline;
+    @media (max-width: 768px) {
+      .notification-drawer {
+        width: 100%;
+      }
     }
 
+    .dark .drawer-header,
+    .dark .drawer-tabs {
+      border-color: hsl(var(--border));
+    }
+
+    .dark .notification-card {
+      background-color: hsla(38, 92%, 50%, 0.12);
+      border-color: hsla(38, 92%, 50%, 0.35);
+    }
+
+    .dark .notification-card:hover {
+      background-color: hsla(38, 92%, 50%, 0.18);
+    }
+    
     .broker-icon-wrap {
       display: flex;
       flex-direction: column;
@@ -1290,156 +1449,6 @@
       border: 1px solid hsl(var(--border));
     }
 
-    /* Notifications Panel */
-    .notifications-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(10, 18, 37, 0.45);
-      backdrop-filter: blur(4px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-      z-index: 1040;
-    }
-
-    .notifications-backdrop.is-active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .notifications-panel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: min(420px, 90vw);
-      height: 100vh;
-      background: hsl(var(--sidebar-background));
-      box-shadow: -12px 0 32px rgba(13, 19, 36, 0.25);
-      border-left: 1px solid hsl(var(--border));
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      z-index: 1050;
-    }
-
-    .notifications-panel.is-active {
-      transform: translateX(0);
-    }
-
-    .notifications-panel__header {
-      padding: 1.5rem;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
-      border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .notifications-panel__title {
-      font-size: 1.25rem;
-      margin: 0;
-      color: hsl(var(--foreground));
-    }
-
-    .notifications-panel__subtitle {
-      font-size: 0.85rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 0;
-    }
-
-    .notifications-panel__close {
-      border: none;
-      background: transparent;
-      color: hsl(var(--muted-foreground));
-      font-size: 1.1rem;
-      line-height: 1;
-      padding: 0.25rem;
-      transition: color 0.2s ease;
-    }
-
-    .notifications-panel__close:hover {
-      color: hsl(var(--primary));
-    }
-
-    .notifications-panel__body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      background: hsl(var(--background));
-    }
-
-    .notifications-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      padding: 2rem 1rem;
-      color: hsl(var(--muted-foreground));
-      text-align: center;
-    }
-
-    .notifications-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .notifications-item {
-      background: hsl(var(--card));
-      border: 1px solid hsl(var(--border));
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 10px 25px var(--shadow-soft);
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.75rem;
-      align-items: flex-start;
-    }
-
-    .notifications-panel__footer {
-      padding: 1rem 1.5rem;
-      border-top: 1px solid hsl(var(--border));
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: hsl(var(--sidebar-background));
-    }
-
-    .notifications-panel__footer .btn {
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    .notifications-panel__footer .btn-primary {
-      background: hsl(var(--primary));
-      color: hsl(var(--primary-foreground));
-      border: none;
-    }
-
-    .notifications-panel__footer .btn-link {
-      background: transparent;
-      color: hsl(var(--muted-foreground));
-      text-decoration: none;
-      padding: 0;
-      border: none;
-    }
-
-    .notifications-panel__footer .btn-link:hover {
-      color: hsl(var(--primary));
-      text-decoration: underline;
-    }
-
     .broker-icon-wrap {
       display: flex;
       flex-direction: column;
@@ -1791,32 +1800,35 @@
     </div>
   </div>
 
-  <!-- Notifications Panel -->
-  <div class="notifications-backdrop" id="notificationsBackdrop" aria-hidden="true"></div>
-  <aside class="notifications-panel" id="notificationsPanel" aria-hidden="true" aria-labelledby="notificationsTitle" role="dialog">
-    <div class="notifications-panel__header">
+  <!-- Notifications Drawer -->
+  <div class="drawer-overlay" id="notificationsOverlay" aria-hidden="true"></div>
+  <aside class="notification-drawer" id="notificationsDrawer" aria-hidden="true" aria-labelledby="notificationsTitle" role="dialog">
+    <div class="drawer-header">
       <div>
-        <h2 class="notifications-panel__title" id="notificationsTitle">Notifications</h2>
-        <p class="notifications-panel__subtitle">Latest activity and alerts</p>
+        <h2 class="drawer-title" id="notificationsTitle">Notifications Center</h2>
+        <div class="notification-badge" id="drawerNotificationBadge" hidden>
+          <span class="unread-badge" id="drawerUnreadBadge">0</span>
+          <span class="unread-text">New notifications for you</span>
+        </div>
       </div>
-      <button type="button" class="notifications-panel__close" id="notificationsClose" aria-label="Close notifications">
-        <i class="bi bi-x-lg" aria-hidden="true"></i>
-      </button>
+      <button type="button" class="close-button" id="notificationsClose" aria-label="Close notifications">&times;</button>
     </div>
-    <div class="notifications-panel__body">
-      <div class="notifications-state notifications-state--loading" id="notificationsLoading" hidden>
-        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+    <div class="drawer-tabs">
+      <div class="tabs-list">
+        <button class="tab-button active" type="button" data-tab="all">All</button>
+        <button class="tab-button" type="button" data-tab="orders">Orders</button>
+        <button class="tab-button" type="button" data-tab="errors">Errors</button>
+      </div>
+    </div>
+    <div class="drawer-content">
+      <div class="drawer-loading" id="notificationsLoading" role="status">
+        <span class="loader" aria-hidden="true"></span>
         <span>Loading notifications…</span>
       </div>
-      <div class="notifications-state notifications-state--empty" id="notificationsEmpty" hidden>
-        <i class="bi bi-inbox" aria-hidden="true"></i>
-        <span>No notifications yet</span>
+      <div class="empty-state" id="notificationsEmpty" hidden>
+        <div class="empty-state-text">No notifications</div>
       </div>
-      <ul class="notifications-list" id="notificationsList" aria-live="polite" aria-busy="false"></ul>
-    </div>
-    <div class="notifications-panel__footer">
-      <button type="button" class="btn btn-link notifications-clear" id="notificationsClear">Clear all</button>
-      <button type="button" class="btn btn-primary" id="notificationsCloseFooter">Close</button>
+      <div class="notifications-list" id="notificationsList" hidden aria-live="polite"></div>
     </div>
   </aside>
 
