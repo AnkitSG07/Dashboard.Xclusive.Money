@@ -1,206 +1,303 @@
-// Notifications panel initialization logic extracted from app.js
-function initializeNotificationsPanel() {
-    const toggle = document.getElementById('notificationsToggle');
-    const panel = document.getElementById('notificationsPanel');
-    const backdrop = document.getElementById('notificationsBackdrop');
-    const list = document.getElementById('notificationsList');
-    const loadingState = document.getElementById('notificationsLoading');
-    const emptyState = document.getElementById('notificationsEmpty');
-    const closeButton = document.getElementById('notificationsClose');
-    const closeFooterButton = document.getElementById('notificationsCloseFooter');
-    const clearButton = document.getElementById('notificationsClear');
+(function() {
+    function initializeNotificationsPanel() {
+        const toggle = document.getElementById('notificationsToggle');
+        const drawer = document.getElementById('notificationsDrawer');
+        const overlay = document.getElementById('notificationsOverlay');
+        const list = document.getElementById('notificationsList');
+        const loadingState = document.getElementById('notificationsLoading');
+        const emptyState = document.getElementById('notificationsEmpty');
+        const emptyMessage = emptyState ? emptyState.querySelector('.empty-state-text') : null;
+        const closeButton = document.getElementById('notificationsClose');
+        const tabButtons = Array.from(document.querySelectorAll('.tab-button[data-tab]'));
+        const headerBadge = document.getElementById('notificationBadge');
+        const drawerBadgeContainer = document.getElementById('drawerNotificationBadge');
+        const drawerBadge = document.getElementById('drawerUnreadBadge');
 
-    if (!toggle || !panel || !backdrop || !list || !loadingState || !emptyState) {
-        return;
-    }
-
-    if (toggle.dataset.notificationsBound === 'true') {
-        return;
-    }
-
-    toggle.setAttribute('aria-expanded', 'false');
-
-    const emptyMessageEl = emptyState.querySelector('span');
-    const emptyIconEl = emptyState.querySelector('i');
-    const defaultEmptyMessage = emptyMessageEl ? emptyMessageEl.textContent : 'No notifications yet';
-    const defaultEmptyIcon = emptyIconEl ? emptyIconEl.className : 'bi bi-inbox';
-
-    const iconMap = {
-        ERROR: 'bi-exclamation-octagon-fill',
-        WARNING: 'bi-exclamation-triangle-fill',
-        SUCCESS: 'bi-check-circle-fill',
-        INFO: 'bi-info-circle-fill'
-    };
-
-    function setPanelOpen(isOpen) {
-        panel.classList.toggle('is-active', isOpen);
-        backdrop.classList.toggle('is-active', isOpen);
-        panel.setAttribute('aria-hidden', (!isOpen).toString());
-        backdrop.setAttribute('aria-hidden', (!isOpen).toString());
-        toggle.setAttribute('aria-expanded', isOpen.toString());
-
-        if (isOpen) {
-            document.addEventListener('keydown', handleEscape);
-        } else {
-            document.removeEventListener('keydown', handleEscape);
-        }
-    }
-
-    function handleEscape(event) {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            setPanelOpen(false);
-        }
-    }
-
-    function showLoading() {
-        loadingState.hidden = false;
-        emptyState.hidden = true;
-        list.hidden = true;
-        list.setAttribute('aria-busy', 'true');
-    }
-
-    function showEmpty(message = defaultEmptyMessage, iconClass = defaultEmptyIcon) {
-        loadingState.hidden = true;
-        emptyState.hidden = false;
-        list.hidden = true;
-        list.setAttribute('aria-busy', 'false');
-
-        if (emptyMessageEl) {
-            emptyMessageEl.textContent = message;
+        if (!toggle || !drawer || !overlay || !list || !loadingState || !emptyState) {
+            return;
         }
 
-        if (emptyIconEl) {
-            emptyIconEl.className = typeof iconClass === 'string' ? iconClass : defaultEmptyIcon;
-            emptyIconEl.setAttribute('aria-hidden', 'true');
-        }
-    }
-
-    function renderNotifications(notifications) {
-        loadingState.hidden = true;
-        emptyState.hidden = true;
-        list.hidden = false;
-        list.setAttribute('aria-busy', 'false');
-        list.innerHTML = '';
-
-        notifications.forEach((notification) => {
-            const level = (notification.level || 'INFO').toUpperCase();
-            const iconClass = iconMap[level] || iconMap.INFO;
-            const item = document.createElement('li');
-            item.className = 'notifications-item';
-            item.dataset.level = level;
-
-            const iconWrapper = document.createElement('div');
-            iconWrapper.className = 'notifications-item__icon';
-
-            const icon = document.createElement('i');
-            icon.className = `bi ${iconClass}`;
-            icon.setAttribute('aria-hidden', 'true');
-            iconWrapper.appendChild(icon);
-
-            const content = document.createElement('div');
-            content.className = 'notifications-item__content';
-
-            const message = document.createElement('p');
-            message.className = 'notifications-item__message';
-            message.textContent = notification.message || 'Notification';
-
-            const meta = document.createElement('span');
-            meta.className = 'notifications-item__meta';
-            meta.textContent = `${level.charAt(0)}${level.slice(1).toLowerCase()} • ${formatTimestamp(notification.timestamp)}`;
-
-            content.appendChild(message);
-            content.appendChild(meta);
-
-            item.appendChild(iconWrapper);
-            item.appendChild(content);
-
-            list.appendChild(item);
-        });
-    }
-
-    function formatTimestamp(timestamp) {
-        if (!timestamp) {
-            return 'Unknown time';
+        if (toggle.dataset.notificationsBound === 'true') {
+            return;
         }
 
-        const date = new Date(timestamp);
-        if (Number.isNaN(date.getTime())) {
-            return timestamp;
+        let notifications = [];
+        let currentTab = 'all';
+
+        function setDrawerOpen(isOpen) {
+            drawer.classList.toggle('active', isOpen);
+            overlay.classList.toggle('active', isOpen);
+            drawer.setAttribute('aria-hidden', (!isOpen).toString());
+            overlay.setAttribute('aria-hidden', (!isOpen).toString());
+            toggle.setAttribute('aria-expanded', isOpen.toString());
+
+            if (isOpen) {
+                document.addEventListener('keydown', handleEscape);
+                loadNotifications();
+            } else {
+                document.removeEventListener('keydown', handleEscape);
+            }
         }
 
-        return date.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
+        function handleEscape(event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setDrawerOpen(false);
+            }
+        }
 
-    async function loadNotifications() {
-        showLoading();
+        function showLoading() {
+            loadingState.hidden = false;
+            emptyState.hidden = true;
+            list.hidden = true;
+        }
 
-        try {
-            const response = await fetch('/api/notifications', {
-                headers: {
-                    'Accept': 'application/json'
-                },
-                credentials: 'same-origin'
-            });
+        function showEmpty(message) {
+            loadingState.hidden = true;
+            list.hidden = true;
+            emptyState.hidden = false;
+            if (emptyMessage && typeof message === 'string') {
+                emptyMessage.textContent = message;
+            }
+        }
 
-            if (!response.ok) {
-                throw new Error(`Request failed with status ${response.status}`);
+        function updateBadges(count) {
+            const safeCount = Number.isFinite(count) ? count : 0;
+            if (headerBadge) {
+                if (safeCount > 0) {
+                    headerBadge.textContent = Math.min(safeCount, 99).toString();
+                    headerBadge.style.display = 'flex';
+                } else {
+                    headerBadge.style.display = 'none';
+                }
             }
 
-            const data = await response.json();
-            const notifications = Array.isArray(data.notifications) ? data.notifications : [];
+            if (drawerBadgeContainer && drawerBadge) {
+                if (safeCount > 0) {
+                    drawerBadge.textContent = safeCount.toString();
+                    drawerBadgeContainer.hidden = false;
+                } else {
+                    drawerBadgeContainer.hidden = true;
+                }
+            }
+        }
 
+        function normalize(rawNotifications) {
+            const levelTitleMap = {
+                ERROR: 'Error',
+                WARNING: 'Warning',
+                SUCCESS: 'Success',
+                INFO: 'Update'
+            };
+
+            return rawNotifications.map((entry, index) => {
+                const level = typeof entry.level === 'string' ? entry.level.trim().toUpperCase() : 'INFO';
+                const message = typeof entry.message === 'string' && entry.message.trim()
+                    ? entry.message.trim()
+                    : 'Notification';
+                const timestamp = entry.timestamp || null;
+                const title = levelTitleMap[level] || (level.charAt(0) + level.slice(1).toLowerCase());
+                const category = level === 'ERROR' ? 'errors' : 'orders';
+
+                return {
+                    id: entry.id ?? index,
+                    level,
+                    title,
+                    message,
+                    timestamp,
+                    category,
+                    badgeClass: `level-${level.toLowerCase()}`,
+                    levelLabel: level
+                };
+            });
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) {
+                return '';
+            }
+
+            const date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) {
+                return '';
+            }
+
+            const date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleDateString();
+        }
+
+        function renderNotifications() {
             if (!notifications.length) {
-                showEmpty();
+                showEmpty('No notifications yet');
                 return;
             }
 
-            renderNotifications(notifications);
-        } catch (error) {
-            console.error('Failed to load notifications', error);
-            showEmpty("We couldn't load your notifications right now.", 'bi bi-wifi-off');
-        }
-    }
+            const filtered = notifications.filter((item) => {
+                if (currentTab === 'orders') {
+                    return item.category === 'orders';
+                }
+                if (currentTab === 'errors') {
+                    return item.category === 'errors';
+                }
+                return true;
+            });
 
-    toggle.addEventListener('click', async () => {
-        const willOpen = !panel.classList.contains('is-active');
-        setPanelOpen(willOpen);
+            if (!filtered.length) {
+                const message = currentTab === 'errors'
+                    ? 'No error notifications'
+                    : currentTab === 'orders'
+                        ? 'No order notifications'
+                        : 'No notifications';
+                showEmpty(message);
+                return;
+            }
 
-        if (willOpen) {
-            await loadNotifications();
-        }
-    });
-
-    backdrop.addEventListener('click', () => setPanelOpen(false));
-
-    [closeButton, closeFooterButton].forEach((btn) => {
-        if (btn) {
-            btn.addEventListener('click', () => setPanelOpen(false));
-        }
-    });
-
-    if (clearButton) {
-        clearButton.addEventListener('click', () => {
+            loadingState.hidden = true;
+            emptyState.hidden = true;
+            list.hidden = false;
             list.innerHTML = '';
-            showEmpty('Notifications cleared', 'bi bi-check-circle-fill');
+
+            filtered.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = 'notification-card';
+                card.dataset.level = item.level;
+
+                const inner = document.createElement('div');
+                inner.className = 'notification-inner';
+
+                const badgeColumn = document.createElement('div');
+                badgeColumn.className = 'badge-column';
+
+                const badge = document.createElement('span');
+                badge.className = `type-badge ${item.badgeClass}`;
+                badge.textContent = item.levelLabel;
+                badgeColumn.appendChild(badge);
+
+                const content = document.createElement('div');
+                content.className = 'notification-content';
+
+                const titleRow = document.createElement('div');
+                titleRow.className = 'notification-title-row';
+
+                const title = document.createElement('h4');
+                title.className = 'notification-title';
+                title.textContent = item.title;
+
+                const time = document.createElement('span');
+                time.className = 'notification-time';
+                time.textContent = formatTime(item.timestamp);
+
+                titleRow.appendChild(title);
+                titleRow.appendChild(time);
+
+                content.appendChild(titleRow);
+
+                if (item.message) {
+                    const description = document.createElement('p');
+                    description.className = 'notification-description';
+                    description.textContent = item.message;
+                    content.appendChild(description);
+                }
+
+                const footer = document.createElement('div');
+                footer.className = 'notification-footer';
+
+                const account = document.createElement('span');
+                account.className = 'account-badge';
+                account.textContent = item.category === 'errors' ? 'System Alert' : 'System Update';
+
+                const date = document.createElement('span');
+                date.className = 'date-text';
+                date.textContent = formatDate(item.timestamp);
+
+                footer.appendChild(account);
+                if (date.textContent) {
+                    footer.appendChild(date);
+                }
+
+                content.appendChild(footer);
+
+                inner.appendChild(badgeColumn);
+                inner.appendChild(content);
+                card.appendChild(inner);
+                list.appendChild(card);
+            });
+        }
+
+        async function loadNotifications() {
+            showLoading();
+
+            try {
+                const response = await fetch('/api/notifications', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const rawNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+                notifications = normalize(rawNotifications);
+                updateBadges(notifications.length);
+                renderNotifications();
+            } catch (error) {
+                console.error('Failed to load notifications', error);
+                updateBadges(0);
+                showEmpty("We couldn't load your notifications right now.");
+            }
+        }
+
+        function setActiveTab(tab) {
+            currentTab = tab;
+            tabButtons.forEach((button) => {
+                button.classList.toggle('active', button.dataset.tab === tab);
+            });
+            renderNotifications();
+        }
+
+        toggle.addEventListener('click', () => {
+            const willOpen = !drawer.classList.contains('active');
+            setDrawerOpen(willOpen);
         });
+
+        overlay.addEventListener('click', () => setDrawerOpen(false));
+
+        if (closeButton) {
+            closeButton.addEventListener('click', () => setDrawerOpen(false));
+        }
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const tab = button.dataset.tab || 'all';
+                setActiveTab(tab);
+            });
+        });
+
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.dataset.notificationsBound = 'true';
     }
 
-    toggle.dataset.notificationsBound = 'true';
-}
+    window.initializeNotificationsPanel = initializeNotificationsPanel;
 
-window.initializeNotificationsPanel = initializeNotificationsPanel;
+    if (document.readyState !== 'loading') {
+        initializeNotificationsPanel();
+    }
 
-if (document.readyState !== 'loading') {
-    initializeNotificationsPanel();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initializeNotificationsPanel();
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeNotificationsPanel();
+    });
+})();
