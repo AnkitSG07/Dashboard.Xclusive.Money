@@ -57,6 +57,7 @@ from urllib.parse import quote
 from time import time
 from mail import mail
 from collections import defaultdict
+from typing import Any
 from concurrent.futures import ThreadPoolExecutor, wait
 from models import (
     db,
@@ -7845,16 +7846,49 @@ def summary():
                 return value
         return value.strftime("%d %b %Y %I:%M %p")
 
-    def _account_status_label(acc: Account) -> tuple[str, str]:
+    def _status_palette(base_color: str) -> dict[str, str]:
+        """Return tint variations for a hexadecimal color string."""
+
+        base_color = (base_color or "").strip()
+        if base_color.startswith("#"):
+            hex_value = base_color[1:]
+        else:
+            hex_value = base_color
+
+        if len(hex_value) == 3:
+            hex_value = "".join(ch * 2 for ch in hex_value)
+
+        try:
+            r = int(hex_value[0:2], 16)
+            g = int(hex_value[2:4], 16)
+            b = int(hex_value[4:6], 16)
+        except (TypeError, ValueError):
+            # Fall back to a neutral indigo palette if parsing fails.
+            r, g, b = 79, 70, 229
+            base_color = "#4f46e5"
+
+        return {
+            "text": base_color if base_color.startswith("#") else f"#{hex_value}",
+            "background": f"rgba({r}, {g}, {b}, 0.08)",
+            "border": f"rgba({r}, {g}, {b}, 0.24)",
+        }
+
+    def _account_status_label(acc: Account) -> tuple[str, dict[str, str]]:
         status = (acc.status or acc.copy_status or "").strip() or "Active"
         status_lower = status.lower()
         if status_lower in {"active", "connected", "success", "ok"}:
-            color = "var(--summary-green)"
+            palette = _status_palette("#059669")
         elif status_lower in {"pending", "processing"}:
-            color = "var(--summary-primary)"
+            palette = _status_palette("#4f46e5")
         else:
-            color = "var(--summary-red)"
-        return status.capitalize(), color
+            palette = _status_palette("#dc2626")
+        return status.title(), palette
+
+    def _apply_status(summary_entry: dict[str, Any], label: str, palette: dict[str, str]):
+        summary_entry["status_label"] = label
+        summary_entry["status_color"] = palette["text"]
+        summary_entry["status_background_color"] = palette["background"]
+        summary_entry["status_border_color"] = palette["border"]
 
     def _compute_account_metrics(positions: list[dict]):
         total_value = 0.0
@@ -8208,17 +8242,17 @@ def summary():
                 account_snapshot_errors[account_id] = message
                 
     for account in accounts:
-        status_label, status_color = _account_status_label(account)
+        status_label, status_palette = _account_status_label(account)
         summary_entry = {
             "broker": account.broker,
             "client_id": account.client_id,
-            "status_label": status_label,
-            "status_color": status_color,
             "error": None,
         }
+        _apply_status(summary_entry, status_label, status_palette)
 
         if not account.credentials:
             summary_entry["error"] = "Credentials not configured"
+            _apply_status(summary_entry, "Failed", _status_palette("#dc2626"))
             account_summaries.append(summary_entry)
             continue
 
@@ -8226,6 +8260,7 @@ def summary():
         error_message = account_snapshot_errors.get(account.id)
         if error_message:
             summary_entry["error"] = error_message
+            _apply_status(summary_entry, "Failed", _status_palette("#dc2626"))
         if snapshot is None:
             snapshot = _placeholder_snapshot(error_message)
 
