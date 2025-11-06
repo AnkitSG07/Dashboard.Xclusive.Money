@@ -1696,6 +1696,320 @@ td, th {
     }
 }
 
+.orderbook-section {
+    margin-top: 24px;
+}
+
+.orderbook-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.orderbook-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.orderbook-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.orderbook-subtitle {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.orderbook-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.orderbook-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.orderbook-filter-btn {
+    border: none;
+    background: #f3f4f6;
+    color: #4b5563;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.orderbook-filter-btn:hover {
+    background: #e5e7eb;
+}
+
+.orderbook-filter-btn.active {
+    background: #6366f1;
+    color: #ffffff;
+}
+
+.orderbook-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.85);
+    color: inherit;
+}
+
+.orderbook-search {
+    position: relative;
+    min-width: 220px;
+}
+
+.orderbook-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: #9ca3af;
+}
+
+.orderbook-search-input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    background: #ffffff;
+    color: #1f2937;
+}
+
+.orderbook-search-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.orderbook-table-wrapper {
+    overflow-x: auto;
+}
+
+.orderbook-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orderbook-table thead th {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.orderbook-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.15s ease;
+}
+
+.orderbook-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.orderbook-table tbody td {
+    padding: 14px 16px;
+    font-size: 13px;
+    vertical-align: top;
+}
+
+.orderbook-table tbody td.text-end {
+    text-align: right;
+}
+
+.orderbook-table tbody td.text-center {
+    text-align: center;
+}
+
+.orderbook-symbol {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.orderbook-symbol-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #111827;
+}
+
+.orderbook-symbol-meta {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.orderbook-symbol-remarks {
+    font-size: 12px;
+    color: #4b5563;
+    margin-top: 4px;
+}
+
+.orderbook-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #ffffff;
+}
+
+.orderbook-type-badge.buy {
+    background: #16a34a;
+}
+
+.orderbook-type-badge.sell {
+    background: #dc2626;
+}
+
+.orderbook-type-badge.neutral {
+    background: #9ca3af;
+}
+
+.orderbook-product-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.orderbook-loading {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.orderbook-mobile-cards {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.orderbook-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    background: #ffffff;
+}
+
+.orderbook-card.buy {
+    border-left: 4px solid #16a34a;
+}
+
+.orderbook-card.sell {
+    border-left: 4px solid #dc2626;
+}
+
+.orderbook-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.orderbook-card-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.orderbook-card-meta {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.orderbook-card-amount {
+    font-weight: 700;
+    font-size: 15px;
+    text-align: right;
+}
+
+.orderbook-card-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.orderbook-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.orderbook-empty {
+    margin-top: 16px;
+}
+
+.orderbook-footer {
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .orderbook-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .orderbook-search {
+        width: 100%;
+    }
+
+    .orderbook-table-wrapper {
+        display: none;
+    }
+
+    .orderbook-mobile-cards {
+        display: flex;
+    }
+}
+
 /* ==========================================
    LANDSCAPE MODE ON MOBILE
    ========================================== */
@@ -1969,11 +2283,10 @@ window.pageScripts["copy-trading"] = function () {
   window.exitedMasters = window.exitedMasters || {};
   window.accountCopyStatus = window.accountCopyStatus || {};
   window.userToggledOff = window.userToggledOff || {};
-  // Order book caches to support incremental loading
-  window.masterOrderBooks = {};
-  window.masterOrderIndex = {};
-  window.childOrderBooks = {};
-  window.childOrderIndex = {};
+  // Order book caches and UI state
+  window.masterOrderBooks = window.masterOrderBooks || {};
+  window.childOrderBooks = window.childOrderBooks || {};
+  window.orderBookState = window.orderBookState || { master: {}, child: {} };
   // Data caches for manual refresh behavior
   window.masterPositions = window.masterPositions || {};
   window.masterAccountStats = window.masterAccountStats || {};
@@ -3069,113 +3382,319 @@ window.pageScripts["copy-trading"] = function () {
     return { label: titleCase, className, tooltip };
   }
 
-  function orderItemHtml(order) {
-    const rawStatus = getOrderField(order, ['status', 'order_status', 'report_type', 'status_message', 'statusmessage', 'ord_status']);
-    const { label: statusLabel, className: statusClass, tooltip: statusTooltip } = formatOrderStatus(rawStatus);
-    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym', 'description']) || '—';
-    const orderTimeRaw = getOrderField(order, [
-      'order_time',
-      'order_timestamp',
-      'order_datetime',
-      'orderDateTime',
-      'created_at',
-      'exchange_time',
-      'time',
-      'time_oms',
-      'time_exch',
-      'update_time',
-      'update_time_exch'
-    ]);
-    let orderTimeDisplay = '—';
-    if (orderTimeRaw) {
-      const parsed = orderTimeRaw instanceof Date ? orderTimeRaw : new Date(orderTimeRaw);
-      orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
+  function ensureOrderBookState(scope, clientId) {
+    if (!window.orderBookState[scope]) {
+      window.orderBookState[scope] = {};
     }
-    const orderId = getOrderField(order, ['order_id', 'orderid', 'orderId', 'id', 'orderNumber', 'norenordno']) || '—';
-    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell', 'tran_side', 'bs']));
-    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity', 'orderqty', 'orderQty']));
-    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity', 'filledQty', 'traded_qty', 'tradedQuantity']));
-    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']));
-    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg', 'avgPrice', 'tradePrice']));
-    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']));
-    const remarks = withFallback(getOrderField(order, [
-      'remarks',
-      'status_message',
-      'statusmessage',
-      'status_message_raw',
-      'status_message_short',
-      'oms_msg',
-      'message',
-      'rejection_reason',
-      'rejectionreason',
-      'reject_reason',
-      'rejectreason',
-      'rejreason',
-      'rej_reason',
-      'rejection_message',
-      'rejectionmessage',
-      'reject_message',
-      'rejectmessage',
-      'error_message',
-      'errormessage',
-      'exchange_message',
-      'omsErrorMessage',
-      'oms_error_message',
-      'oms_error_description',
-      'omsErrorDescription'
-    ]));
-    const resolutionHint = getOrderField(order, ['resolution_hint', 'resolutionHint']);
+    if (!window.orderBookState[scope][clientId]) {
+      window.orderBookState[scope][clientId] = { search: '', status: 'All', page: 1 };
+    }
+    return window.orderBookState[scope][clientId];
+  }
+  function getOrderBookElements(scope, dom) {
+    const prefix = scope === 'master' ? 'master' : 'child';
+    const baseId = scope === 'master' ? 'orders' : 'child-orders';
+    return {
+      tableBody: document.getElementById(`${prefix}-orders-table-${dom}`),
+      mobileContainer: document.getElementById(`${prefix}-orders-mobile-${dom}`),
+      filtersContainer: document.getElementById(`${prefix}-orders-filters-${dom}`),
+      searchInput: document.getElementById(`${prefix}-orders-search-${dom}`),
+      emptyState: document.getElementById(`${baseId}-empty-${dom}`),
+      loadMoreButton: document.getElementById(`${baseId}-load-more-${dom}`),
+      loadingIndicator: document.getElementById(`${prefix}-orders-loading-${dom}`)
+    };
+  }
 
-    const hasRemarks = remarks && remarks !== '—';
-    const hasResolutionHint = resolutionHint && resolutionHint !== '—';
-    
-    const detailItems = [
-      { label: 'Side', value: side },
-      { label: 'Order Type', value: orderType },
-      { label: 'Product', value: productType },
-      { label: 'Placed Qty', value: placedQty },
-      { label: 'Filled Qty', value: filledQty },
-      { label: 'Avg Price', value: avgPrice }
-    ];
+  function formatOrderTimeDisplay(value) {
+    if (!value) {
+      return '—';
+    }
+    let parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime()) && typeof value === 'string') {
+      parsed = new Date(value.replace(' ', 'T'));
+    }
+    if (Number.isNaN(parsed.getTime())) {
+      return String(value);
+    }
+    return parsed.toLocaleString();
+  }
 
-    const detailsHtml = detailItems.map(item => `
-        <div class="col">
-          <div class="text-muted text-uppercase small fw-semibold">${escapeHtml(item.label)}</div>
-          <div class="fw-semibold">${escapeHtml(withFallback(item.value))}</div>
-        </div>
-      `).join('');
-
-    let remarksHtml = '';
-    if (hasRemarks || hasResolutionHint) {
-      const remarksRow = hasRemarks
-        ? `<div><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
-        : '';
-      const hintRow = hasResolutionHint
-        ? `<div class="mt-${hasRemarks ? '2' : '0'}"><span class="text-muted text-uppercase fw-semibold">Suggested fix:</span> <span class="text-dark">${escapeHtml(resolutionHint)}</span></div>`
-        : '';
-      remarksHtml = `<div class="mt-3 small">${remarksRow}${hintRow}</div>`;
+  function decorateOrderForView(order) {
+    const statusInfo = formatOrderStatus(order && order.status);
+    const sideSource = order && (order.transaction_type || order.side || '');
+    const upperSide = String(sideSource || '').trim().toUpperCase();
+    let side = 'BUY';
+    if (!upperSide) {
+      side = '—';
+    } else if (upperSide.includes('SELL') || upperSide === 'S') {
+      side = 'SELL';
+    } else if (upperSide.includes('BUY') || upperSide === 'B') {
+      side = 'BUY';
     }
 
+    let placedQty = typeof order.placed_qty === 'number' ? order.placed_qty : parseFloat(order.placed_qty);
+    placedQty = Number.isFinite(placedQty) ? placedQty : null;
+    let filledQty = typeof order.filled_qty === 'number' ? order.filled_qty : parseFloat(order.filled_qty);
+    filledQty = Number.isFinite(filledQty) ? filledQty : null;
+    let avgPrice = typeof order.avg_price === 'number' ? order.avg_price : parseFloat(order.avg_price);
+    avgPrice = Number.isFinite(avgPrice) ? avgPrice : null;
+
+    let qtyDisplay = '—';
+    if (filledQty !== null && placedQty !== null && placedQty !== filledQty) {
+      qtyDisplay = `${filledQty} / ${placedQty}`;
+    } else if (filledQty !== null) {
+      qtyDisplay = `${filledQty}`;
+    } else if (placedQty !== null) {
+      qtyDisplay = `${placedQty}`;
+    }
+
+    const amount = avgPrice !== null && filledQty !== null ? avgPrice * filledQty : null;
+
+    const remarks = withFallback(order.remarks, '—');
+    const product = withFallback(order.product_type, '—');
+    const orderType = withFallback(order.order_type, '—');
+    const orderId = withFallback(order.order_id, '—');
+    const symbol = withFallback(order.symbol, '—');
+    const timeDisplay = formatOrderTimeDisplay(order.order_time);
+
+    return {
+      raw: order,
+      statusLabel: statusInfo.label,
+      statusClass: statusInfo.className,
+      statusTooltip: statusInfo.tooltip,
+      side,
+      typeClass: side === 'SELL' ? 'sell' : side === 'BUY' ? 'buy' : 'neutral',
+      qtyDisplay,
+      avgPriceDisplay: avgPrice !== null ? avgPrice.toFixed(2) : '—',
+      amount,
+      remarks,
+      product,
+      orderType,
+      orderId,
+      symbol,
+      timeDisplay,
+      searchText: [
+        symbol,
+        orderId,
+        product,
+        orderType,
+        statusInfo.label,
+        remarks,
+        side,
+        timeDisplay
+      ].filter(Boolean).join(' ').toLowerCase()
+    };
+  }
+
+  function renderOrderTableRow(order) {
+    const sideLabel = order.side === '—' ? 'NA' : order.side;
     return `
-      <div class="list-group-item list-group-item-action py-3">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+      <tr>
+        <td>${escapeHtml(order.timeDisplay)}</td>
+        <td>
+          <div class="orderbook-symbol">
+            <span class="orderbook-type-badge ${order.typeClass}">${escapeHtml(sideLabel.charAt(0))}</span>
+            <div>
+              <div class="orderbook-symbol-name">${escapeHtml(order.symbol)}</div>
+              <div class="orderbook-symbol-meta">Order ID: ${escapeHtml(order.orderId)}</div>
+              ${order.remarks && order.remarks !== '—' ? `<div class="orderbook-symbol-remarks">${escapeHtml(order.remarks)}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td><span class="orderbook-product-badge">${escapeHtml(order.product)}</span></td>
+        <td class="text-end">${escapeHtml(order.qtyDisplay)}</td>
+        <td>${escapeHtml(order.orderType)}</td>
+        <td class="text-end">${escapeHtml(order.avgPriceDisplay)}</td>
+        <td class="text-center"><span class="badge ${order.statusClass}" title="${escapeHtml(order.statusTooltip)}">${escapeHtml(order.statusLabel)}</span></td>
+      </tr>
+    `;
+  }
+
+  function renderOrderMobileCard(order) {
+    const sideLabel = order.side === '—' ? 'NA' : order.side;
+    const amountDisplay = order.amount !== null ? `₹${order.amount.toFixed(2)}` : '—';
+    const remarksBlock = order.remarks && order.remarks !== '—'
+      ? `<div class="orderbook-symbol-remarks" style="margin-top:12px;">${escapeHtml(order.remarks)}</div>`
+      : '';
+    return `
+      <div class="orderbook-card ${order.typeClass}">
+        <div class="orderbook-card-header">
           <div>
-            <h6 class="mb-1">${escapeHtml(symbol)}</h6>
-            <div class="small text-muted">Order ID: ${escapeHtml(orderId)}</div>
+            <div class="orderbook-card-title">${escapeHtml(order.symbol)}</div>
+            <div class="orderbook-card-meta">${escapeHtml(order.timeDisplay)}</div>
           </div>
-          <div class="text-md-end">
-            <span class="badge ${statusClass}" title="${escapeHtml(statusTooltip)}">${escapeHtml(statusLabel)}</span>
-            <div class="small text-muted mt-1">${escapeHtml(orderTimeDisplay)}</div>
+          <div>
+            <div class="orderbook-card-amount">${escapeHtml(amountDisplay)}</div>
+            <span class="orderbook-type-badge ${order.typeClass}" style="margin-top:8px;">${escapeHtml(sideLabel)}</span>
           </div>
         </div>
-        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 mt-3">
-          ${detailsHtml}
+        <div class="orderbook-card-badges">
+          <span class="orderbook-product-badge">${escapeHtml(order.product)}</span>
+          <span class="badge ${order.statusClass}">${escapeHtml(order.statusLabel)}</span>
+          <span class="badge badge-secondary">${escapeHtml(order.orderType)}</span>
         </div>
-        ${remarksHtml}
+        <div class="orderbook-card-footer">
+          <span>Qty ${escapeHtml(order.qtyDisplay)}</span>
+          <span>Avg ₹${escapeHtml(order.avgPriceDisplay)}</span>
+        </div>
+        ${remarksBlock}
+        <div class="orderbook-card-meta" style="margin-top:12px;">Order ID: ${escapeHtml(order.orderId)}</div>
       </div>
     `;
   }
-  
+
+  function updateOrderBookFilters(scope, clientId, orders, state) {
+    const dom = domId(clientId);
+    const { filtersContainer } = getOrderBookElements(scope, dom);
+    if (!filtersContainer) {
+      return;
+    }
+    const counts = orders.reduce((acc, order) => {
+      acc[order.statusLabel] = (acc[order.statusLabel] || 0) + 1;
+      return acc;
+    }, {});
+    const filterConfigs = [{ label: 'All', value: 'All', count: orders.length }];
+    Object.keys(counts).sort().forEach(label => {
+      filterConfigs.push({ label, value: label, count: counts[label] });
+    });
+    filtersContainer.innerHTML = filterConfigs.map(cfg => `
+      <button type="button" class="orderbook-filter-btn${state.status === cfg.value ? ' active' : ''}" data-value="${escapeHtml(cfg.value)}">
+        ${escapeHtml(cfg.label)}
+        <span class="orderbook-filter-count">${cfg.count}</span>
+      </button>
+    `).join('');
+    Array.from(filtersContainer.querySelectorAll('.orderbook-filter-btn')).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const value = btn.getAttribute('data-value') || 'All';
+        state.status = value;
+        state.page = 1;
+        renderOrderBook(scope, clientId);
+      });
+    });
+  }
+
+  function renderOrderBook(scope, clientId) {
+    const dom = domId(clientId);
+    const elements = getOrderBookElements(scope, dom);
+    const { tableBody, mobileContainer, emptyState, loadMoreButton, searchInput, loadingIndicator } = elements;
+    if (!tableBody || !mobileContainer || !emptyState) {
+      return;
+    }
+    const state = ensureOrderBookState(scope, clientId);
+    if (searchInput && searchInput.value !== state.search) {
+      searchInput.value = state.search;
+    }
+
+    const source = scope === 'master' ? window.masterOrderBooks : window.childOrderBooks;
+    const orders = Array.isArray(source[clientId]) ? source[clientId] : [];
+    const decorated = orders.map(decorateOrderForView);
+
+    updateOrderBookFilters(scope, clientId, decorated, state);
+
+    const normalizedSearch = state.search.trim().toLowerCase();
+    const filtered = decorated.filter(order => {
+      const statusMatch = state.status === 'All' || order.statusLabel === state.status;
+      const searchMatch = !normalizedSearch || order.searchText.includes(normalizedSearch);
+      return statusMatch && searchMatch;
+    });
+
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+      loadingIndicator.innerHTML = '';
+    }
+
+    const visibleCount = state.page * ORDER_PAGE_SIZE;
+    const visible = filtered.slice(0, visibleCount);
+
+    if (visible.length === 0) {
+      tableBody.innerHTML = '';
+      mobileContainer.innerHTML = '';
+      if (!emptyState.dataset.defaultMessage) {
+        emptyState.dataset.defaultMessage = emptyState.innerHTML;
+      }
+      if (orders.length === 0) {
+        emptyState.innerHTML = emptyState.dataset.defaultMessage;
+      } else {
+        emptyState.innerHTML = '<p>No orders match your filters.</p>';
+      }
+      emptyState.style.display = 'block';
+    } else {
+      if (emptyState.dataset.defaultMessage) {
+        emptyState.innerHTML = emptyState.dataset.defaultMessage;
+      }
+      tableBody.innerHTML = visible.map(renderOrderTableRow).join('');
+      mobileContainer.innerHTML = visible.map(renderOrderMobileCard).join('');
+      emptyState.style.display = 'none';
+    }
+
+    if (loadMoreButton) {
+      if (filtered.length > visible.length) {
+        loadMoreButton.style.display = 'inline-flex';
+        loadMoreButton.onclick = () => {
+          state.page += 1;
+          renderOrderBook(scope, clientId);
+        };
+      } else {
+        loadMoreButton.style.display = 'none';
+      }
+    }
+  }
+
+  function setOrderBookLoading(scope, clientId) {
+    const dom = domId(clientId);
+    const { tableBody, mobileContainer, emptyState, loadMoreButton, loadingIndicator } = getOrderBookElements(scope, dom);
+    if (tableBody) {
+      tableBody.innerHTML = '';
+    }
+    if (mobileContainer) {
+      mobileContainer.innerHTML = '';
+    }
+    if (emptyState) {
+      emptyState.style.display = 'none';
+    }
+    if (loadMoreButton) {
+      loadMoreButton.style.display = 'none';
+    }
+    if (loadingIndicator) {
+      loadingIndicator.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...';
+      loadingIndicator.style.display = 'flex';
+    }
+  }
+
+  function setOrderBookError(scope, clientId, message) {
+    const dom = domId(clientId);
+    const { tableBody, mobileContainer, emptyState, loadMoreButton, loadingIndicator } = getOrderBookElements(scope, dom);
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+      loadingIndicator.innerHTML = '';
+    }
+    if (tableBody) {
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">${escapeHtml(message)}</td></tr>`;
+    }
+    if (mobileContainer) {
+      mobileContainer.innerHTML = '';
+    }
+    if (emptyState) {
+      emptyState.style.display = 'none';
+    }
+    if (loadMoreButton) {
+      loadMoreButton.style.display = 'none';
+    }
+  }
+
+  function initializeOrderBookUI(scope, clientId) {
+    const dom = domId(clientId);
+    const { searchInput } = getOrderBookElements(scope, dom);
+    const state = ensureOrderBookState(scope, clientId);
+    if (searchInput && !searchInput.dataset.bound) {
+      searchInput.dataset.bound = 'true';
+      searchInput.addEventListener('input', event => {
+        state.search = event.target.value || '';
+        state.page = 1;
+        renderOrderBook(scope, clientId);
+      });
+    }
+  }  
   function brokerIconHTML(broker) {
     const name = broker ? broker.charAt(0).toUpperCase() + broker.slice(1) : '';
     const url = brokerIcons[broker] || '/static/images/logo.png';
@@ -3633,11 +4152,45 @@ let errorHandled = false;
                         <div id="master-holdings-container-${masterDomId}" class="holdings-container"></div>
                         <div id="holdings-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No holdings for this master account.</p></div>
                   </div>
-                  <div id="master-orders-book-${masterDomId}" style="display:none;">
-                        <div id="orders-body-${masterDomId}" class="list-group"></div>
-                        <div id="orders-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No recent orders for this master account.</p></div>
-                        <div class="text-center" style="margin-top:12px;">
-                          <button class="btn btn-sm btn-outline" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
+                  <div id="master-orders-book-${masterDomId}" class="orderbook-section" style="display:none;">
+                        <div class="orderbook-container" data-orderbook="master" data-client="${masterDomId}">
+                          <div class="orderbook-header">
+                            <div>
+                              <h4 class="orderbook-title mb-1">Recent Orders</h4>
+                              <p class="orderbook-subtitle mb-0">Live order activity fetched from the linked broker.</p>
+                            </div>
+                            <div class="orderbook-actions">
+                              <div class="orderbook-filters" id="master-orders-filters-${masterDomId}"></div>
+                              <div class="orderbook-search">
+                                <svg class="orderbook-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"></path>
+                                </svg>
+                                <input type="text" class="orderbook-search-input" placeholder="Search orders" id="master-orders-search-${masterDomId}">
+                              </div>
+                            </div>
+                          </div>
+                          <div class="orderbook-table-wrapper">
+                            <table class="orderbook-table">
+                              <thead>
+                                <tr>
+                                  <th>Time</th>
+                                  <th>Symbol</th>
+                                  <th>Product</th>
+                                  <th class="text-end">Qty (F / T)</th>
+                                  <th>Order Type</th>
+                                  <th class="text-end">Avg Price</th>
+                                  <th class="text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody id="master-orders-table-${masterDomId}"></tbody>
+                            </table>
+                            <div id="master-orders-loading-${masterDomId}" class="orderbook-loading"></div>
+                          </div>
+                          <div class="orderbook-mobile-cards" id="master-orders-mobile-${masterDomId}"></div>
+                          <div id="orders-empty-${masterDomId}" class="empty-state orderbook-empty" style="display:none;"><p>No recent orders for this master account.</p></div>
+                          <div class="text-center orderbook-footer">
+                            <button class="btn btn-sm btn-outline" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
+                          </div>
                         </div>
                   </div>
                 </div>
@@ -3744,11 +4297,45 @@ let errorHandled = false;
                             <button class="tab active" data-tab="positions" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "positions", this)'>Positions</button>
                             <button class="tab" data-tab="holdings" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings", this)'>Holdings</button>
                         </div>
-                        <div id="child-orders-${childDomId}" style="display:none;">
-                                <div id="child-orders-body-${childDomId}" class="list-group"></div>
-                                <div id="child-orders-empty-${childDomId}" class="empty-state" style="display:none;"><p>No recent orders for this child account.</p></div>
-                                <div class="text-center" style="margin-top:12px;">
-                                  <button class="btn btn-sm btn-outline" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
+                        <div id="child-orders-${childDomId}" class="orderbook-section" style="display:none;">
+                                <div class="orderbook-container" data-orderbook="child" data-client="${childDomId}">
+                                    <div class="orderbook-header">
+                                        <div>
+                                            <h4 class="orderbook-title mb-1">Recent Orders</h4>
+                                            <p class="orderbook-subtitle mb-0">Orders executed for this child account.</p>
+                                        </div>
+                                        <div class="orderbook-actions">
+                                            <div class="orderbook-filters" id="child-orders-filters-${childDomId}"></div>
+                                            <div class="orderbook-search">
+                                                <svg class="orderbook-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"></path>
+                                                </svg>
+                                                <input type="text" class="orderbook-search-input" placeholder="Search orders" id="child-orders-search-${childDomId}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="orderbook-table-wrapper">
+                                        <table class="orderbook-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Time</th>
+                                                    <th>Symbol</th>
+                                                    <th>Product</th>
+                                                    <th class="text-end">Qty (F / T)</th>
+                                                    <th>Order Type</th>
+                                                    <th class="text-end">Avg Price</th>
+                                                    <th class="text-center">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="child-orders-table-${childDomId}"></tbody>
+                                        </table>
+                                        <div id="child-orders-loading-${childDomId}" class="orderbook-loading"></div>
+                                    </div>
+                                    <div class="orderbook-mobile-cards" id="child-orders-mobile-${childDomId}"></div>
+                                    <div id="child-orders-empty-${childDomId}" class="empty-state orderbook-empty" style="display:none;"><p>No recent orders for this child account.</p></div>
+                                    <div class="text-center orderbook-footer">
+                                        <button class="btn btn-sm btn-outline" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
+                                    </div>
                                 </div>
                         </div>
                         <div id="child-positions-${childDomId}">
@@ -4081,69 +4668,38 @@ let errorHandled = false;
     }
   };
 
-  function appendMasterOrders(clientId) {
-    const orders = window.masterOrderBooks[clientId] || [];
-    const dom = domId(clientId);
-    const listGroup = document.getElementById(`orders-body-${dom}`);
-    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
-    let idx = window.masterOrderIndex[clientId] || 0;
-    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
-    for (let i = idx; i < end; i++) {
-      listGroup.innerHTML += orderItemHtml(orders[i]);
-    }
-    window.masterOrderIndex[clientId] = end;
-    if (end >= orders.length && loadMoreButton) {
-      loadMoreButton.style.display = 'none';
-    }
-  }
-  
   function loadMasterOrderBook(clientId, { force = false } = {}) {
     const dom = domId(clientId);
-    const listGroup = document.getElementById(`orders-body-${dom}`);
-    const emptyState = document.getElementById(`orders-empty-${dom}`);
-    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
-    if (!listGroup || !emptyState) return;
-
-    if (window.masterOrderBooks[clientId] && !force) {
-      listGroup.innerHTML = "";
-      emptyState.style.display = 'none';
-      if (loadMoreButton) loadMoreButton.style.display = 'none';
-      window.masterOrderIndex[clientId] = 0;
-      appendMasterOrders(clientId);
-      if (window.masterOrderBooks[clientId].length > ORDER_PAGE_SIZE && loadMoreButton) {
-        loadMoreButton.style.display = 'inline-block';
-        loadMoreButton.onclick = () => appendMasterOrders(clientId);
-      }
+    const elements = getOrderBookElements('master', dom);
+    if (!elements.tableBody || !elements.emptyState) {
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
-    emptyState.style.display = 'none';
-    if (loadMoreButton) loadMoreButton.style.display = 'none';
-    
+    initializeOrderBookUI('master', clientId);
+
+    if (window.masterOrderBooks[clientId] && !force) {
+      const state = ensureOrderBookState('master', clientId);
+      state.page = 1;
+      renderOrderBook('master', clientId);
+      return;
+    }
+
+    setOrderBookLoading('master', clientId);
     fetch('/api/order-book/' + encodeURIComponent(clientId))
       .then(res => res.json())
       .then(data => {
-        listGroup.innerHTML = "";
         const orders = Array.isArray(data) ? data : [];
-        if (orders.length > 0) {
-          window.masterOrderBooks[clientId] = orders;
-          window.masterOrderIndex[clientId] = 0;
-          appendMasterOrders(clientId);
-          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
-            loadMoreButton.style.display = 'inline-block';
-            loadMoreButton.onclick = () => appendMasterOrders(clientId);
-          }
-        } else {
-          emptyState.style.display = 'block';
-        }
+        window.masterOrderBooks[clientId] = orders;
+        const state = ensureOrderBookState('master', clientId);
+        state.search = '';
+        state.status = 'All';
+        state.page = 1;
+        renderOrderBook('master', clientId);
       })
       .catch(err => {
-        console.error("Order book fetch failed:", err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
-        emptyState.style.display = 'none';
-        if (loadMoreButton) loadMoreButton.style.display = 'none';
-        showMessage("Failed to load order book.", 'danger');
+        console.error('Order book fetch failed:', err);
+        setOrderBookError('master', clientId, 'Failed to load order book.');
+        showMessage('Failed to load order book.', 'danger');
       });
   }
 
@@ -4330,45 +4886,24 @@ let errorHandled = false;
     } 
   };
 
-  function appendChildOrders(childId) {
-    const orders = window.childOrderBooks[childId] || [];
-    const dom = domId(childId);
-    const listGroup = document.getElementById(`child-orders-body-${dom}`);
-    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
-    let idx = window.childOrderIndex[childId] || 0;
-    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
-    for (let i = idx; i < end; i++) {
-      listGroup.innerHTML += orderItemHtml(orders[i]);
-    }
-    window.childOrderIndex[childId] = end;
-    if (end >= orders.length && loadMoreButton) {
-      loadMoreButton.style.display = 'none';
-    }
-  }
-
   function loadChildOrderBook(childId, { force = false } = {}) {
     const dom = domId(childId);
-    const listGroup = document.getElementById(`child-orders-body-${dom}`);
-    const emptyState = document.getElementById(`child-orders-empty-${dom}`);
-    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
-    if (!listGroup || !emptyState || !loadMoreButton) return;
+    const elements = getOrderBookElements('child', dom);
+    if (!elements.tableBody || !elements.emptyState) {
+      return;
+    }
+  
+
+    initializeOrderBookUI('child', childId);
 
     if (window.childOrderBooks[childId] && !force) {
-      listGroup.innerHTML = "";
-      emptyState.style.display = 'none';
-      loadMoreButton.style.display = 'none';
-      window.childOrderIndex[childId] = 0;
-      appendChildOrders(childId);
-      if (window.childOrderBooks[childId].length > ORDER_PAGE_SIZE) {
-        loadMoreButton.style.display = 'inline-block';
-        loadMoreButton.onclick = () => appendChildOrders(childId);
-      }
+      const state = ensureOrderBookState('child', childId);
+      state.page = 1;
+      renderOrderBook('child', childId);
       return;
     }
 
-    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
-    emptyState.style.display = 'none';
-    loadMoreButton.style.display = 'none';
+    setOrderBookLoading('child', childId);
     
     fetch('/api/order-book/' + encodeURIComponent(childId))
       .then(async res => {
@@ -4380,25 +4915,17 @@ let errorHandled = false;
         return res.json();
       })
       .then(data => {
-        listGroup.innerHTML = "";
         const orders = Array.isArray(data) ? data : [];
-        if (orders.length > 0) {
-          window.childOrderBooks[childId] = orders;
-          window.childOrderIndex[childId] = 0;
-          appendChildOrders(childId);
-          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
-            loadMoreButton.style.display = 'inline-block';
-            loadMoreButton.onclick = () => appendChildOrders(childId);
-          }
-        } else {
-          emptyState.style.display = 'block';
-        }
+        window.childOrderBooks[childId] = orders;
+        const state = ensureOrderBookState('child', childId);
+        state.search = '';
+        state.status = 'All';
+        state.page = 1;
+        renderOrderBook('child', childId);
       })
       .catch(err => {
         console.error('Child order book fetch failed:', err);
-        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
-        emptyState.style.display = 'none';
-        if (loadMoreButton) loadMoreButton.style.display = 'none';
+        setOrderBookError('child', childId, 'Failed to load order book.');
         showMessage('Failed to load order book.', 'danger');
       });
   }
