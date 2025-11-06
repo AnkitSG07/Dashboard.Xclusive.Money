@@ -1,3 +1,4 @@
+
 {% extends "layout.html" %}
 {% block title %}Copy Trading - DhanBot{% endblock %}
 
@@ -39,318 +40,6 @@
             overflow: hidden;
             margin-bottom: 24px;
             margin-left: -22px;
-        }
-
-        .order-book {
-            background-color: #f3f4f6;
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid #e5e7eb;
-        }
-
-        .order-book.dark {
-            background-color: #1f2937;
-            border-color: #374151;
-        }
-
-        .order-book-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 12px;
-        }
-
-        .order-book-header-group {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .order-book-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .order-book-filters {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .order-book-filter {
-            padding: 6px 14px;
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background-color: #ede9fe;
-            color: #4c1d95;
-            transition: background-color 0.2s ease, color 0.2s ease;
-        }
-
-        .order-book-filter .order-book-filter-count {
-            background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 999px;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .order-book-filter:hover {
-            background-color: #ddd6fe;
-        }
-
-        .order-book-filter.active {
-            background-color: #4c1d95;
-            color: #ffffff;
-        }
-
-        .order-book-search {
-            position: relative;
-            flex: 1;
-            max-width: 320px;
-        }
-
-        .order-book-search input {
-            width: 100%;
-            padding: 8px 12px 8px 36px;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
-            font-size: 14px;
-            background-color: #ffffff;
-            color: #111827;
-        }
-
-        .order-book-search svg {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            color: #6b7280;
-        }
-
-        .order-book-table-wrapper {
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            overflow-x: auto;
-        }
-
-        .order-book-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        .order-book-table thead {
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .order-book-table th {
-            padding: 12px 16px;
-            text-align: left;
-            font-weight: 500;
-            color: #6b7280;
-            white-space: nowrap;
-        }
-
-        .order-book-table td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f3f4f6;
-            vertical-align: middle;
-        }
-
-        .order-book-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .order-book-table tbody tr:hover {
-            background-color: rgba(79, 70, 229, 0.05);
-        }
-
-        .order-book-name-cell {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .order-book-type-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #ffffff;
-        }
-
-        .order-book-type-badge.buy {
-            background-color: #16a34a;
-        }
-
-        .order-book-type-badge.sell {
-            background-color: #dc2626;
-        }
-
-        .order-book-name-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .order-book-name-primary {
-            font-weight: 600;
-            color: #111827;
-        }
-
-        .order-book-name-secondary {
-            font-size: 12px;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .order-book-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid #e5e7eb;
-            background-color: #f9fafb;
-        }
-
-        .order-book-badge.success {
-            background-color: rgba(34, 197, 94, 0.1);
-            border-color: rgba(34, 197, 94, 0.2);
-            color: #15803d;
-        }
-
-        .order-book-badge.warning {
-            background-color: rgba(234, 179, 8, 0.1);
-            border-color: rgba(234, 179, 8, 0.2);
-            color: #b45309;
-        }
-
-        .order-book-status-badge {
-            border-radius: 6px;
-            padding: 4px 10px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .order-book-empty {
-            text-align: center;
-            color: #6b7280;
-            padding: 16px;
-            display: none;
-        }
-
-        .order-book-mobile {
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .order-book-card {
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 14px;
-        }
-
-        .order-book-card.buy {
-            border-left: 4px solid #16a34a;
-        }
-
-        .order-book-card.sell {
-            border-left: 4px solid #dc2626;
-        }
-
-        .order-book-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-            gap: 12px;
-        }
-
-        .order-book-card-title {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .order-book-card-subtitle {
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        .order-book-card-amount {
-            font-size: 16px;
-            font-weight: 700;
-            text-align: right;
-        }
-
-        .order-book-card-badges {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-
-        .order-book-card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        .order-book-avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            background-color: #e0e7ff;
-            color: #4338ca;
-        }
-
-        @media (max-width: 768px) {
-            .order-book-table-wrapper {
-                display: none;
-            }
-
-            .order-book-mobile {
-                display: flex;
-            }
-
-            .order-book-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .order-book-search {
-                max-width: 100%;
-                width: 100%;
-            }
         }
 
         .card-header {
@@ -2214,37 +1903,9 @@ td, th {
                 </label>
             </div>
             <div id="master-orders-alert" class="alert">No active orders at the moment. Orders from Master accounts will appear here.</div>
-            <div class="order-book" id="master-orders-component">
-                <div class="order-book-header">
-                    <div class="order-book-header-group">
-                        <h4 class="order-book-title">Master Order Book</h4>
-                        <div class="order-book-filters" id="master-orders-filters"></div>
-                    </div>
-                    <div class="order-book-search">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        <input type="text" id="master-orders-search" placeholder="Search master orders">
-                    </div>
-                </div>
-                <div class="order-book-table-wrapper">
-                    <table class="order-book-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 36px;"></th>
-                                <th>Time</th>
-                                <th>Symbol</th>
-                                <th>Master</th>
-                                <th class="text-right">Qty</th>
-                                <th class="text-right">Children</th>
-                                <th class="text-center">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="master-orders-table-body"></tbody>
-                    </table>
-                </div>
-                <div id="master-orders-empty-state" class="order-book-empty">No master orders found.</div>
-                <div id="master-orders-mobile" class="order-book-mobile"></div>
+            <div id="master-orders-list" class="list-group space-y-2"></div>
+            <div id="master-orders-empty-state" class="empty-state" style="display: none;">
+                <p>No master orders found.</p>
             </div>
         </div>
     </div>
@@ -2309,12 +1970,10 @@ window.pageScripts["copy-trading"] = function () {
   window.accountCopyStatus = window.accountCopyStatus || {};
   window.userToggledOff = window.userToggledOff || {};
   // Order book caches to support incremental loading
-  window.masterOrderBooks = window.masterOrderBooks || {};
-  window.childOrderBooks = window.childOrderBooks || {};
-  window.masterOrdersData = window.masterOrdersData || { orders: [], summary: {} };
-  window.masterOrderFilter = window.masterOrderFilter || 'all';
-  window.childOrderFilters = window.childOrderFilters || {};
-  window.masterAccountOrderFilters = window.masterAccountOrderFilters || {};
+  window.masterOrderBooks = {};
+  window.masterOrderIndex = {};
+  window.childOrderBooks = {};
+  window.childOrderIndex = {};
   // Data caches for manual refresh behavior
   window.masterPositions = window.masterPositions || {};
   window.masterAccountStats = window.masterAccountStats || {};
@@ -2322,6 +1981,7 @@ window.pageScripts["copy-trading"] = function () {
   window.childPositions = window.childPositions || {};
   window.childAccountStats = window.childAccountStats || {};
   window.childHoldings = window.childHoldings || {};
+  const ORDER_PAGE_SIZE = 20;
 
   const BASE_ACCOUNTS_POLL_INTERVAL = 5000;
   window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
@@ -3409,52 +3069,10 @@ window.pageScripts["copy-trading"] = function () {
     return { label: titleCase, className, tooltip };
   }
 
-  function formatOrderTimeDisplay(raw) {
-    if (raw === undefined || raw === null || raw === '') {
-      return '—';
-    }
-
-    let value = raw;
-    if (typeof raw === 'number' && Number.isFinite(raw)) {
-      value = raw;
-    } else if (typeof raw === 'string') {
-      const numeric = Number(raw);
-      if (!Number.isNaN(numeric) && String(numeric) === raw) {
-        value = numeric;
-      }
-    }
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return String(raw);
-    }
-
-    const datePart = parsed.toLocaleDateString('en-IN');
-    const timePart = parsed.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-    return `${datePart} ${timePart}`;
-  }
-
-  function isSuccessfulStatusInfo(statusInfo) {
-    if (!statusInfo) return false;
-    const label = String(statusInfo.label || '').toUpperCase();
-    const className = String(statusInfo.className || '').toLowerCase();
-    return /SUCCESS|TRADE|COMPLETE|FILLED/.test(label) || className.includes('success');
-  }
-
-  function normalizeBrokerOrder(order) {
-    if (!order || typeof order !== 'object') {
-      return null;
-    }
-
+  function orderItemHtml(order) {
     const rawStatus = getOrderField(order, ['status', 'order_status', 'report_type', 'status_message', 'statusmessage', 'ord_status']);
-    const statusInfo = formatOrderStatus(rawStatus);
-
-    const symbol = withFallback(getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym', 'description']), '—');
-    const orderId = withFallback(getOrderField(order, ['order_id', 'orderid', 'orderId', 'id', 'orderNumber', 'norenordno']), '');
+    const { label: statusLabel, className: statusClass, tooltip: statusTooltip } = formatOrderStatus(rawStatus);
+    const symbol = getOrderField(order, ['symbol', 'tradingSymbol', 'tradingsymbol', 'trading_symbol', 'tsym', 'description']) || '—';
     const orderTimeRaw = getOrderField(order, [
       'order_time',
       'order_timestamp',
@@ -3468,469 +3086,94 @@ window.pageScripts["copy-trading"] = function () {
       'update_time',
       'update_time_exch'
     ]);
-    const timeDisplay = formatOrderTimeDisplay(orderTimeRaw);
-
-    const sideRaw = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell', 'tran_side', 'bs']), '');
-    const side = String(sideRaw || '').toUpperCase();
-    const sideClass = side === 'SELL' ? 'sell' : side === 'BUY' ? 'buy' : '';
-    const sideInitial = side ? side.charAt(0) : '—';
-
-    const placedQtyRaw = getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity', 'orderqty', 'orderQty']);
-    const filledQtyRaw = getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity', 'filledQty', 'traded_qty', 'tradedQuantity']);
-    const placedQtyDisplay = placedQtyRaw !== undefined ? formatQuantityValue(placedQtyRaw) : '—';
-    const filledQtyDisplay = filledQtyRaw !== undefined ? formatQuantityValue(filledQtyRaw) : '—';
-    let quantityDisplay = '—';
-    if (placedQtyRaw !== undefined && filledQtyRaw !== undefined) {
-      quantityDisplay = `${filledQtyDisplay} / ${placedQtyDisplay}`;
-    } else if (placedQtyRaw !== undefined) {
-      quantityDisplay = placedQtyDisplay;
-    } else if (filledQtyRaw !== undefined) {
-      quantityDisplay = filledQtyDisplay;
+    let orderTimeDisplay = '—';
+    if (orderTimeRaw) {
+      const parsed = orderTimeRaw instanceof Date ? orderTimeRaw : new Date(orderTimeRaw);
+      orderTimeDisplay = isNaN(parsed.getTime()) ? orderTimeRaw : parsed.toLocaleString();
     }
-
-    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']), '—');
-    const product = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']), '—');
-    const priceRaw = getOrderField(order, ['price', 'order_price', 'limit_price', 'trigger_price', 'avg_price', 'average_price', 'avgprice', 'orderPrice', 'tradePrice']);
-    const priceDisplay = formatDecimalValue(priceRaw);
-    const ltpRaw = getOrderField(order, ['ltp', 'last_traded_price', 'last_price', 'lastPrice', 'market_price', 'lt', 'close']);
-    const ltpDisplay = formatDecimalValue(ltpRaw);
-    const exchange = withFallback(getOrderField(order, ['exchange', 'exchange_segment', 'exch', 'exchangeSegment', 'market']), '');
-    const exchangeBadge = exchange ? exchange.charAt(0).toUpperCase() : '';
+    const orderId = getOrderField(order, ['order_id', 'orderid', 'orderId', 'id', 'orderNumber', 'norenordno']) || '—';
+    const side = withFallback(getOrderField(order, ['side', 'transaction_type', 'transactiontype', 'buy_sell', 'tran_side', 'bs']));
+    const placedQty = withFallback(getOrderField(order, ['placed_qty', 'quantity', 'qty', 'order_quantity', 'orderqty', 'orderQty']));
+    const filledQty = withFallback(getOrderField(order, ['filled_qty', 'filled_quantity', 'filled', 'executed_quantity', 'filledQty', 'traded_qty', 'tradedQuantity']));
+    const orderType = withFallback(getOrderField(order, ['order_type', 'type', 'ordertype', 'orderType', 'orderTypeString']));
+    const avgPrice = withFallback(getOrderField(order, ['avg_price', 'average_price', 'avgprice', 'average', 'avg', 'avgPrice', 'tradePrice']));
+    const productType = withFallback(getOrderField(order, ['product_type', 'product', 'producttype', 'productType', 'prd']));
     const remarks = withFallback(getOrderField(order, [
       'remarks',
       'status_message',
       'statusmessage',
+      'status_message_raw',
+      'status_message_short',
+      'oms_msg',
       'message',
       'rejection_reason',
+      'rejectionreason',
       'reject_reason',
+      'rejectreason',
       'rejreason',
+      'rej_reason',
       'rejection_message',
+      'rejectionmessage',
       'reject_message',
+      'rejectmessage',
       'error_message',
-      'exchange_message'
-    ]), '');
+      'errormessage',
+      'exchange_message',
+      'omsErrorMessage',
+      'oms_error_message',
+      'oms_error_description',
+      'omsErrorDescription'
+    ]));
+    const resolutionHint = getOrderField(order, ['resolution_hint', 'resolutionHint']);
 
-    const quantityNumeric = parseNumeric(filledQtyRaw);
-    const fallbackQuantityNumeric = parseNumeric(placedQtyRaw);
-    const effectiveQty = Number.isFinite(quantityNumeric) ? quantityNumeric : fallbackQuantityNumeric;
-    const priceNumeric = parseNumeric(priceRaw);
-    const notionalValue = Number.isFinite(effectiveQty) && Number.isFinite(priceNumeric)
-      ? effectiveQty * priceNumeric
-      : NaN;
-    const amountDisplay = Number.isFinite(notionalValue)
-      ? notionalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : '—';
+    const hasRemarks = remarks && remarks !== '—';
+    const hasResolutionHint = resolutionHint && resolutionHint !== '—';
+    
+    const detailItems = [
+      { label: 'Side', value: side },
+      { label: 'Order Type', value: orderType },
+      { label: 'Product', value: productType },
+      { label: 'Placed Qty', value: placedQty },
+      { label: 'Filled Qty', value: filledQty },
+      { label: 'Avg Price', value: avgPrice }
+    ];
 
-    const productBadgeClass = product && /normal|cnc|delivery|intraday|nrml|mis/i.test(String(product)) ? 'success' : '';
-    const success = isSuccessfulStatusInfo(statusInfo);
+    const detailsHtml = detailItems.map(item => `
+        <div class="col">
+          <div class="text-muted text-uppercase small fw-semibold">${escapeHtml(item.label)}</div>
+          <div class="fw-semibold">${escapeHtml(withFallback(item.value))}</div>
+        </div>
+      `).join('');
 
-    const searchTokens = [symbol, orderId, exchange, product, orderType, statusInfo.label, side, remarks]
-      .filter(Boolean)
-      .map(token => String(token).toLowerCase());
-
-    return {
-      id: orderId ? String(orderId) : '',
-      symbol: String(symbol),
-      side,
-      sideClass,
-      sideInitial,
-      product: String(product),
-      productBadgeClass,
-      exchange: String(exchange),
-      exchangeBadge,
-      quantityDisplay,
-      orderType: String(orderType),
-      priceDisplay,
-      ltpDisplay,
-      statusLabel: statusInfo.label,
-      statusClass: statusInfo.className,
-      statusTooltip: statusInfo.tooltip,
-      timeDisplay,
-      amountDisplay,
-      success,
-      searchTokens,
-      orderIdDisplay: orderId ? String(orderId) : '',
-      remarks: String(remarks || ''),
-      amountValue: notionalValue
-    };
-  }
-
-  function normalizeMasterOrder(order) {
-    if (!order || typeof order !== 'object') {
-      return null;
+    let remarksHtml = '';
+    if (hasRemarks || hasResolutionHint) {
+      const remarksRow = hasRemarks
+        ? `<div><span class="text-muted text-uppercase fw-semibold">Remarks:</span> <span class="text-dark">${escapeHtml(remarks)}</span></div>`
+        : '';
+      const hintRow = hasResolutionHint
+        ? `<div class="mt-${hasRemarks ? '2' : '0'}"><span class="text-muted text-uppercase fw-semibold">Suggested fix:</span> <span class="text-dark">${escapeHtml(resolutionHint)}</span></div>`
+        : '';
+      remarksHtml = `<div class="mt-3 small">${remarksRow}${hintRow}</div>`;
     }
-    const statusInfo = formatOrderStatus(order.status || 'ACTIVE');
-    const symbol = order.symbol ? String(order.symbol) : '—';
-    const timeDisplay = formatOrderTimeDisplay(order.timestamp);
-    const action = order.action ? String(order.action).toUpperCase() : '';
-    const sideClass = action === 'SELL' ? 'sell' : action === 'BUY' ? 'buy' : '';
-    const sideInitial = action ? action.charAt(0) : '—';
-    const quantityDisplay = formatQuantityValue(order.quantity);
-    const totalChildren = order.total_children != null ? order.total_children : 0;
-    const masterClientId = order.master_client_id ? String(order.master_client_id) : '—';
-    const masterBroker = order.master_broker ? String(order.master_broker) : '—';
-    const summary = typeof order.summary === 'object' && order.summary !== null ? order.summary : {};
-    const searchTokens = [symbol, masterClientId, masterBroker, action, statusInfo.label, order.master_order_id]
-      .filter(Boolean)
-      .map(token => String(token).toLowerCase());
-    const success = isSuccessfulStatusInfo(statusInfo);
 
-    return {
-      id: order.master_order_id ? String(order.master_order_id) : '',
-      symbol,
-      timeDisplay,
-      action,
-      sideClass,
-      sideInitial,
-      quantityDisplay,
-      totalChildren,
-      masterClientId,
-      masterBroker,
-      statusLabel: statusInfo.label,
-      statusClass: statusInfo.className,
-      statusTooltip: statusInfo.tooltip,
-      summary,
-      success,
-      searchTokens
-    };
-  }
-
-  function renderOrderBookFilters(container, counts, activeFilter, onChange) {
-    if (!container) return;
-    const total = counts?.total || 0;
-    const success = counts?.success || 0;
-    container.innerHTML = `
-      <button type="button" class="order-book-filter ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">
-        All
-        <span class="order-book-filter-count">${total}</span>
-      </button>
-      <button type="button" class="order-book-filter ${activeFilter === 'success' ? 'active' : ''}" data-filter="success">
-        Success
-        <span class="order-book-filter-count">${success}</span>
-      </button>
+    return `
+      <div class="list-group-item list-group-item-action py-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+          <div>
+            <h6 class="mb-1">${escapeHtml(symbol)}</h6>
+            <div class="small text-muted">Order ID: ${escapeHtml(orderId)}</div>
+          </div>
+          <div class="text-md-end">
+            <span class="badge ${statusClass}" title="${escapeHtml(statusTooltip)}">${escapeHtml(statusLabel)}</span>
+            <div class="small text-muted mt-1">${escapeHtml(orderTimeDisplay)}</div>
+          </div>
+        </div>
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 mt-3">
+          ${detailsHtml}
+        </div>
+        ${remarksHtml}
+      </div>
     `;
-    container.querySelectorAll('button[data-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const filter = btn.getAttribute('data-filter');
-        if (typeof onChange === 'function') {
-          onChange(filter);
-        }
-      });
-    });
-  }
-
-  function buildBrokerOrderRows(orders) {
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return '';
-    }
-
-    return orders.map(order => {
-      const sideBadge = order.sideClass
-        ? `<span class="order-book-type-badge ${order.sideClass}">${escapeHtml(order.sideInitial)}</span>`
-        : '';
-      const secondaryParts = [];
-      if (order.exchangeBadge) {
-        secondaryParts.push(`<span class="order-book-badge">${escapeHtml(order.exchangeBadge)}</span>`);
-      }
-      if (order.exchange) {
-        secondaryParts.push(escapeHtml(order.exchange));
-      }
-      if (order.orderIdDisplay) {
-        secondaryParts.push(`#${escapeHtml(order.orderIdDisplay)}`);
-      }
-      const secondaryLine = secondaryParts.length
-        ? `<span class="order-book-name-secondary">${secondaryParts.join(' • ')}</span>`
-        : '';
-      const productCell = order.product && order.product !== '—'
-        ? `<span class="order-book-badge ${order.productBadgeClass}">${escapeHtml(order.product)}</span>`
-        : '—';
-      const statusBadge = `<span class="badge ${order.statusClass} order-book-status-badge" title="${escapeHtml(order.statusTooltip)}">${escapeHtml(order.statusLabel)}</span>`;
-
-      return `
-        <tr>
-          <td>${escapeHtml(order.timeDisplay)}</td>
-          <td>
-            <div class="order-book-name-cell">
-              ${sideBadge}
-              <div class="order-book-name-info">
-                <span class="order-book-name-primary">${escapeHtml(order.symbol)}</span>
-                ${secondaryLine}
-              </div>
-            </div>
-          </td>
-          <td>${productCell}</td>
-          <td class="text-right">${escapeHtml(order.quantityDisplay)}</td>
-          <td>${escapeHtml(order.orderType)}</td>
-          <td class="text-right">${escapeHtml(order.priceDisplay)}</td>
-          <td class="text-right">${escapeHtml(order.ltpDisplay)}</td>
-          <td class="text-center">${statusBadge}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  function buildBrokerOrderCards(orders) {
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return '';
-    }
-
-    return orders.map(order => {
-      const cardClass = order.sideClass || '';
-      const statusVariant = order.statusClass === 'badge-success' ? 'success' : order.statusClass === 'badge-red' ? 'warning' : '';
-      const productBadge = order.product && order.product !== '—'
-        ? `<span class="order-book-badge ${order.productBadgeClass}">${escapeHtml(order.product)}</span>`
-        : '';
-      const statusBadge = `<span class="order-book-badge ${statusVariant}">${escapeHtml(order.statusLabel)}</span>`;
-      const orderTypeBadge = order.orderType && order.orderType !== '—'
-        ? `<span class="order-book-badge">${escapeHtml(order.orderType)}</span>`
-        : '';
-      const avatarText = order.exchangeBadge || order.sideInitial || '—';
-      const amountLabel = order.amountDisplay && order.amountDisplay !== '—'
-        ? `₹${escapeHtml(order.amountDisplay)}`
-        : '—';
-
-      return `
-        <div class="order-book-card ${cardClass}">
-          <div class="order-book-card-header">
-            <div>
-              <div class="order-book-card-title">${escapeHtml(order.symbol)}</div>
-              <div class="order-book-card-subtitle">${escapeHtml(order.exchange || '—')} • ${escapeHtml(order.timeDisplay)}</div>
-            </div>
-            <div>
-              <div class="order-book-card-amount">${amountLabel}</div>
-              <span class="order-book-type-badge ${order.sideClass}">${escapeHtml(order.side || order.sideInitial || '—')}</span>
-            </div>
-          </div>
-          <div class="order-book-card-badges">
-            ${productBadge}
-            ${statusBadge}
-            ${orderTypeBadge}
-          </div>
-          <div class="order-book-card-footer">
-            <span>Qty ${escapeHtml(order.quantityDisplay)} • Price ${escapeHtml(order.priceDisplay)} • LTP ${escapeHtml(order.ltpDisplay)}</span>
-            <div class="order-book-avatar">${escapeHtml(avatarText)}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function renderBrokerOrderBook({ accountId, dom, orders, scope }) {
-    const prefix = scope === 'child' ? 'child-orders' : 'orders';
-    const tableBody = document.getElementById(`${prefix}-table-${dom}`);
-    const emptyState = document.getElementById(`${prefix}-empty-${dom}`);
-    const mobileContainer = document.getElementById(`${prefix}-mobile-${dom}`);
-    const filtersContainer = document.getElementById(`${prefix}-filters-${dom}`);
-    const searchInput = document.getElementById(`${scope === 'child' ? 'child-orders' : 'orders'}-search-${dom}`);
-
-    if (!tableBody || !emptyState || !mobileContainer) {
-      return;
-    }
-
-    if (emptyState && !emptyState.dataset.defaultMessage) {
-      emptyState.dataset.defaultMessage = emptyState.textContent || 'No master orders found.';
-    }
-
-    if (emptyState && !emptyState.dataset.defaultMessage) {
-      emptyState.dataset.defaultMessage = emptyState.textContent || '';
-    }
-
-    const normalized = (Array.isArray(orders) ? orders : [])
-      .map(normalizeBrokerOrder)
-      .filter(Boolean);
-
-    const stateMap = scope === 'child' ? window.childOrderFilters : window.masterAccountOrderFilters;
-    const activeFilter = stateMap[accountId] || 'all';
-    const counts = {
-      total: normalized.length,
-      success: normalized.filter(order => order.success).length
-    };
-
-    renderOrderBookFilters(filtersContainer, counts, activeFilter, filter => {
-      stateMap[accountId] = filter;
-      const source = scope === 'child' ? window.childOrderBooks : window.masterOrderBooks;
-      renderBrokerOrderBook({ accountId, dom, orders: source[accountId] || [], scope });
-    });
-
-    if (searchInput && !searchInput.dataset.bound) {
-      searchInput.addEventListener('input', () => {
-        const source = scope === 'child' ? window.childOrderBooks : window.masterOrderBooks;
-        renderBrokerOrderBook({ accountId, dom, orders: source[accountId] || [], scope });
-      });
-      searchInput.dataset.bound = 'true';
-    }
-
-    const searchTerm = (searchInput?.value || '').trim().toLowerCase();
-    const filtered = normalized.filter(order => {
-      const matchesFilter = activeFilter === 'all' || order.success;
-      const matchesSearch = !searchTerm || order.searchTokens.some(token => token.includes(searchTerm));
-      return matchesFilter && matchesSearch;
-    });
-
-    if (filtered.length === 0) {
-      tableBody.innerHTML = '';
-      mobileContainer.innerHTML = '';
-      if (emptyState) {
-        const hasOrders = normalized.length > 0;
-        emptyState.textContent = hasOrders
-          ? 'No orders match your search or filters.'
-          : emptyState.dataset.defaultMessage || 'No orders available.';
-        emptyState.style.display = 'block';
-      }
-    } else {
-      tableBody.innerHTML = buildBrokerOrderRows(filtered);
-      mobileContainer.innerHTML = buildBrokerOrderCards(filtered);
-      if (emptyState) {
-        emptyState.textContent = emptyState.dataset.defaultMessage || emptyState.textContent;
-        emptyState.style.display = 'none';
-      }
-    }
-  }
-
-  function buildMasterOrderRows(orders) {
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return '';
-    }
-
-    return orders.map(order => {
-      const checkbox = order.id
-        ? `<input type="checkbox" class="master-order-checkbox" value="${escapeHtml(order.id)}">`
-        : '<input type="checkbox" disabled>';
-      const sideBadge = order.sideClass
-        ? `<span class="order-book-type-badge ${order.sideClass}">${escapeHtml(order.sideInitial)}</span>`
-        : '';
-      const masterInfo = `<span class="order-book-badge">${escapeHtml(order.masterClientId)}</span>`;
-      const statusBadge = `<span class="badge ${order.statusClass} order-book-status-badge" title="${escapeHtml(order.statusTooltip)}">${escapeHtml(order.statusLabel)}</span>`;
-      const summary = order.summary || {};
-      const summaryText = `A${summary.active || 0} • C${summary.completed || 0} • F${summary.failed || 0}`;
-
-      return `
-        <tr>
-          <td class="text-center">${checkbox}</td>
-          <td>${escapeHtml(order.timeDisplay)}</td>
-          <td>
-            <div class="order-book-name-cell">
-              ${sideBadge}
-              <div class="order-book-name-info">
-                <span class="order-book-name-primary">${escapeHtml(order.symbol)}</span>
-                <span class="order-book-name-secondary">${masterInfo} ${escapeHtml(order.masterBroker)}</span>
-                <button type="button" class="btn btn-sm btn-outline" style="margin-top:6px;" data-master-order-id="${escapeHtml(order.id)}" ${order.id ? '' : 'disabled'} onclick="window.viewChildMappings(this.dataset.masterOrderId)">View Children</button>
-              </div>
-            </div>
-          </td>
-          <td>${masterInfo}</td>
-          <td class="text-right">${escapeHtml(order.quantityDisplay)}</td>
-          <td class="text-right">${escapeHtml(String(order.totalChildren))}</td>
-          <td class="text-center">${statusBadge}<div class="text-xs" style="margin-top:4px; color:#6b7280;">${escapeHtml(summaryText)}</div></td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  function buildMasterOrderCards(orders) {
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return '';
-    }
-
-    return orders.map(order => {
-      const cardClass = order.sideClass || '';
-      const statusVariant = order.statusClass === 'badge-success' ? 'success' : order.statusClass === 'badge-red' ? 'warning' : '';
-      const summary = order.summary || {};
-      const avatarText = order.masterBroker ? order.masterBroker.charAt(0).toUpperCase() : 'M';
-
-      return `
-        <div class="order-book-card ${cardClass}">
-          <div class="order-book-card-header">
-            <div>
-              <div class="order-book-card-title">${escapeHtml(order.symbol)}</div>
-              <div class="order-book-card-subtitle">${escapeHtml(order.masterBroker)} • ${escapeHtml(order.timeDisplay)}</div>
-            </div>
-            <div>
-              <div class="order-book-card-amount">Qty ${escapeHtml(order.quantityDisplay)}</div>
-              <span class="order-book-type-badge ${order.sideClass}">${escapeHtml(order.action || order.sideInitial || '—')}</span>
-            </div>
-          </div>
-          <div class="order-book-card-badges">
-            <span class="order-book-badge">${escapeHtml(order.masterClientId)}</span>
-            <span class="order-book-badge">Children ${escapeHtml(String(order.totalChildren))}</span>
-            <span class="order-book-badge ${statusVariant}">${escapeHtml(order.statusLabel)}</span>
-          </div>
-          <div class="order-book-card-footer" style="margin-bottom:8px;">
-            <span>Active ${escapeHtml(String(summary.active || 0))} • Completed ${escapeHtml(String(summary.completed || 0))}</span>
-            <div class="order-book-avatar">${escapeHtml(avatarText)}</div>
-          </div>
-          <button type="button" class="btn btn-sm btn-outline" data-master-order-id="${escapeHtml(order.id)}" style="width:100%;" ${order.id ? '' : 'disabled'} onclick="window.viewChildMappings(this.dataset.masterOrderId)">View Children</button>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function renderMasterOrdersUI() {
-    const tableBody = document.getElementById('master-orders-table-body');
-    const emptyState = document.getElementById('master-orders-empty-state');
-    const mobileContainer = document.getElementById('master-orders-mobile');
-    const filtersContainer = document.getElementById('master-orders-filters');
-    const searchInput = document.getElementById('master-orders-search');
-    const alert = document.getElementById('master-orders-alert');
-
-    if (!tableBody || !emptyState || !mobileContainer) {
-      return;
-    }
-
-    const sourceOrders = Array.isArray(window.masterOrdersData?.orders)
-      ? window.masterOrdersData.orders
-      : [];
-    const normalized = sourceOrders.map(normalizeMasterOrder).filter(Boolean);
-
-    const counts = {
-      total: normalized.length,
-      success: normalized.filter(order => order.success).length
-    };
-
-    renderOrderBookFilters(filtersContainer, counts, window.masterOrderFilter, filter => {
-      window.masterOrderFilter = filter;
-      renderMasterOrdersUI();
-    });
-
-    if (searchInput && !searchInput.dataset.bound) {
-      searchInput.addEventListener('input', () => renderMasterOrdersUI());
-      searchInput.dataset.bound = 'true';
-    }
-
-    const searchTerm = (searchInput?.value || '').trim().toLowerCase();
-    const filtered = normalized.filter(order => {
-      const matchesFilter = window.masterOrderFilter === 'all' || order.success;
-      const matchesSearch = !searchTerm || order.searchTokens.some(token => token.includes(searchTerm));
-      return matchesFilter && matchesSearch;
-    });
-
-    if (filtered.length === 0) {
-      tableBody.innerHTML = '';
-      mobileContainer.innerHTML = '';
-      if (emptyState) {
-        const hasOrders = normalized.length > 0;
-        emptyState.textContent = hasOrders
-          ? 'No master orders match your search or filters.'
-          : emptyState.dataset.defaultMessage || 'No master orders found.';
-        emptyState.style.display = 'block';
-      }
-    } else {
-      tableBody.innerHTML = buildMasterOrderRows(filtered);
-      mobileContainer.innerHTML = buildMasterOrderCards(filtered);
-      if (emptyState) {
-        emptyState.textContent = emptyState.dataset.defaultMessage || emptyState.textContent;
-        emptyState.style.display = 'none';
-      }
-    }
-
-    if (alert) {
-      alert.style.display = normalized.length > 0 ? 'none' : '';
-    }
-
-    const selectAll = document.getElementById('toggleAllMasterOrdersCheckbox');
-    if (selectAll) {
-      selectAll.checked = false;
-    }
   }
   
   function brokerIconHTML(broker) {
@@ -4390,41 +3633,13 @@ let errorHandled = false;
                         <div id="master-holdings-container-${masterDomId}" class="holdings-container"></div>
                         <div id="holdings-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No holdings for this master account.</p></div>
                   </div>
-                        <div id="master-orders-book-${masterDomId}" style="display:none;">
-                                <div class="order-book" data-master-order-book="${masterDomId}">
-                                    <div class="order-book-header">
-                                        <div class="order-book-header-group">
-                                            <h4 class="order-book-title">Order Book</h4>
-                                            <div class="order-book-filters" id="orders-filters-${masterDomId}"></div>
-                                        </div>
-                                        <div class="order-book-search">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                            </svg>
-                                            <input type="text" id="orders-search-${masterDomId}" placeholder="Search orders">
-                                        </div>
-                                    </div>
-                                    <div class="order-book-table-wrapper">
-                                        <table class="order-book-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Time</th>
-                                                    <th>Name</th>
-                                                    <th>Product</th>
-                                                    <th class="text-right">Qty</th>
-                                                    <th>Order Type</th>
-                                                    <th class="text-right">Price</th>
-                                                    <th class="text-right">LTP</th>
-                                                    <th class="text-center">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="orders-table-${masterDomId}"></tbody>
-                                        </table>
-                                    </div>
-                                    <div id="orders-empty-${masterDomId}" class="order-book-empty">No recent orders for this master account.</div>
-                                    <div id="orders-mobile-${masterDomId}" class="order-book-mobile"></div>
-                                </div>
+                  <div id="master-orders-book-${masterDomId}" style="display:none;">
+                        <div id="orders-body-${masterDomId}" class="list-group"></div>
+                        <div id="orders-empty-${masterDomId}" class="empty-state" style="display:none;"><p>No recent orders for this master account.</p></div>
+                        <div class="text-center" style="margin-top:12px;">
+                          <button class="btn btn-sm btn-outline" id="orders-load-more-${masterDomId}" style="display:none;">Load More</button>
                         </div>
+                  </div>
                 </div>
               `;
 
@@ -4530,38 +3745,10 @@ let errorHandled = false;
                             <button class="tab" data-tab="holdings" onclick='window.showChildTab(${JSON.stringify(rawChildId)}, "holdings", this)'>Holdings</button>
                         </div>
                         <div id="child-orders-${childDomId}" style="display:none;">
-                                <div class="order-book" data-child-order-book="${childDomId}">
-                                    <div class="order-book-header">
-                                        <div class="order-book-header-group">
-                                            <h4 class="order-book-title">Order Book</h4>
-                                            <div class="order-book-filters" id="child-orders-filters-${childDomId}"></div>
-                                        </div>
-                                        <div class="order-book-search">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                            </svg>
-                                            <input type="text" id="child-orders-search-${childDomId}" placeholder="Search orders">
-                                        </div>
-                                    </div>
-                                    <div class="order-book-table-wrapper">
-                                        <table class="order-book-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Time</th>
-                                                    <th>Name</th>
-                                                    <th>Product</th>
-                                                    <th class="text-right">Qty</th>
-                                                    <th>Order Type</th>
-                                                    <th class="text-right">Price</th>
-                                                    <th class="text-right">LTP</th>
-                                                    <th class="text-center">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="child-orders-table-${childDomId}"></tbody>
-                                        </table>
-                                    </div>
-                                    <div id="child-orders-empty-${childDomId}" class="order-book-empty">No recent orders for this child account.</div>
-                                    <div id="child-orders-mobile-${childDomId}" class="order-book-mobile"></div>
+                                <div id="child-orders-body-${childDomId}" class="list-group"></div>
+                                <div id="child-orders-empty-${childDomId}" class="empty-state" style="display:none;"><p>No recent orders for this child account.</p></div>
+                                <div class="text-center" style="margin-top:12px;">
+                                  <button class="btn btn-sm btn-outline" id="child-orders-load-more-${childDomId}" style="display:none;">Load More</button>
                                 </div>
                         </div>
                         <div id="child-positions-${childDomId}">
@@ -4894,44 +4081,69 @@ let errorHandled = false;
     }
   };
 
+  function appendMasterOrders(clientId) {
+    const orders = window.masterOrderBooks[clientId] || [];
+    const dom = domId(clientId);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
+    let idx = window.masterOrderIndex[clientId] || 0;
+    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
+    for (let i = idx; i < end; i++) {
+      listGroup.innerHTML += orderItemHtml(orders[i]);
+    }
+    window.masterOrderIndex[clientId] = end;
+    if (end >= orders.length && loadMoreButton) {
+      loadMoreButton.style.display = 'none';
+    }
+  }
+  
   function loadMasterOrderBook(clientId, { force = false } = {}) {
     const dom = domId(clientId);
-    const tableBody = document.getElementById(`orders-table-${dom}`);
+    const listGroup = document.getElementById(`orders-body-${dom}`);
     const emptyState = document.getElementById(`orders-empty-${dom}`);
-    const mobileContainer = document.getElementById(`orders-mobile-${dom}`);
-    if (!tableBody || !emptyState || !mobileContainer) {
+    const loadMoreButton = document.getElementById(`orders-load-more-${dom}`);
+    if (!listGroup || !emptyState) return;
+
+    if (window.masterOrderBooks[clientId] && !force) {
+      listGroup.innerHTML = "";
+      emptyState.style.display = 'none';
+      if (loadMoreButton) loadMoreButton.style.display = 'none';
+      window.masterOrderIndex[clientId] = 0;
+      appendMasterOrders(clientId);
+      if (window.masterOrderBooks[clientId].length > ORDER_PAGE_SIZE && loadMoreButton) {
+        loadMoreButton.style.display = 'inline-block';
+        loadMoreButton.onclick = () => appendMasterOrders(clientId);
+      }
       return;
     }
 
-    if (Array.isArray(window.masterOrderBooks[clientId]) && !force) {
-      renderBrokerOrderBook({ accountId: clientId, dom, orders: window.masterOrderBooks[clientId], scope: 'master' });
-      return;
-    }
-
-    tableBody.innerHTML = '<tr><td colspan="8" class="text-center p-3 text-muted">Loading orders...</td></tr>';
-    mobileContainer.innerHTML = '';
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
-
+    if (loadMoreButton) loadMoreButton.style.display = 'none';
+    
     fetch('/api/order-book/' + encodeURIComponent(clientId))
-      .then(res => {
-        if (!res.ok) {
-          return res.text().then(text => {
-            throw new Error(text || res.statusText || 'Failed to load order book');
-          });
-        }
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
+        listGroup.innerHTML = "";
         const orders = Array.isArray(data) ? data : [];
-        window.masterOrderBooks[clientId] = orders;
-        renderBrokerOrderBook({ accountId: clientId, dom, orders, scope: 'master' });
+        if (orders.length > 0) {
+          window.masterOrderBooks[clientId] = orders;
+          window.masterOrderIndex[clientId] = 0;
+          appendMasterOrders(clientId);
+          if (orders.length > ORDER_PAGE_SIZE && loadMoreButton) {
+            loadMoreButton.style.display = 'inline-block';
+            loadMoreButton.onclick = () => appendMasterOrders(clientId);
+          }
+        } else {
+          emptyState.style.display = 'block';
+        }
       })
       .catch(err => {
-        console.error('Order book fetch failed:', err);
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center p-3 text-danger">Failed to load order book.</td></tr>';
-        mobileContainer.innerHTML = '';
+        console.error("Order book fetch failed:", err);
+        listGroup.innerHTML = `<div class="p-3 text-center text-danger">Failed to load order book.</div>`;
         emptyState.style.display = 'none';
-        showMessage('Failed to load order book.', 'danger');
+        if (loadMoreButton) loadMoreButton.style.display = 'none';
+        showMessage("Failed to load order book.", 'danger');
       });
   }
 
@@ -5118,43 +4330,45 @@ let errorHandled = false;
     } 
   };
 
+  function appendChildOrders(childId) {
+    const orders = window.childOrderBooks[childId] || [];
+    const dom = domId(childId);
+    const listGroup = document.getElementById(`child-orders-body-${dom}`);
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
+    let idx = window.childOrderIndex[childId] || 0;
+    const end = Math.min(idx + ORDER_PAGE_SIZE, orders.length);
+    for (let i = idx; i < end; i++) {
+      listGroup.innerHTML += orderItemHtml(orders[i]);
+    }
+    window.childOrderIndex[childId] = end;
+    if (end >= orders.length && loadMoreButton) {
+      loadMoreButton.style.display = 'none';
+    }
+  }
+
   function loadChildOrderBook(childId, { force = false } = {}) {
     const dom = domId(childId);
-    const tableBody = document.getElementById(`child-orders-table-${dom}`);
+    const listGroup = document.getElementById(`child-orders-body-${dom}`);
     const emptyState = document.getElementById(`child-orders-empty-${dom}`);
-    const mobileContainer = document.getElementById(`child-orders-mobile-${dom}`);
-    if (!tableBody || !emptyState || !mobileContainer) {
+    const loadMoreButton = document.getElementById(`child-orders-load-more-${dom}`);
+    if (!listGroup || !emptyState || !loadMoreButton) return;
+
+    if (window.childOrderBooks[childId] && !force) {
+      listGroup.innerHTML = "";
+      emptyState.style.display = 'none';
+      loadMoreButton.style.display = 'none';
+      window.childOrderIndex[childId] = 0;
+      appendChildOrders(childId);
+      if (window.childOrderBooks[childId].length > ORDER_PAGE_SIZE) {
+        loadMoreButton.style.display = 'inline-block';
+        loadMoreButton.onclick = () => appendChildOrders(childId);
+      }
       return;
     }
 
-    if (Array.isArray(window.childOrderBooks[childId]) && !force) {
-      renderBrokerOrderBook({ accountId: childId, dom, orders: window.childOrderBooks[childId], scope: 'child' });
-      return;
-    }
-
-    tableBody.innerHTML = '<tr><td colspan="8" class="text-center p-3 text-muted">Loading orders...</td></tr>';
-    mobileContainer.innerHTML = '';
+    listGroup.innerHTML = `<div class="p-3 text-center text-primary"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading orders...</div>`;
     emptyState.style.display = 'none';
-
-    fetch('/api/order-book/' + encodeURIComponent(childId))
-      .then(async res => {
-        const contentType = res.headers.get('content-type') || '';
-        if (!res.ok || !contentType.includes('application/json')) {
-          const text = await res.text();
-          throw new Error(text || res.statusText || 'Failed to load order book');
-        }
-        return res.json();
-      })
-      .then(data => {
-        const orders = Array.isArray(data) ? data : [];
-        window.childOrderBooks[childId] = orders;
-        renderBrokerOrderBook({ accountId: childId, dom, orders, scope: 'child' });
-      })
-      .catch(err => {
-        console.error('Child order book fetch failed:', err);
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center p-3 text-danger">Failed to load order book.</td></tr>';
-        mobileContainer.innerHTML = '';
-        emptyState.style.display = 'none';
+    loadMoreButton.style.display = 'none';
     
     fetch('/api/order-book/' + encodeURIComponent(childId))
       .then(async res => {
@@ -5311,54 +4525,51 @@ let errorHandled = false;
       });
   }
 
-  // --- Master Orders Display ---  window.loadMasterOrders = function() {
-    const tableBody = document.getElementById('master-orders-table-body');
-    const mobileContainer = document.getElementById('master-orders-mobile');
-    const emptyState = document.getElementById('master-orders-empty-state');
-    const alertBanner = document.getElementById('master-orders-alert');
-    if (tableBody) {
-      tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-3 text-muted">Loading master orders...</td></tr>';
-    }
-    if (mobileContainer) {
-      mobileContainer.innerHTML = '';
-    }
-    if (emptyState) {
-      emptyState.style.display = 'none';
-    }
-    if (alertBanner) {
-      alertBanner.style.display = 'none';
-    }
-
+  // --- Master Orders Display ---
+  window.loadMasterOrders = function() {
     fetch('/api/master-orders')
-      .then(res => {
-        if (!res.ok) {
-          return res.text().then(text => {
-            throw new Error(text || res.statusText || 'Failed to load master orders');
+      .then(res => res.json())
+      .then(data => {
+        const listGroup = document.getElementById("master-orders-list");
+        const emptyState = document.getElementById("master-orders-empty-state");
+        listGroup.innerHTML = "";
+        if (Array.isArray(data) && data.length > 0) {
+          emptyState.style.display = 'none';
+          data.forEach(order => {
+            const id = order.master_order_id || '';
+            const dom = domId(id);
+            const symbol = escapeHtml(order.symbol || '-');
+            const status = escapeHtml(order.status || '-');
+            const children = escapeHtml(order.total_children || 0);
+            const idSafe = escapeHtml(id);
+            listGroup.innerHTML += `
+              <div class="list-group-item list-group-item-action py-3">
+                <div class="d-flex w-100 justify-content-between align-items-center flex-wrap">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input master-order-checkbox" value="${idSafe}" id="masterOrderCheck${dom}">
+                    <label class="form-check-label fw-semibold" for="masterOrderCheck${dom}">${symbol}</label>
+                  </div>
+                  <span class="badge badge-primary mt-1 mt-md-0">${status}</span>
+                </div>
+                <p class="mb-1 text-muted">Order ID: ${idSafe} | Children: ${children}</p>
+                <button class="btn btn-sm btn-outline mt-2" data-master-order-id="${idSafe}" onclick='window.viewChildMappings(this.dataset.masterOrderId)'><i class="bi bi-eye-fill"></i> View Children</button>
+              </div>`;
           });
+        } else {
+          emptyState.style.display = 'block';
+          listGroup.innerHTML = ``; // Clear list if no data
         }
-        return res.json();
+        // Reset select all checkbox
+        document.getElementById("toggleAllMasterOrdersCheckbox").checked = false;
       })
-      .then(payload => {
-        const orders = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.orders)
-            ? payload.orders
-            : [];
-        const summary = payload && typeof payload === 'object' && !Array.isArray(payload)
-          ? payload.summary || {}
-          : {};
-        window.masterOrdersData = { orders, summary };
-        renderMasterOrdersUI();
+      .then(() => {
+        // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
-        console.error('Error loading master orders:', err);
-        if (tableBody) {
-          tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-3 text-danger">Failed to load master orders.</td></tr>';
-        }
-        if (emptyState) {
-          emptyState.style.display = 'none';
-        }
-        showMessage('Failed to load master orders.', 'danger');
+        console.error("Error loading master orders:", err);
+        document.getElementById("master-orders-list").innerHTML = `<div class="p-3 text-center text-danger">Failed to load master orders.</div>`;
+        document.getElementById("master-orders-empty-state").style.display = 'none';
+        showMessage("Failed to load master orders.", 'danger');
       });
   };
 
