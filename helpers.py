@@ -491,6 +491,10 @@ def normalize_position(position: dict, broker: str) -> dict | None:
 
     All keys are normalized to the style used by the copy trading page:
     ``tradingSymbol``, ``buyQty``, ``sellQty``, ``netQty``, ``buyAvg``,
+    ``sellAvg``, ``ltp`` and ``profitAndLoss``.  Positions that cannot be
+    interpreted still return ``None`` so callers can drop them, but valid
+    structures are returned even when the net quantity is zero so the UI can
+    surface closed trades alongside open ones.
     ``sellAvg``, ``ltp`` and ``profitAndLoss``.  If a position cannot be
     interpreted or represents a closed position (net quantity zero) the
     function returns ``None`` so callers can easily filter it out.
@@ -552,17 +556,19 @@ def normalize_position(position: dict, broker: str) -> dict | None:
     if b == "zerodha" and any(k in lower for k in ("quantity", "buy_quantity", "sell_quantity")):
         net_qty = i("quantity")
         avg_price = f("average_price")
+        buy_avg_price = f(["buy_price", "buy_avg_price"])
+        sell_avg_price = f(["sell_price", "sell_avg_price"])
         new = {
             "tradingSymbol": lower.get("tradingsymbol"),
             "buyQty": i("buy_quantity"),
             "sellQty": i("sell_quantity"),
             "netQty": net_qty,
-            "buyAvg": avg_price if net_qty > 0 else 0.0,
-            "sellAvg": avg_price if net_qty < 0 else 0.0,
+            "buyAvg": buy_avg_price or (avg_price if net_qty > 0 else 0.0),
+            "sellAvg": sell_avg_price or (avg_price if net_qty < 0 else 0.0),
             "ltp": f("last_price"),
             "profitAndLoss": f("pnl"),
         }
-        return new if new["netQty"] != 0 else None
+        return new
 
     if b == "fyers" and any(k in lower for k in ("netqty", "buyqty", "sellqty")):
         new = {
