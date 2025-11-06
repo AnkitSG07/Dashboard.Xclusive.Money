@@ -2,6 +2,7 @@
 """Zerodha broker adapter using KiteConnect."""
 
 import inspect
+import math
 import os
 import re
 import requests
@@ -225,6 +226,180 @@ class ZerodhaBroker(BrokerBase):
             message = resp.text
 
         raise Exception(message or "TOTP login failed")
+
+    def get_holdings(self, *, timeout=None):
+        """Return portfolio holdings with normalised numeric fields."""
+        self.ensure_token()
+        timeout = timeout or self.timeout
+
+        try:
+            resp = self._kite_call(self.kite.holdings, timeout=timeout)
+        except Exception as exc:  # pragma: no cover - network call
+            return {"status": "failure", "error": str(exc), "data": []}
+
+        if isinstance(resp, dict):
+            raw_items = resp.get("data") or resp.get("holdings") or []
+        else:
+            raw_items = resp or []
+        if not isinstance(raw_items, list):
+            raw_items = []
+
+        def _to_float(value):
+            if value is None:
+                return None
+            if isinstance(value, (int, float)):
+                return float(value)
+            try:
+                text = str(value).strip()
+                if not text:
+                    return None
+                text = text.replace(",", "")
+                return float(text)
+            except (TypeError, ValueError):
+                return None
+
+        def _to_number(value):
+            num = _to_float(value)
+            if num is None:
+                return None
+            if math.isfinite(num) and float(num).is_integer():
+                return int(round(num))
+            return num
+
+        def _round(value):
+            return round(value, 2) if value is not None else None
+
+        normalized = []
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+
+            holding = dict(item)
+
+            symbol = holding.get("tradingsymbol") or holding.get("symbol")
+            if symbol is not None:
+                symbol_str = str(symbol)
+                holding.setdefault("tradingsymbol", symbol_str)
+                holding["symbol"] = symbol_str
+
+            exchange = holding.get("exchange")
+            if isinstance(exchange, str):
+                holding["exchange"] = exchange.upper()
+
+            product = holding.get("product")
+            if isinstance(product, str):
+                holding["product"] = product.upper()
+
+            qty_val = _to_number(
+                holding.get("quantity")
+                or holding.get("qty")
+                or holding.get("holdingsquantity")
+                or holding.get("holdqty")
+            )
+            if qty_val is not None:
+                holding["quantity"] = qty_val
+                holding.setdefault("qty", qty_val)
+
+            avg_price_val = _to_float(
+                holding.get("average_price")
+                or holding.get("avg_price")
+                or holding.get("averageprice")
+                or holding.get("purchaseprice")
+                or holding.get("avgcostprice")
+            )
+            if avg_price_val is not None:
+                avg_price_val = _round(avg_price_val)
+                holding["average_price"] = avg_price_val
+                holding.setdefault("avg_price", avg_price_val)
+
+            last_price_val = _to_float(
+                holding.get("last_price")
+                or holding.get("ltp")
+                or holding.get("close")
+                or holding.get("last_traded_price")
+            )
+            if last_price_val is not None:
+                last_price_val = _round(last_price_val)
+                holding["last_price"] = last_price_val
+                holding.setdefault("ltp", last_price_val)
+
+            pnl_val = _to_float(
+                holding.get("pnl")
+                or holding.get("profitandloss")
+                or holding.get("unrealizedprofit")
+                or holding.get("unrealisedprofit")
+                or holding.get("mtm")
+                or holding.get("mtm_value")
+            )
+            if pnl_val is not None:
+                holding["pnl"] = _round(pnl_val)
+
+            pnl_pct_val = _to_float(
+                holding.get("pnl_percentage")
+                or holding.get("pnlpercent")
+                or holding.get("change_percent")
+                or holding.get("day_change_percentage")
+            )
+            if pnl_pct_val is not None:
+                holding["pnl_percentage"] = _round(pnl_pct_val)
+
+            day_change_val = _to_float(
+                holding.get("day_change")
+                or holding.get("daychange")
+                or holding.get("day_gain")
+                or holding.get("dayprofit")
+            )
+            if day_change_val is not None:
+                holding["day_change"] = _round(day_change_val)
+
+            day_change_pct_val = _to_float(
+                holding.get("day_change_percentage")
+                or holding.get("daychangepercentage")
+            )
+            if day_change_pct_val is not None:
+                holding["day_change_percentage"] = _round(day_change_pct_val)
+
+            investment_val = _to_float(
+                holding.get("investment_value")
+                or holding.get("invested")
+                or holding.get("total_cost")
+                or holding.get("buy_value")
+            )
+            current_value_val = _to_float(
+                holding.get("current_value")
+                or holding.get("market_value")
+                or holding.get("value")
+            )
+
+            if investment_val is None and qty_val is not None and avg_price_val is not None:
+                investment_val = _round(float(qty_val) * avg_price_val)
+            if investment_val is not None:
+                holding["investment_value"] = _round(investment_val)
+
+            if current_value_val is None and qty_val is not None and last_price_val is not None:
+                current_value_val = _round(float(qty_val) * last_price_val)
+            if current_value_val is not None:
+                holding["current_value"] = _round(current_value_val)
+
+            if holding.get("pnl") is None and qty_val is not None:
+                if avg_price_val is not None and last_price_val is not None:
+                    diff = (last_price_val - avg_price_val) * float(qty_val)
+                    holding["pnl"] = _round(diff)
+
+            if holding.get("pnl_percentage") is None:
+                pnl = _to_float(holding.get("pnl"))
+                base = investment_val if investment_val not in (None, 0) else (avg_price_val or 0)
+                if pnl is not None and base:
+                    denom = float(base)
+                    holding["pnl_percentage"] = _round((pnl / denom) * 100)
+
+            isin = holding.get("isin")
+            if isin is not None:
+                holding["isin"] = str(isin)
+
+            normalized.append(holding)
+
+        return {"status": "success", "data": normalized}
 
     def _kite_call(self, func, *args, timeout=None, **kwargs):
         """Call a KiteConnect API method ensuring a timeout is supplied."""
