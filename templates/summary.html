@@ -461,20 +461,16 @@
     padding: 8px 8px;
     font-size: 10px;
     font-weight: 500;
-    color: var(--summary-muted);
-    background: #f8f9fc;
+    color: var(--status-color, var(--summary-muted));
+    background: var(--status-background-color, #f8f9fc);
+    border-color: var(--status-border-color, var(--summary-border));
   }
   .summary-account-status::before {
     content: "";
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: currentColor;
-  }
-  .summary-account-status.summary-account-status--ok {
-    color: var(--summary-green);
-    border-color: rgba(5, 150, 105, 0.24);
-    background: rgba(5, 150, 105, 0.08);
+    background: var(--status-color, currentColor);
   }
   .summary-account-status.summary-account-status--error {
     color: var(--summary-red);
@@ -500,33 +496,6 @@
     background: rgba(79, 70, 229, 0.08);
     border-color: #dfe2f7;
     color: var(--summary-primary);
-  }
-  
-  /* === STALE DATA PILL ("Refreshing…") === */
-  .summary-stale-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--summary-muted);
-    background: rgba(37, 99, 235, 0.08);
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-weight: 500;
-  }
-  .summary-stale-indicator::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--summary-blue);
-    animation: summary-pulse 1.5s ease-in-out infinite;
-  }
-  
-  @keyframes summary-pulse {
-    0% { opacity: 0.2; }
-    50% { opacity: 1; }
-    100% { opacity: 0.2; }
   }
   
   /* === PERFORMANCE CHART BOX === */
@@ -890,7 +859,7 @@
         {% if account_summaries %}
           {% for account in account_summaries %}
             {% set palette = account_palette[loop.index0 % (account_palette|length)] %}
-            {% set has_error = account.error %}  
+            {% set has_error = account.error %}
             <div class="summary-card">
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
@@ -905,18 +874,20 @@
                   </div>
                 </div>
               <div class="summary-account-status {{ 'summary-account-status--error' if has_error else 'summary-account-status--ok' }}">
-                {{ 'Failed' if has_error else 'Connected' }}
+              <div
+                class="summary-account-status"
+                style="--status-color: {{ account.status_color }}; --status-background-color: {{ account.status_background_color }}; --status-border-color: {{ account.status_border_color }};"
+              >
+                {{ account.status_label }}
               </div>
             </div>
-            {% if account.stale and not has_error %}
-              <div style="margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
-                <span class="summary-stale-indicator">Refreshing data…</span>
-                {% if account.cached_at %}
-                  <span style="font-size:12px; color:var(--summary-muted);">Last updated {{ format_datetime(account.cached_at) }}</span>
-                {% endif %}
-              </div>
-            {% elif account.cached_at %}
-              <p class="summary-stat-footnote" style="margin:12px 0 0 0; color:var(--summary-muted);">Last updated {{ format_datetime(account.cached_at) }}</p>
+            {% if account.cached_at %}
+              <p class="summary-stat-footnote" style="margin:12px 0 0 0; color:var(--summary-muted);">
+                {% if account.stale and not has_error %}Data may be stale — {% endif %}
+                Last updated {{ format_datetime(account.cached_at) }}
+              </p>
+            {% elif account.stale and not has_error %}
+              <p class="summary-stat-footnote" style="margin:12px 0 0 0; color:var(--summary-muted);">Data may be stale.</p>
             {% endif %}
             {% if has_error %}
               <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
