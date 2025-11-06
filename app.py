@@ -28,6 +28,7 @@ from flask import (
     send_from_directory,
     Response,
     abort,
+    current_app,
 )
 from flask_migrate import Migrate
 from dhanhq import dhanhq
@@ -56,6 +57,7 @@ from urllib.parse import quote
 from time import time
 from mail import mail
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, wait
 from models import (
     db,
     User,
@@ -148,6 +150,8 @@ _REJECTION_HINT_RULES: tuple[tuple[str, str], ...] = (
         "Adjust the quantity so it matches the contract lot size required by the exchange.",
     ),
 )
+
+_SNAPSHOT_WORKER_TIMEOUT = 10.0
 
 
 def resolve_rejection_reason(reason: str | None) -> str | None:
@@ -7975,6 +7979,81 @@ def summary():
             "gain_loss_percent": gain_pct,
         }, holdings
 
+    app_obj = current_app._get_current_object()
+
+    def _is_placeholder_snapshot(snapshot: dict | None) -> bool:
+        if not isinstance(snapshot, dict):
+            return False
+        if not snapshot.get("stale"):
+            return False
+        if snapshot.get("portfolio"):
+            return False
+        if snapshot.get("account"):
+            return False
+        orders = snapshot.get("orders")
+        if isinstance(orders, dict) and orders.get("items"):
+            return False
+        if snapshot.get("errors"):
+            return False
+        return True
+
+    def _placeholder_snapshot(message: str | None = None) -> dict:
+        placeholder = {
+            "portfolio": [],
+            "account": {},
+            "orders": {"items": [], "summary": {}},
+            "errors": {},
+            "stale": True,
+            "cached_at": None,
+            "age": None,
+        }
+        if message:
+            placeholder.setdefault("errors", {})["snapshot"] = message
+        return placeholder
+
+    def _load_account_snapshot(account_id: int) -> dict:
+        with app_obj.app_context():
+            try:
+                account_obj = db.session.get(Account, account_id)
+                if account_obj is None:
+                    message = "Account not found"
+                    return {
+                        "account_id": account_id,
+                        "snapshot": _placeholder_snapshot(message),
+                        "error": message,
+                    }
+                if not account_obj.credentials:
+                    message = "Credentials not configured"
+                    return {
+                        "account_id": account_id,
+                        "snapshot": _placeholder_snapshot(message),
+                        "error": message,
+                    }
+
+                snapshot = get_cached_dashboard_snapshot(account_obj, prefer_cache=True) or {}
+                if _is_placeholder_snapshot(snapshot):
+                    snapshot = (
+                        get_cached_dashboard_snapshot(account_obj, prefer_cache=False)
+                        or snapshot
+                    )
+                return {
+                    "account_id": account_id,
+                    "snapshot": snapshot,
+                    "error": None,
+                }
+            except Exception as exc:  # pragma: no cover - defensive
+                message = str(exc)
+                logger.exception(
+                    "Failed to load dashboard snapshot for account %s", account_id
+                )
+                return {
+                    "account_id": account_id,
+                    "snapshot": _placeholder_snapshot(message),
+                    "error": message,
+                }
+            finally:
+                db.session.remove()
+
     user = current_user()
     if "username" not in session and user:
         session["username"] = user.name or (
@@ -8075,7 +8154,59 @@ def summary():
     sector_map: dict[str, float] = defaultdict(float)
     account_summaries: list[dict] = []
     account_allocation_values: list[tuple[str | None, float]] = []
-    
+
+
+    accounts_with_credentials = [acc for acc in accounts if acc.credentials]
+    account_snapshot_payloads: dict[int, dict] = {}
+    account_snapshot_errors: dict[int, str | None] = {}
+
+    if accounts_with_credentials:
+        max_workers = min(len(accounts_with_credentials), 8) or 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(_load_account_snapshot, acc.id): acc.id
+                for acc in accounts_with_credentials
+            }
+            done, not_done = wait(future_map.keys(), timeout=_SNAPSHOT_WORKER_TIMEOUT)
+
+            for future in done:
+                account_id = future_map[future]
+                try:
+                    result = future.result()
+                except Exception as exc:  # pragma: no cover - defensive
+                    message = str(exc)
+                    logger.exception(
+                        "Snapshot load failed for account %s", account_id
+                    )
+                    account_snapshot_payloads[account_id] = _placeholder_snapshot(message)
+                    account_snapshot_errors[account_id] = message
+                    continue
+
+                snapshot = result.get("snapshot")
+                if not isinstance(snapshot, dict):
+                    snapshot = {}
+                else:
+                    snapshot = snapshot or {}
+                error_message = result.get("error")
+                if error_message and not snapshot.get("errors"):
+                    snapshot["errors"] = {"snapshot": error_message}
+                elif error_message:
+                    snapshot.setdefault("errors", {}).setdefault(
+                        "snapshot", error_message
+                    )
+                account_snapshot_payloads[account_id] = snapshot
+                account_snapshot_errors[account_id] = error_message
+
+            for future in not_done:
+                account_id = future_map[future]
+                future.cancel()
+                message = "Snapshot loading timed out"
+                logger.warning(
+                    "Timed out loading dashboard snapshot for account %s", account_id
+                )
+                account_snapshot_payloads[account_id] = _placeholder_snapshot(message)
+                account_snapshot_errors[account_id] = message
+                
     for account in accounts:
         status_label, status_color = _account_status_label(account)
         summary_entry = {
@@ -8091,12 +8222,12 @@ def summary():
             account_summaries.append(summary_entry)
             continue
 
-        try:
-            snapshot = get_cached_dashboard_snapshot(account, prefer_cache=True)
-        except Exception as exc:  # pragma: no cover - defensive
-            summary_entry["error"] = str(exc)
-            account_summaries.append(summary_entry)
-            continue
+        snapshot = account_snapshot_payloads.get(account.id)
+        error_message = account_snapshot_errors.get(account.id)
+        if error_message:
+            summary_entry["error"] = error_message
+        if snapshot is None:
+            snapshot = _placeholder_snapshot(error_message)
 
         snapshot = snapshot or {}
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
