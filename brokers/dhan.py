@@ -634,18 +634,39 @@ class DhanBroker(BrokerBase):
             )
             data = r.json()
             if isinstance(data, dict):
-                positions = (
+                positions_payload = (
                     data.get("data")
                     or data.get("positions")
                     or data.get("net")
                     or data.get("netPositions")
                     or data.get("net_positions")
-                    or []
+                    or data
+
                 )
             else:
-                positions = data or []
+                
+                positions_payload = data or []
 
-            if not isinstance(positions, list):
+            if isinstance(positions_payload, dict):
+                combined_positions = []
+                for key in (
+                    "overallPositions",
+                    "overall_positions",
+                    "todayPositions",
+                    "today_positions",
+                    "netPositions",
+                    "net_positions",
+                    "positions",
+                    "data",
+                    "net",
+                ):
+                    value = positions_payload.get(key)
+                    if isinstance(value, list):
+                        combined_positions.extend(value)
+                positions = combined_positions
+            elif isinstance(positions_payload, list):
+                positions = positions_payload
+            else:
                 positions = []
 
             securities = {}
