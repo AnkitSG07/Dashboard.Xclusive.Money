@@ -2722,11 +2722,20 @@ window.pageScripts["copy-trading"] = function () {
     };
   }
 
-  function buildHoldingsSummary(holdings, accountStats) {
-    const safeHoldings = Array.isArray(holdings) ? holdings : [];
-    const openHoldings = safeHoldings.filter(h => Math.abs(h.qtyValue) > 1e-8);
-    const closedHoldings = safeHoldings.filter(h => Math.abs(h.qtyValue) <= 1e-8);
+  function buildHoldingsSummary(allHoldings, openHoldingsArg, closedHoldingsArg, accountStats) {
+    const safeHoldings = Array.isArray(allHoldings) ? allHoldings : [];
+    const openHoldings = Array.isArray(openHoldingsArg)
+      ? openHoldingsArg
+      : safeHoldings.filter(h => Math.abs(h.qtyValue) > 1e-8);
+    const closedHoldings = Array.isArray(closedHoldingsArg)
+      ? closedHoldingsArg
+      : safeHoldings.filter(h => Math.abs(h.qtyValue) <= 1e-8);
+
+    const openCount = openHoldings.length;
+    const closedCount = closedHoldings.length;
+
     const livePnl = openHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
+    const realisedPnl = closedHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
 
     const marginAvailableRaw = accountStats ? getValueInsensitive(accountStats, [
       'available_margin',
@@ -2756,12 +2765,16 @@ window.pageScripts["copy-trading"] = function () {
             <div style="font-size:16px; font-weight:700; color:${inlineToneColor(livePnl, '#047857')};">${escapeHtml(formatCurrencyValue(livePnl))}</div>
           </div>
           <div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Realized P&L:</div>
+            <div style="font-size:16px; font-weight:700; color:${inlineToneColor(realisedPnl, '#047857')};">${escapeHtml(formatCurrencyValue(realisedPnl))}</div>
+          </div>
+          <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Open Positions:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(openHoldings.length))}</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(openCount))}</div>
           </div>
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Closed Positions:</div>
-            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(closedHoldings.length))}</div>
+            <div style="font-size:16px; font-weight:700; color:#0f172a;">${escapeHtml(String(closedCount))}</div>
           </div>
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Margin Available:</div>
@@ -2780,17 +2793,22 @@ window.pageScripts["copy-trading"] = function () {
     `;
   }
 
-  function buildHoldingsTable(holdings) {
+  function buildHoldingsTable(holdings, view = 'open') {
     const safeHoldings = Array.isArray(holdings) ? holdings : [];
     const lossCount = safeHoldings.filter(h => Number.isFinite(h.pnlValue) && h.pnlValue < 0).length;
     const totalPnl = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
     const totalInvested = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.investedValue) ? h.investedValue : 0), 0);
     const totalCurrent = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.currentValue) ? h.currentValue : 0), 0);
 
+    const viewTitle = view === 'closed' ? 'Closed' : 'Open';
+    const lossLabel = view === 'closed' ? 'Loss Booked' : 'In Loss';
+    const pnlLabel = view === 'closed' ? 'Realized P&L:' : 'Total P&L:';
+    const emptyMessage = view === 'closed' ? 'No closed holdings available.' : 'No open holdings available.';  
+
     const header = `
       <div style="display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px;">
         <div style="display:flex; align-items:center; gap:16px;">
-          <div style="font-size:15px; font-weight:700; color:#0f172a;">Open</div>
+          <div style="font-size:15px; font-weight:700; color:#0f172a;">${viewTitle}</div>
           <div style="position:relative;">
             <div style="width:120px; height:36px; display:flex; align-items:center; justify-content:space-between; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px; padding:0 8px; font-size:13px; cursor:pointer;">
               <span>P&L</span>
@@ -2812,7 +2830,7 @@ window.pageScripts["copy-trading"] = function () {
           <span style="background:rgba(255,255,255,0.15); color:#fff; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(safeHoldings.length || 0))}</span>
         </div>
         <div style="display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#475569; border-radius:999px; font-size:12px; font-weight:500; padding:8px 12px; border:1px solid #e2e8f0;">
-          <span>In Loss</span>
+          <span>${lossLabel}</span>
           <span style="background:#ffffff; border:1px solid #e2e8f0; color:#0f172a; font-size:11px; font-weight:600; line-height:1; padding:2px 6px; border-radius:999px;">${escapeHtml(String(lossCount))}</span>
         </div>
       </div>
@@ -2823,7 +2841,7 @@ window.pageScripts["copy-trading"] = function () {
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:16px;">
           ${header}
           ${filters}
-          <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">No holdings available.</div>
+          <div style="padding:24px; text-align:center; color:#6b7280; font-size:14px;">${emptyMessage}</div>
         </div>
       `;
     }
@@ -2902,7 +2920,7 @@ window.pageScripts["copy-trading"] = function () {
             <span>Current Value:
               <span style="color:#0f172a; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalCurrent))}</span>
             </span>
-            <span>Total P&L:
+            <span>${pnlLabel}
               <span style="color:${inlineToneColor(totalPnl, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalPnl))}</span>
             </span>
           </div>
@@ -2914,10 +2932,32 @@ window.pageScripts["copy-trading"] = function () {
   function buildHoldingsLayout(holdings, accountStats) {
     const normalized = Array.isArray(holdings) ? holdings : [];
     const openHoldings = normalized.filter(h => Math.abs(h.qtyValue) > 1e-8);
+    const closedHoldings = normalized.filter(h => Math.abs(h.qtyValue) <= 1e-8);
+    const defaultView = openHoldings.length > 0 ? 'open' : 'closed';
+    const openActive = defaultView === 'open';
+    const closedActive = defaultView === 'closed';
+    const openCountDisplay = openHoldings.length > 0 ? `(${openHoldings.length})` : '';
+    const closedCountDisplay = closedHoldings.length > 0 ? `(${closedHoldings.length})` : '';
+  
     return `
       <div style="display:flex; flex-direction:column; gap:24px; color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-        ${buildHoldingsSummary(normalized, accountStats)}
-        ${buildHoldingsTable(openHoldings)}
+        ${buildHoldingsSummary(normalized, openHoldings, closedHoldings, accountStats)}
+        <div data-holdings-root style="display:flex; flex-direction:column; gap:16px;" data-default-view="${defaultView}">
+          <div data-holdings-tabs style="display:flex; gap:16px; border-bottom:1px solid #e2e8f0;">
+            <button type="button" class="sub-tab ${openActive ? 'active' : ''}" data-view="open">
+              Open <span class="sub-tab-count">${escapeHtml(openCountDisplay)}</span>
+            </button>
+            <button type="button" class="sub-tab ${closedActive ? 'active' : ''}" data-view="closed">
+              Closed <span class="sub-tab-count">${escapeHtml(closedCountDisplay)}</span>
+            </button>
+          </div>
+          <div data-holdings-content="open" style="${openActive ? '' : 'display:none;'}">
+            ${buildHoldingsTable(openHoldings, 'open')}
+          </div>
+          <div data-holdings-content="closed" style="${closedActive ? '' : 'display:none;'}">
+            ${buildHoldingsTable(closedHoldings, 'closed')}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -2944,15 +2984,39 @@ window.pageScripts["copy-trading"] = function () {
       ? (window.masterAccountStats && window.masterAccountStats[clientId])
       : (window.childAccountStats && window.childAccountStats[clientId]);
 
-    if (normalized.length === 0) {
-      container.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:24px; color:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-          ${buildHoldingsSummary([], accountStats)}
-          ${buildHoldingsTable([])}
-        </div>
-      `;
-    } else {
-      container.innerHTML = buildHoldingsLayout(normalized, accountStats);
+    container.innerHTML = buildHoldingsLayout(normalized, accountStats);
+
+    const root = container.querySelector('[data-holdings-root]');
+    if (root) {
+      const tabsEl = root.querySelector('[data-holdings-tabs]');
+      const sections = root.querySelectorAll('[data-holdings-content]');
+      const setView = (view) => {
+        const nextView = view === 'closed' ? 'closed' : 'open';
+        sections.forEach(section => {
+          if (!section || !section.dataset) return;
+          section.style.display = section.dataset.holdingsContent === nextView ? '' : 'none';
+        });
+        if (tabsEl) {
+          tabsEl.querySelectorAll('.sub-tab').forEach(btn => {
+            const isActive = btn.dataset.view === nextView;
+            btn.classList.toggle('active', isActive);
+          });
+          if (typeof applyPositionsTabStyles === 'function') {
+            applyPositionsTabStyles(tabsEl);
+          }
+        }
+      };
+
+      const defaultView = root.getAttribute('data-default-view') || 'open';
+      setView(defaultView);
+
+      if (tabsEl) {
+        tabsEl.querySelectorAll('.sub-tab').forEach(btn => {
+          btn.addEventListener('click', () => {
+            setView(btn.dataset.view);
+          });
+        });
+      }
     }
 
     emptyState.style.display = 'none';
