@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import calendar
-import urllib.parse
 from datetime import datetime, date, timedelta, timezone
 from hashlib import pbkdf2_hmac
 from typing import Any, Dict, Optional
@@ -34,13 +33,14 @@ class DhanBroker(BrokerBase):
 
     AUTH_BASE = "https://auth.dhan.co"
     LOGIN_API_BASE = "https://login-api.dhan.co"
-    _DHAN_APP_VERSION = "v1.1.0.0"
-    _DHAN_APP_ID = "DH_WEB_V2"
+    _DHAN_APP_VERSION = "v1.3.0.0"
+    _DHAN_APP_ID = "DH_WEB_V3"
     _DHAN_SOURCE = "W"
-    _DHAN_PBKDF2_PASS = b"DHAN_WEB_V2"
-    _DHAN_PBKDF2_SALT = bytes.fromhex("5f12c6a9da1f0f33158d8286a2bf7661")
-    _DHAN_PBKDF2_ITERATIONS = 2048
-    _DHAN_AES_IV = bytes.fromhex("8a0e6c9d5a12bf4e1d2f045ea3c17690")
+    _DHAN_PBKDF2_PASS = b"DHAN_WEB_V3"
+    _DHAN_PBKDF2_SALT = bytes.fromhex("b3cfa2e8d0b64f1c2e5b7890a1c2d3e4")
+    _DHAN_PBKDF2_ITERATIONS = 4096
+    _DHAN_AES_IV = bytes.fromhex("1f2e3d4c5b6a79888796a5b4c3d2e1f0")
+    _DHAN_ENC_VERSION = "v3"
     TOKEN_REFRESH_SKEW = timedelta(minutes=2)
 
     def __init__(self, client_id, access_token=None, **kwargs):
@@ -190,7 +190,7 @@ class DhanBroker(BrokerBase):
             "is_trusted_device": "Y",
         }
         login_headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
             **self._auth_headers(),
         }
 
@@ -254,16 +254,15 @@ class DhanBroker(BrokerBase):
 
     @classmethod
     def _dhan_cipher(cls) -> Cipher:
-        if not hasattr(cls, "_DHAN_AES_KEY"):
-            cls._DHAN_AES_KEY = pbkdf2_hmac(
-                "sha1",
-                cls._DHAN_PBKDF2_PASS,
-                cls._DHAN_PBKDF2_SALT,
-                cls._DHAN_PBKDF2_ITERATIONS,
-                dklen=16,
-            )
+        aes_key = pbkdf2_hmac(
+            "sha1",
+            cls._DHAN_PBKDF2_PASS,
+            cls._DHAN_PBKDF2_SALT,
+            cls._DHAN_PBKDF2_ITERATIONS,
+            dklen=16,
+        )
         return Cipher(
-            algorithms.AES(cls._DHAN_AES_KEY),
+            algorithms.AES(aes_key),
             modes.CBC(cls._DHAN_AES_IV),
             backend=default_backend(),
         )
@@ -295,19 +294,17 @@ class DhanBroker(BrokerBase):
         expect_json: bool = True,
     ) -> Dict[str, Any]:
         encrypted = self._encrypt_payload(payload)
-        body = urllib.parse.urlencode(
-            {
-                "data": encrypted,
-                "enc": "v2",
-                "app_id": self._DHAN_APP_ID,
-                "app_version": self._DHAN_APP_VERSION,
-            }
-        )
+        body = {
+            "data": encrypted,
+            "enc": self._DHAN_ENC_VERSION,
+            "app_id": self._DHAN_APP_ID,
+            "app_version": self._DHAN_APP_VERSION,
+        }
         url = f"{self.LOGIN_API_BASE}{path}"
         resp = self._request(
             "post",
             url,
-            data=body,
+            json=body,
             headers=headers,
             timeout=self.timeout,
         )
