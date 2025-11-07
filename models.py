@@ -131,22 +131,54 @@ class Trade(db.Model):
         return f"<Trade {self.symbol} {self.action} {self.qty}>"
 
 
-@event.listens_for(Trade, "load")
-def _ensure_trade_timestamp_timezone(trade, _context):
-    timestamp = getattr(trade, "timestamp", None)
-    if timestamp is not None and timestamp.tzinfo is None:
-        trade.timestamp = timestamp.replace(tzinfo=timezone.utc)
+def _coerce_to_aware_datetime(value):
+    """Return a timezone-aware datetime in UTC when possible."""
 
-
-@event.listens_for(Trade.timestamp, "set", retval=True)
-def _coerce_trade_timestamp(_target, value, _oldvalue, _initiator):
     if value is None:
         return None
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        try:
+            value = datetime.fromisoformat(normalized)
+        except ValueError:
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+                try:
+                    value = datetime.strptime(normalized, fmt)
+                    break
+                except ValueError:
+                    continue
+            else:
+                if normalized.isdigit():
+                    value = datetime.fromtimestamp(int(normalized), tz=timezone.utc)
+                else:
+                    return None
+
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value, tz=timezone.utc)
+
     if isinstance(value, datetime):
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
-    return value
+
+    return None
+
+
+@event.listens_for(Trade, "load")
+def _ensure_trade_timestamp_timezone(trade, _context):
+    timestamp = getattr(trade, "timestamp", None)
+    coerced = _coerce_to_aware_datetime(timestamp)
+    if coerced is not None:
+        trade.timestamp = coerced
+
+
+@event.listens_for(Trade.timestamp, "set", retval=True)
+def _coerce_trade_timestamp(_target, value, _oldvalue, _initiator):
+    coerced = _coerce_to_aware_datetime(value)
+    return value if coerced is None else coerced
 
 class WebhookLog(db.Model):
     __tablename__ = "webhook_log"
