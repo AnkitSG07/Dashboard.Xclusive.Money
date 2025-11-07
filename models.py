@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
+from sqlalchemy import event
 from sqlalchemy.orm import backref
 
 db = SQLAlchemy()
@@ -109,7 +110,11 @@ class Trade(db.Model):
     price = db.Column(db.Float)
     status = db.Column(db.String(20), index=True)
     
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
     
     broker = db.Column(db.String(50))
     order_id = db.Column(db.String(50))
@@ -124,6 +129,24 @@ class Trade(db.Model):
 
     def __repr__(self):
         return f"<Trade {self.symbol} {self.action} {self.qty}>"
+
+
+@event.listens_for(Trade, "load")
+def _ensure_trade_timestamp_timezone(trade, _context):
+    timestamp = getattr(trade, "timestamp", None)
+    if timestamp is not None and timestamp.tzinfo is None:
+        trade.timestamp = timestamp.replace(tzinfo=timezone.utc)
+
+
+@event.listens_for(Trade.timestamp, "set", retval=True)
+def _coerce_trade_timestamp(_target, value, _oldvalue, _initiator):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    return value
 
 class WebhookLog(db.Model):
     __tablename__ = "webhook_log"
