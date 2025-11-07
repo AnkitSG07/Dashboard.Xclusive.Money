@@ -2160,6 +2160,10 @@
           element.setAttribute(name, value);
         }
       });
+      if (descriptor.tag === 'link' && !element.rel) {
+        element.rel = 'stylesheet';
+      }
+  
       if (descriptor.tag === 'style' && descriptor.text) {
         element.textContent = descriptor.text;
       }
@@ -2168,6 +2172,7 @@
         element.setAttribute(PAGE_STYLE_KEY_ATTR, descriptor.key);
       }
       document.head.appendChild(element);
+      return element;
     }
 
     function injectScriptDescriptor(descriptor) {
@@ -2193,10 +2198,6 @@
       document.querySelectorAll(`script[${PAGE_SCRIPT_ATTR}]`).forEach(script => script.remove());
     }
 
-    function removeInjectedPageStyles() {
-      document.querySelectorAll(`link[${PAGE_STYLE_ATTR}], style[${PAGE_STYLE_ATTR}]`).forEach(style => style.remove());
-    }
-
     // Per-page script hook
     function reinitializePageScripts() {
       const page = document.querySelector('#page-container')?.dataset.page;
@@ -2208,6 +2209,11 @@
     function applyPageFragment(fragment, { url, navigation = 'push' } = {}) {
       const pageContainer = document.querySelector('#page-container');
       if (!pageContainer || !fragment) return false;
+      
+      const previousPageStyles = Array.from(document.querySelectorAll(`link[${PAGE_STYLE_ATTR}], style[${PAGE_STYLE_ATTR}]`));
+
+      fragment.styles.forEach(descriptor => injectStyleDescriptor(descriptor));
+  
 
       pageContainer.innerHTML = fragment.html;
       if (fragment.page) {
@@ -2219,9 +2225,7 @@
       }
 
       removeInjectedPageScripts();
-      removeInjectedPageStyles();
-
-      fragment.styles.forEach(descriptor => injectStyleDescriptor(descriptor));
+      previousPageStyles.forEach(style => style.remove());
       fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
 
       if (url) {
