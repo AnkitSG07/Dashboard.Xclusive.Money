@@ -2212,40 +2212,7 @@
       
       const previousPageStyles = Array.from(document.querySelectorAll(`link[${PAGE_STYLE_ATTR}], style[${PAGE_STYLE_ATTR}]`));
 
-      const newPageStyles = fragment.styles.map(descriptor => injectStyleDescriptor(descriptor));
-      const stylesheetPromises = newPageStyles.map(element => {
-        if (element.tagName && element.tagName.toLowerCase() === 'link') {
-          return new Promise((resolve, reject) => {
-            const cleanup = () => {
-              element.removeEventListener('load', onLoad);
-              element.removeEventListener('error', onError);
-            };
-            const onLoad = () => {
-              cleanup();
-              resolve();
-            };
-            const onError = (error) => {
-              cleanup();
-              reject(error || new Error(`Failed to load stylesheet: ${element.href || element.getAttribute('href') || ''}`));
-            };
-            element.addEventListener('load', onLoad, { once: true });
-            element.addEventListener('error', onError, { once: true });
-
-            if (element.sheet) {
-              try {
-                element.sheet.cssRules;
-                cleanup();
-                resolve();
-              } catch (err) {
-                if (err && err.name === 'SecurityError') {
-                  cleanup();
-                  resolve();
-                }
-              }
-            }
-          });
-        }
-        return Promise.resolve();
+      const stylesheetPromises = fragment.styles.map(descriptor => injectStyleDescriptor(descriptor));
       });
       const whenStylesReady = Promise.all(stylesheetPromises);
 
@@ -2258,27 +2225,34 @@
         document.title = fragment.title;
       }
 
-      removeInjectedPageScripts();
-      whenStylesReady.then(() => {
-        previousPageStyles.forEach(style => style.remove());
-      }).catch(error => {
-        console.error('Failed to load page styles', error);
-      });
-      fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
+      const continueInitialization = () => {
+        removeInjectedPageScripts();
+        fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
 
-      if (url) {
-        if (navigation === 'replace') {
-          history.replaceState(null, '', url);
-        } else if (navigation === 'push') {
-          history.pushState(null, '', url);
+        if (url) {
+          if (navigation === 'replace') {
+            history.replaceState(null, '', url);
+          } else if (navigation === 'push') {
+            history.pushState(null, '', url);
+          }
         }
-      }
 
-      highlightActivePage();
-      enableDropdowns();
+        highlightActivePage();
+        enableDropdowns();
 
-      setTimeout(reinitializePageScripts, 50);
-      window.initializeNotificationsPanel?.();
+        setTimeout(reinitializePageScripts, 50);
+        window.initializeNotificationsPanel?.();
+      };
+
+      whenStylesReady
+        .then(() => {
+          previousPageStyles.forEach(style => style.remove());
+          continueInitialization();
+        })
+        .catch(error => {
+          console.error('Failed to load page styles', error);
+          continueInitialization();
+        });
       return true;
     }
 
