@@ -43,6 +43,7 @@ from sqlalchemy.orm import joinedload
 from flask_wtf import CSRFProtect
 import io
 from datetime import datetime, timedelta, date, timezone
+from zoneinfo import ZoneInfo
 from dateutil import parser
 import requests
 from bs4 import BeautifulSoup
@@ -155,6 +156,7 @@ _REJECTION_HINT_RULES: tuple[tuple[str, str], ...] = (
 
 _SNAPSHOT_WORKER_TIMEOUT = 10.0
 
+DEFAULT_USER_TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 def resolve_rejection_reason(reason: str | None) -> str | None:
     """Return a concise resolution hint for a well-known rejection reason."""
@@ -1834,6 +1836,7 @@ def record_trade(
         user = db.session.get(User, int(user_identifier)) or User.query.filter_by(email=user_identifier).first()
     else:
         user = User.query.filter_by(email=user_identifier).first()
+    timestamp_utc = datetime.now(timezone.utc)
     trade = Trade(
         user_id=user.id if user else None,
         symbol=symbol,
@@ -1841,7 +1844,7 @@ def record_trade(
         qty=int(qty),
         price=float(price or 0),
         status=status,
-        timestamp=datetime.utcnow(),
+        timestamp=timestamp_utc,
         broker=broker,
         client_id=client_id,
     )
@@ -7815,6 +7818,43 @@ def _build_summary_series(
 
     return series
 
+def _compute_intraday_pnl(
+    strategy_today_pnl: float,
+    holdings: dict[str, dict],
+    *,
+    total_portfolio_value: float,
+    total_investment: float,
+) -> tuple[float, float]:
+    """Derive today's P&L and return percentage from strategy and holdings data."""
+
+    holdings_day_change = 0.0
+    for entry in holdings.values():
+        day_change_value = _summary_safe_float(entry.get("day_change"), 0.0)
+        holdings_day_change += day_change_value
+
+    today_pnl = strategy_today_pnl
+    if abs(today_pnl) <= 1e-6:
+        today_pnl = holdings_day_change
+
+    if abs(today_pnl) <= 1e-6:
+        today_pnl = 0.0
+
+    baseline = total_portfolio_value - today_pnl
+    if baseline <= 0.0:
+        if total_investment > 0.0:
+            baseline = total_investment
+        elif total_portfolio_value > 0.0:
+            baseline = total_portfolio_value
+        else:
+            baseline = 0.0
+
+    if baseline <= 0.0:
+        return today_pnl, 0.0
+
+    today_return_percent = (today_pnl / baseline) * 100.0
+    return today_pnl, today_return_percent
+
+
 def _summary_safe_float(value, default=0.0):
     try:
         if value is None or value == "":
@@ -7931,6 +7971,21 @@ def _normalize_holding_for_summary(entry: dict) -> dict | None:
             sector = str(entry.get(key))
             break
 
+    day_change_fields = (
+        entry.get("day_change"),
+        entry.get("dayChange"),
+        entry.get("day_change_value"),
+        entry.get("dayGain"),
+        entry.get("day_gain"),
+        entry.get("dayprofit"),
+        entry.get("dayProfit"),
+    )
+    day_change = None
+    for candidate in day_change_fields:
+        if candidate not in (None, ""):
+            day_change = _summary_safe_float(candidate, None)
+            break
+
     normalized = {
         "tradingSymbol": symbol,
         "netQty": qty,
@@ -7944,6 +7999,8 @@ def _normalize_holding_for_summary(entry: dict) -> dict | None:
         normalized["exchange"] = exchange
     if sector:
         normalized["sector"] = sector
+    if day_change is not None:
+        normalized["day_change"] = day_change
 
     return normalized
 
@@ -8000,6 +8057,21 @@ def _compute_account_metrics(positions: list[dict]):
                 break
 
         pnl = _summary_safe_float(profit_fields, 0.0)
+
+        day_change_fields = (
+            "day_change",
+            "dayChange",
+            "day_change_value",
+            "day_gain",
+            "dayGain",
+            "dayprofit",
+            "dayProfit",
+        )
+        day_change = None
+        for key in day_change_fields:
+            if key in position and position[key] is not None:
+                day_change = _summary_safe_float(position[key], None)
+                break
 
         product = None
         for key in (
@@ -8060,6 +8132,7 @@ def _compute_account_metrics(positions: list[dict]):
                 "exchange": exchange,
                 "buy_avg_price": buy_avg if buy_avg else None,
                 "sell_avg_price": sell_avg if sell_avg else None,
+                "day_change": day_change,
             }
         )
 
@@ -8100,6 +8173,25 @@ def summary():
             return f"{int(quantity):,}"
         return f"{quantity:,.2f}"
 
+    user = current_user()
+
+    preferred_timezone_name = None
+    if user:
+        preferred_timezone_name = (
+            getattr(user, "timezone", None)
+            or getattr(user, "preferred_timezone", None)
+        )
+    if not preferred_timezone_name:
+        preferred_timezone_name = session.get("preferred_timezone") or session.get("timezone")
+    try:
+        preferred_timezone = (
+            ZoneInfo(preferred_timezone_name)
+            if preferred_timezone_name
+            else DEFAULT_USER_TIMEZONE
+        )
+    except Exception:
+        preferred_timezone = DEFAULT_USER_TIMEZONE
+
     def _format_datetime(value) -> str:
         if not value:
             return "—"
@@ -8108,7 +8200,14 @@ def summary():
                 value = datetime.fromisoformat(value)
             except ValueError:
                 return value
-        return value.strftime("%d %b %Y %I:%M %p")
+        if not isinstance(value, datetime):
+            return str(value)
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+        localized = value.astimezone(preferred_timezone)
+        return localized.strftime("%d %b %Y %I:%M %p")
 
     def _status_palette(base_color: str) -> dict[str, str]:
         """Return tint variations for a hexadecimal color string."""
@@ -8237,7 +8336,6 @@ def summary():
             finally:
                 db.session.remove()
 
-    user = current_user()
     if "username" not in session and user:
         session["username"] = user.name or (
             user.email.split("@")[0] if user.email else user.phone
@@ -8510,6 +8608,7 @@ def summary():
                     "buy_total_qty": 0.0,
                     "sell_total_cost": 0.0,
                     "sell_total_qty": 0.0,
+                    "day_change": 0.0,    
                 },
             )
             entry["quantity"] += holding["quantity"]
@@ -8525,6 +8624,7 @@ def summary():
             broker_label = holding.get("broker") or holding.get("account_client_id")
             if broker_label:
                 entry["brokers"].add(str(broker_label))
+            entry["day_change"] += _safe_float(holding.get("day_change"), 0.0)
             qty = holding["quantity"]
             if qty > 0 and holding.get("buy_avg_price"):
                 entry["buy_total_cost"] += holding["buy_avg_price"] * qty
@@ -8542,30 +8642,8 @@ def summary():
         (total_gain_loss / total_investment) * 100.0 if total_investment else 0.0
     )
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_trades = (
-        Trade.query.filter_by(user_id=user.id)
-        .filter(cast(Trade.timestamp, SADateTime) >= today_start)
-        .all()
-        if user
-        else []
-    )
-    today_pnl = 0.0
-    for trade in today_trades:
-        qty = _safe_float(trade.qty, 0.0)
-        price = _safe_float(trade.price, 0.0)
-        action = (trade.action or "").upper()
-        value = qty * price
-        if action == "SELL":
-            today_pnl += value
-        else:
-            today_pnl -= value
-
-    today_gain_loss_percent = (
-        (today_pnl / total_portfolio_value) * 100.0 if total_portfolio_value else 0.0
-    )
-
     benchmark_return_percent = 0.0
+    today_pnl = 0.0
 
     def _strategy_pnl_since(days: int) -> float:
         if not strategy_ids:
@@ -8594,17 +8672,35 @@ def summary():
             return (pnl_value / total_investment) * 100.0
         return 0.0
 
+    strategy_today_pnl = _strategy_pnl_since(1)
+    today_pnl, today_gain_loss_percent = _compute_intraday_pnl(
+        strategy_today_pnl,
+        aggregated_holdings,
+        total_portfolio_value=total_portfolio_value,
+        total_investment=total_investment,
+    )
+
     performance_series = _build_summary_series(
         user, unique_strategy_ids, logs=list(chart_log_rows)
     )
+
+    period_windows: list[tuple[str, int, str]] = [
+        ("1D", 1, "var(--summary-green)"),
+        ("1W", 7, "var(--summary-blue)"),
+        ("1M", 30, "var(--summary-purple)"),
+    ]
 
     performance_summary = {
         "today_return_percent": today_gain_loss_percent,
         "benchmark_return_percent": benchmark_return_percent,
         "periods": [
-            {"label": "1 Year", "value": _period_return(365), "color": "var(--summary-green)"},
-            {"label": "6 Months", "value": _period_return(180), "color": "var(--summary-blue)"},
-            {"label": "3 Months", "value": _period_return(90), "color": "var(--summary-purple)"},
+            {
+                "label": label,
+                "value": _period_return(days),
+                "color": color,
+                "days": days,
+            }
+            for label, days, color in period_windows
         ],
     }
     performance_summary["series"] = performance_series
@@ -8707,7 +8803,10 @@ def summary():
             if isinstance(timestamp, str):
                 timestamp_iso = timestamp
             else:
-                timestamp_iso = timestamp.isoformat()
+                if timestamp.tzinfo is None:
+                    timestamp_iso = timestamp.replace(tzinfo=timezone.utc).isoformat()
+                else:
+                    timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
         recent_transactions.append(
             {
                 "symbol": trade.symbol,
