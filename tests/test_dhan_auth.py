@@ -1,17 +1,29 @@
+import json
+import urllib.parse
+
 from brokers.dhan import DhanBroker
 
 
 class DummyResponse:
-    def __init__(self, payload, status_code=200):
+    def __init__(self, payload=None, status_code=200, text=None):
         self._payload = payload
         self.status_code = status_code
+        self._text = text
 
     def raise_for_status(self):
         if 400 <= self.status_code:
             raise RuntimeError(f"HTTP {self.status_code}")
 
     def json(self):
+        if self._payload is None:
+            raise RuntimeError("No JSON payload available")
         return self._payload
+
+    @property
+    def text(self):
+        if self._text is not None:
+            return self._text
+        return json.dumps(self._payload)
 
 
 def test_generate_session_token_success(monkeypatch):
@@ -21,8 +33,32 @@ def test_generate_session_token_success(monkeypatch):
         sequence.append(url)
         if "generate-consent" in url:
             return DummyResponse({"consentAppId": "consent-123", "status": "success"})
-        if "auth/v2/login" in url or "auth/login" in url:
-            return DummyResponse({"tokenId": "token-abc"})
+        if "jwt/token" in url:
+            body = kwargs.get("data")
+            assert body is not None
+            decoded = json.loads(urllib.parse.unquote(body))
+            decrypted = json.loads(self._decrypt_payload(decoded))
+            assert decrypted["user_id"] == "user@example.com"
+            assert decrypted["app_id"] == DhanBroker._DHAN_APP_ID
+            return DummyResponse({}, text="{}")
+        if "loginV2/login" in url:
+            body = kwargs.get("data")
+            assert body is not None
+            decoded = json.loads(urllib.parse.unquote(body))
+            decrypted = json.loads(self._decrypt_payload(decoded))
+            assert decrypted["consent_app_id"] == "consent-123"
+            response_payload = {
+                "status": "success",
+                "data": [
+                    {
+                        "token_id": "token-abc",
+                        "salt": "salt-value",
+                        "pass_type": "OT",
+                    }
+                ],
+            }
+            encrypted_response = self._encrypt_payload(response_payload)
+            return DummyResponse(text=json.dumps({"data": encrypted_response}))
         if "consumeApp-consent" in url:
             return DummyResponse(
                 {
@@ -51,6 +87,8 @@ def test_generate_session_token_success(monkeypatch):
     assert broker.token_expiry is not None and broker.token_expiry.startswith("2030-01-01")
     assert broker.persist_credentials["access_token"] == "access-xyz"
     assert any("generate-consent" in url for url in sequence)
+    assert any("jwt/token" in url for url in sequence)
+    assert any("loginV2/login" in url for url in sequence)
 
 
 def test_check_token_valid_refreshes(monkeypatch):
