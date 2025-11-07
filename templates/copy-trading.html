@@ -769,13 +769,19 @@
         }
 
         #page-container[data-page="copy-trading"] .icon-box {
-            width: 24px;
-            height: 24px;
-            display: flex;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 4px;
+            background: transparent;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #page-container[data-page="copy-trading"] .icon-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         #page-container[data-page="copy-trading"] .position-row {
@@ -1494,8 +1500,9 @@
     }
     
     #page-container[data-page="copy-trading"] .icon-box {
-        width: 20px;
-        height: 20px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
     }
     
     /* ===== EMPTY STATES ===== */
@@ -4196,12 +4203,7 @@ let errorHandled = false;
                   </td>
                   <td class="font-medium">
                     <div class="flex items-center gap-2">
-                      <div class="icon-box">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: #6366f1;">
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                          <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                      </div>
+                      <div class="icon-box">${brokerIconHTML(master.broker)}</div>
                       ${masterClientId}
                     </div>
                   </td>
@@ -4356,12 +4358,7 @@ let errorHandled = false;
                   </td>
                   <td class="font-medium">
                     <div class="flex items-center gap-2">
-                      <div class="icon-box">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: #6366f1;">
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                          <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                      </div>
+                      <div class="icon-box">${brokerIconHTML(child.broker || master.broker)}</div>
                       ${childUsername} (${childClientId})
                     </div>
                   </td>
