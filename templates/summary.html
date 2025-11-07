@@ -322,8 +322,15 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
-    font-weight: 600;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .top-holdings-card__broker img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
 
   .top-holdings-card__meta {
@@ -963,11 +970,6 @@
         </div>
         <div class="top-holdings-surface">
           {% if top_holdings %}
-            {% set broker_palette = [
-              {'bg': '#dbeafe', 'color': '#1e40af'},
-              {'bg': '#ffedd5', 'color': '#9a3412'},
-              {'bg': '#d1fae5', 'color': '#065f46'}
-            ] %}
             <div class="top-holdings-table-container">
               <table class="top-holdings-table">
                 <thead>
@@ -991,9 +993,11 @@
                     {% set product_label = (holding.product or 'Normal') %}
                     {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
                     {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
-                    {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
-                    {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
-                    {% set broker_badge = broker_name[:2].upper() %}
+                    {% set broker_label = broker_name|trim if broker_name else '' %}
+                    {% set broker_key = broker_label|lower|replace(' ', '') if broker_label and broker_label != '—' else '' %}
+                    {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
+                    {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
+                    {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1028,9 +1032,7 @@
                         <span style="color:{{ '#16a34a' if pnl_positive else '#dc2626' }}; font-weight:600;">{{ format_currency(holding.pnl) }}</span>
                       </td>
                       <td>
-                        <div title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; border-radius: 6px; background-color:{{ broker_style.bg }}; display:flex; align-items:center; justify-content:center; margin-left:auto; margin-right:auto; font-size:10px; font-weight:600; color:{{ broker_style.color }};">
-                          {{ broker_badge }}
-                        </div>
+                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" />
                       </td>
                     </tr>
                   {% endfor %}
@@ -1046,9 +1048,11 @@
                 {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
                 {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
                 {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
-                {% set broker_style = broker_palette[loop.index0 % (broker_palette|length)] %}
-                {% set broker_name = holding.primary_broker or (holding.brokers and holding.brokers[0]) or '—' %}
-                {% set broker_badge = broker_name[:2].upper() %}
+                {% set broker_label = broker_name|trim if broker_name else '' %}
+                {% set broker_key = broker_label|lower|replace(' ', '') if broker_label and broker_label != '—' else '' %}
+                {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
+                {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
+                {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
                 {% set market_value = holding.market_value if holding.market_value is not none else (holding.cost + holding.pnl) %}
                 {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
                 <div class="top-holdings-card">
@@ -1072,8 +1076,8 @@
                     {% if exchange_badge %}
                       <span class="top-holdings-chip">{{ exchange_badge }}</span>
                     {% endif %}
-                    <span class="top-holdings-card__broker" style="background-color:{{ broker_style.bg }}; color:{{ broker_style.color }};">
-                      {{ broker_badge }}
+                    <span class="top-holdings-card__broker">
+                      <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}">
                     </span>
                   </div>
                   <div class="top-holdings-card__meta">
