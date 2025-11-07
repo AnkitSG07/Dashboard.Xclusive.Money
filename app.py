@@ -86,6 +86,7 @@ from blueprints.api import (
     api_bp,
     login_required_api,
     get_cached_dashboard_snapshot,
+    _get_holdings_payload,
 )
 from services.webhook_server import webhook_bp
 from helpers import (
@@ -714,7 +715,8 @@ def ensure_user_schema():
             except Exception as exc:
                 logger.warning(f'Failed to add "profile_image" column: {exc}.')
 
-ensure_user_schema()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    ensure_user_schema()
 
 def ensure_trade_log_schema():
     """Ensure the trade_log table has required columns."""
@@ -758,7 +760,9 @@ def ensure_trade_log_schema():
 
         logger.info(f"Schema check for {table_name} completed.")
 
-ensure_trade_log_schema()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    ensure_trade_log_schema()
+
 
 def ensure_strategy_schema():
     """Ensure the strategy table exists with required columns."""
@@ -820,7 +824,8 @@ def ensure_strategy_schema():
 
         logger.info(f"Schema check for {table_name} completed.")
 
-ensure_strategy_schema()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    ensure_strategy_schema()
 
 
 def ensure_strategy_subscription_schema():
@@ -867,7 +872,8 @@ def ensure_strategy_subscription_schema():
 
         logger.info(f"Schema check for {table_name} completed.")
 
-ensure_strategy_subscription_schema()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    ensure_strategy_subscription_schema()
 
 def ensure_strategy_log_schema():
     """Ensure the strategy_log table exists with required columns."""
@@ -910,7 +916,8 @@ def ensure_strategy_log_schema():
         logger.info(f"Schema check for {table_name} completed.")
 
 
-ensure_strategy_log_schema()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    ensure_strategy_log_schema()
 
 
 def map_order_type(order_type: str, broker: str) -> str:
@@ -7808,6 +7815,263 @@ def _build_summary_series(
 
     return series
 
+def _summary_safe_float(value, default=0.0):
+    try:
+        if value is None or value == "":
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_holding_for_summary(entry: dict) -> dict | None:
+    if not isinstance(entry, dict):
+        return None
+
+    symbol = (
+        entry.get("tradingSymbol")
+        or entry.get("symbol")
+        or entry.get("securityName")
+        or entry.get("security_name")
+        or entry.get("name")
+        or entry.get("isin")
+        or "Unknown"
+    )
+
+    quantity_fields = (
+        entry.get("netQty"),
+        entry.get("netqty"),
+        entry.get("availableQty"),
+        entry.get("available_quantity"),
+        entry.get("totalQty"),
+        entry.get("quantity"),
+        entry.get("qty"),
+    )
+    qty = None
+    for raw_qty in quantity_fields:
+        if raw_qty not in (None, ""):
+            qty = _summary_safe_float(raw_qty, None)
+            break
+    if qty in (None, 0):
+        return None
+
+    buy_avg_fields = (
+        entry.get("buyAvg"),
+        entry.get("buyavg"),
+        entry.get("avgCostPrice"),
+        entry.get("avgPrice"),
+        entry.get("averagePrice"),
+        entry.get("average_price"),
+    )
+    buy_avg = 0.0
+    for candidate in buy_avg_fields:
+        if candidate not in (None, ""):
+            buy_avg = _summary_safe_float(candidate, 0.0)
+            break
+
+    ltp_fields = (
+        entry.get("ltp"),
+        entry.get("last_price"),
+        entry.get("lastPrice"),
+        entry.get("lastTradedPrice"),
+        entry.get("marketPrice"),
+        entry.get("currentPrice"),
+        entry.get("closePrice"),
+    )
+    ltp = 0.0
+    for candidate in ltp_fields:
+        if candidate not in (None, ""):
+            ltp = _summary_safe_float(candidate, 0.0)
+            if ltp:
+                break
+
+    profit_fields = (
+        entry.get("profitAndLoss"),
+        entry.get("profitandloss"),
+        entry.get("pnl"),
+        entry.get("pl"),
+        entry.get("unrealizedProfit"),
+        entry.get("unrealizedprofit"),
+    )
+    pnl = None
+    for candidate in profit_fields:
+        if candidate not in (None, ""):
+            pnl = _summary_safe_float(candidate, None)
+            break
+    if pnl is None:
+        pnl = (ltp - buy_avg) * qty
+
+    product = None
+    for key in (
+        "product",
+        "productType",
+        "product_type",
+        "positionType",
+        "position_type",
+    ):
+        if entry.get(key):
+            product = str(entry.get(key))
+            break
+
+    exchange = None
+    for key in (
+        "exchange",
+        "exchangeSegment",
+        "exchange_segment",
+        "exchangeCode",
+        "exchange_code",
+    ):
+        if entry.get(key):
+            exchange = str(entry.get(key))
+            break
+
+    sector = None
+    for key in ("sector", "industry", "segment", "assetClass", "asset_type"):
+        if entry.get(key):
+            sector = str(entry.get(key))
+            break
+
+    normalized = {
+        "tradingSymbol": symbol,
+        "netQty": qty,
+        "buyAvg": buy_avg,
+        "ltp": ltp,
+        "profitAndLoss": pnl,
+    }
+    if product:
+        normalized["product"] = product
+    if exchange:
+        normalized["exchange"] = exchange
+    if sector:
+        normalized["sector"] = sector
+
+    return normalized
+
+
+def _compute_account_metrics(positions: list[dict]):
+    total_value = 0.0
+    total_cost = 0.0
+    total_pnl = 0.0
+    holdings: list[dict] = []
+    for position in positions:
+        if not isinstance(position, dict):
+            continue
+        symbol = (
+            position.get("tradingSymbol")
+            or position.get("symbol")
+            or position.get("name")
+            or "Unknown"
+        )
+        raw_qty = position.get("netQty") or position.get("netqty")
+        qty = _summary_safe_float(raw_qty, 0.0)
+        if qty == 0:
+            continue
+
+        buy_avg = _summary_safe_float(
+            position.get("buyAvg")
+            if position.get("buyAvg") is not None
+            else position.get("buyavg"),
+            0.0,
+        )
+        sell_avg = _summary_safe_float(
+            position.get("sellAvg")
+            if position.get("sellAvg") is not None
+            else position.get("sellavg"),
+            0.0,
+        )
+        ltp = _summary_safe_float(
+            position.get("ltp")
+            if position.get("ltp") is not None
+            else position.get("lastPrice"),
+            0.0,
+        )
+
+        profit_fields = None
+        for key in (
+            "profitAndLoss",
+            "profitandloss",
+            "pnl",
+            "pl",
+            "unrealizedProfit",
+            "unrealizedprofit",
+        ):
+            if key in position and position[key] is not None:
+                profit_fields = position[key]
+                break
+
+        pnl = _summary_safe_float(profit_fields, 0.0)
+
+        product = None
+        for key in (
+            "product",
+            "productType",
+            "product_type",
+            "positionType",
+            "position_type",
+        ):
+            if position.get(key):
+                product = str(position.get(key))
+                break
+
+        exchange = None
+        for key in (
+            "exchange",
+            "exchangeSegment",
+            "exchange_segment",
+            "exchangeCode",
+            "exchange_code",
+        ):
+            if position.get(key):
+                exchange = str(position.get(key))
+                break
+
+        qty_abs = abs(qty)
+        if qty > 0:
+            cost_basis = qty * buy_avg
+            if profit_fields is None:
+                pnl = (ltp * qty) - cost_basis
+            market_value = cost_basis + pnl
+        else:
+            cost_basis = qty_abs * sell_avg
+            if profit_fields is None:
+                pnl = cost_basis - (ltp * qty_abs)
+            market_value = cost_basis - pnl
+
+        total_value += market_value
+        total_cost += cost_basis
+        total_pnl += pnl
+
+        sector = None
+        for key in ("sector", "industry", "segment", "assetClass", "asset_type"):
+            if key in position and position[key]:
+                sector = str(position[key])
+                break
+
+        holdings.append(
+            {
+                "symbol": symbol,
+                "quantity": qty,
+                "ltp": ltp,
+                "market_value": market_value,
+                "cost": cost_basis,
+                "pnl": pnl,
+                "sector": sector or "Uncategorized",
+                "product": product,
+                "exchange": exchange,
+                "buy_avg_price": buy_avg if buy_avg else None,
+                "sell_avg_price": sell_avg if sell_avg else None,
+            }
+        )
+
+    gain_pct = (total_pnl / total_cost * 100.0) if total_cost else 0.0
+    return {
+        "portfolio_value": total_value,
+        "investment": total_cost,
+        "gain_loss": total_pnl,
+        "gain_loss_percent": gain_pct,
+    }, holdings
+
+
 @app.route("/Summary")
 @login_required
 def summary():
@@ -7890,128 +8154,13 @@ def summary():
         summary_entry["status_background_color"] = palette["background"]
         summary_entry["status_border_color"] = palette["border"]
 
-    def _compute_account_metrics(positions: list[dict]):
-        total_value = 0.0
-        total_cost = 0.0
-        total_pnl = 0.0
-        holdings: list[dict] = []
-        for position in positions:
-            if not isinstance(position, dict):
-                continue
-            symbol = (
-                position.get("tradingSymbol")
-                or position.get("symbol")
-                or position.get("name")
-                or "Unknown"
-            )
-            raw_qty = position.get("netQty") or position.get("netqty")
-            qty = _safe_float(raw_qty, 0.0)
-            if qty == 0:
-                continue
-
-            buy_avg = _safe_float(
-                position.get("buyAvg")
-                if position.get("buyAvg") is not None
-                else position.get("buyavg"),
-                0.0,
-            )
-            sell_avg = _safe_float(
-                position.get("sellAvg")
-                if position.get("sellAvg") is not None
-                else position.get("sellavg"),
-                0.0,
-            )
-            ltp = _safe_float(
-                position.get("ltp")
-                if position.get("ltp") is not None
-                else position.get("lastPrice"),
-                0.0,
-            )
-
-            profit_fields = None
-            for key in (
-                "profitAndLoss",
-                "profitandloss",
-                "pnl",
-                "pl",
-                "unrealizedProfit",
-                "unrealizedprofit",
-            ):
-                if key in position and position[key] is not None:
-                    profit_fields = position[key]
-                    break
-
-            pnl = _safe_float(profit_fields, 0.0)
-
-            product = None
-            for key in (
-                "product",
-                "productType",
-                "product_type",
-                "positionType",
-                "position_type",
-            ):
-                if position.get(key):
-                    product = str(position.get(key))
-                    break
-
-            exchange = None
-            for key in (
-                "exchange",
-                "exchangeSegment",
-                "exchange_segment",
-                "exchangeCode",
-                "exchange_code",
-            ):
-                if position.get(key):
-                    exchange = str(position.get(key))
-                    break
-
-            qty_abs = abs(qty)
-            if qty > 0:
-                cost_basis = qty * buy_avg
-                if profit_fields is None:
-                    pnl = (ltp * qty) - cost_basis
-                market_value = cost_basis + pnl
-            else:
-                cost_basis = qty_abs * sell_avg
-                if profit_fields is None:
-                    pnl = cost_basis - (ltp * qty_abs)
-                market_value = cost_basis - pnl
-
-            total_value += market_value
-            total_cost += cost_basis
-            total_pnl += pnl
-
-            sector = None
-            for key in ("sector", "industry", "segment", "assetClass", "asset_type"):
-                if key in position and position[key]:
-                    sector = str(position[key])
-                    break
-
-            holdings.append(
-                {
-                    "symbol": symbol,
-                    "quantity": qty,
-                    "ltp": ltp,
-                    "market_value": market_value,
-                    "cost": cost_basis,
-                    "pnl": pnl,
-                    "sector": sector or "Uncategorized",
-                    "product": product,
-                    "exchange": exchange,
-                    "buy_avg_price": buy_avg if buy_avg else None,
-                    "sell_avg_price": sell_avg if sell_avg else None,
-                }
-            )
-
-        gain_pct = (total_pnl / total_cost * 100.0) if total_cost else 0.0
-        return {
-            "portfolio_value": total_value,
-            "investment": total_cost,
-            "gain_loss": total_pnl,
-            "gain_loss_percent": gain_pct,
-        }, holdings
+    def _safe_float(value, default=0.0):
+        try:
+            if value is None or value == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
 
     app_obj = current_app._get_current_object()
 
@@ -8267,10 +8416,37 @@ def summary():
         snapshot = snapshot or {}
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
         metrics, holdings = _compute_account_metrics(positions or [])
+        holdings_fallback_used = False
+        holdings_stale = False
+        if not holdings:
+            normalized_holdings: list[dict] = []
+            try:
+                holdings_payload, holdings_stale = _get_holdings_payload(account)
+            except AttributeError:
+                holdings_payload = []
+            except Exception as exc:
+                snapshot.setdefault("errors", {}).setdefault("holdings", str(exc))
+                holdings_payload = []
+            else:
+                for entry in holdings_payload:
+                    normalized = _normalize_holding_for_summary(entry)
+                    if normalized:
+                        normalized_holdings.append(normalized)
+
+            if normalized_holdings:
+                metrics, holdings = _compute_account_metrics(normalized_holdings)
+                holdings_fallback_used = True
+                if holdings_stale:
+                    snapshot.setdefault("errors", {}).setdefault(
+                        "holdings",
+                        "Holdings data may be stale; showing last cached values.",
+                    )
 
         for holding in holdings:
             holding["broker"] = account.broker
             holding["account_client_id"] = account.client_id
+            if holdings_fallback_used:
+                holding.setdefault("source", "holdings")
 
         account_stats = snapshot.get("account") if isinstance(snapshot, dict) else {}
         total_funds = _safe_float((account_stats or {}).get("total_funds"), 0.0)
@@ -8901,7 +9077,8 @@ def start_scheduler() -> None:
 # Ensure core database schemas exist when the module is imported. This allows
 # WSGI servers that import the application module (rather than executing it as a
 # script) to operate against an up-to-date schema.
-initialize_database()
+if os.environ.get("DASHBOARD_SKIP_DB_SETUP") != "1":
+    initialize_database()
 if __name__ == '__main__':
     # Start the optional scheduler when running the development server.
     start_scheduler()
