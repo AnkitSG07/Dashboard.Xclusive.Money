@@ -276,7 +276,7 @@ class DhanBroker(BrokerBase):
         expect_json: bool = True,
     ) -> Dict[str, Any]:
         encrypted = self._encrypt_payload(payload)
-        body = urllib.parse.quote(json.dumps(encrypted))
+        body = urllib.parse.urlencode({"data": encrypted})
         url = f"{self.LOGIN_API_BASE}{path}"
         resp = self._request(
             "post",
