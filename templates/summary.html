@@ -913,6 +913,7 @@
         </div>
       </div>
 
+      {% set primary_period_label = performance_summary.periods[0].label if performance_summary.periods else '1D' %}  
       <div style="margin:8px 0 16px 0;">
         <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:2px;">
           <p style="margin:0; font-size:28px; font-weight:800;">{{ format_percentage(performance_summary.today_return_percent) }}</p>
@@ -933,7 +934,7 @@
             {{ format_percentage(benchmark_delta) }} vs benchmark
           </span>
         </div>
-        <p style="margin:0; color:var(--summary-muted); font-size:12px;">Portfolio return for 1D (benchmark {{ format_percentage(performance_summary.benchmark_return_percent) }})</p>
+        <p style="margin:0; color:var(--summary-muted); font-size:12px;">Portfolio return for {{ primary_period_label }} (benchmark {{ format_percentage(performance_summary.benchmark_return_percent) }})</p>
       </div>
 
       <div class="summary-chart-container">
