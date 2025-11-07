@@ -5,9 +5,16 @@ import json
 import logging
 import re
 import calendar
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+from typing import Any, Dict, Optional
+
+import pyotp
 
 logger = logging.getLogger(__name__)
+
+
+class DhanAuthError(RuntimeError):
+    """Raised when the automated Dhan login flow fails."""
 
 class DhanBroker(BrokerBase):
     BROKER = "dhan"
@@ -18,17 +25,266 @@ class DhanBroker(BrokerBase):
     MARKET = "MARKET"
     LIMIT = "LIMIT"
 
-    def __init__(self, client_id, access_token, **kwargs):
+    AUTH_BASE = "https://auth.dhan.co"
+    TOKEN_REFRESH_SKEW = timedelta(minutes=2)
+
+    def __init__(self, client_id, access_token=None, **kwargs):
         timeout = kwargs.pop("timeout", 10)
-        super().__init__(client_id, access_token, timeout=timeout, **kwargs)
+        self.auth_base = (kwargs.pop("auth_base", self.AUTH_BASE) or self.AUTH_BASE).rstrip("/")
+        self.login_id = kwargs.pop("login_id", kwargs.pop("dhan_login_id", None))
+        login_password = kwargs.pop("login_password", None)
+        if login_password is None:
+            login_password = kwargs.pop("password", None)
+        self.login_password = login_password
+        self.api_key = kwargs.pop("api_key", kwargs.pop("app_id", None))
+        self.api_secret = kwargs.pop("api_secret", kwargs.pop("app_secret", None))
+        totp_secret = kwargs.pop("totp_secret", None)
+        if isinstance(totp_secret, str):
+            totp_secret = totp_secret.replace(" ", "")
+        self.totp_secret = totp_secret
+        self.refresh_token = kwargs.pop("refresh_token", None)
+        self.token_time = kwargs.pop("token_time", None)
+        symbol_map = kwargs.pop("symbol_map", {})
+        self._token_expiry_dt: Optional[datetime] = None
+        self.token_expiry: Optional[str] = None
+        self.persist_credentials: Dict[str, Any] = {}
+        self._last_auth_error_message: Optional[str] = None
+
+        super().__init__(client_id, access_token or "", timeout=timeout, symbol_map=symbol_map)
+
         self.api_base = "https://api.dhan.co/v2"
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
-        self.headers = {
-            "access-token": access_token,
+        self._update_headers(self.access_token)
+
+        token_expiry = kwargs.pop("token_expiry", None)
+        if token_expiry:
+            self._set_token_expiry(token_expiry)
+
+        if self.access_token and not self.token_time:
+            self.token_time = datetime.now(timezone.utc).isoformat()
+
+        if not self.access_token and self._has_login_material():
+            self.generate_session_token()
+
+    def _update_headers(self, access_token: Optional[str]) -> None:
+        token = access_token or ""
+        self.access_token = token
+        headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        self.symbol_map = kwargs.pop("symbol_map", {})
+        if token:
+            headers["access-token"] = token
+        self.headers = headers
+
+    def _has_login_material(self) -> bool:
+        return all(
+            [
+                self.login_id,
+                self.login_password,
+                self.api_key,
+                self.api_secret,
+                self.totp_secret,
+            ]
+        )
+
+    def _auth_headers(self) -> Dict[str, str]:
+        headers: Dict[str, str] = {}
+        if self.api_key:
+            headers["app_id"] = self.api_key
+        if self.api_secret:
+            headers["app_secret"] = self.api_secret
+        return headers
+
+    def _set_token_expiry(self, value: Any) -> None:
+        dt = self._parse_timestamp(value)
+        self._token_expiry_dt = dt
+        self.token_expiry = dt.isoformat() if dt else None
+
+    @staticmethod
+    def _parse_timestamp(value: Any) -> Optional[datetime]:
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            dt = value
+        elif isinstance(value, (int, float)):
+            dt = datetime.fromtimestamp(value, tz=timezone.utc)
+        elif isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            try:
+                dt = datetime.fromisoformat(text)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(text, "%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    return None
+        else:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    def _record_persist_credentials(self) -> None:
+        persist: Dict[str, Any] = {}
+        if self.access_token:
+            persist["access_token"] = self.access_token
+        if self.token_time:
+            persist["token_time"] = self.token_time
+        if self.refresh_token:
+            persist["refresh_token"] = self.refresh_token
+        if self.token_expiry:
+            persist["token_expiry"] = self.token_expiry
+        self.persist_credentials = persist
+
+    def last_auth_error(self) -> Optional[str]:
+        return self._last_auth_error_message
+
+    def _should_refresh_token(self) -> bool:
+        if not self._has_login_material():
+            return False
+        if not self.access_token:
+            return True
+        if not self._token_expiry_dt:
+            return False
+        now = datetime.now(timezone.utc)
+        return now >= self._token_expiry_dt - self.TOKEN_REFRESH_SKEW
+
+    def _perform_login(self, consent_app_id: str, otp_code: str) -> str:
+        payload = {
+            "loginId": self.login_id,
+            "userId": self.login_id,
+            "password": self.login_password,
+            "totp": otp_code,
+            "otp": otp_code,
+            "consentAppId": consent_app_id,
+        }
+        headers = {"Content-Type": "application/json"}
+        headers.update(self._auth_headers())
+        endpoints = [
+            f"{self.auth_base}/auth/v2/login",
+            f"{self.auth_base}/auth/v2/login/consent",
+            f"{self.auth_base}/auth/login",
+        ]
+        last_error: Optional[str] = None
+        for endpoint in endpoints:
+            try:
+                resp = self._request(
+                    "post",
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+            except requests.exceptions.RequestException as exc:
+                last_error = f"{endpoint}: {exc}"
+                continue
+            if resp.status_code == 404:
+                last_error = f"{endpoint}: 404"
+                continue
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.RequestException as exc:
+                last_error = f"{endpoint}: {exc}"
+                continue
+            try:
+                data = resp.json()
+            except json.JSONDecodeError as exc:
+                last_error = f"{endpoint}: invalid JSON ({exc})"
+                continue
+            token_id = (
+                data.get("tokenId")
+                or data.get("token_id")
+                or data.get("tokenid")
+                or data.get("token")
+            )
+            if token_id:
+                return str(token_id)
+            last_error = f"{endpoint}: missing tokenId"
+        raise DhanAuthError(last_error or "Failed to obtain tokenId from login response")
+
+    def generate_session_token(self, *, force_refresh: bool = False) -> str:
+        if not self._has_login_material():
+            raise DhanAuthError("Missing Dhan login credentials for automated authentication")
+
+        if not force_refresh and self.access_token and not self._should_refresh_token():
+            return self.access_token
+
+        try:
+            otp_code = pyotp.TOTP(self.totp_secret).now()
+        except Exception as exc:
+            message = f"Failed to compute Dhan TOTP code: {exc}"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+
+        try:
+            consent_resp = self._request(
+                "post",
+                f"{self.auth_base}/app/generate-consent",
+                params={"client_id": self.client_id},
+                headers=self._auth_headers(),
+                timeout=self.timeout,
+            )
+            consent_resp.raise_for_status()
+            consent_data = consent_resp.json()
+        except requests.exceptions.RequestException as exc:
+            message = f"Failed to generate Dhan consent: {exc}"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+        except json.JSONDecodeError as exc:
+            message = f"Invalid consent response: {exc}"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+
+        consent_app_id = consent_data.get("consentAppId") or consent_data.get("consent_app_id")
+        if not consent_app_id:
+            message = "Consent response missing consentAppId"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message)
+
+        token_id = self._perform_login(str(consent_app_id), otp_code)
+
+        try:
+            consume_resp = self._request(
+                "get",
+                f"{self.auth_base}/app/consumeApp-consent",
+                params={"tokenId": token_id},
+                headers=self._auth_headers(),
+                timeout=self.timeout,
+            )
+            consume_resp.raise_for_status()
+            consume_data = consume_resp.json()
+        except requests.exceptions.RequestException as exc:
+            message = f"Failed to consume Dhan consent: {exc}"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+        except json.JSONDecodeError as exc:
+            message = f"Invalid consume-consent response: {exc}"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+
+        new_token = consume_data.get("accessToken") or consume_data.get("access_token")
+        if not new_token:
+            message = "Consume consent response missing accessToken"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message)
+
+        self.refresh_token = consume_data.get("refreshToken") or consume_data.get("refresh_token")
+        expiry_raw = consume_data.get("expiryTime") or consume_data.get("expiry_time")
+        if expiry_raw:
+            self._set_token_expiry(expiry_raw)
+        else:
+            self._token_expiry_dt = None
+            self.token_expiry = None
+
+        self.token_time = datetime.now(timezone.utc).isoformat()
+        self._update_headers(str(new_token))
+        self._record_persist_credentials()
+        self._last_auth_error_message = None
+        return self.access_token
 
     def _is_invalid_auth(self, data, status):
         """Return ``True`` if ``data``/``status`` indicate invalid credentials."""
@@ -833,6 +1089,13 @@ class DhanBroker(BrokerBase):
         """
         Validate access token and ensure it belongs to this client_id.
         """
+        if self._should_refresh_token():
+            try:
+                self.generate_session_token(force_refresh=True)
+            except DhanAuthError as exc:
+                logger.warning("Failed to refresh Dhan token: %s", exc)
+                return False
+
         try:
             r = self._request(
                 "get",
@@ -840,6 +1103,18 @@ class DhanBroker(BrokerBase):
                 headers=self.headers,
                 timeout=5,
             )
+            if r.status_code == 401 and self._has_login_material():
+                try:
+                    self.generate_session_token(force_refresh=True)
+                except DhanAuthError as exc:
+                    logger.warning("Dhan token refresh after 401 failed: %s", exc)
+                    return False
+                r = self._request(
+                    "get",
+                    "{}/fundlimit".format(self.api_base),
+                    headers=self.headers,
+                    timeout=5,
+                )
             r.raise_for_status()
             data = r.json()
             cid = str(data.get("clientId") or data.get("dhanClientId") or "").strip()
@@ -848,11 +1123,13 @@ class DhanBroker(BrokerBase):
             return True
         except requests.exceptions.Timeout:
             return False
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as exc:
+            logger.debug("Dhan token validation request failed: %s", exc)
             return False
         except json.JSONDecodeError:
             return False
-        except Exception:
+        except Exception as exc:
+            logger.debug("Unexpected Dhan token validation error: %s", exc)
             return False
 
     def get_opening_balance(self):
