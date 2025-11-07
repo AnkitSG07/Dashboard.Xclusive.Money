@@ -2212,8 +2212,42 @@
       
       const previousPageStyles = Array.from(document.querySelectorAll(`link[${PAGE_STYLE_ATTR}], style[${PAGE_STYLE_ATTR}]`));
 
-      fragment.styles.forEach(descriptor => injectStyleDescriptor(descriptor));
-  
+      const newPageStyles = fragment.styles.map(descriptor => injectStyleDescriptor(descriptor));
+      const stylesheetPromises = newPageStyles.map(element => {
+        if (element.tagName && element.tagName.toLowerCase() === 'link') {
+          return new Promise((resolve, reject) => {
+            const cleanup = () => {
+              element.removeEventListener('load', onLoad);
+              element.removeEventListener('error', onError);
+            };
+            const onLoad = () => {
+              cleanup();
+              resolve();
+            };
+            const onError = (error) => {
+              cleanup();
+              reject(error || new Error(`Failed to load stylesheet: ${element.href || element.getAttribute('href') || ''}`));
+            };
+            element.addEventListener('load', onLoad, { once: true });
+            element.addEventListener('error', onError, { once: true });
+
+            if (element.sheet) {
+              try {
+                element.sheet.cssRules;
+                cleanup();
+                resolve();
+              } catch (err) {
+                if (err && err.name === 'SecurityError') {
+                  cleanup();
+                  resolve();
+                }
+              }
+            }
+          });
+        }
+        return Promise.resolve();
+      });
+      const whenStylesReady = Promise.all(stylesheetPromises);
 
       pageContainer.innerHTML = fragment.html;
       if (fragment.page) {
@@ -2225,7 +2259,11 @@
       }
 
       removeInjectedPageScripts();
-      previousPageStyles.forEach(style => style.remove());
+      whenStylesReady.then(() => {
+        previousPageStyles.forEach(style => style.remove());
+      }).catch(error => {
+        console.error('Failed to load page styles', error);
+      });
       fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
 
       if (url) {
