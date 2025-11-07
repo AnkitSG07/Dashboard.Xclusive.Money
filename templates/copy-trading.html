@@ -1,39 +1,28 @@
-
 {% extends "layout.html" %}
 {% block title %}Copy Trading - DhanBot{% endblock %}
 
 {% block styles %}
   {{ super() }}
   <style>
-
-
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        #page-container[data-page="copy-trading"] {
             background-color: #f8f9fa;
             color: #1f2937;
             line-height: 1.5;
         }
 
-        .container-xl {
+        #page-container[data-page="copy-trading"] .container-xl {
             max-width: 1400px;
             margin: 0 auto;
             padding: 16px;
         }
 
         @media (min-width: 768px) {
-            .container-xl {
+            #page-container[data-page="copy-trading"] .container-xl {
                 padding: 32px;
             }
         }
 
-        .card {
+        #page-container[data-page="copy-trading"] .card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -42,12 +31,12 @@
             margin-left: -22px;
         }
 
-        .card-header {
+        #page-container[data-page="copy-trading"] .card-header {
             padding: 24px;
             border-bottom: 1px solid #e5e7eb;
         }
 
-        .card-title {
+        #page-container[data-page="copy-trading"] .card-title {
             font-size: 24px;
             font-weight: 600;
             display: flex;
@@ -56,57 +45,57 @@
             margin-bottom: 8px;
         }
 
-        .card-description {
+        #page-container[data-page="copy-trading"] .card-description {
             color: #6b7280;
             font-size: 14px;
             line-height: 1.6;
         }
 
-        .card-content {
+        #page-container[data-page="copy-trading"] .card-content {
             padding: 24px;
         }
 
-        .card-primary {
+        #page-container[data-page="copy-trading"] .card-primary {
             background: rgba(99, 102, 241, 0.05);
             border: 1px solid rgba(99, 102, 241, 0.2);
         }
 
-        .card-success {
+        #page-container[data-page="copy-trading"] .card-success {
             background: rgba(16, 185, 129, 0.05);
             border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
-        .card-accent {
+        #page-container[data-page="copy-trading"] .card-accent {
             background: rgba(245, 158, 11, 0.05);
             border: 1px solid rgba(245, 158, 11, 0.2);
         }
 
-        .card-muted {
+        #page-container[data-page="copy-trading"] .card-muted {
             background: rgba(0, 0, 0, 0.02);
             border: 1px solid #e5e7eb;
         }
 
-        .card-header-primary {
+        #page-container[data-page="copy-trading"] .card-header-primary {
             background: rgba(99, 102, 241, 0.1);
             border-bottom: 1px solid rgba(99, 102, 241, 0.2);
         }
 
-        .card-header-success {
+        #page-container[data-page="copy-trading"] .card-header-success {
             background: rgba(16, 185, 129, 0.1);
             border-bottom: 1px solid rgba(16, 185, 129, 0.2);
         }
 
-        .card-header-accent {
+        #page-container[data-page="copy-trading"] .card-header-accent {
             background: rgba(245, 158, 11, 0.1);
             border-bottom: 1px solid rgba(245, 158, 11, 0.2);
         }
 
-        .card-header-muted {
+        #page-container[data-page="copy-trading"] .card-header-muted {
             background: rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid #e5e7eb;
         }
 
-        .btn {
+        #page-container[data-page="copy-trading"] .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -122,87 +111,87 @@
             background: transparent;
         }
 
-        .btn-primary {
+        #page-container[data-page="copy-trading"] .btn-primary {
             background: #6366f1;
             color: white;
             border-color: #6366f1;
         }
 
-        .btn-primary:hover {
+        #page-container[data-page="copy-trading"] .btn-primary:hover {
             background: #5558e3;
         }
 
-        .btn-outline {
+        #page-container[data-page="copy-trading"] .btn-outline {
             background: transparent;
             border-color: #d1d5db;
             color: #374151;
         }
 
-        .btn-outline:hover {
+        #page-container[data-page="copy-trading"] .btn-outline:hover {
             background: #f9fafb;
         }
 
-        .btn-success {
+        #page-container[data-page="copy-trading"] .btn-success {
             border-color: #10b981;
             color: #10b981;
             background: transparent;
         }
 
-        .btn-success:hover {
+        #page-container[data-page="copy-trading"] .btn-success:hover {
             background: rgba(16, 185, 129, 0.1);
         }
 
-        .btn-warning {
+        #page-container[data-page="copy-trading"] .btn-warning {
             background: rgba(245, 158, 11, 0.2);
             border-color: #f59e0b;
             color: #92400e;
         }
 
-        .btn-warning:hover {
+        #page-container[data-page="copy-trading"] .btn-warning:hover {
             background: rgba(245, 158, 11, 0.3);
         }
 
-        .btn-destructive {
+        #page-container[data-page="copy-trading"] .btn-destructive {
             background: #ef4444;
             color: white;
             border-color: #ef4444;
         }
 
-        .btn-destructive:hover {
+        #page-container[data-page="copy-trading"] .btn-destructive:hover {
             background: #dc2626;
         }
 
-        .btn-destructive-outline {
+        #page-container[data-page="copy-trading"] .btn-destructive-outline {
             border-color: #ef4444;
             color: #ef4444;
             background: transparent;
         }
 
-        .btn-destructive-outline:hover {
+        #page-container[data-page="copy-trading"] .btn-destructive-outline:hover {
             background: rgba(239, 68, 68, 0.1);
         }
 
-        .btn-sm {
+        #page-container[data-page="copy-trading"] .btn-sm {
             padding: 6px 12px;
             font-size: 13px;
         }
 
-        .btn-icon {
+        #page-container[data-page="copy-trading"] .btn-icon {
             width: 32px;
             height: 32px;
             padding: 0;
         }
 
-        .btn-ghost {
+        #page-container[data-page="copy-trading"] .btn-ghost {
             background: transparent;
             border: none;
         }
 
-        .btn-ghost:hover {
+        #page-container[data-page="copy-trading"] .btn-ghost:hover {
             background: #f3f4f6;
         }
 
-        .badge {
+        #page-container[data-page="copy-trading"] .badge {
             display: inline-flex;
             align-items: center;
             padding: 4px 12px;
@@ -212,39 +201,39 @@
             white-space: nowrap;
         }
 
-        .badge-primary {
+        #page-container[data-page="copy-trading"] .badge-primary {
             background: #6366f1;
             color: white;
         }
 
-        .badge-secondary {
+        #page-container[data-page="copy-trading"] .badge-secondary {
             background: #e5e7eb;
             color: #374151;
         }
 
-        .badge-success {
+        #page-container[data-page="copy-trading"] .badge-success {
             background: rgba(16, 185, 129, 0.2);
             color: #065f46;
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
-        .badge-outline {
+        #page-container[data-page="copy-trading"] .badge-outline {
             background: transparent;
             border: 1px solid #d1d5db;
             color: #374151;
         }
 
-        .badge-green {
+        #page-container[data-page="copy-trading"] .badge-green {
             background: #10b981;
             color: white;
         }
 
-        .badge-red {
+        #page-container[data-page="copy-trading"] .badge-red {
             background: #ef4444;
             color: white;
         }
 
-        .alert {
+        #page-container[data-page="copy-trading"] .alert {
             padding: 16px;
             border-radius: 8px;
             background: #eff6ff;
@@ -252,35 +241,35 @@
             color: #1e40af;
         }
 
-        .grid {
+        #page-container[data-page="copy-trading"] .grid {
             display: grid;
             gap: 16px;
         }
 
-        .grid-cols-3 {
+        #page-container[data-page="copy-trading"] .grid-cols-3 {
             grid-template-columns: repeat(3, 1fr);
         }
 
         @media (max-width: 768px) {
-            .grid-cols-3 {
+            #page-container[data-page="copy-trading"] .grid-cols-3 {
                 grid-template-columns: 1fr;
             }
         }
 
-        .table-wrapper {
+        #page-container[data-page="copy-trading"] .table-wrapper {
             overflow-x: auto;
         }
 
-        table {
+        #page-container[data-page="copy-trading"] table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        thead {
+        #page-container[data-page="copy-trading"] thead {
             background: #fafafa;
         }
 
-        th {
+        #page-container[data-page="copy-trading"] th {
             padding: 12px 16px;
             text-align: left;
             font-size: 13px;
@@ -291,50 +280,50 @@
             letter-spacing: 0.5px;
         }
 
-        td {
+        #page-container[data-page="copy-trading"] td {
             padding: 16px;
             border-bottom: 1px solid #f3f4f6;
             font-size: 14px;
         }
 
-        tbody tr:hover {
+        #page-container[data-page="copy-trading"] tbody tr:hover {
             background: #fafafa;
         }
 
-        .text-center {
+        #page-container[data-page="copy-trading"] .text-center {
             text-align: center;
         }
 
-        .text-right {
+        #page-container[data-page="copy-trading"] .text-right {
             text-align: right;
         }
 
-        .collapsible-trigger {
+        #page-container[data-page="copy-trading"] .collapsible-trigger {
             cursor: pointer;
         }
 
-        .collapsible-content {
+        #page-container[data-page="copy-trading"] .collapsible-content {
             display: none;
         }
 
-        .collapsible-content.open {
+        #page-container[data-page="copy-trading"] .collapsible-content.open {
             display: table-row;
         }
 
-        .switch {
+        #page-container[data-page="copy-trading"] .switch {
             position: relative;
             display: inline-block;
             width: 44px;
             height: 24px;
         }
 
-        .switch input {
+        #page-container[data-page="copy-trading"] .switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
 
-        .slider {
+        #page-container[data-page="copy-trading"] .slider {
             position: absolute;
             cursor: pointer;
             top: 0;
@@ -346,7 +335,7 @@
             border-radius: 24px;
         }
 
-        .slider:before {
+        #page-container[data-page="copy-trading"] .slider:before {
             position: absolute;
             content: "";
             height: 18px;
@@ -358,17 +347,17 @@
             border-radius: 50%;
         }
 
-        input:checked + .slider {
+        #page-container[data-page="copy-trading"] input:checked + .slider {
             background-color: #6366f1;
         }
 
-        input:checked + .slider:before {
+        #page-container[data-page="copy-trading"] input:checked + .slider:before {
             transform: translateX(20px);
         }
 
-        input[type="text"],
-        input[type="number"],
-        select {
+        #page-container[data-page="copy-trading"] input[type="text"],
+        #page-container[data-page="copy-trading"] input[type="number"],
+        #page-container[data-page="copy-trading"] select {
             padding: 8px 12px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
@@ -376,13 +365,13 @@
             outline: none;
         }
 
-        input:focus,
-        select:focus {
+        #page-container[data-page="copy-trading"] input:focus,
+        #page-container[data-page="copy-trading"] select:focus {
             border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
-        .checkbox {
+        #page-container[data-page="copy-trading"] .checkbox {
             width: 18px;
             height: 18px;
             border: 2px solid #d1d5db;
@@ -391,7 +380,7 @@
             accent-color: #6366f1;
         }
 
-        .icon {
+        #page-container[data-page="copy-trading"] .icon {
             width: 20px;
             height: 20px;
             stroke: currentColor;
@@ -401,17 +390,17 @@
             stroke-linejoin: round;
         }
 
-        .icon-sm {
+        #page-container[data-page="copy-trading"] .icon-sm {
             width: 16px;
             height: 16px;
         }
 
-        .icon-lg {
+        #page-container[data-page="copy-trading"] .icon-lg {
             width: 24px;
             height: 24px;
         }
 
-        .tabs {
+        #page-container[data-page="copy-trading"] .tabs {
             display: flex;
             gap: 24px;
             border-bottom: 1px solid #e5e7eb;
@@ -419,7 +408,7 @@
             overflow-x: auto;
         }
 
-        .tab {
+        #page-container[data-page="copy-trading"] .tab {
             padding: 12px 4px;
             font-weight: 500;
             color: #6b7280;
@@ -432,12 +421,12 @@
             border: none;
         }
 
-        .tab.active {
+        #page-container[data-page="copy-trading"] .tab.active {
             color: #6366f1;
             border-bottom-color: #6366f1;
         }
 
-        .sub-tabs {
+        #page-container[data-page="copy-trading"] .sub-tabs {
             display: flex;
             gap: 16px;
             border-bottom: 1px solid #e5e7eb;
@@ -445,7 +434,7 @@
             overflow-x: auto;
         }
 
-        .sub-tab {
+        #page-container[data-page="copy-trading"] .sub-tab {
             background: transparent;
             border: none;
             padding: 10px 12px;
@@ -458,37 +447,37 @@
             transition: color 0.2s ease, border-color 0.2s ease;
         }
 
-        .sub-tab:hover {
+        #page-container[data-page="copy-trading"] .sub-tab:hover {
             color: #4b5563;
         }
 
-        .sub-tab.active {
+        #page-container[data-page="copy-trading"] .sub-tab.active {
             color: #111827;
             font-weight: 600;
             border-bottom-color: #6366f1;
         }
 
-        .sub-tab-count {
+        #page-container[data-page="copy-trading"] .sub-tab-count {
             margin-left: 6px;
             font-size: 12px;
             color: #6b7280;
         }
 
-        .sub-tab.active .sub-tab-count {
+        #page-container[data-page="copy-trading"] .sub-tab.active .sub-tab-count {
             color: #4b5563;
         }
 
-        .positions-summary {
+        #page-container[data-page="copy-trading"] .positions-summary {
             margin-bottom: 16px;
         }
 
-        .positions-summary-grid {
+        #page-container[data-page="copy-trading"] .positions-summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 16px;
         }
 
-        .positions-summary-card {
+        #page-container[data-page="copy-trading"] .positions-summary-card {
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 10px;
@@ -499,19 +488,19 @@
             gap: 6px;
         }
 
-        .positions-summary-label {
+        #page-container[data-page="copy-trading"] .positions-summary-label {
             font-size: 13px;
             color: #6b7280;
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
 
-        .positions-summary-value {
+        #page-container[data-page="copy-trading"] .positions-summary-value {
             font-size: 20px;
             font-weight: 700;
         }
 
-        .positions-table-wrapper {
+        #page-container[data-page="copy-trading"] .positions-table-wrapper {
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 10px;
@@ -519,19 +508,19 @@
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
         }
 
-        .positions-table {
+        #page-container[data-page="copy-trading"] .positions-table {
             width: 100%;
             border-collapse: collapse;
             min-width: 720px;
         }
 
-        .positions-table th,
-        .positions-table td {
+        #page-container[data-page="copy-trading"] .positions-table th,
+        #page-container[data-page="copy-trading"] .positions-table td {
             padding: 12px 16px;
             border-bottom: 1px solid #f3f4f6;
         }
 
-        .positions-table th {
+        #page-container[data-page="copy-trading"] .positions-table th {
             background: #f9fafb;
             font-size: 13px;
             font-weight: 600;
@@ -539,23 +528,23 @@
             text-align: left;
         }
 
-        .positions-table td {
+        #page-container[data-page="copy-trading"] .positions-table td {
             font-size: 14px;
             color: #1f2937;
             vertical-align: top;
         }
 
-        .positions-table td .positions-symbol {
+        #page-container[data-page="copy-trading"] .positions-table td .positions-symbol {
             font-weight: 600;
             margin-bottom: 4px;
         }
 
-        .positions-table td .positions-subtext {
+        #page-container[data-page="copy-trading"] .positions-table td .positions-subtext {
             font-size: 12px;
             color: #6b7280;
         }
 
-        .positions-empty-sub {
+        #page-container[data-page="copy-trading"] .positions-empty-sub {
             padding: 20px;
             border: 1px dashed #d1d5db;
             border-radius: 10px;
@@ -564,7 +553,7 @@
             color: #6b7280;
         }
 
-        .positions-loading {
+        #page-container[data-page="copy-trading"] .positions-loading {
             padding: 16px;
             display: flex;
             align-items: center;
@@ -573,11 +562,11 @@
             color: #6b7280;
         }
 
-        .positions-view {
+        #page-container[data-page="copy-trading"] .positions-view {
             display: block;
         }
 
-        .position-side {
+        #page-container[data-page="copy-trading"] .position-side {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -588,25 +577,25 @@
             font-size: 13px;
         }
 
-        .position-side.buy {
+        #page-container[data-page="copy-trading"] .position-side.buy {
             background: #dcfce7;
             color: #15803d;
             border: 1px solid #bbf7d0;
         }
 
-        .position-side.sell {
+        #page-container[data-page="copy-trading"] .position-side.sell {
             background: #fee2e2;
             color: #b91c1c;
             border: 1px solid #fecaca;
         }
 
-        .position-side.neutral {
+        #page-container[data-page="copy-trading"] .position-side.neutral {
             background: #f3f4f6;
             color: #4b5563;
             border: 1px solid #e5e7eb;
         }
 
-        .stats-grid {
+        #page-container[data-page="copy-trading"] .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 16px;
@@ -616,92 +605,92 @@
             margin-bottom: 16px;
         }
 
-        .stat-item {
+        #page-container[data-page="copy-trading"] .stat-item {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-        .stat-label {
+        #page-container[data-page="copy-trading"] .stat-label {
             font-size: 13px;
             color: #6b7280;
         }
 
-        .stat-value {
+        #page-container[data-page="copy-trading"] .stat-value {
             font-size: 20px;
             font-weight: 700;
         }
 
-        .flex {
+        #page-container[data-page="copy-trading"] .flex {
             display: flex;
         }
 
-        .items-center {
+        #page-container[data-page="copy-trading"] .items-center {
             align-items: center;
         }
 
-        .justify-between {
+        #page-container[data-page="copy-trading"] .justify-between {
             justify-content: space-between;
         }
 
-        .gap-2 {
+        #page-container[data-page="copy-trading"] .gap-2 {
             gap: 8px;
         }
 
-        .gap-3 {
+        #page-container[data-page="copy-trading"] .gap-3 {
             gap: 12px;
         }
 
-        .flex-wrap {
+        #page-container[data-page="copy-trading"] .flex-wrap {
             flex-wrap: wrap;
         }
 
-        .font-medium {
+        #page-container[data-page="copy-trading"] .font-medium {
             font-weight: 500;
         }
 
-        .font-semibold {
+        #page-container[data-page="copy-trading"] .font-semibold {
             font-weight: 600;
         }
 
-        .text-sm {
+        #page-container[data-page="copy-trading"] .text-sm {
             font-size: 14px;
         }
 
-        .text-xs {
+        #page-container[data-page="copy-trading"] .text-xs {
             font-size: 12px;
         }
 
-        .text-muted {
+        #page-container[data-page="copy-trading"] .text-muted {
             color: #6b7280;
         }
 
-        .text-success {
+        #page-container[data-page="copy-trading"] .text-success {
             color: #10b981;
         }
 
-        .text-destructive {
+        #page-container[data-page="copy-trading"] .text-destructive {
             color: #ef4444;
         }
 
-        .bg-muted {
+        #page-container[data-page="copy-trading"] .bg-muted {
             background: rgba(0, 0, 0, 0.03);
         }
 
-        .p-4 {
+        #page-container[data-page="copy-trading"] .p-4 {
             padding: 16px;
         }
 
-        .mb-4 {
+        #page-container[data-page="copy-trading"] .mb-4 {
             margin-bottom: 16px;
         }
 
-        .rounded {
+        #page-container[data-page="copy-trading"] .rounded {
             border-radius: 8px;
         }
 
         @media (max-width: 768px) {
-            .hide-mobile {
+            #page-container[data-page="copy-trading"] .hide-mobile {
                 display: none;
             }
         }
@@ -717,29 +706,29 @@
             }
         }
 
-        .collapsible-content.open td {
+        #page-container[data-page="copy-trading"] .collapsible-content.open td {
             animation: slideDown 0.3s ease-out;
         }
 
-        .expanded-row-content {
+        #page-container[data-page="copy-trading"] .expanded-row-content {
             background: rgba(0, 0, 0, 0.02);
             padding: 16px;
         }
 
-        .section-title-sm {
+        #page-container[data-page="copy-trading"] .section-title-sm {
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 12px;
         }
 
-        .filter-section {
+        #page-container[data-page="copy-trading"] .filter-section {
             display: flex;
             gap: 8px;
             margin-bottom: 16px;
             flex-wrap: wrap;
         }
 
-        .download-btn {
+        #page-container[data-page="copy-trading"] .download-btn {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -751,35 +740,35 @@
             font-size: 14px;
         }
 
-        .download-btn:hover {
+        #page-container[data-page="copy-trading"] .download-btn:hover {
             color: #374151;
         }
 
-        .account-mini-card {
+        #page-container[data-page="copy-trading"] .account-mini-card {
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 15px;
         }
 
-        .account-mini-card .account-header {
+        #page-container[data-page="copy-trading"] .account-mini-card .account-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 1px;
         }
 
-        .account-mini-card .account-id {
+        #page-container[data-page="copy-trading"] .account-mini-card .account-id {
             margin-bottom: 1px;
             font-weight: 600;
         }
 
-        .account-mini-card .account-username {
+        #page-container[data-page="copy-trading"] .account-mini-card .account-username {
             font-size: 13px;
             color: #6b7280;
         }
 
-        .icon-box {
+        #page-container[data-page="copy-trading"] .icon-box {
             width: 24px;
             height: 24px;
             display: flex;
@@ -789,18 +778,18 @@
             border-radius: 4px;
         }
 
-        .position-row {
+        #page-container[data-page="copy-trading"] .position-row {
             cursor: pointer;
         }
 
-        .position-header {
+        #page-container[data-page="copy-trading"] .position-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 16px;
         }
 
-        select {
+        #page-container[data-page="copy-trading"] select {
             appearance: none;
             padding-right: 32px;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
@@ -809,31 +798,31 @@
             cursor: pointer;
         }
 
-        .empty-state {
+        #page-container[data-page="copy-trading"] .empty-state {
             text-align: center;
             padding: 48px 24px;
             color: #6b7280;
         }
 
-        .empty-state-icon {
+        #page-container[data-page="copy-trading"] .empty-state-icon {
             width: 48px;
             height: 48px;
             margin: 0 auto 16px;
             color: #d1d5db;
         }
 
-        .copy-qty-control {
+        #page-container[data-page="copy-trading"] .copy-qty-control {
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-        .copy-qty-control input {
+        #page-container[data-page="copy-trading"] .copy-qty-control input {
             width: 64px;
             text-align: center;
         }
 
-        .list-group-item {
+        #page-container[data-page="copy-trading"] .list-group-item {
             border-radius: 8px;
             border: 1px solid #e5e7eb;
             margin-bottom: 8px;
@@ -841,30 +830,30 @@
             padding: 16px;
         }
 
-        .list-group-item:hover {
+        #page-container[data-page="copy-trading"] .list-group-item:hover {
             background: #f9fafb;
         }
 
-        .list-group {
+        #page-container[data-page="copy-trading"] .list-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
 
-        .spinner-border {
+        #page-container[data-page="copy-trading"] .spinner-border {
             width: 1rem;
             height: 1rem;
             border-width: 0.15em;
         }
 
-        .vr {
+        #page-container[data-page="copy-trading"] .vr {
             width: 1px;
             background: #e5e7eb;
             align-self: stretch;
         }
 
-        .btn-link,
-        .btn-link:hover {
+        #page-container[data-page="copy-trading"] .btn-link,
+        #page-container[data-page="copy-trading"] .btn-link:hover {
             text-decoration: none;
         }
   /* ============================= */
@@ -874,7 +863,7 @@
 @media (max-width: 768px) {
 
     /* Card spacing tighten for mobile */
-    .card {
+    #page-container[data-page="copy-trading"] .card {
         border-radius: 12px;
         background: #fff;
         box-shadow: 0 8px 24px rgba(0,0,0,0.04);
@@ -882,12 +871,12 @@
         border: 1px solid #e5e7eb;
     }
 
-    .card-header {
+    #page-container[data-page="copy-trading"] .card-header {
         padding: 14px 16px;
         border-bottom: 1px solid #e5e7eb;
     }
 
-    .card-title {
+    #page-container[data-page="copy-trading"] .card-title {
         font-size: 16px;
         font-weight: 600;
         color: #111827;
@@ -895,13 +884,13 @@
         margin-bottom: 2px;
     }
 
-    .card-description {
+    #page-container[data-page="copy-trading"] .card-description {
         font-size: 13px;
         line-height: 1.4;
         color: #6b7280;
     }
 
-    .card-content {
+    #page-container[data-page="copy-trading"] .card-content {
         padding: 12px 16px 16px;
     }
 
@@ -909,7 +898,7 @@
        TABLE ITSELF
        --------------------------------- */
 
-    table {
+    #page-container[data-page="copy-trading"] table {
         width: 100%;
         border-collapse: collapse;
         background: #fff;
@@ -922,7 +911,7 @@
         word-break: break-word;
     }
 
-    thead {
+    #page-container[data-page="copy-trading"] thead {
         position: sticky;
         top: 0;
         z-index: 5;
@@ -930,7 +919,7 @@
         box-shadow: 0 1px 0 #e5e7eb;
     }
 
-    thead th {
+    #page-container[data-page="copy-trading"] thead th {
         background: #f9fafb;
         color: #374151;
         font-weight: 600;
@@ -942,7 +931,7 @@
         white-space: nowrap;
     }
 
-    tbody td {
+    #page-container[data-page="copy-trading"] tbody td {
         padding: 10px 12px;
         color: #1f2937;
         border-bottom: 1px solid #f1f2f4;
@@ -953,17 +942,17 @@
     }
 
     /* last row: remove border for cleaner end */
-    tbody tr:last-child td {
+    #page-container[data-page="copy-trading"] tbody tr:last-child td {
         border-bottom: 0;
     }
 
     /* zebra striping for readability */
-    tbody tr:nth-child(even) td {
+    #page-container[data-page="copy-trading"] tbody tr:nth-child(even) td {
         background-color: #fafafa;
     }
 
     /* subtle row hover (for tap feedback too) */
-    tbody tr:hover td {
+    #page-container[data-page="copy-trading"] tbody tr:hover td {
         background-color: #f3f4f6;
     }
 
@@ -976,10 +965,10 @@
        make it look intentional, like trading apps.
     */
 
-    .table-wrapper,
-    .table-container,
-    .positions-table-wrapper,
-    .holdings-table-wrapper {
+    #page-container[data-page="copy-trading"] .table-wrapper,
+    #page-container[data-page="copy-trading"] .table-container,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper,
+    #page-container[data-page="copy-trading"] .holdings-table-wrapper {
         width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -991,30 +980,30 @@
 
     /* If you DO NOT currently wrap the <table> in any div,
        browser will just ignore these. That's fine.
-       If you ALREADY have a wrapper div with any of these classes,
+       #page-container[data-page="copy-trading"] If you ALREADY have a wrapper div with any of these classes,
        it'll look really nice.
     */
 
     /* scrollbar styling for horizontal scroll (iOS/Chrome) */
-    .table-wrapper::-webkit-scrollbar,
-    .table-container::-webkit-scrollbar,
-    .positions-table-wrapper::-webkit-scrollbar,
-    .holdings-table-wrapper::-webkit-scrollbar {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar,
+    #page-container[data-page="copy-trading"] .table-container::-webkit-scrollbar,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar,
+    #page-container[data-page="copy-trading"] .holdings-table-wrapper::-webkit-scrollbar {
         height: 5px;
     }
 
-    .table-wrapper::-webkit-scrollbar-track,
-    .table-container::-webkit-scrollbar-track,
-    .positions-table-wrapper::-webkit-scrollbar-track,
-    .holdings-table-wrapper::-webkit-scrollbar-track {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar-track,
+    #page-container[data-page="copy-trading"] .table-container::-webkit-scrollbar-track,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar-track,
+    #page-container[data-page="copy-trading"] .holdings-table-wrapper::-webkit-scrollbar-track {
         background: #f3f4f6;
         border-radius: 999px;
     }
 
-    .table-wrapper::-webkit-scrollbar-thumb,
-    .table-container::-webkit-scrollbar-thumb,
-    .positions-table-wrapper::-webkit-scrollbar-thumb,
-    .holdings-table-wrapper::-webkit-scrollbar-thumb {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar-thumb,
+    #page-container[data-page="copy-trading"] .table-container::-webkit-scrollbar-thumb,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar-thumb,
+    #page-container[data-page="copy-trading"] .holdings-table-wrapper::-webkit-scrollbar-thumb {
         background: #d1d5db;
         border-radius: 999px;
     }
@@ -1024,10 +1013,10 @@
        --------------------------------- */
 
     /* make kebab / action buttons tappable without blowing row height */
-    td button,
-    td .btn,
-    td .kebab-btn,
-    td .action-btn {
+    #page-container[data-page="copy-trading"] td button,
+    #page-container[data-page="copy-trading"] td .btn,
+    #page-container[data-page="copy-trading"] td .kebab-btn,
+    #page-container[data-page="copy-trading"] td .action-btn {
         min-height: 36px;
         min-width: 36px;
         border-radius: 8px;
@@ -1042,9 +1031,9 @@
     }
 
     /* don't over-stretch button columns */
-    td button svg,
-    td .kebab-btn svg,
-    td .action-btn svg {
+    #page-container[data-page="copy-trading"] td button svg,
+    #page-container[data-page="copy-trading"] td .kebab-btn svg,
+    #page-container[data-page="copy-trading"] td .action-btn svg {
         width: 16px;
         height: 16px;
     }
@@ -1054,10 +1043,10 @@
        (like "Positions · Export · Refresh")
        --------------------------------- */
 
-    .card-header-row,
-    .header-flex-row,
-    .position-header,
-    .filter-section {
+    #page-container[data-page="copy-trading"] .card-header-row,
+    #page-container[data-page="copy-trading"] .header-flex-row,
+    #page-container[data-page="copy-trading"] .position-header,
+    #page-container[data-page="copy-trading"] .filter-section {
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
@@ -1067,18 +1056,18 @@
         width: 100%;
     }
 
-    .card-header-row .left,
-    .header-flex-row .left,
-    .position-header .left,
-    .filter-section .left {
+    #page-container[data-page="copy-trading"] .card-header-row .left,
+    #page-container[data-page="copy-trading"] .header-flex-row .left,
+    #page-container[data-page="copy-trading"] .position-header .left,
+    #page-container[data-page="copy-trading"] .filter-section .left {
         min-width: 0;
         flex: 1 1 auto;
     }
 
-    .card-header-row .right,
-    .header-flex-row .right,
-    .position-header .right,
-    .filter-section .right {
+    #page-container[data-page="copy-trading"] .card-header-row .right,
+    #page-container[data-page="copy-trading"] .header-flex-row .right,
+    #page-container[data-page="copy-trading"] .position-header .right,
+    #page-container[data-page="copy-trading"] .filter-section .right {
         flex-shrink: 0;
         display: flex;
         flex-wrap: wrap;
@@ -1086,10 +1075,10 @@
     }
 
     /* make those top-row buttons finger-friendly */
-    .header-flex-row .btn,
-    .card-header-row .btn,
-    .position-header .btn,
-    .filter-section .btn {
+    #page-container[data-page="copy-trading"] .header-flex-row .btn,
+    #page-container[data-page="copy-trading"] .card-header-row .btn,
+    #page-container[data-page="copy-trading"] .position-header .btn,
+    #page-container[data-page="copy-trading"] .filter-section .btn {
         min-height: 40px;
         font-size: 14px;
         line-height: 1.2;
@@ -1101,8 +1090,8 @@
     }
 
     /* search/filter inputs at top (if present) */
-    .filter-section input[type="text"],
-    .filter-section select {
+    #page-container[data-page="copy-trading"] .filter-section input[type="text"],
+    #page-container[data-page="copy-trading"] .filter-section select {
         min-height: 40px;
         font-size: 14px;
         line-height: 1.3;
@@ -1116,32 +1105,32 @@
        GENERAL SPACING / TYPOGRAPHY
        --------------------------------- */
 
-    .container-xl {
+    #page-container[data-page="copy-trading"] .container-xl {
         padding: 12px;
         max-width: 100%;
     }
 
-    .card + .card {
+    #page-container[data-page="copy-trading"] .card + .card {
         margin-top: 16px;
     }
 
     /* smaller headings anywhere */
-    h1, .h1 {
+    #page-container[data-page="copy-trading"] h1, #page-container[data-page="copy-trading"] .h1 {
         font-size: 18px;
         line-height: 1.3;
         font-weight: 600;
         color: #111827;
     }
 
-    h2, .h2 {
+    #page-container[data-page="copy-trading"] h2, #page-container[data-page="copy-trading"] .h2 {
         font-size: 16px;
         line-height: 1.3;
         font-weight: 600;
         color: #111827;
     }
 
-    .subheading,
-    .section-title-sm {
+    #page-container[data-page="copy-trading"] .subheading,
+    #page-container[data-page="copy-trading"] .section-title-sm {
         font-size: 13px;
         line-height: 1.4;
         font-weight: 500;
@@ -1151,24 +1140,24 @@
 
 /* ultra small tweaks */
 @media (max-width: 480px) {
-    thead th {
+    #page-container[data-page="copy-trading"] thead th {
         font-size: 11px;
         padding: 8px 10px;
     }
-    tbody td {
+    #page-container[data-page="copy-trading"] tbody td {
         font-size: 12px;
         padding: 8px 10px;
     }
-    .card-header {
+    #page-container[data-page="copy-trading"] .card-header {
         padding: 12px 14px;
     }
-    .card-title {
+    #page-container[data-page="copy-trading"] .card-title {
         font-size: 15px;
     }
-    .header-flex-row .btn,
-    .card-header-row .btn,
-    .position-header .btn,
-    .filter-section .btn {
+    #page-container[data-page="copy-trading"] .header-flex-row .btn,
+    #page-container[data-page="copy-trading"] .card-header-row .btn,
+    #page-container[data-page="copy-trading"] .position-header .btn,
+    #page-container[data-page="copy-trading"] .filter-section .btn {
         font-size: 13px;
         padding: 8px 10px;
         min-height: 36px;
@@ -1176,7 +1165,7 @@
     
 }
 /* Prevent vertical text breaking in table cells */
-td, th {
+#page-container[data-page="copy-trading"] td, #page-container[data-page="copy-trading"] th {
   white-space: wrap !important;
   word-break:  !important;
   overflow-wrap: normal !important;
@@ -1190,92 +1179,92 @@ td, th {
 @media (max-width: 768px) {
     
     /* ===== CONTAINER & LAYOUT ===== */
-    .container-xl {
+    #page-container[data-page="copy-trading"] .container-xl {
         padding: 12px;
         max-width: 100%;
     }
     
-    body {
+    #page-container[data-page="copy-trading"] {
         font-size: 14px;
     }
     
     /* ===== CARDS ===== */
-    .card {
+    #page-container[data-page="copy-trading"] .card {
         margin-left: 0;
         margin-bottom: 16px;
         border-radius: 10px;
     }
     
-    .card-header {
+    #page-container[data-page="copy-trading"] .card-header {
         padding: 16px;
     }
     
-    .card-content {
+    #page-container[data-page="copy-trading"] .card-content {
         padding: 16px;
     }
     
-    .card-title {
+    #page-container[data-page="copy-trading"] .card-title {
         font-size: 18px;
         flex-wrap: wrap;
     }
     
-    .card-description {
+    #page-container[data-page="copy-trading"] .card-description {
         font-size: 13px;
     }
     
     /* ===== BUTTONS ===== */
-    .btn {
+    #page-container[data-page="copy-trading"] .btn {
         padding: 10px 16px;
         font-size: 14px;
         width: 100%;
         justify-content: center;
     }
     
-    .btn-sm {
+    #page-container[data-page="copy-trading"] .btn-sm {
         padding: 8px 12px;
         font-size: 13px;
     }
     
-    .btn-icon {
+    #page-container[data-page="copy-trading"] .btn-icon {
         width: 36px;
         height: 36px;
     }
     
     /* Buttons in flex containers shouldn't be full width */
-    .flex .btn,
-    .filter-section .btn,
-    .card-header .btn {
+    #page-container[data-page="copy-trading"] .flex .btn,
+    #page-container[data-page="copy-trading"] .filter-section .btn,
+    #page-container[data-page="copy-trading"] .card-header .btn {
         width: auto;
         flex: 1 1 auto;
         min-width: fit-content;
     }
     
     /* ===== BADGES ===== */
-    .badge {
+    #page-container[data-page="copy-trading"] .badge {
         font-size: 11px;
         padding: 3px 10px;
     }
     
     /* ===== GRIDS ===== */
-    .grid-cols-3 {
+    #page-container[data-page="copy-trading"] .grid-cols-3 {
         grid-template-columns: 1fr;
         gap: 12px;
     }
     
-    .positions-summary-grid {
+    #page-container[data-page="copy-trading"] .positions-summary-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
     }
     
-    .stats-grid {
+    #page-container[data-page="copy-trading"] .stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
         padding: 16px;
     }
     
     /* ===== TABLES ===== */
-    .table-wrapper,
-    .positions-table-wrapper {
+    #page-container[data-page="copy-trading"] .table-wrapper,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         border-radius: 10px;
@@ -1283,39 +1272,39 @@ td, th {
         padding: 0 16px;
     }
     
-    table {
+    #page-container[data-page="copy-trading"] table {
         min-width: 600px;
         font-size: 13px;
     }
     
-    th {
+    #page-container[data-page="copy-trading"] th {
         padding: 10px 12px;
         font-size: 11px;
         letter-spacing: 0.3px;
     }
     
-    td {
+    #page-container[data-page="copy-trading"] td {
         padding: 12px;
         font-size: 13px;
     }
     
     /* Action buttons in table cells */
-    td .btn,
-    td button {
+    #page-container[data-page="copy-trading"] td .btn,
+    #page-container[data-page="copy-trading"] td button {
         min-height: 36px;
         min-width: 36px;
         padding: 6px 10px;
         font-size: 13px;
     }
     
-    td .btn svg,
-    td button svg {
+    #page-container[data-page="copy-trading"] td .btn svg,
+    #page-container[data-page="copy-trading"] td button svg {
         width: 14px;
         height: 14px;
     }
     
     /* ===== TABS ===== */
-    .tabs {
+    #page-container[data-page="copy-trading"] .tabs {
         gap: 16px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -1324,16 +1313,16 @@ td, th {
         scrollbar-width: none;
     }
     
-    .tabs::-webkit-scrollbar {
+    #page-container[data-page="copy-trading"] .tabs::-webkit-scrollbar {
         display: none;
     }
     
-    .tab {
+    #page-container[data-page="copy-trading"] .tab {
         padding: 10px 4px;
         font-size: 14px;
     }
     
-    .sub-tabs {
+    #page-container[data-page="copy-trading"] .sub-tabs {
         gap: 12px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -1342,243 +1331,243 @@ td, th {
         scrollbar-width: none;
     }
     
-    .sub-tabs::-webkit-scrollbar {
+    #page-container[data-page="copy-trading"] .sub-tabs::-webkit-scrollbar {
         display: none;
     }
     
-    .sub-tab {
+    #page-container[data-page="copy-trading"] .sub-tab {
         padding: 8px 12px;
         font-size: 13px;
     }
     
     /* ===== FORMS ===== */
-    input[type="text"],
-    input[type="number"],
-    select {
+    #page-container[data-page="copy-trading"] input[type="text"],
+    #page-container[data-page="copy-trading"] input[type="number"],
+    #page-container[data-page="copy-trading"] select {
         padding: 10px 12px;
         font-size: 14px;
         width: 100%;
     }
     
-    select {
+    #page-container[data-page="copy-trading"] select {
         background-position: right 10px center;
     }
     
     /* ===== TYPOGRAPHY ===== */
-    h1, .h1 {
+    #page-container[data-page="copy-trading"] h1, #page-container[data-page="copy-trading"] .h1 {
         font-size: 20px;
     }
     
-    h2, .h2 {
+    #page-container[data-page="copy-trading"] h2, #page-container[data-page="copy-trading"] .h2 {
         font-size: 18px;
     }
     
-    .section-title-sm {
+    #page-container[data-page="copy-trading"] .section-title-sm {
         font-size: 14px;
     }
     
-    .stat-label {
+    #page-container[data-page="copy-trading"] .stat-label {
         font-size: 11px;
     }
     
-    .stat-value {
+    #page-container[data-page="copy-trading"] .stat-value {
         font-size: 18px;
     }
     
-    .positions-summary-label {
+    #page-container[data-page="copy-trading"] .positions-summary-label {
         font-size: 11px;
     }
     
-    .positions-summary-value {
+    #page-container[data-page="copy-trading"] .positions-summary-value {
         font-size: 18px;
     }
     
     /* ===== POSITION CARDS ===== */
-    .positions-summary-card {
+    #page-container[data-page="copy-trading"] .positions-summary-card {
         padding: 12px;
     }
     
-    .position-side {
+    #page-container[data-page="copy-trading"] .position-side {
         width: 28px;
         height: 28px;
         font-size: 12px;
     }
     
     /* ===== ACCOUNT CARDS ===== */
-    .account-mini-card {
+    #page-container[data-page="copy-trading"] .account-mini-card {
         padding: 12px;
     }
     
-    .account-mini-card .account-username {
+    #page-container[data-page="copy-trading"] .account-mini-card .account-username {
         font-size: 12px;
     }
     
     /* ===== ALERTS ===== */
-    .alert {
+    #page-container[data-page="copy-trading"] .alert {
         padding: 12px;
         font-size: 13px;
     }
     
     /* ===== SWITCHES ===== */
-    .switch {
+    #page-container[data-page="copy-trading"] .switch {
         width: 40px;
         height: 22px;
     }
     
-    .slider:before {
+    #page-container[data-page="copy-trading"] .slider:before {
         height: 16px;
         width: 16px;
     }
     
-    input:checked + .slider:before {
+    #page-container[data-page="copy-trading"] input:checked + .slider:before {
         transform: translateX(18px);
     }
     
     /* ===== FLEX UTILITIES ===== */
-    .flex {
+    #page-container[data-page="copy-trading"] .flex {
         flex-wrap: wrap;
     }
     
-    .gap-2 {
+    #page-container[data-page="copy-trading"] .gap-2 {
         gap: 6px;
     }
     
-    .gap-3 {
+    #page-container[data-page="copy-trading"] .gap-3 {
         gap: 10px;
     }
     
     /* ===== FILTER SECTION ===== */
-    .filter-section {
+    #page-container[data-page="copy-trading"] .filter-section {
         flex-direction: column;
         gap: 10px;
     }
     
-    .filter-section input,
-    .filter-section select,
-    .filter-section .btn {
+    #page-container[data-page="copy-trading"] .filter-section input,
+    #page-container[data-page="copy-trading"] .filter-section select,
+    #page-container[data-page="copy-trading"] .filter-section .btn {
         width: 100%;
         min-height: 40px;
     }
     
     /* ===== HEADER ROWS ===== */
-    .card-header-row,
-    .header-flex-row,
-    .position-header {
+    #page-container[data-page="copy-trading"] .card-header-row,
+    #page-container[data-page="copy-trading"] .header-flex-row,
+    #page-container[data-page="copy-trading"] .position-header {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
     }
     
-    .card-header-row .left,
-    .header-flex-row .left,
-    .position-header .left {
+    #page-container[data-page="copy-trading"] .card-header-row .left,
+    #page-container[data-page="copy-trading"] .header-flex-row .left,
+    #page-container[data-page="copy-trading"] .position-header .left {
         width: 100%;
     }
     
-    .card-header-row .right,
-    .header-flex-row .right,
-    .position-header .right {
+    #page-container[data-page="copy-trading"] .card-header-row .right,
+    #page-container[data-page="copy-trading"] .header-flex-row .right,
+    #page-container[data-page="copy-trading"] .position-header .right {
         width: 100%;
         justify-content: flex-start;
     }
     
     /* ===== LIST GROUPS ===== */
-    .list-group-item {
+    #page-container[data-page="copy-trading"] .list-group-item {
         padding: 12px;
         margin-bottom: 6px;
     }
     
     /* ===== ICONS ===== */
-    .icon {
+    #page-container[data-page="copy-trading"] .icon {
         width: 18px;
         height: 18px;
     }
     
-    .icon-sm {
+    #page-container[data-page="copy-trading"] .icon-sm {
         width: 14px;
         height: 14px;
     }
     
-    .icon-lg {
+    #page-container[data-page="copy-trading"] .icon-lg {
         width: 20px;
         height: 20px;
     }
     
-    .icon-box {
+    #page-container[data-page="copy-trading"] .icon-box {
         width: 20px;
         height: 20px;
     }
     
     /* ===== EMPTY STATES ===== */
-    .empty-state {
+    #page-container[data-page="copy-trading"] .empty-state {
         padding: 32px 16px;
         font-size: 13px;
     }
     
-    .empty-state-icon {
+    #page-container[data-page="copy-trading"] .empty-state-icon {
         width: 40px;
         height: 40px;
         margin-bottom: 12px;
     }
     
-    .positions-empty-sub {
+    #page-container[data-page="copy-trading"] .positions-empty-sub {
         padding: 16px;
         font-size: 13px;
     }
     
     /* ===== EXPANDED ROW CONTENT ===== */
-    .expanded-row-content {
+    #page-container[data-page="copy-trading"] .expanded-row-content {
         padding: 12px;
     }
     
     /* ===== COPY QUANTITY CONTROL ===== */
-    .copy-qty-control input {
+    #page-container[data-page="copy-trading"] .copy-qty-control input {
         width: 54px;
     }
     
     /* ===== DOWNLOAD BUTTON ===== */
-    .download-btn {
+    #page-container[data-page="copy-trading"] .download-btn {
         padding: 8px 12px;
         font-size: 13px;
     }
     
     /* ===== HIDE ON MOBILE ===== */
-    .hide-mobile {
+    #page-container[data-page="copy-trading"] .hide-mobile {
         display: none !important;
     }
     
     /* ===== SCROLLBAR STYLING ===== */
-    .table-wrapper::-webkit-scrollbar,
-    .positions-table-wrapper::-webkit-scrollbar {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar {
         height: 4px;
     }
     
-    .table-wrapper::-webkit-scrollbar-track,
-    .positions-table-wrapper::-webkit-scrollbar-track {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar-track,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar-track {
         background: #f3f4f6;
     }
     
-    .table-wrapper::-webkit-scrollbar-thumb,
-    .positions-table-wrapper::-webkit-scrollbar-thumb {
+    #page-container[data-page="copy-trading"] .table-wrapper::-webkit-scrollbar-thumb,
+    #page-container[data-page="copy-trading"] .positions-table-wrapper::-webkit-scrollbar-thumb {
         background: #d1d5db;
         border-radius: 999px;
     }
     
     /* ===== TEXT UTILITIES ===== */
-    .text-sm {
+    #page-container[data-page="copy-trading"] .text-sm {
         font-size: 13px;
     }
     
-    .text-xs {
+    #page-container[data-page="copy-trading"] .text-xs {
         font-size: 11px;
     }
     
     /* ===== SPACING ===== */
-    .p-4 {
+    #page-container[data-page="copy-trading"] .p-4 {
         padding: 12px;
     }
     
-    .mb-4 {
+    #page-container[data-page="copy-trading"] .mb-4 {
         margin-bottom: 12px;
     }
 }
@@ -1590,124 +1579,124 @@ td, th {
 @media (max-width: 480px) {
     
     /* Tighter spacing for very small screens */
-    .container-xl {
+    #page-container[data-page="copy-trading"] .container-xl {
         padding: 8px;
     }
     
-    .card {
+    #page-container[data-page="copy-trading"] .card {
         margin-bottom: 12px;
         border-radius: 8px;
     }
     
-    .card-header,
-    .card-content {
+    #page-container[data-page="copy-trading"] .card-header,
+    #page-container[data-page="copy-trading"] .card-content {
         padding: 12px;
     }
     
-    .card-title {
+    #page-container[data-page="copy-trading"] .card-title {
         font-size: 16px;
     }
     
     /* Single column for all grids */
-    .positions-summary-grid,
-    .stats-grid {
+    #page-container[data-page="copy-trading"] .positions-summary-grid,
+    #page-container[data-page="copy-trading"] .stats-grid {
         grid-template-columns: 1fr;
         gap: 10px;
         padding: 12px;
     }
     
     /* Smaller table text */
-    th {
+    #page-container[data-page="copy-trading"] th {
         font-size: 10px;
         padding: 8px 10px;
     }
     
-    td {
+    #page-container[data-page="copy-trading"] td {
         font-size: 12px;
         padding: 10px;
     }
     
     /* Smaller buttons */
-    .btn {
+    #page-container[data-page="copy-trading"] .btn {
         padding: 8px 14px;
         font-size: 13px;
     }
     
-    .btn-sm {
+    #page-container[data-page="copy-trading"] .btn-sm {
         padding: 6px 10px;
         font-size: 12px;
     }
     
-    .btn-icon {
+    #page-container[data-page="copy-trading"] .btn-icon {
         width: 32px;
         height: 32px;
     }
     
     /* Smaller badges */
-    .badge {
+    #page-container[data-page="copy-trading"] .badge {
         font-size: 10px;
         padding: 2px 8px;
     }
     
     /* Adjusted typography */
-    h1, .h1 {
+    #page-container[data-page="copy-trading"] h1, #page-container[data-page="copy-trading"] .h1 {
         font-size: 18px;
     }
     
-    h2, .h2 {
+    #page-container[data-page="copy-trading"] h2, #page-container[data-page="copy-trading"] .h2 {
         font-size: 16px;
     }
     
-    .stat-value {
+    #page-container[data-page="copy-trading"] .stat-value {
         font-size: 16px;
     }
     
-    .positions-summary-value {
+    #page-container[data-page="copy-trading"] .positions-summary-value {
         font-size: 16px;
     }
     
     /* Tabs */
-    .tab {
+    #page-container[data-page="copy-trading"] .tab {
         font-size: 13px;
         padding: 8px 4px;
     }
     
-    .sub-tab {
+    #page-container[data-page="copy-trading"] .sub-tab {
         font-size: 12px;
         padding: 6px 10px;
     }
     
     /* Forms */
-    input[type="text"],
-    input[type="number"],
-    select {
+    #page-container[data-page="copy-trading"] input[type="text"],
+    #page-container[data-page="copy-trading"] input[type="number"],
+    #page-container[data-page="copy-trading"] select {
         padding: 8px 10px;
         font-size: 13px;
     }
     
     /* Empty states */
-    .empty-state {
+    #page-container[data-page="copy-trading"] .empty-state {
         padding: 24px 12px;
     }
     
-    .empty-state-icon {
+    #page-container[data-page="copy-trading"] .empty-state-icon {
         width: 32px;
         height: 32px;
     }
 }
 
-.orderbook-section {
+#page-container[data-page="copy-trading"] .orderbook-section {
     margin-top: 24px;
 }
 
-.orderbook-container {
+#page-container[data-page="copy-trading"] .orderbook-container {
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 16px;
 }
 
-.orderbook-header {
+#page-container[data-page="copy-trading"] .orderbook-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -1716,18 +1705,18 @@ td, th {
     margin-bottom: 16px;
 }
 
-.orderbook-title {
+#page-container[data-page="copy-trading"] .orderbook-title {
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 4px;
 }
 
-.orderbook-subtitle {
+#page-container[data-page="copy-trading"] .orderbook-subtitle {
     font-size: 13px;
     color: #6b7280;
 }
 
-.orderbook-actions {
+#page-container[data-page="copy-trading"] .orderbook-actions {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1735,13 +1724,13 @@ td, th {
     justify-content: flex-end;
 }
 
-.orderbook-filters {
+#page-container[data-page="copy-trading"] .orderbook-filters {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
 }
 
-.orderbook-filter-btn {
+#page-container[data-page="copy-trading"] .orderbook-filter-btn {
     border: none;
     background: #f3f4f6;
     color: #4b5563;
@@ -1756,16 +1745,16 @@ td, th {
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.orderbook-filter-btn:hover {
+#page-container[data-page="copy-trading"] .orderbook-filter-btn:hover {
     background: #e5e7eb;
 }
 
-.orderbook-filter-btn.active {
+#page-container[data-page="copy-trading"] .orderbook-filter-btn.active {
     background: #6366f1;
     color: #ffffff;
 }
 
-.orderbook-filter-count {
+#page-container[data-page="copy-trading"] .orderbook-filter-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1777,12 +1766,12 @@ td, th {
     color: inherit;
 }
 
-.orderbook-search {
+#page-container[data-page="copy-trading"] .orderbook-search {
     position: relative;
     min-width: 220px;
 }
 
-.orderbook-search-icon {
+#page-container[data-page="copy-trading"] .orderbook-search-icon {
     position: absolute;
     top: 50%;
     left: 12px;
@@ -1792,7 +1781,7 @@ td, th {
     color: #9ca3af;
 }
 
-.orderbook-search-input {
+#page-container[data-page="copy-trading"] .orderbook-search-input {
     width: 100%;
     padding: 8px 12px 8px 36px;
     border: 1px solid #e5e7eb;
@@ -1802,22 +1791,22 @@ td, th {
     color: #1f2937;
 }
 
-.orderbook-search-input:focus {
+#page-container[data-page="copy-trading"] .orderbook-search-input:focus {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
-.orderbook-table-wrapper {
+#page-container[data-page="copy-trading"] .orderbook-table-wrapper {
     overflow-x: auto;
 }
 
-.orderbook-table {
+#page-container[data-page="copy-trading"] .orderbook-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.orderbook-table thead th {
+#page-container[data-page="copy-trading"] .orderbook-table thead th {
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 0.04em;
@@ -1828,54 +1817,54 @@ td, th {
     white-space: nowrap;
 }
 
-.orderbook-table tbody tr {
+#page-container[data-page="copy-trading"] .orderbook-table tbody tr {
     border-bottom: 1px solid #f3f4f6;
     transition: background-color 0.15s ease;
 }
 
-.orderbook-table tbody tr:hover {
+#page-container[data-page="copy-trading"] .orderbook-table tbody tr:hover {
     background: #f9fafb;
 }
 
-.orderbook-table tbody td {
+#page-container[data-page="copy-trading"] .orderbook-table tbody td {
     padding: 14px 16px;
     font-size: 13px;
     vertical-align: top;
 }
 
-.orderbook-table tbody td.text-end {
+#page-container[data-page="copy-trading"] .orderbook-table tbody td.text-end {
     text-align: right;
 }
 
-.orderbook-table tbody td.text-center {
+#page-container[data-page="copy-trading"] .orderbook-table tbody td.text-center {
     text-align: center;
 }
 
-.orderbook-symbol {
+#page-container[data-page="copy-trading"] .orderbook-symbol {
     display: flex;
     gap: 12px;
     align-items: flex-start;
 }
 
-.orderbook-symbol-name {
+#page-container[data-page="copy-trading"] .orderbook-symbol-name {
     font-weight: 600;
     font-size: 14px;
     color: #111827;
 }
 
-.orderbook-symbol-meta {
+#page-container[data-page="copy-trading"] .orderbook-symbol-meta {
     font-size: 12px;
     color: #6b7280;
     margin-top: 2px;
 }
 
-.orderbook-symbol-remarks {
+#page-container[data-page="copy-trading"] .orderbook-symbol-remarks {
     font-size: 12px;
     color: #4b5563;
     margin-top: 4px;
 }
 
-.orderbook-type-badge {
+#page-container[data-page="copy-trading"] .orderbook-type-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1887,19 +1876,19 @@ td, th {
     color: #ffffff;
 }
 
-.orderbook-type-badge.buy {
+#page-container[data-page="copy-trading"] .orderbook-type-badge.buy {
     background: #16a34a;
 }
 
-.orderbook-type-badge.sell {
+#page-container[data-page="copy-trading"] .orderbook-type-badge.sell {
     background: #dc2626;
 }
 
-.orderbook-type-badge.neutral {
+#page-container[data-page="copy-trading"] .orderbook-type-badge.neutral {
     background: #9ca3af;
 }
 
-.orderbook-product-badge {
+#page-container[data-page="copy-trading"] .orderbook-product-badge {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
@@ -1910,7 +1899,7 @@ td, th {
     font-weight: 600;
 }
 
-.orderbook-loading {
+#page-container[data-page="copy-trading"] .orderbook-loading {
     display: none;
     align-items: center;
     justify-content: center;
@@ -1920,29 +1909,29 @@ td, th {
     font-size: 13px;
 }
 
-.orderbook-mobile-cards {
+#page-container[data-page="copy-trading"] .orderbook-mobile-cards {
     display: none;
     flex-direction: column;
     gap: 12px;
     margin-top: 16px;
 }
 
-.orderbook-card {
+#page-container[data-page="copy-trading"] .orderbook-card {
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 16px;
     background: #ffffff;
 }
 
-.orderbook-card.buy {
+#page-container[data-page="copy-trading"] .orderbook-card.buy {
     border-left: 4px solid #16a34a;
 }
 
-.orderbook-card.sell {
+#page-container[data-page="copy-trading"] .orderbook-card.sell {
     border-left: 4px solid #dc2626;
 }
 
-.orderbook-card-header {
+#page-container[data-page="copy-trading"] .orderbook-card-header {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -1950,31 +1939,31 @@ td, th {
     margin-bottom: 12px;
 }
 
-.orderbook-card-title {
+#page-container[data-page="copy-trading"] .orderbook-card-title {
     font-weight: 600;
     font-size: 15px;
     margin-bottom: 4px;
 }
 
-.orderbook-card-meta {
+#page-container[data-page="copy-trading"] .orderbook-card-meta {
     font-size: 12px;
     color: #6b7280;
 }
 
-.orderbook-card-amount {
+#page-container[data-page="copy-trading"] .orderbook-card-amount {
     font-weight: 700;
     font-size: 15px;
     text-align: right;
 }
 
-.orderbook-card-badges {
+#page-container[data-page="copy-trading"] .orderbook-card-badges {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 12px;
 }
 
-.orderbook-card-footer {
+#page-container[data-page="copy-trading"] .orderbook-card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1983,29 +1972,29 @@ td, th {
     color: #4b5563;
 }
 
-.orderbook-empty {
+#page-container[data-page="copy-trading"] .orderbook-empty {
     margin-top: 16px;
 }
 
-.orderbook-footer {
+#page-container[data-page="copy-trading"] .orderbook-footer {
     margin-top: 16px;
 }
 
 @media (max-width: 768px) {
-    .orderbook-actions {
+    #page-container[data-page="copy-trading"] .orderbook-actions {
         width: 100%;
         justify-content: flex-start;
     }
 
-    .orderbook-search {
+    #page-container[data-page="copy-trading"] .orderbook-search {
         width: 100%;
     }
 
-    .orderbook-table-wrapper {
+    #page-container[data-page="copy-trading"] .orderbook-table-wrapper {
         display: none;
     }
 
-    .orderbook-mobile-cards {
+    #page-container[data-page="copy-trading"] .orderbook-mobile-cards {
         display: flex;
     }
 }
@@ -2017,17 +2006,17 @@ td, th {
 @media (max-width: 768px) and (orientation: landscape) {
     
     /* Optimize for landscape viewing */
-    .container-xl {
+    #page-container[data-page="copy-trading"] .container-xl {
         padding: 12px 20px;
     }
     
-    .positions-summary-grid,
-    .stats-grid {
+    #page-container[data-page="copy-trading"] .positions-summary-grid,
+    #page-container[data-page="copy-trading"] .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
     
-    .card-header,
-    .card-content {
+    #page-container[data-page="copy-trading"] .card-header,
+    #page-container[data-page="copy-trading"] .card-content {
         padding: 14px;
     }
 }
@@ -2039,39 +2028,39 @@ td, th {
 @media (hover: none) and (pointer: coarse) {
     
     /* Increase tap targets for touch devices */
-    .btn,
-    button,
-    a {
+    #page-container[data-page="copy-trading"] .btn,
+    #page-container[data-page="copy-trading"] button,
+    #page-container[data-page="copy-trading"] a {
         min-height: 44px;
         min-width: 44px;
     }
     
-    .switch {
+    #page-container[data-page="copy-trading"] .switch {
         width: 48px;
         height: 26px;
     }
     
-    .slider:before {
+    #page-container[data-page="copy-trading"] .slider:before {
         height: 20px;
         width: 20px;
     }
     
-    input:checked + .slider:before {
+    #page-container[data-page="copy-trading"] input:checked + .slider:before {
         transform: translateX(22px);
     }
     
     /* Remove hover effects on touch devices */
-    .btn:hover,
-    .tab:hover,
-    .sub-tab:hover,
-    tbody tr:hover,
-    .list-group-item:hover {
+    #page-container[data-page="copy-trading"] .btn:hover,
+    #page-container[data-page="copy-trading"] .tab:hover,
+    #page-container[data-page="copy-trading"] .sub-tab:hover,
+    #page-container[data-page="copy-trading"] tbody tr:hover,
+    #page-container[data-page="copy-trading"] .list-group-item:hover {
         background: inherit;
     }
     
     /* Better touch feedback */
-    .btn:active,
-    button:active {
+    #page-container[data-page="copy-trading"] .btn:active,
+    #page-container[data-page="copy-trading"] button:active {
         transform: scale(0.98);
         opacity: 0.8;
     }
