@@ -34,13 +34,13 @@ class DhanBroker(BrokerBase):
 
     AUTH_BASE = "https://auth.dhan.co"
     LOGIN_API_BASE = "https://login-api.dhan.co"
-    _DHAN_APP_VERSION = "v1.0.0.46"
-    _DHAN_APP_ID = "DH_WEB"
+    _DHAN_APP_VERSION = "v1.1.0.0"
+    _DHAN_APP_ID = "DH_WEB_V2"
     _DHAN_SOURCE = "W"
-    _DHAN_PBKDF2_PASS = b"DHAN"
-    _DHAN_PBKDF2_SALT = bytes.fromhex("498960e491150a0fc0f21822a147fd62")
-    _DHAN_PBKDF2_ITERATIONS = 1000
-    _DHAN_AES_IV = bytes.fromhex("320ef7705d1030f0a1a55b3dcf676cb8")
+    _DHAN_PBKDF2_PASS = b"DHAN_WEB_V2"
+    _DHAN_PBKDF2_SALT = bytes.fromhex("5f12c6a9da1f0f33158d8286a2bf7661")
+    _DHAN_PBKDF2_ITERATIONS = 2048
+    _DHAN_AES_IV = bytes.fromhex("8a0e6c9d5a12bf4e1d2f045ea3c17690")
     TOKEN_REFRESH_SKEW = timedelta(minutes=2)
 
     def __init__(self, client_id, access_token=None, **kwargs):
@@ -178,6 +178,16 @@ class DhanBroker(BrokerBase):
             "app_version": self._DHAN_APP_VERSION,
             "app_id": self._DHAN_APP_ID,
             "source": self._DHAN_SOURCE,
+            "device_id": self._device_identifier(),
+            "device_type": "WEB",
+            "device_name": self._device_identifier(),
+            "device_model": "Python Client",
+            "device_os": "linux",
+            "device_os_version": self._web_version(),
+            "browser": "python-requests",
+            "browser_version": requests.__version__,
+            "login_flow": "TOTP",
+            "is_trusted_device": "Y",
         }
         login_headers = {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -202,6 +212,8 @@ class DhanBroker(BrokerBase):
                 "totp": otp_code,
                 "otp": otp_code,
                 "consent_app_id": consent_app_id,
+                "totp_verified": True,
+                "login_type": "PASSWORD",  # Explicit login type required by v2 API    
             }
         )
 
@@ -219,9 +231,16 @@ class DhanBroker(BrokerBase):
             message = login_response.get("message") or "Login API returned failure"
             raise DhanAuthError(str(message))
         data_list = login_response.get("data")
-        if not isinstance(data_list, list) or not data_list:
+        if isinstance(data_list, dict):
+            candidates = [data_list]
+        elif isinstance(data_list, list):
+            candidates = data_list
+        else:
             raise DhanAuthError("Login API response missing data")
-        token_id = data_list[0].get("token_id") or data_list[0].get("tokenId")
+        if not candidates:
+            raise DhanAuthError("Login API response missing data")
+        token_details = candidates[0]
+        token_id = token_details.get("token_id") or token_details.get("tokenId")
         if not token_id:
             raise DhanAuthError("Login API response missing token_id")
         return str(token_id)
@@ -276,7 +295,14 @@ class DhanBroker(BrokerBase):
         expect_json: bool = True,
     ) -> Dict[str, Any]:
         encrypted = self._encrypt_payload(payload)
-        body = urllib.parse.urlencode({"data": encrypted})
+        body = urllib.parse.urlencode(
+            {
+                "data": encrypted,
+                "enc": "v2",
+                "app_id": self._DHAN_APP_ID,
+                "app_version": self._DHAN_APP_VERSION,
+            }
+        )
         url = f"{self.LOGIN_API_BASE}{path}"
         resp = self._request(
             "post",
@@ -296,14 +322,22 @@ class DhanBroker(BrokerBase):
             wrapped = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise DhanAuthError(f"Invalid login API response: {exc}") from exc
-        encrypted_payload = wrapped.get("data")
-        if not isinstance(encrypted_payload, str):
-            raise DhanAuthError("Login API payload missing encrypted data")
-        decrypted_text = self._decrypt_payload(encrypted_payload)
-        try:
-            return json.loads(decrypted_text)
-        except json.JSONDecodeError as exc:
-            raise DhanAuthError(f"Unable to decode login API payload: {exc}") from exc
+        if isinstance(wrapped, dict):
+            encrypted_payload = wrapped.get("data")
+            if isinstance(encrypted_payload, str):
+                try:
+                    decrypted_text = self._decrypt_payload(encrypted_payload)
+                except Exception:
+                    # If the payload is not encrypted anymore fall back to the raw shape
+                    return wrapped
+                try:
+                    return json.loads(decrypted_text)
+                except json.JSONDecodeError as exc:
+                    raise DhanAuthError(
+                        f"Unable to decode login API payload: {exc}"
+                    ) from exc
+            return wrapped
+        return wrapped
 
     def generate_session_token(self, *, force_refresh: bool = False) -> str:
         if not self._has_login_material():
