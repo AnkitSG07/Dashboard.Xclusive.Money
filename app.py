@@ -1495,6 +1495,29 @@ def broker_api(obj):
             **rest
         )
 
+    elif broker == "dhan":
+        login_id = rest.pop("login_id", None)
+        login_password = rest.pop("login_password", None)
+        api_key = rest.pop("api_key", rest.pop("app_id", None))
+        api_secret = rest.pop("api_secret", rest.pop("app_secret", None))
+        totp_secret = rest.pop("totp_secret", None)
+        refresh_token = rest.pop("refresh_token", credentials.get("refresh_token"))
+        token_time = rest.pop("token_time", credentials.get("token_time"))
+        token_expiry = rest.pop("token_expiry", credentials.get("token_expiry"))
+        return BrokerClass(
+            client_id,
+            access_token,
+            login_id=login_id,
+            login_password=login_password,
+            api_key=api_key,
+            api_secret=api_secret,
+            totp_secret=totp_secret,
+            refresh_token=refresh_token,
+            token_time=token_time,
+            token_expiry=token_expiry,
+            **rest
+        )
+
     elif broker == "groww":
         return BrokerClass(client_id, access_token, **rest)
     return BrokerClass(client_id, access_token, **rest)
@@ -2148,6 +2171,27 @@ def _legacy_poll_and_copy_trades():
                             imei=imei
                         )
                         clear_init_error_logs(master, is_master=True)
+                    elif master_broker == "dhan":
+                        required = ["login_id", "login_password", "api_key", "api_secret", "totp_secret"]
+                        if not all(credentials.get(r) for r in required):
+                            logger.error(
+                                "Missing credentials for Dhan master %s",
+                                master_id,
+                            )
+                            continue
+                        master_api = BrokerClass(
+                            master.client_id,
+                            credentials.get("access_token"),
+                            login_id=credentials.get("login_id"),
+                            login_password=credentials.get("login_password"),
+                            api_key=credentials.get("api_key"),
+                            api_secret=credentials.get("api_secret"),
+                            totp_secret=credentials.get("totp_secret"),
+                            refresh_token=credentials.get("refresh_token"),
+                            token_time=credentials.get("token_time"),
+                            token_expiry=credentials.get("token_expiry"),
+                        )
+                        clear_init_error_logs(master, is_master=True)    
                     else:
                         access_token = credentials.get("access_token")
                         if not access_token:
@@ -2582,6 +2626,27 @@ def _legacy_poll_and_copy_trades():
                                     imei=imei
                                 )
                                 clear_init_error_logs(child, is_master=False)
+                            elif child_broker == "dhan":
+                                required = ['login_id', 'login_password', 'api_key', 'api_secret', 'totp_secret']
+                                if not all(child_credentials.get(r) for r in required):
+                                    logger.warning(
+                                        "Missing credentials for Dhan child %s",
+                                        child_id,
+                                    )
+                                    continue
+                                child_api = ChildBrokerClass(
+                                    child.client_id,
+                                    child_credentials.get('access_token'),
+                                    login_id=child_credentials.get('login_id'),
+                                    login_password=child_credentials.get('login_password'),
+                                    api_key=child_credentials.get('api_key'),
+                                    api_secret=child_credentials.get('api_secret'),
+                                    totp_secret=child_credentials.get('totp_secret'),
+                                    refresh_token=child_credentials.get('refresh_token'),
+                                    token_time=child_credentials.get('token_time'),
+                                    token_expiry=child_credentials.get('token_expiry'),
+                                )
+                                clear_init_error_logs(child, is_master=False)    
                             else:
                                 access_token = child_credentials.get("access_token")
                                 if not access_token:
@@ -5330,6 +5395,10 @@ def reconnect_account():
             new_creds['access_token'] = api.access_token
         if getattr(api, 'token_time', None):
             new_creds['token_time'] = api.token_time
+        if getattr(api, 'refresh_token', None):
+            new_creds['refresh_token'] = api.refresh_token
+        if getattr(api, 'token_expiry', None):
+            new_creds['token_expiry'] = api.token_expiry
         acc_db.credentials = dict(new_creds)
 
         acc_db.status = 'Connected'
@@ -5686,13 +5755,23 @@ def add_account():
                 # Set default IMEI if not provided
                 if not credentials.get('imei'):
                     validation_error = "Missing IMEI for Finvasia"
+
+        elif broker == 'dhan':
+            required_fields = ['login_id', 'login_password', 'api_key', 'api_secret', 'totp_secret']
+            missing_fields = [field for field in required_fields if not credentials.get(field)]
+            if missing_fields:
+                validation_error = (
+                    "Missing required fields for Dhan: "
+                    + ', '.join(missing_fields)
+                )
+
                     
         elif broker == 'groww':
             access_token = credentials.get('access_token')
             if not access_token:
-                validation_error = "Missing Access Token for Groww"
-                
-        else:  # dhan, zerodha, upstox
+                validation_error = "Missing Access Token for Groww"         
+
+        else:  # zerodha, upstox
             access_token = credentials.get('access_token')
             if not access_token:
                 validation_error = f"Missing Access Token for {broker.title()}"
@@ -5725,11 +5804,25 @@ def add_account():
                         api_key=credentials['api_key'],
                         imei=credentials['imei']
                     )
-                
+
+            elif broker == 'dhan':
+                broker_obj = BrokerClass(
+                    client_id,
+                    credentials.get('access_token'),
+                    login_id=credentials.get('login_id'),
+                    login_password=credentials.get('login_password'),
+                    api_key=credentials.get('api_key'),
+                    api_secret=credentials.get('api_secret'),
+                    totp_secret=credentials.get('totp_secret'),
+                    refresh_token=credentials.get('refresh_token'),
+                    token_time=credentials.get('token_time'),
+                    token_expiry=credentials.get('token_expiry'),
+                )
+
             elif broker == 'groww':
                 broker_obj = BrokerClass(client_id, credentials['access_token'])
-                
-            else:  # dhan, zerodha, upstox
+
+            else:  # zerodha, upstox
                 access_token = credentials.get('access_token')
                 # Pass additional credentials as kwargs
                 other_creds = {k: v for k, v in credentials.items() if k != 'access_token'}
@@ -5740,6 +5833,10 @@ def add_account():
                 credentials['access_token'] = broker_obj.access_token
             if getattr(broker_obj, 'token_time', None):
                 credentials['token_time'] = broker_obj.token_time
+            if getattr(broker_obj, 'refresh_token', None):
+                credentials['refresh_token'] = broker_obj.refresh_token
+            if getattr(broker_obj, 'token_expiry', None):
+                credentials['token_expiry'] = broker_obj.token_expiry
                 
             # Test connection if validation method exists
             if broker != 'zerodha' and hasattr(broker_obj, 'check_token_valid'):
