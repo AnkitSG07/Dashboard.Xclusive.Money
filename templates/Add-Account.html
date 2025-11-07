@@ -395,7 +395,12 @@ window.pageScripts["Add-Account"] = function() {
     ],
     dhan: [
       { label: "Dhan Client ID", name: "client_id", type: "text" },
-      { label: "Access Token", name: "access_token", type: "password" },
+      { label: "Login ID (email or mobile)", name: "login_id", type: "text", tip: "Use the username you enter on auth.dhan.co." },
+      { label: "Password", name: "login_password", type: "password", tip: "Stored securely and used only to automate the consent login." },
+      { label: "API Key (App ID)", name: "api_key", type: "text", tip: "From Dhan → Profile → Access DhanHQ APIs." },
+      { label: "API Secret", name: "api_secret", type: "password" },
+      { label: "TOTP Secret", name: "totp_secret", type: "text", tip: "Paste the base32 secret string shown when enabling TOTP. Do not enter the 6-digit code." },
+      { label: "Existing Access Token (optional)", name: "access_token", type: "password", optional: true, tip: "Legacy tokens are refreshed automatically once the new flow runs." },
       { label: "Client Name", name: "client_name", type: "text" },
       { label: "Email Id (optional)", name: "email", type: "text", optional: true },
       { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
