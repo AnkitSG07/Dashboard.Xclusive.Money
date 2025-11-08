@@ -45,6 +45,7 @@ class DhanBroker(BrokerBase):
         self.token_expiry: Optional[str] = None
         self.dhan_client_name: Optional[str] = _clean_string(
             kwargs.pop("dhan_client_name", None)
+        )
         self.persist_credentials: Dict[str, Any] = {}
         self._last_auth_error_message: Optional[str] = None
 
