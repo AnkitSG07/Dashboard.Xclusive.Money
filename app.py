@@ -5351,14 +5351,16 @@ def reconnect_account():
     # ``get_json(silent=True)`` ensures ``None`` is returned instead of raising
     # an exception so we can respond with a helpful message.
     data = request.get_json(silent=True) or {}
-
+    request_data = data
+    
     # Support clients that might send data via query parameters or form data
     # (e.g., when invoking the endpoint with a simple GET request during page
     # load).  These fallbacks make the endpoint more tolerant of different
     # invocation styles and avoid unexpected 400 errors.
     if not data:
         data = request.args.to_dict() or request.form.to_dict() or {}
-
+        request_data = data
+        
     client_id = data.get("client_id")
     if not client_id:
         return jsonify({"error": "Missing client_id"}), 200
