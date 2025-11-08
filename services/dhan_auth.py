@@ -150,11 +150,13 @@ def renew_token(
         "Content-Type": "application/json",
     }
 
+    request_payload = {"clientId": str(client_id)}
+    
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
-            json={},
+            json=request_payload,
             timeout=timeout,
         )
         response.raise_for_status()
