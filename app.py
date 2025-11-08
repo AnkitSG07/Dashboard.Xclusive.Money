@@ -90,6 +90,7 @@ from blueprints.api import (
     _get_holdings_payload,
 )
 from services.webhook_server import webhook_bp
+from services import dhan_auth
 from helpers import (
     current_user,
     user_account_ids,
@@ -5379,6 +5380,41 @@ def reconnect_account():
 
 
     try:
+        if (acc_db.broker or '').lower() == 'dhan':
+            access_token = new_creds.get('access_token')
+            if access_token:
+                try:
+                    renewal = dhan_auth.renew_token(
+                        access_token=access_token,
+                        client_id=client_id,
+                    )
+                except dhan_auth.DhanAuthError as exc:
+                    logger.warning(
+                        "Dhan token renewal during reconnect for %s failed: %s",
+                        client_id,
+                        exc,
+                    )
+                else:
+                    renewed_token = renewal.get('accessToken') or renewal.get('access_token')
+                    if renewed_token:
+                        new_creds['access_token'] = renewed_token
+                        expiry_iso = dhan_auth.parse_expiry(
+                            renewal.get('expiryTime')
+                            or renewal.get('expiry_time')
+                            or renewal.get('tokenValidity')
+                        )
+                        if expiry_iso:
+                            new_creds['token_expiry'] = expiry_iso
+                        if renewal.get('dhanClientName'):
+                            new_creds['dhan_client_name'] = renewal.get('dhanClientName')
+                        new_creds.pop('refresh_token', None)
+                        acc_db.credentials = dict(new_creds)
+            else:
+                logger.warning(
+                    "Reconnect requested for Dhan account %s without access token",
+                    client_id,
+                )
+
         acc_dict = _account_to_dict(acc_db)
         acc_dict["credentials"] = new_creds
         api = broker_api(acc_dict)
@@ -5395,10 +5431,10 @@ def reconnect_account():
             new_creds['access_token'] = api.access_token
         if getattr(api, 'token_time', None):
             new_creds['token_time'] = api.token_time
-        if getattr(api, 'refresh_token', None):
-            new_creds['refresh_token'] = api.refresh_token
         if getattr(api, 'token_expiry', None):
             new_creds['token_expiry'] = api.token_expiry
+        if getattr(api, 'dhan_client_name', None):
+            new_creds['dhan_client_name'] = api.dhan_client_name
         acc_db.credentials = dict(new_creds)
 
         acc_db.status = 'Connected'
@@ -5471,6 +5507,11 @@ def check_auto_logins():
                     creds["access_token"] = api.access_token
                     if getattr(api, "token_time", None):
                         creds["token_time"] = api.token_time
+                    if getattr(api, "token_expiry", None):
+                        creds["token_expiry"] = api.token_expiry
+                    if getattr(api, "dhan_client_name", None):
+                        creds["dhan_client_name"] = api.dhan_client_name
+                    creds.pop("refresh_token", None)
                     acc_db.credentials = creds
             db.session.commit()
             if valid:
@@ -5638,6 +5679,117 @@ def check_credentials():
             error_message = str(e)
         return jsonify({'error': f'Credential validation failed: {error_message}'}), 400
 
+@app.route('/api/dhan/login/start', methods=['POST'])
+@login_required
+def dhan_login_start():
+    data = request.get_json() or {}
+    client_id = data.get('client_id')
+    api_key = data.get('api_key')
+    api_secret = data.get('api_secret')
+
+    if not client_id or not api_key or not api_secret:
+        return (
+            jsonify({
+                "error": "Missing client_id, api_key, or api_secret"
+            }),
+            400,
+        )
+
+    try:
+        consent = dhan_auth.generate_consent(
+            client_id=str(client_id),
+            api_key=api_key,
+            api_secret=api_secret,
+        )
+    except dhan_auth.DhanAuthError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(
+        {
+            "consent_app_id": consent.consent_app_id,
+            "status": consent.status,
+            "login_url": consent.login_url,
+        }
+    )
+
+
+@app.route('/api/dhan/login/complete', methods=['POST'])
+@login_required
+def dhan_login_complete():
+    data = request.get_json() or {}
+    token_id = data.get('token_id')
+    api_key = data.get('api_key')
+    api_secret = data.get('api_secret')
+    client_id = data.get('client_id')
+
+    if not token_id or not api_key or not api_secret:
+        return (
+            jsonify({
+                "error": "Missing token_id, api_key, or api_secret"
+            }),
+            400,
+        )
+
+    try:
+        payload = dhan_auth.consume_consent(
+            token_id=token_id,
+            api_key=api_key,
+            api_secret=api_secret,
+        )
+    except dhan_auth.DhanAuthError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    access_token = payload.get('accessToken') or payload.get('access_token')
+    expiry_iso = dhan_auth.parse_expiry(
+        payload.get('expiryTime')
+        or payload.get('expiry_time')
+        or payload.get('tokenValidity')
+    )
+
+    response = {
+        "access_token": access_token,
+        "expiry_time": expiry_iso,
+        "dhan_client_id": payload.get('dhanClientId') or client_id,
+        "dhan_client_name": payload.get('dhanClientName'),
+        "raw": payload,
+    }
+
+    return jsonify(response)
+
+
+@app.route('/api/dhan/token/renew', methods=['POST'])
+@login_required
+def dhan_token_renew():
+    data = request.get_json() or {}
+    access_token = data.get('access_token')
+    client_id = data.get('client_id')
+
+    if not access_token or not client_id:
+        return jsonify({"error": "Missing access_token or client_id"}), 400
+
+    try:
+        payload = dhan_auth.renew_token(
+            access_token=access_token,
+            client_id=str(client_id),
+        )
+    except dhan_auth.DhanAuthError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    renewed_token = payload.get('accessToken') or payload.get('access_token')
+    expiry_iso = dhan_auth.parse_expiry(
+        payload.get('expiryTime')
+        or payload.get('expiry_time')
+        or payload.get('tokenValidity')
+    )
+
+    return jsonify(
+        {
+            "access_token": renewed_token,
+            "expiry_time": expiry_iso,
+            "dhan_client_name": payload.get('dhanClientName'),
+            "raw": payload,
+        }
+    )
 
 @app.route('/api/add-account', methods=['POST'])
 @login_required
@@ -5757,7 +5909,7 @@ def add_account():
                     validation_error = "Missing IMEI for Finvasia"
 
         elif broker == 'dhan':
-            required_fields = ['login_id', 'login_password', 'api_key', 'api_secret', 'totp_secret']
+            required_fields = ['api_key', 'api_secret', 'access_token']
             missing_fields = [field for field in required_fields if not credentials.get(field)]
             if missing_fields:
                 validation_error = (
@@ -5809,14 +5961,11 @@ def add_account():
                 broker_obj = BrokerClass(
                     client_id,
                     credentials.get('access_token'),
-                    login_id=credentials.get('login_id'),
-                    login_password=credentials.get('login_password'),
                     api_key=credentials.get('api_key'),
                     api_secret=credentials.get('api_secret'),
-                    totp_secret=credentials.get('totp_secret'),
-                    refresh_token=credentials.get('refresh_token'),
                     token_time=credentials.get('token_time'),
                     token_expiry=credentials.get('token_expiry'),
+                    dhan_client_name=credentials.get('dhan_client_name'),
                 )
 
             elif broker == 'groww':
