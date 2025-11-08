@@ -1,0 +1,469 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+  .invoice-page {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .invoice-container {
+    min-height: 100%;
+    padding: 0;
+  }
+
+  @media (min-width: 768px) {
+    .invoice-container {
+      padding: 0;
+    }
+  }
+
+  .invoice-header {
+    margin-bottom: 0;
+  }
+
+  .invoice-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .invoice-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-breadcrumb-current {
+    color: hsl(240 10% 3.9%);
+  }
+
+  .invoice-card {
+    background-color: hsl(0 0% 100%);
+    border: 1px solid hsl(240 5.9% 90%);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .invoice-card-content {
+    padding: 1.5rem;
+  }
+
+  .invoice-table-container {
+    position: relative;
+    width: 100%;
+    overflow-x: auto;
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .invoice-table-container {
+      display: block;
+    }
+  }
+
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .invoice-table thead {
+    border-bottom: 1px solid hsl(240 5.9% 90%);
+  }
+
+  .invoice-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-table th:last-child,
+  .invoice-table td:last-child {
+    text-align: right;
+  }
+
+  .invoice-table tbody tr {
+    border-bottom: 1px solid hsl(240 5.9% 90%);
+    transition: background-color 0.2s;
+  }
+
+  .invoice-table tbody tr:hover {
+    background-color: hsl(240 4.8% 95.9%);
+  }
+
+  .invoice-table td {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .invoice-number {
+    font-weight: 500;
+    color: hsl(240 10% 3.9%);
+  }
+
+  .invoice-date-cell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .invoice-date-time {
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-mobile-cards {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .invoice-mobile-cards {
+      display: none;
+    }
+  }
+
+  .invoice-card-item {
+    border: 1px solid hsl(240 5.9% 90%);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    background-color: hsl(0 0% 100%);
+    position: relative;
+  }
+
+  .invoice-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid hsl(240 5.9% 90%);
+  }
+
+  .invoice-card-number {
+    font-size: 1rem;
+    font-weight: 600;
+    color: hsl(240 10% 3.9%);
+    margin-bottom: 0.25rem;
+  }
+
+  .invoice-card-date {
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-card-download {
+    flex-shrink: 0;
+  }
+
+  .invoice-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+  }
+
+  .invoice-card-label {
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+    font-weight: 400;
+  }
+
+  .invoice-card-value {
+    font-size: 0.875rem;
+    color: hsl(240 10% 3.9%);
+    text-align: right;
+    font-weight: 400;
+  }
+
+  .invoice-card-value.total {
+    font-weight: 600;
+  }
+
+  .invoice-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid hsl(240 5.9% 90%);
+  }
+
+  @media (min-width: 768px) {
+    .invoice-controls {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .invoice-controls-left,
+  .invoice-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .invoice-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .invoice-switch {
+    position: relative;
+    display: inline-block;
+    width: 2.75rem;
+    height: 1.5rem;
+  }
+
+  .invoice-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .invoice-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: hsl(240 3.8% 46.1%);
+    transition: 0.3s;
+    border-radius: 1.5rem;
+  }
+
+  .invoice-slider:before {
+    position: absolute;
+    content: "";
+    height: 1.25rem;
+    width: 1.25rem;
+    left: 0.125rem;
+    bottom: 0.125rem;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  .invoice-switch input:checked + .invoice-slider {
+    background-color: hsl(240 5.9% 10%);
+  }
+
+  .invoice-switch input:checked + .invoice-slider:before {
+    transform: translateX(1.25rem);
+  }
+
+  .invoice-select-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .invoice-select-label {
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-select {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid hsl(240 5.9% 90%);
+    border-radius: 0.375rem;
+    background-color: hsl(0 0% 100%);
+    color: hsl(240 10% 3.9%);
+    font-size: 0.875rem;
+    cursor: pointer;
+    width: 4rem;
+  }
+
+  .invoice-select:focus {
+    outline: none;
+    border-color: hsl(240 5.9% 10%);
+  }
+
+  .invoice-pagination-info {
+    font-size: 0.875rem;
+    color: hsl(240 3.8% 46.1%);
+  }
+
+  .invoice-pagination-buttons {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .invoice-icon-button,
+  .invoice-download-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    background-color: transparent;
+    color: hsl(240 10% 3.9%);
+    cursor: pointer;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+  }
+
+  .invoice-icon-button:hover:not(:disabled),
+  .invoice-download-button:hover {
+    background-color: hsl(240 4.8% 95.9%);
+  }
+
+  .invoice-icon-button:disabled {
+    color: hsl(240 3.8% 46.1%);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .invoice-download-button {
+    text-decoration: none;
+  }
+
+  .invoice-icon {
+    width: 1rem;
+    height: 1rem;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invoice-page">
+  <div class="invoice-header">
+    <h1 class="invoice-title">Invoice</h1>
+    <div class="invoice-breadcrumb">
+      <span>Management</span>
+      <span>•</span>
+      <span class="invoice-breadcrumb-current">Invoice</span>
+    </div>
+  </div>
+
+  <div class="invoice-card">
+    <div class="invoice-card-content">
+      <div class="invoice-table-container">
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th>Invoice Number</th>
+              <th>Date</th>
+              <th>Product</th>
+              <th>Taxable Amount</th>
+              <th>Total Amount</th>
+              <th>Download</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for invoice in invoices %}
+            <tr>
+              <td class="invoice-number">{{ invoice.number }}</td>
+              <td>
+                <div class="invoice-date-cell">
+                  <span>{{ invoice.date_display }}</span>
+                  <span class="invoice-date-time">{{ invoice.time_display }}</span>
+                </div>
+              </td>
+              <td>{{ invoice.product }}</td>
+              <td>{{ currency_symbol }} {{ invoice.taxable_amount }}</td>
+              <td>{{ currency_symbol }} {{ invoice.total_amount }}</td>
+              <td>
+                <a class="invoice-download-button" href="{{ url_for('download_invoice', invoice_number=invoice.number) }}" aria-label="Download invoice {{ invoice.number }}">
+                  <svg class="invoice-icon" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="invoice-mobile-cards">
+        {% for invoice in invoices %}
+        <div class="invoice-card-item">
+          <div class="invoice-card-header">
+            <div>
+              <div class="invoice-card-number">{{ invoice.number }}</div>
+              <div class="invoice-card-date">{{ invoice.date_display }} • {{ invoice.time_display }}</div>
+            </div>
+            <div class="invoice-card-download">
+              <a class="invoice-download-button" href="{{ url_for('download_invoice', invoice_number=invoice.number) }}" aria-label="Download invoice {{ invoice.number }}">
+                <svg class="invoice-icon" viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div class="invoice-card-row">
+            <span class="invoice-card-label">Product</span>
+            <span class="invoice-card-value">{{ invoice.product }}</span>
+          </div>
+          <div class="invoice-card-row">
+            <span class="invoice-card-label">Taxable Amount</span>
+            <span class="invoice-card-value">{{ currency_symbol }} {{ invoice.taxable_amount }}</span>
+          </div>
+          <div class="invoice-card-row">
+            <span class="invoice-card-label">Total Amount</span>
+            <span class="invoice-card-value total">{{ currency_symbol }} {{ invoice.total_amount }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="invoice-controls">
+        <div class="invoice-controls-left">
+          <div class="invoice-switch-container">
+            <label class="invoice-switch">
+              <input type="checkbox" checked>
+              <span class="invoice-slider"></span>
+            </label>
+            <label>Dense</label>
+          </div>
+        </div>
+
+        <div class="invoice-controls-right">
+          <div class="invoice-select-container">
+            <span class="invoice-select-label">Rows per page:</span>
+            <select class="invoice-select" aria-label="Rows per page">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+
+          <span class="invoice-pagination-info">1-{{ invoices|length }} of {{ invoices|length }}</span>
+
+          <div class="invoice-pagination-buttons">
+            <button class="invoice-icon-button" disabled aria-label="Previous page">
+              <svg class="invoice-icon" viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button class="invoice-icon-button" disabled aria-label="Next page">
+              <svg class="invoice-icon" viewBox="0 0 24 24">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
