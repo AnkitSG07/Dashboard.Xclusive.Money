@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 import logging
 
 import requests
+import json # Import json for explicit request body handling
 
 LOGGER = logging.getLogger(__name__)
 
@@ -141,6 +142,7 @@ def renew_token(
     timeout: float = 10.0,
 ) -> Dict[str, Any]:
     """Programmatically renew an existing access token."""
+    # Ensure credentials are clean and stripped of all whitespace
     token = str(access_token).strip()
     if not token:
         raise DhanAuthError("Existing access token required for renewal")
@@ -152,15 +154,20 @@ def renew_token(
     headers = {
         "access-token": token,
         "dhanClientId": client_identifier,
-        "Content-Type": "application/json",
+        # Keep Content-Type as application/json even with an empty body
+        "Content-Type": "application/json", 
     }
     
-    # FIX: Removed the request_payload and the 'json' argument from requests.post
-    # The RenewToken API relies solely on headers (access-token and dhanClientId)
+    # FIX: Explicitly send an empty JSON object as the data payload.
+    # This prevents the 'requests' library from stripping the Content-Type
+    # header, which is critical for Dhan's API server.
+    request_data = json.dumps({}) 
+    
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
+            data=request_data,  # Send explicit empty JSON
             timeout=timeout,
         )
         response.raise_for_status()
