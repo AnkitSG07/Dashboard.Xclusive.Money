@@ -100,7 +100,7 @@ def test_renew_token_sends_json_body(monkeypatch):
     assert payload["accessToken"] == "renewed"
     assert captured["url"] == "https://example.com/v2/RenewToken"
     assert captured["timeout"] == 5.0
-    assert captured["json"] == {}
+    assert captured["json"] == {"clientId": "CID"}
     assert captured["headers"] == {
         "access-token": "token-123",
         "dhanClientId": "CID",
