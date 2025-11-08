@@ -15,6 +15,13 @@ from .symbol_map import get_symbol_for_broker_lazy, refresh_symbol_slice
 
 logger = logging.getLogger(__name__)
 
+def _clean_string(value: Any) -> Optional[str]:
+    """Return ``value`` coerced to ``str`` and stripped of whitespace."""
+
+    if value is None:
+        return None
+    return str(value).strip()
+
 class DhanBroker(BrokerBase):
     BROKER = "dhan"
     NSE = "NSE_EQ"
@@ -30,8 +37,8 @@ class DhanBroker(BrokerBase):
     def __init__(self, client_id, access_token=None, **kwargs):
         timeout = kwargs.pop("timeout", 10)
         self.auth_base = (kwargs.pop("auth_base", self.AUTH_BASE) or self.AUTH_BASE).rstrip("/")
-        self.api_key = kwargs.pop("api_key", kwargs.pop("app_id", None))
-        self.api_secret = kwargs.pop("api_secret", kwargs.pop("app_secret", None))
+        self.api_key = _clean_string(kwargs.pop("api_key", kwargs.pop("app_id", None)))
+        self.api_secret = _clean_string(kwargs.pop("api_secret", kwargs.pop("app_secret", None)))
         self.token_time = kwargs.pop("token_time", None)
         symbol_map = kwargs.pop("symbol_map", {})
         self._token_expiry_dt: Optional[datetime] = None
@@ -40,7 +47,10 @@ class DhanBroker(BrokerBase):
         self.persist_credentials: Dict[str, Any] = {}
         self._last_auth_error_message: Optional[str] = None
 
-        super().__init__(client_id, access_token or "", timeout=timeout, symbol_map=symbol_map)
+        cleaned_client_id = _clean_string(client_id) or ""
+        cleaned_token = _clean_string(access_token) or ""
+
+        super().__init__(cleaned_client_id, cleaned_token, timeout=timeout, symbol_map=symbol_map)
 
         self.api_base = "https://api.dhan.co/v2"
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
@@ -54,7 +64,7 @@ class DhanBroker(BrokerBase):
             self.token_time = datetime.now(timezone.utc).isoformat()
 
     def _update_headers(self, access_token: Optional[str]) -> None:
-        token = access_token or ""
+        token = _clean_string(access_token) or ""
         self.access_token = token
         headers = {
             "Content-Type": "application/json",
@@ -129,7 +139,8 @@ class DhanBroker(BrokerBase):
         return now >= self._token_expiry_dt - self.TOKEN_REFRESH_SKEW
 
     def _apply_token_payload(self, payload: Dict[str, Any]) -> None:
-        new_token = payload.get("accessToken") or payload.get("access_token")
+        new_token_raw = payload.get("accessToken") or payload.get("access_token")
+        new_token = _clean_string(new_token_raw) or ""
         if not new_token:
             message = "Dhan response missing access token"
             self._last_auth_error_message = message
@@ -148,7 +159,7 @@ class DhanBroker(BrokerBase):
 
         self.dhan_client_name = payload.get("dhanClientName") or payload.get("clientName")
         self.token_time = datetime.now(timezone.utc).isoformat()
-        self._update_headers(str(new_token))
+        self._update_headers(new_token)
         self._record_persist_credentials()
         self._last_auth_error_message = None
 
