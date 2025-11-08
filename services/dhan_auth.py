@@ -141,16 +141,21 @@ def renew_token(
     timeout: float = 10.0,
 ) -> Dict[str, Any]:
     """Programmatically renew an existing access token."""
-    if not access_token:
+    token = str(access_token).strip()
+    if not token:
         raise DhanAuthError("Existing access token required for renewal")
 
+    client_identifier = str(client_id).strip()
+    if not client_identifier:
+        raise DhanAuthError("Client id required for token renewal")
+
     headers = {
-        "access-token": access_token,
-        "dhanClientId": str(client_id),
+        "access-token": token,
+        "dhanClientId": client_identifier,
         "Content-Type": "application/json",
     }
 
-    request_payload = {"clientId": str(client_id)}
+    request_payload = {"clientId": client_identifier}
     
     try:
         response = requests.post(
