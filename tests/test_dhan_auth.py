@@ -91,8 +91,8 @@ def test_renew_token_sends_json_body(monkeypatch):
     monkeypatch.setattr(dhan_auth.requests, "post", fake_post)
 
     payload = dhan_auth.renew_token(
-        access_token="token-123",
-        client_id="CID",
+        access_token="  token-123  ",
+        client_id="  CID  ",
         api_base="https://example.com/v2",
         timeout=5.0,
     )
@@ -106,3 +106,44 @@ def test_renew_token_sends_json_body(monkeypatch):
         "dhanClientId": "CID",
         "Content-Type": "application/json",
     }
+
+
+
+
+def test_broker_trims_credentials_and_headers(monkeypatch):
+    captured = {}
+
+    def fake_renew(**kwargs):  # noqa: ANN001
+        captured.update(kwargs)
+        return {
+            "accessToken": "  refreshed-token  ",
+            "expiryTime": "2031-01-01T00:00:00Z",
+            "dhanClientName": " Trader One ",
+        }
+
+    monkeypatch.setattr(dhan_auth, "renew_token", fake_renew)
+
+    broker = DhanBroker(
+        "  CID123  ",
+        "  token-abc  ",
+        api_key="  app-id  ",
+        api_secret="  app-secret  ",
+    )
+
+    assert broker.client_id == "CID123"
+    assert broker.access_token == "token-abc"
+    assert broker.headers["access-token"] == "token-abc"
+    assert broker.api_key == "app-id"
+    assert broker.api_secret == "app-secret"
+
+    token = broker.generate_session_token(force_refresh=True)
+
+    assert token == "refreshed-token"
+    assert broker.access_token == "refreshed-token"
+    assert broker.headers["access-token"] == "refreshed-token"
+    assert broker.persist_credentials["access_token"] == "refreshed-token"
+    assert broker.token_expiry is not None and broker.token_expiry.startswith("2031-01-01")
+    assert broker.dhan_client_name == " Trader One "
+
+    assert captured["access_token"] == "token-abc"
+    assert captured["client_id"] == "CID123"
