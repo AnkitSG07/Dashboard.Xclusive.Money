@@ -1,26 +1,19 @@
-import base64
 import json
 import logging
 import re
 import calendar
 from datetime import datetime, date, timedelta, timezone
-from hashlib import pbkdf2_hmac
 from typing import Any, Dict, Optional
 
-import pyotp
 import requests
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+from services import dhan_auth
+from services.dhan_auth import DhanAuthError
 
 from .base import BrokerBase
 from .symbol_map import get_symbol_for_broker_lazy, refresh_symbol_slice
 
 logger = logging.getLogger(__name__)
-
-
-class DhanAuthError(RuntimeError):
-    """Raised when the automated Dhan login flow fails."""
 
 class DhanBroker(BrokerBase):
     BROKER = "dhan"
@@ -32,36 +25,18 @@ class DhanBroker(BrokerBase):
     LIMIT = "LIMIT"
 
     AUTH_BASE = "https://auth.dhan.co"
-    LOGIN_API_BASE = "https://login-api.dhan.co"
-    _DHAN_APP_VERSION = "v1.3.0.0"
-    _DHAN_APP_ID = "DH_WEB_V3"
-    _DHAN_SOURCE = "W"
-    _DHAN_PBKDF2_PASS = b"DHAN_WEB_V3"
-    _DHAN_PBKDF2_SALT = bytes.fromhex("b3cfa2e8d0b64f1c2e5b7890a1c2d3e4")
-    _DHAN_PBKDF2_ITERATIONS = 4096
-    _DHAN_AES_IV = bytes.fromhex("1f2e3d4c5b6a79888796a5b4c3d2e1f0")
-    _DHAN_ENC_VERSION = "v3"
     TOKEN_REFRESH_SKEW = timedelta(minutes=2)
 
     def __init__(self, client_id, access_token=None, **kwargs):
         timeout = kwargs.pop("timeout", 10)
         self.auth_base = (kwargs.pop("auth_base", self.AUTH_BASE) or self.AUTH_BASE).rstrip("/")
-        self.login_id = kwargs.pop("login_id", kwargs.pop("dhan_login_id", None))
-        login_password = kwargs.pop("login_password", None)
-        if login_password is None:
-            login_password = kwargs.pop("password", None)
-        self.login_password = login_password
         self.api_key = kwargs.pop("api_key", kwargs.pop("app_id", None))
         self.api_secret = kwargs.pop("api_secret", kwargs.pop("app_secret", None))
-        totp_secret = kwargs.pop("totp_secret", None)
-        if isinstance(totp_secret, str):
-            totp_secret = totp_secret.replace(" ", "")
-        self.totp_secret = totp_secret
-        self.refresh_token = kwargs.pop("refresh_token", None)
         self.token_time = kwargs.pop("token_time", None)
         symbol_map = kwargs.pop("symbol_map", {})
         self._token_expiry_dt: Optional[datetime] = None
         self.token_expiry: Optional[str] = None
+        self.dhan_client_name: Optional[str] = kwargs.pop("dhan_client_name", None)
         self.persist_credentials: Dict[str, Any] = {}
         self._last_auth_error_message: Optional[str] = None
 
@@ -78,9 +53,6 @@ class DhanBroker(BrokerBase):
         if self.access_token and not self.token_time:
             self.token_time = datetime.now(timezone.utc).isoformat()
 
-        if not self.access_token and self._has_login_material():
-            self.generate_session_token()
-
     def _update_headers(self, access_token: Optional[str]) -> None:
         token = access_token or ""
         self.access_token = token
@@ -93,15 +65,7 @@ class DhanBroker(BrokerBase):
         self.headers = headers
 
     def _has_login_material(self) -> bool:
-        return all(
-            [
-                self.login_id,
-                self.login_password,
-                self.api_key,
-                self.api_secret,
-                self.totp_secret,
-            ]
-        )
+        return bool(self.api_key and self.api_secret)
 
     def _auth_headers(self) -> Dict[str, str]:
         headers: Dict[str, str] = {}
@@ -149,271 +113,122 @@ class DhanBroker(BrokerBase):
             persist["access_token"] = self.access_token
         if self.token_time:
             persist["token_time"] = self.token_time
-        if self.refresh_token:
-            persist["refresh_token"] = self.refresh_token
         if self.token_expiry:
             persist["token_expiry"] = self.token_expiry
+        if self.dhan_client_name:
+            persist["dhan_client_name"] = self.dhan_client_name
         self.persist_credentials = persist
 
     def last_auth_error(self) -> Optional[str]:
         return self._last_auth_error_message
 
     def _should_refresh_token(self) -> bool:
-        if not self._has_login_material():
-            return False
-        if not self.access_token:
-            return True
-        if not self._token_expiry_dt:
+        if not self.access_token or not self._token_expiry_dt:
             return False
         now = datetime.now(timezone.utc)
         return now >= self._token_expiry_dt - self.TOKEN_REFRESH_SKEW
 
-    def _perform_login(self, consent_app_id: str, otp_code: str) -> str:
-        base_payload = {
-            "user_id": self.login_id,
-            "login_id": self.login_id,
-            "imei_no": self._device_identifier(),
-            "web_version": self._web_version(),
-            "role": "Admin",
-            "app_version": self._DHAN_APP_VERSION,
-            "app_id": self._DHAN_APP_ID,
-            "source": self._DHAN_SOURCE,
-            "device_id": self._device_identifier(),
-            "device_type": "WEB",
-            "device_name": self._device_identifier(),
-            "device_model": "Python Client",
-            "device_os": "linux",
-            "device_os_version": self._web_version(),
-            "browser": "python-requests",
-            "browser_version": requests.__version__,
-            "login_flow": "TOTP",
-            "is_trusted_device": "Y",
-        }
-        login_headers = {
-            "Content-Type": "application/json",
-            **self._auth_headers(),
-        }
-
-        try:
-            self._login_api_post(
-                "/jwt/token",
-                base_payload,
-                headers=login_headers,
-                expect_json=False,
-            )
-        except requests.exceptions.RequestException as exc:
-            raise DhanAuthError(f"JWT token request failed: {exc}") from exc
-
-        login_payload = dict(base_payload)
-        login_payload.update(
-            {
-                "pass": self.login_password or "",
-                "password": self.login_password or "",
-                "totp": otp_code,
-                "otp": otp_code,
-                "consent_app_id": consent_app_id,
-                "totp_verified": True,
-                "login_type": "PASSWORD",  # Explicit login type required by v2 API    
-            }
-        )
-
-        try:
-            login_response = self._login_api_post(
-                "/loginV2/login",
-                login_payload,
-                headers=login_headers,
-            )
-        except requests.exceptions.RequestException as exc:
-            raise DhanAuthError(f"Login request failed: {exc}") from exc
-
-        status = str(login_response.get("status") or "").lower()
-        if status != "success":
-            message = login_response.get("message") or "Login API returned failure"
-            raise DhanAuthError(str(message))
-        data_list = login_response.get("data")
-        if isinstance(data_list, dict):
-            candidates = [data_list]
-        elif isinstance(data_list, list):
-            candidates = data_list
-        else:
-            raise DhanAuthError("Login API response missing data")
-        if not candidates:
-            raise DhanAuthError("Login API response missing data")
-        token_details = candidates[0]
-        token_id = token_details.get("token_id") or token_details.get("tokenId")
-        if not token_id:
-            raise DhanAuthError("Login API response missing token_id")
-        return str(token_id)
-
-    def _device_identifier(self) -> str:
-        base = self.client_id or self.login_id or "unknown"
-        return f"python-{base}"
-
-    def _web_version(self) -> str:
-        return "Python Requests"
-
-    @classmethod
-    def _dhan_cipher(cls) -> Cipher:
-        aes_key = pbkdf2_hmac(
-            "sha1",
-            cls._DHAN_PBKDF2_PASS,
-            cls._DHAN_PBKDF2_SALT,
-            cls._DHAN_PBKDF2_ITERATIONS,
-            dklen=16,
-        )
-        return Cipher(
-            algorithms.AES(aes_key),
-            modes.CBC(cls._DHAN_AES_IV),
-            backend=default_backend(),
-        )
-
-    @classmethod
-    def _encrypt_payload(cls, payload: Dict[str, Any]) -> str:
-        text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-        padder = padding.PKCS7(128).padder()
-        padded = padder.update(text.encode("utf-8")) + padder.finalize()
-        encryptor = cls._dhan_cipher().encryptor()
-        ciphertext = encryptor.update(padded) + encryptor.finalize()
-        return base64.b64encode(ciphertext).decode("ascii")
-
-    @classmethod
-    def _decrypt_payload(cls, payload: str) -> str:
-        ciphertext = base64.b64decode(payload)
-        decryptor = cls._dhan_cipher().decryptor()
-        padded = decryptor.update(ciphertext) + decryptor.finalize()
-        unpadder = padding.PKCS7(128).unpadder()
-        data = unpadder.update(padded) + unpadder.finalize()
-        return data.decode("utf-8")
-
-    def _login_api_post(
-        self,
-        path: str,
-        payload: Dict[str, Any],
-        *,
-        headers: Optional[Dict[str, str]] = None,
-        expect_json: bool = True,
-    ) -> Dict[str, Any]:
-        encrypted = self._encrypt_payload(payload)
-        body = {
-            "data": encrypted,
-            "enc": self._DHAN_ENC_VERSION,
-            "app_id": self._DHAN_APP_ID,
-            "app_version": self._DHAN_APP_VERSION,
-        }
-        url = f"{self.LOGIN_API_BASE}{path}"
-        resp = self._request(
-            "post",
-            url,
-            json=body,
-            headers=headers,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        if not expect_json:
-            return {}
-        try:
-            raw = resp.text
-        except AttributeError:
-            raw = resp.content.decode("utf-8")
-        try:
-            wrapped = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise DhanAuthError(f"Invalid login API response: {exc}") from exc
-        if isinstance(wrapped, dict):
-            encrypted_payload = wrapped.get("data")
-            if isinstance(encrypted_payload, str):
-                try:
-                    decrypted_text = self._decrypt_payload(encrypted_payload)
-                except Exception:
-                    # If the payload is not encrypted anymore fall back to the raw shape
-                    return wrapped
-                try:
-                    return json.loads(decrypted_text)
-                except json.JSONDecodeError as exc:
-                    raise DhanAuthError(
-                        f"Unable to decode login API payload: {exc}"
-                    ) from exc
-            return wrapped
-        return wrapped
-
-    def generate_session_token(self, *, force_refresh: bool = False) -> str:
-        if not self._has_login_material():
-            raise DhanAuthError("Missing Dhan login credentials for automated authentication")
-
-        if not force_refresh and self.access_token and not self._should_refresh_token():
-            return self.access_token
-
-        try:
-            otp_code = pyotp.TOTP(self.totp_secret).now()
-        except Exception as exc:
-            message = f"Failed to compute Dhan TOTP code: {exc}"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message) from exc
-
-        try:
-            consent_resp = self._request(
-                "post",
-                f"{self.auth_base}/app/generate-consent",
-                params={"client_id": self.client_id},
-                headers=self._auth_headers(),
-                timeout=self.timeout,
-            )
-            consent_resp.raise_for_status()
-            consent_data = consent_resp.json()
-        except requests.exceptions.RequestException as exc:
-            message = f"Failed to generate Dhan consent: {exc}"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message) from exc
-        except json.JSONDecodeError as exc:
-            message = f"Invalid consent response: {exc}"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message) from exc
-
-        consent_app_id = consent_data.get("consentAppId") or consent_data.get("consent_app_id")
-        if not consent_app_id:
-            message = "Consent response missing consentAppId"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message)
-
-        token_id = self._perform_login(str(consent_app_id), otp_code)
-
-        try:
-            consume_resp = self._request(
-                "get",
-                f"{self.auth_base}/app/consumeApp-consent",
-                params={"tokenId": token_id},
-                headers=self._auth_headers(),
-                timeout=self.timeout,
-            )
-            consume_resp.raise_for_status()
-            consume_data = consume_resp.json()
-        except requests.exceptions.RequestException as exc:
-            message = f"Failed to consume Dhan consent: {exc}"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message) from exc
-        except json.JSONDecodeError as exc:
-            message = f"Invalid consume-consent response: {exc}"
-            self._last_auth_error_message = message
-            raise DhanAuthError(message) from exc
-
-        new_token = consume_data.get("accessToken") or consume_data.get("access_token")
+    def _apply_token_payload(self, payload: Dict[str, Any]) -> None:
+        new_token = payload.get("accessToken") or payload.get("access_token")
         if not new_token:
-            message = "Consume consent response missing accessToken"
+            message = "Dhan response missing access token"
             self._last_auth_error_message = message
             raise DhanAuthError(message)
 
-        self.refresh_token = consume_data.get("refreshToken") or consume_data.get("refresh_token")
-        expiry_raw = consume_data.get("expiryTime") or consume_data.get("expiry_time")
+        expiry_raw = (
+            payload.get("expiryTime")
+            or payload.get("expiry_time")
+            or payload.get("tokenValidity")
+        )
         if expiry_raw:
             self._set_token_expiry(expiry_raw)
         else:
             self._token_expiry_dt = None
             self.token_expiry = None
 
+        self.dhan_client_name = payload.get("dhanClientName") or payload.get("clientName")
         self.token_time = datetime.now(timezone.utc).isoformat()
         self._update_headers(str(new_token))
         self._record_persist_credentials()
         self._last_auth_error_message = None
+
+    def start_browser_login(self) -> dhan_auth.ConsentResult:
+        if not self._has_login_material():
+            message = "Missing Dhan API key and secret for consent generation"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message)
+        try:
+            return dhan_auth.generate_consent(
+                client_id=str(self.client_id),
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                auth_base=self.auth_base,
+                timeout=self.timeout,
+            )
+        except dhan_auth.DhanAuthError as exc:
+            message = str(exc)
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+
+    def complete_browser_login(self, token_id: str) -> Dict[str, Any]:
+        if not self._has_login_material():
+            message = "Missing Dhan API key and secret for consent consumption"
+            self._last_auth_error_message = message
+            raise DhanAuthError(message)
+        try:
+            payload = dhan_auth.consume_consent(
+                token_id=token_id,
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                auth_base=self.auth_base,
+                timeout=self.timeout,
+            )
+        except dhan_auth.DhanAuthError as exc:
+            message = str(exc)
+            self._last_auth_error_message = message
+            raise DhanAuthError(message) from exc
+
+        self._apply_token_payload(payload)
+        return payload
+
+    def _renew_access_token(self) -> bool:
+        if not self.access_token:
+            self._last_auth_error_message = "No Dhan access token available for renewal"
+            return False
+        try:
+            payload = dhan_auth.renew_token(
+                access_token=self.access_token,
+                client_id=str(self.client_id),
+                api_base=self.api_base,
+                timeout=self.timeout,
+            )
+        except dhan_auth.DhanAuthError as exc:
+            self._last_auth_error_message = str(exc)
+            return False
+
+        self._apply_token_payload(payload)
+        return True
+
+    def generate_session_token(
+        self,
+        token_id: Optional[str] = None,
+        *,
+        force_refresh: bool = False,
+    ) -> str:
+        if token_id:
+            self.complete_browser_login(token_id)
+            return self.access_token
+
+        if not self.access_token:
+            message = "Missing Dhan access token. Complete browser login first."
+            self._last_auth_error_message = message
+            raise DhanAuthError(message)
+
+        if force_refresh or self._should_refresh_token():
+            if not self._renew_access_token():
+                message = self._last_auth_error_message or "Failed to renew Dhan token"
+                raise DhanAuthError(message)
+
         return self.access_token
 
     def _is_invalid_auth(self, data, status):
@@ -1219,37 +1034,49 @@ class DhanBroker(BrokerBase):
         """
         Validate access token and ensure it belongs to this client_id.
         """
+        if not self.access_token:
+            self._last_auth_error_message = "Missing Dhan access token"
+            return False
+
         if self._should_refresh_token():
-            try:
-                self.generate_session_token(force_refresh=True)
-            except DhanAuthError as exc:
-                logger.warning("Failed to refresh Dhan token: %s", exc)
+            if not self._renew_access_token():
+                logger.warning(
+                    "Failed to renew Dhan token for %s: %s",
+                    self.client_id,
+                    self._last_auth_error_message,
+                )
                 return False
 
         try:
             r = self._request(
                 "get",
-                "{}/fundlimit".format(self.api_base),
+                f"{self.api_base}/profile",
                 headers=self.headers,
                 timeout=5,
             )
-            if r.status_code == 401 and self._has_login_material():
-                try:
-                    self.generate_session_token(force_refresh=True)
-                except DhanAuthError as exc:
-                    logger.warning("Dhan token refresh after 401 failed: %s", exc)
+            if r.status_code == 401:
+                if not self._renew_access_token():
+                    logger.warning(
+                        "Dhan token refresh after 401 failed: %s",
+                        self._last_auth_error_message,
+                    )
                     return False
                 r = self._request(
                     "get",
-                    "{}/fundlimit".format(self.api_base),
+                    f"{self.api_base}/profile",
                     headers=self.headers,
                     timeout=5,
                 )
             r.raise_for_status()
             data = r.json()
-            cid = str(data.get("clientId") or data.get("dhanClientId") or "").strip()
+            cid = str(data.get("dhanClientId") or data.get("clientId") or "").strip()
             if cid and cid != str(self.client_id):
+                self._last_auth_error_message = "Dhan token belongs to a different client"
                 return False
+            token_validity = data.get("tokenValidity")
+            if token_validity:
+                self._set_token_expiry(token_validity)
+                self._record_persist_credentials()
             return True
         except requests.exceptions.Timeout:
             return False
