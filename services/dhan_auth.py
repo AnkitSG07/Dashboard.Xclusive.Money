@@ -152,7 +152,8 @@ def renew_token(
 
     headers = {
         "access-token": token,
-        "dhanClientId": client_identifier,    
+        "dhanClientId": client_identifier,
+    }
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
