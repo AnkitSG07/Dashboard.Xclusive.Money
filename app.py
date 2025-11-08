@@ -5833,6 +5833,11 @@ def add_account():
         # Normalize broker name
         broker = broker.lower().strip()
         
+        # Normalize Dhan credential inputs to avoid storing padded values
+        if broker == 'dhan':
+            if isinstance(client_id, str):
+                client_id = client_id.strip()
+
         # Validate broker is supported
         supported_brokers = ['aliceblue', 'finvasia', 'dhan', 'zerodha', 'groww', 'upstox', 'fyers']
         if broker not in supported_brokers:
@@ -5911,6 +5916,13 @@ def add_account():
                     validation_error = "Missing IMEI for Finvasia"
 
         elif broker == 'dhan':
+            
+            # Strip whitespace from credential fields before validation/storage
+            for field in ('access_token', 'api_key', 'api_secret'):
+                value = credentials.get(field)
+                if isinstance(value, str):
+                    credentials[field] = value.strip()
+
             required_fields = ['api_key', 'api_secret', 'access_token']
             missing_fields = [field for field in required_fields if not credentials.get(field)]
             if missing_fields:
