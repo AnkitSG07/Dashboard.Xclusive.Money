@@ -154,11 +154,14 @@ def renew_token(
         "access-token": token,
         "dhanClientId": client_identifier,
     }
+    # Dhan's API returns HTTP 400 if we advertise JSON without sending a body,
+    # so explicitly send an empty JSON payload when renewing tokens.
+    empty_body: Dict[str, Any] = {}
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
-            data=request_data,  # Send explicit empty JSON
+            json=empty_body,
             timeout=timeout,
         )
         response.raise_for_status()
