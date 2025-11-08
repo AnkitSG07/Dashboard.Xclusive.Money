@@ -43,7 +43,8 @@ class DhanBroker(BrokerBase):
         symbol_map = kwargs.pop("symbol_map", {})
         self._token_expiry_dt: Optional[datetime] = None
         self.token_expiry: Optional[str] = None
-        self.dhan_client_name: Optional[str] = kwargs.pop("dhan_client_name", None)
+        self.dhan_client_name: Optional[str] = _clean_string(
+            kwargs.pop("dhan_client_name", None)
         self.persist_credentials: Dict[str, Any] = {}
         self._last_auth_error_message: Optional[str] = None
 
@@ -157,7 +158,9 @@ class DhanBroker(BrokerBase):
             self._token_expiry_dt = None
             self.token_expiry = None
 
-        self.dhan_client_name = payload.get("dhanClientName") or payload.get("clientName")
+        self.dhan_client_name = _clean_string(
+            payload.get("dhanClientName") or payload.get("clientName")
+        )
         self.token_time = datetime.now(timezone.utc).isoformat()
         self._update_headers(new_token)
         self._record_persist_credentials()
