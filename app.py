@@ -26,6 +26,7 @@ from flask import (
     url_for,
     flash,
     send_from_directory,
+    send_file,
     Response,
     abort,
     current_app,
@@ -112,6 +113,7 @@ from symbols import (
 from services.logging import publish_log_event
 from services.webhook_receiver import enqueue_webhook, ValidationError
 from services.alert_guard import get_user_settings, update_user_settings
+from fpdf import FPDF
 
 # Define emoji regex pattern
 EMOJI_RE = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -9132,6 +9134,110 @@ def summary_payload():
 
     series = _build_summary_series(user, strategy_ids)
     return jsonify({"performance_summary": {"series": series}})
+
+
+def _build_sample_invoices(user: User) -> list[dict[str, Any]]:
+    """Return a single sample invoice for the current user."""
+
+    invoice_moment = datetime(2023, 4, 25, 9, 39, tzinfo=DEFAULT_USER_TIMEZONE)
+    display_moment = invoice_moment.astimezone(DEFAULT_USER_TIMEZONE)
+
+    time_display = display_moment.strftime("%I:%M %p").lstrip("0")
+    return [
+        {
+            "number": "QB78INFH25040946",
+            "product": "Enterprise",
+            "taxable_amount": "1,999.00",
+            "total_amount": "2,358.82",
+            "date": display_moment,
+            "date_display": display_moment.strftime("%d %b %Y"),
+            "time_display": time_display,
+            "payment_status": user.payment_status or "Paid",
+        }
+    ]
+
+
+def _render_invoice_pdf(user: User, invoice: dict[str, Any]) -> io.BytesIO:
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(0, 12, "Invoice", ln=True)
+
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 8, f"Invoice Number: {invoice['number']}", ln=True)
+    pdf.cell(
+        0,
+        8,
+        f"Date: {invoice['date_display']} {invoice['time_display']}",
+        ln=True,
+    )
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Billed To:", ln=True)
+    pdf.set_font("Helvetica", size=12)
+    billing_name = user.name or user.email
+    pdf.cell(0, 8, billing_name, ln=True)
+    if user.address_line1:
+        pdf.cell(0, 8, user.address_line1, ln=True)
+    if user.address_line2:
+        pdf.cell(0, 8, user.address_line2, ln=True)
+    location_line = " ".join(filter(None, [user.state, user.zip_code]))
+    if location_line:
+        pdf.cell(0, 8, location_line, ln=True)
+    pdf.ln(6)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(95, 10, "Product", border=1)
+    pdf.cell(45, 10, "Taxable Amount", border=1)
+    pdf.cell(0, 10, "Total Amount", border=1, ln=True)
+
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(95, 10, invoice["product"], border=1)
+    pdf.cell(45, 10, f"₹ {invoice['taxable_amount']}", border=1)
+    pdf.cell(0, 10, f"₹ {invoice['total_amount']}", border=1, ln=True)
+
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, f"Payment Status: {invoice['payment_status']}", ln=True)
+
+    pdf_bytes = pdf.output(dest="S").encode("latin1")
+    payload = io.BytesIO(pdf_bytes)
+    payload.seek(0)
+    return payload
+
+
+@app.route("/invoices")
+@login_required
+def invoices_page():
+    user = current_user()
+    invoices = _build_sample_invoices(user)
+    return render_template(
+        "invoices.html",
+        invoices=invoices,
+        currency_symbol="₹",
+    )
+
+
+@app.route("/invoices/<invoice_number>/download")
+@login_required
+def download_invoice(invoice_number: str):
+    user = current_user()
+    invoices = _build_sample_invoices(user)
+    invoice = next((item for item in invoices if item["number"] == invoice_number), None)
+    if not invoice:
+        abort(404)
+
+    pdf_payload = _render_invoice_pdf(user, invoice)
+    filename = f"{invoice_number}.pdf"
+    return send_file(
+        pdf_payload,
+        download_name=filename,
+        as_attachment=True,
+        mimetype="application/pdf",
+    )
 
 
 @app.route("/copy-trading")
