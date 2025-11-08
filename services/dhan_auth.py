@@ -154,6 +154,7 @@ def renew_token(
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
+            json={},
             timeout=timeout,
         )
         response.raise_for_status()
