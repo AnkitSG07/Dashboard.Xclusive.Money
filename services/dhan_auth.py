@@ -13,7 +13,6 @@ from typing import Any, Dict, Optional
 import logging
 
 import requests
-import json # Import json for explicit request body handling
 
 LOGGER = logging.getLogger(__name__)
 
@@ -153,16 +152,7 @@ def renew_token(
 
     headers = {
         "access-token": token,
-        "dhanClientId": client_identifier,
-        # Keep Content-Type as application/json even with an empty body
-        "Content-Type": "application/json", 
-    }
-    
-    # FIX: Explicitly send an empty JSON object as the data payload.
-    # This prevents the 'requests' library from stripping the Content-Type
-    # header, which is critical for Dhan's API server.
-    request_data = json.dumps({}) 
-    
+        "dhanClientId": client_identifier,    
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
