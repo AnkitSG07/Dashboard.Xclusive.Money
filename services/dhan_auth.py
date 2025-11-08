@@ -1,7 +1,7 @@
 """Helpers for interacting with the Dhan consent based login flow.
 
 This module mirrors the reference script provided by Dhan for
-manual authentication.  It exposes high level helpers that the web
+manual authentication. It exposes high level helpers that the web
 application can use to guide the login flow as well as to renew
 access tokens without forcing a full browser login each day.
 """
@@ -154,14 +154,13 @@ def renew_token(
         "dhanClientId": client_identifier,
         "Content-Type": "application/json",
     }
-
-    request_payload = {"clientId": client_identifier}
     
+    # FIX: Removed the request_payload and the 'json' argument from requests.post
+    # The RenewToken API relies solely on headers (access-token and dhanClientId)
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
-            json=request_payload,
             timeout=timeout,
         )
         response.raise_for_status()
