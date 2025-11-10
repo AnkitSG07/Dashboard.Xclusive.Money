@@ -196,6 +196,29 @@
     vertical-align: middle;
 }
 
+.top-holdings-table__pnl {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 6px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.top-holdings-table__pnl small {
+    font-size: 11px;
+    color: inherit;
+    opacity: 0.75;
+}
+
+.top-holdings-table__pnl.is-positive {
+    color: #047857;
+}
+
+.top-holdings-table__pnl.is-negative {
+    color: #b91c1c;
+}
+
 .top-holdings-table tbody tr:last-child td {
     border-bottom: none;
 }
