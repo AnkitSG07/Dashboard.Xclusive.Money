@@ -618,6 +618,45 @@
   white-space: nowrap;
 }
 
+.account-config-page .balance-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-config-page .balance-refresh-btn {
+  padding: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: #6b7280;
+  transition: color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.account-config-page .balance-refresh-btn:hover:not(:disabled) {
+  color: #047857;
+  background-color: rgba(16, 185, 129, 0.12);
+}
+
+.account-config-page .balance-refresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.account-config-page .balance-refresh-btn.is-loading {
+  opacity: 0.7;
+}
+
+.account-config-page .balance-refresh-btn.is-loading svg {
+  animation: balance-refresh-spin 1s linear infinite;
+}
+
+@keyframes balance-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* green/red pill in Auto-Login column */
 .account-config-page .badge,
 .account-config-page .status-pill {
