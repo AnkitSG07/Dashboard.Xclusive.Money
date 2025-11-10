@@ -5478,7 +5478,21 @@ def account_balance():
     if not acc_db:
         return jsonify({"error": "Account not found"}), 404
 
-    bal = get_opening_balance_for_account(_account_to_dict(acc_db))
+    cache_only = data.get("cache_only")
+    if cache_only is None:
+        cache_only = request.args.get("cache_only")
+
+    cache_only_flag = False
+    if isinstance(cache_only, bool):
+        cache_only_flag = cache_only
+    elif isinstance(cache_only, str):
+        cache_only_flag = cache_only.lower() in {"1", "true", "yes", "on"}
+    elif isinstance(cache_only, (int, float)):
+        cache_only_flag = bool(cache_only)
+
+    bal = get_opening_balance_for_account(
+        _account_to_dict(acc_db), cache_only=cache_only_flag
+    )
     return jsonify({"balance": bal})
 
 
