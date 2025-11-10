@@ -263,6 +263,10 @@ if (!window.pageScriptStates) window.pageScriptStates = {};
 
 window.pageScripts["Add-Account"] = function() {
   const previousState = window.pageScriptStates["Add-Account"];
+  const previousCachedAccounts = previousState && previousState.cachedAccounts;
+  const previousCachedAutoLoginResults = previousState && previousState.cachedAutoLoginResults;
+  const previousCachedFilters = previousState && previousState.cachedFilters;
+
   if (previousState && typeof previousState.cleanup === 'function') {
     try {
       previousState.cleanup();
@@ -276,6 +280,28 @@ window.pageScripts["Add-Account"] = function() {
   const state = {
     listeners: [],
     abortControllers: [],
+    cachedAccounts: previousCachedAccounts
+      ? {
+          accounts: Array.isArray(previousCachedAccounts.accounts)
+            ? JSON.parse(JSON.stringify(previousCachedAccounts.accounts))
+            : [],
+          signature: previousCachedAccounts.signature || null,
+          fetchedAt: previousCachedAccounts.fetchedAt || null
+        }
+      : null,
+    cachedAutoLoginResults: previousCachedAutoLoginResults
+      ? JSON.parse(JSON.stringify(previousCachedAutoLoginResults))
+      : {},
+    cachedFilters: previousCachedFilters
+      ? {
+          statusFilter: previousCachedFilters.statusFilter || 'all',
+          brokerFilter: previousCachedFilters.brokerFilter || '',
+          searchFilter: previousCachedFilters.searchFilter || '',
+          selectedAccountIds: Array.isArray(previousCachedFilters.selectedAccountIds)
+            ? [...previousCachedFilters.selectedAccountIds]
+            : []
+        }
+      : null,
     cleanup() {
       if (!isActive) {
         return;
@@ -301,6 +327,112 @@ window.pageScripts["Add-Account"] = function() {
   };
 
   window.pageScriptStates["Add-Account"] = state;
+
+  function cloneAccountsList(accounts) {
+    if (!Array.isArray(accounts)) {
+      return [];
+    }
+    try {
+      return JSON.parse(JSON.stringify(accounts));
+    } catch (error) {
+      console.warn('Failed to clone accounts list:', error);
+      return Array.from(accounts);
+    }
+  }
+
+  function computeAccountsSignature(accounts) {
+    try {
+      return JSON.stringify(Array.isArray(accounts) ? accounts : []);
+    } catch (error) {
+      console.warn('Failed to compute accounts signature:', error);
+      return String(Date.now());
+    }
+  }
+
+  function createAccountsCache(accounts, signatureOverride) {
+    const cloned = cloneAccountsList(accounts);
+    return {
+      accounts: cloned,
+      signature: typeof signatureOverride === 'string'
+        ? signatureOverride
+        : computeAccountsSignature(cloned),
+      fetchedAt: Date.now()
+    };
+  }
+
+  function cloneAutoLoginResults(results) {
+    if (!results || typeof results !== 'object') {
+      return {};
+    }
+    try {
+      return JSON.parse(JSON.stringify(results));
+    } catch (error) {
+      console.warn('Failed to clone auto login results:', error);
+      return { ...results };
+    }
+  }
+
+  function persistAutoLoginState() {
+    state.cachedAutoLoginResults = cloneAutoLoginResults(autoLoginResults);
+  }
+
+  function persistFiltersAndSelection() {
+    state.cachedFilters = {
+      statusFilter,
+      brokerFilter,
+      searchFilter,
+      selectedAccountIds: Array.from(selectedAccountIds)
+    };
+  }
+
+  function restoreFilterUI() {
+    document.querySelectorAll('#status-tabs .status-tab').forEach(button => {
+      const buttonStatus = button.dataset.status || 'all';
+      const isActive = buttonStatus === statusFilter;
+      button.classList.toggle('active', isActive);
+      if (isActive) {
+        button.setAttribute('aria-selected', 'true');
+      } else {
+        button.removeAttribute('aria-selected');
+      }
+    });
+
+    const brokerFilterSelect = document.getElementById('broker-filter');
+    if (brokerFilterSelect) {
+      const availableValues = Array.from(brokerFilterSelect.options).map(option => option.value);
+      if (brokerFilter && availableValues.includes(brokerFilter)) {
+        brokerFilterSelect.value = brokerFilter;
+      } else {
+        brokerFilterSelect.value = '';
+        if (brokerFilter) {
+          brokerFilter = '';
+        }
+      }
+    }
+
+    const accountSearchInput = document.getElementById('account-search');
+    if (accountSearchInput) {
+      accountSearchInput.value = searchFilter || '';
+    }
+  }
+
+  function pruneAutoLoginResults() {
+    const validIds = new Set(
+      allAccounts
+        .map(acc => (acc && acc.client_id ? acc.client_id : null))
+        .filter(Boolean)
+    );
+    let removed = false;
+    Object.keys(autoLoginResults).forEach(key => {
+      if (key && !validIds.has(key)) {
+        delete autoLoginResults[key];
+        removed = true;
+      }
+    });
+    if (removed) {
+      persistAutoLoginState();
+    }
+  }
 
   const registerListener = (target, type, handler, options) => {
     if (!target || typeof target.addEventListener !== 'function') {
@@ -483,8 +615,43 @@ window.pageScripts["Add-Account"] = function() {
   let searchFilter = '';
   let editingAccountId = null;
   let currentBrokerSelected = null;
-  let autoLoginResults = {};
+  let autoLoginResults = cloneAutoLoginResults(state.cachedAutoLoginResults);
   let selectedAccountIds = new Set();
+
+  if (state.cachedFilters) {
+    statusFilter = state.cachedFilters.statusFilter || statusFilter;
+    brokerFilter = state.cachedFilters.brokerFilter || brokerFilter;
+    searchFilter = state.cachedFilters.searchFilter || searchFilter;
+    if (Array.isArray(state.cachedFilters.selectedAccountIds)) {
+      selectedAccountIds = new Set(state.cachedFilters.selectedAccountIds);
+    }
+  }
+
+  if (state.cachedAccounts && Array.isArray(state.cachedAccounts.accounts) && state.cachedAccounts.accounts.length) {
+    allAccounts = cloneAccountsList(state.cachedAccounts.accounts);
+  }
+
+  if (state.cachedAccounts && !state.cachedAccounts.signature) {
+    state.cachedAccounts.signature = computeAccountsSignature(state.cachedAccounts.accounts || []);
+  }
+  if (state.cachedAccounts && !state.cachedAccounts.fetchedAt) {
+    state.cachedAccounts.fetchedAt = Date.now();
+  }
+
+  persistAutoLoginState();
+  pruneAutoLoginResults();
+
+  if (allAccounts.length) {
+    populateBrokerCarousel();
+    renderAccounts(allAccounts);
+    populateBrokerFilter();
+    restoreFilterUI();
+    updateCounts();
+    applyFilters();
+  } else {
+    restoreFilterUI();
+  }
+  persistFiltersAndSelection();
 
   function formatBrokerName(broker) {
     if (!broker) return '';
@@ -1179,23 +1346,27 @@ window.pageScripts["Add-Account"] = function() {
     }
 
     updateBulkActionsMenu();
+    persistFiltersAndSelection();
   }
 
   function populateBrokerFilter() {
     const select = document.getElementById('broker-filter');
     if (!select) return;
-    const currentValue = select.value;
+    const desiredValue = brokerFilter || select.value;
     const brokers = [...new Set(allAccounts.map(a => a.broker).filter(Boolean))].sort();
     const options = ['<option value="">All Brokers</option>'];
     brokers.forEach(b => {
       options.push(`<option value="${b}">${escapeHtml(formatBrokerName(b))}</option>`);
     });
     select.innerHTML = options.join('');
-    if (currentValue && brokers.includes(currentValue)) {
-      select.value = currentValue;
+    if (desiredValue && brokers.includes(desiredValue)) {
+      select.value = desiredValue;
+      brokerFilter = desiredValue;
     } else {
       select.value = '';
-      brokerFilter = '';
+      if (brokerFilter) {
+        brokerFilter = '';
+      }
     }
   }
 
@@ -1265,7 +1436,8 @@ window.pageScripts["Add-Account"] = function() {
     });
     updateEmptyState();
     updateFooterCounts(filteredAccounts);
-    updateSelectionUI();  
+    updateSelectionUI();
+    persistFiltersAndSelection();
   }
 
   function updateCounts() {
@@ -1298,6 +1470,7 @@ window.pageScripts["Add-Account"] = function() {
   async function attemptAutoLoginForAccount(acc) {
     if (!isActive) return;
     autoLoginResults[acc.client_id] = { status: 'checking' };
+    persistAutoLoginState();  
     const controller = new AbortController();
     const unregister = registerAbortController(controller);
     try {
@@ -1310,10 +1483,12 @@ window.pageScripts["Add-Account"] = function() {
       if (!isActive) return;
       if (resp.message) {
         autoLoginResults[acc.client_id] = { status: 'success' };
+        persistAutoLoginState();
         const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
         if (updatedAcc) updatedAcc.status = 'connected';
       } else {
         autoLoginResults[acc.client_id] = { status: 'error', error: resp.error || 'Error' };
+        persistAutoLoginState();
         const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
         if (updatedAcc) {
           updatedAcc.status = 'failed';
@@ -1325,6 +1500,7 @@ window.pageScripts["Add-Account"] = function() {
         return;
       }
       autoLoginResults[acc.client_id] = { status: 'error', error: err.message };
+      persistAutoLoginState();
       const updatedAcc = allAccounts.find(a => a.client_id === acc.client_id);
       if (updatedAcc) {
         updatedAcc.status = 'failed';
@@ -1731,9 +1907,8 @@ window.pageScripts["Add-Account"] = function() {
   document.querySelectorAll('#status-tabs .status-tab').forEach(button => {
     registerListener(button, 'click', e => {
       e.preventDefault();
-      document.querySelectorAll('#status-tabs .status-tab').forEach(l => l.classList.remove('active'));
-      button.classList.add('active');
       statusFilter = button.dataset.status || 'all';
+      restoreFilterUI();
       applyFilters();
     });
   });
@@ -2002,19 +2177,35 @@ window.pageScripts["Add-Account"] = function() {
 
   fetchJson('/api/accounts?cache_only=1', { signal: accountsFetchController.signal })
     .then(data => {
-      if (!isActive) return;
-      allAccounts = data.accounts || [];
-      renderAccounts(allAccounts);
-      populateBrokerCarousel();
-      populateBrokerFilter();
-      updateCounts();
-      applyFilters();
+
+      const newAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+      const newSignature = computeAccountsSignature(newAccounts);
+      const previousSignature = state.cachedAccounts ? state.cachedAccounts.signature : null;
+      const hasChanged = !state.cachedAccounts || previousSignature !== newSignature;
+
+      const newCache = createAccountsCache(newAccounts, newSignature);
+      state.cachedAccounts = newCache;
+      allAccounts = cloneAccountsList(newCache.accounts);
+      pruneAutoLoginResults();
+
+      if (hasChanged) {
+        populateBrokerCarousel();
+        renderAccounts(allAccounts);
+        populateBrokerFilter();
+        restoreFilterUI();
+        updateCounts();
+        applyFilters();
+      }
 
       const runAutoLoginChecks = () => {
+        let autoLoginStateChanged = false;
         allAccounts.forEach(acc => {
           const isConnected = (acc.status || '').toLowerCase() === 'connected';
           if (isConnected) {
-            autoLoginResults[acc.client_id] = { status: 'success' };
+            if (!autoLoginResults[acc.client_id] || autoLoginResults[acc.client_id].status !== 'success') {
+              autoLoginResults[acc.client_id] = { status: 'success' };
+              autoLoginStateChanged = true;
+            }
             return;
           }
 
@@ -2030,6 +2221,9 @@ window.pageScripts["Add-Account"] = function() {
               updateAccountCard();
             });
         });
+        if (autoLoginStateChanged) {
+          persistAutoLoginState();
+        }
       };
 
       if ('requestIdleCallback' in window) {
