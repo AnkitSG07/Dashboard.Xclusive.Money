@@ -153,15 +153,16 @@ def renew_token(
     headers = {
         "access-token": token,
         "dhanClientId": client_identifier,
+        "Content-Type": "application/json",
     }
-    # Dhan's API returns HTTP 400 if we advertise JSON without sending a body,
-    # so explicitly send an empty JSON payload when renewing tokens.
-    empty_body: Dict[str, Any] = {}
+    # Dhan's RenewToken endpoint requires the client id in the JSON payload,
+    # so send it explicitly while still including the authentication headers.
+    request_body = {"clientId": client_identifier}
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
             headers=headers,
-            json=empty_body,
+            json=request_body,
             timeout=timeout,
         )
         response.raise_for_status()
