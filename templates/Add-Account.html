@@ -201,7 +201,7 @@
                     <thead>
                         <tr>
                             <th style="width: 48px;">
-                                <input type="checkbox" class="checkbox" disabled>
+                                <input type="checkbox" class="checkbox" id="select-all-accounts" aria-label="Select all accounts">
                             </th>
                             <th>Client ID</th>
                             <th class="mobile-hide lg-show">Opening Balance</th>
@@ -484,6 +484,7 @@ window.pageScripts["Add-Account"] = function() {
   let editingAccountId = null;
   let currentBrokerSelected = null;
   let autoLoginResults = {};
+  let selectedAccountIds = new Set();
 
   function formatBrokerName(broker) {
     if (!broker) return '';
@@ -790,6 +791,54 @@ window.pageScripts["Add-Account"] = function() {
     return String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
   }
 
+  function getAccountRowId(acc, index = 0) {
+    if (acc && acc._rowId) {
+      return acc._rowId;
+    }
+
+    const candidates = [
+      acc && acc.client_id,
+      acc && acc.username,
+      acc && acc.account_id,
+      acc && acc.id,
+      `${acc && acc.broker ? acc.broker : 'broker'}-${index}`
+    ];
+
+    for (const candidate of candidates) {
+      const sanitized = sanitizeClientId(candidate);
+      if (sanitized) {
+        if (acc) acc._rowId = sanitized;
+        return sanitized;
+      }
+    }
+
+    const fallback = `acc-${index}-${Math.random().toString(36).slice(2, 8)}`;
+    if (acc) acc._rowId = fallback;
+    return fallback;
+  }
+
+  function getAccountByRowId(rowId) {
+    if (!rowId) return null;
+    for (let i = 0; i < allAccounts.length; i += 1) {
+      const acc = allAccounts[i];
+      if (getAccountRowId(acc, i) === rowId) {
+        return acc;
+      }
+    }
+    return null;
+  }
+
+  function getSelectedAccounts() {
+    return Array.from(selectedAccountIds)
+      .map(id => getAccountByRowId(id))
+      .filter(Boolean);
+  }
+
+  function clearSelection() {
+    selectedAccountIds = new Set();
+    updateSelectionUI();
+  }
+
   function formatBalance(balance) {
     if (typeof balance === 'number' && !Number.isNaN(balance)) {
       return `₹${balance.toLocaleString('en-IN')}`;
@@ -928,8 +977,8 @@ window.pageScripts["Add-Account"] = function() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    accountsToRender.forEach(acc => {
-      const sanitizedId = sanitizeClientId(acc.client_id || acc.username || Math.random().toString(36).slice(2));
+    accountsToRender.forEach((acc, index) => {
+      const sanitizedId = getAccountRowId(acc, 
       const row = document.createElement('tr');
       row.dataset.clientId = sanitizedId;
       row.dataset.developerUrl = getDeveloperUrl(acc) || '';
@@ -939,7 +988,9 @@ window.pageScripts["Add-Account"] = function() {
       const secondaryLabel = acc.client_id || '';
 
       row.innerHTML = `
-        <td><input type="checkbox" class="checkbox" disabled></td>
+        <td>
+          <input type="checkbox" class="checkbox account-select" data-client-id="${sanitizedId}" aria-label="Select account ${escapeHtml(primaryLabel)}">
+        </td>
         <td>
           <div class="flex items-center gap-2">
             <div class="avatar ${getBrokerColor(acc.broker)}">${escapeHtml(getBrokerInitials(acc))}</div>
@@ -957,8 +1008,165 @@ window.pageScripts["Add-Account"] = function() {
         <td data-field="action-cell">${renderActionCell(acc, sanitizedId)}</td>
       `;
 
+      const checkbox = row.querySelector('.account-select');
+      if (checkbox) {
+        checkbox.checked = selectedAccountIds.has(sanitizedId);
+      }
+
       tbody.appendChild(row);
     });
+
+    updateSelectionUI();
+  }
+
+  function updateBulkActionsMenu() {
+    const dropdown = document.getElementById('more-dropdown');
+    if (!dropdown) return;
+    const menu = dropdown.querySelector('.dropdown-menu');
+    if (!menu) return;
+
+    const selectedCount = selectedAccountIds.size;
+    const selectedAccounts = selectedCount === 1 ? getSelectedAccounts() : [];
+    const accountLabel = selectedAccounts.length
+      ? escapeHtml(
+          selectedAccounts[0].client_id ||
+          selectedAccounts[0].username ||
+          formatBrokerName(selectedAccounts[0].broker) ||
+          'Account'
+        )
+      : '';
+
+    if (selectedCount === 0) {
+      menu.innerHTML = `
+        <button class="dropdown-item" type="button" data-bulk-action="export-visible">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export Visible Accounts
+        </button>
+        <div class="dropdown-divider" role="separator"></div>
+        <div class="dropdown-empty text-xs text-muted">Select accounts to enable quick actions.</div>
+      `;
+      return;
+    }
+
+    if (selectedCount === 1) {
+      menu.innerHTML = `
+        <div class="dropdown-header text-xs text-muted">${accountLabel}</div>
+        <button class="dropdown-item" type="button" data-bulk-action="single-reconnect">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Reconnect
+        </button>
+        <button class="dropdown-item" type="button" data-bulk-action="single-update">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="4 12 12 4 20 12"></polyline>
+            <line x1="12" y1="4" x2="12" y2="20"></line>
+          </svg>
+          Update
+        </button>
+        <button class="dropdown-item" type="button" data-bulk-action="single-edit">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          Edit
+        </button>
+        <button class="dropdown-item danger" type="button" data-bulk-action="single-delete">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          Delete
+        </button>
+        <button class="dropdown-item" type="button" data-bulk-action="single-export">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export
+        </button>
+      `;
+      return;
+    }
+
+    menu.innerHTML = `
+      <div class="dropdown-header text-xs text-muted">${selectedCount} accounts selected</div>
+      <button class="dropdown-item" type="button" data-bulk-action="bulk-reconnect">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        Reconnect Selected
+      </button>
+      <button class="dropdown-item danger" type="button" data-bulk-action="bulk-delete">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Delete Selected
+      </button>
+      <button class="dropdown-item" type="button" data-bulk-action="bulk-export">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export Selected
+      </button>
+    `;
+  }
+
+  function updateSelectionUI() {
+    const knownIds = new Set(allAccounts.map((acc, index) => getAccountRowId(acc, index)));
+    selectedAccountIds = new Set(Array.from(selectedAccountIds).filter(id => knownIds.has(id)));
+
+    const tbody = document.getElementById('accounts-table-body');
+    const selectAllCheckbox = document.getElementById('select-all-accounts');
+    const visibleIds = new Set();
+
+    if (tbody) {
+      Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+        const rowId = row.dataset.clientId;
+        if (!rowId) return;
+        if (row.style.display !== 'none') {
+          visibleIds.add(rowId);
+        }
+        const checkbox = row.querySelector('.account-select');
+        if (checkbox) {
+          checkbox.checked = selectedAccountIds.has(rowId);
+          checkbox.indeterminate = false;
+        }
+      });
+    }
+
+    if (selectAllCheckbox) {
+      if (!visibleIds.size) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.disabled = true;
+      } else {
+        selectAllCheckbox.disabled = false;
+        const selectedVisibleCount = Array.from(visibleIds).filter(id => selectedAccountIds.has(id)).length;
+        if (selectedVisibleCount === visibleIds.size) {
+          selectAllCheckbox.checked = true;
+          selectAllCheckbox.indeterminate = false;
+        } else if (selectedVisibleCount === 0) {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = false;
+        } else {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = true;
+        }
+      }
+    }
+
+    updateBulkActionsMenu();
   }
 
   function populateBrokerFilter() {
@@ -1045,6 +1253,7 @@ window.pageScripts["Add-Account"] = function() {
     });
     updateEmptyState();
     updateFooterCounts(filteredAccounts);
+    updateSelectionUI();  
   }
 
   function updateCounts() {
@@ -1161,6 +1370,241 @@ window.pageScripts["Add-Account"] = function() {
     } catch (err) {
       console.error('Clipboard copy failed:', err);
       showToast('Failed to copy to clipboard.', 'error');
+    }
+  }
+
+  function toCsvValue(value) {
+    const text = value === undefined || value === null ? '' : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function exportAccountsData(accounts, filenameSuffix = 'accounts') {
+    if (!Array.isArray(accounts) || !accounts.length) {
+      showToast('No accounts available to export.', 'warning');
+      return;
+    }
+
+    const headers = ['Broker', 'Client ID', 'Username', 'Status', 'Last Login', 'Developer URL', 'Static IP'];
+    const rows = accounts.map(acc => [
+      formatBrokerName(acc.broker),
+      acc.client_id || '',
+      acc.username || '',
+      acc.status || '',
+      acc.last_login ? formatDateTime(acc.last_login) : '',
+      getDeveloperUrl(acc) || '',
+      getStaticIp(acc) || ''
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(toCsvValue).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeSuffix = sanitizeClientId(filenameSuffix) || 'accounts';
+    const timestamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `${safeSuffix}-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+
+    showToast(`Exported ${accounts.length} account${accounts.length === 1 ? '' : 's'}.`, 'success');
+  }
+
+  function closeDropdownMenu(dropdown) {
+    if (!dropdown) return;
+    dropdown.classList.remove('open');
+    const toggle = dropdown.querySelector('[data-dropdown-toggle]');
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  async function reconnectAccountsBulk(accounts) {
+    if (!accounts.length) {
+      showToast('No accounts selected for reconnection.', 'warning');
+      return;
+    }
+
+    const label = accounts.length === 1
+      ? (accounts[0].client_id || accounts[0].username || 'the selected account')
+      : `${accounts.length} selected accounts`;
+
+    if (!confirm(`Attempt to reconnect ${label}?`)) {
+      return;
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    for (const acc of accounts) {
+      if (!acc.client_id) {
+        errors.push('Missing client ID for one of the selected accounts.');
+        continue;
+      }
+      try {
+        const response = await fetchJson('/api/reconnect-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: acc.client_id })
+        });
+        if (response.message) {
+          successCount += 1;
+        } else {
+          errors.push(response.error || `Failed to reconnect ${acc.client_id}.`);
+        }
+      } catch (error) {
+        errors.push(error.message || `Failed to reconnect ${acc.client_id}.`);
+      }
+    }
+
+    if (successCount) {
+      showToast(`Reconnected ${successCount} account${successCount === 1 ? '' : 's'}.`, 'success');
+      clearSelection();
+      setTimeout(() => location.reload(), 250);
+    }
+
+    if (errors.length) {
+      console.error('Reconnect errors:', errors);
+      showToast(`Reconnect completed with ${errors.length} error${errors.length === 1 ? '' : 's'}.`, 'error');
+    }
+  }
+
+  async function deleteAccountsBulk(accounts) {
+    if (!accounts.length) {
+      showToast('No accounts selected for deletion.', 'warning');
+      return;
+    }
+
+    const label = accounts.length === 1
+      ? (accounts[0].client_id || accounts[0].username || 'the selected account')
+      : `${accounts.length} selected accounts`;
+
+    if (!confirm(`Are you sure you want to delete ${label}? This action cannot be undone.`)) {
+      return;
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    for (const acc of accounts) {
+      if (!acc.client_id) {
+        errors.push('Missing client ID for one of the selected accounts.');
+        continue;
+      }
+      try {
+        const response = await fetchJson('/api/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: acc.client_id })
+        });
+        if (response.message) {
+          successCount += 1;
+        } else {
+          errors.push(response.error || `Failed to delete ${acc.client_id}.`);
+        }
+      } catch (error) {
+        errors.push(error.message || `Failed to delete ${acc.client_id}.`);
+      }
+    }
+
+    if (successCount) {
+      showToast(`Deleted ${successCount} account${successCount === 1 ? '' : 's'}.`, 'success');
+      clearSelection();
+      setTimeout(() => location.reload(), 250);
+    }
+
+    if (errors.length) {
+      console.error('Delete errors:', errors);
+      showToast(`Delete completed with ${errors.length} error${errors.length === 1 ? '' : 's'}.`, 'error');
+    }
+  }
+
+  async function updateAccountCredentials(account) {
+    if (!account || !account.client_id) {
+      showToast('Client ID is required to update the account.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetchJson('/api/update-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: account.client_id })
+      });
+      showToast(response.message || 'Account updated successfully.');
+      clearSelection();
+      setTimeout(() => location.reload(), 250);
+    } catch (error) {
+      showToast(`Failed to update account: ${error.message}`, 'error');
+    }
+  }
+
+  async function handleBulkMenuAction(action) {
+    const dropdown = document.getElementById('more-dropdown');
+    closeDropdownMenu(dropdown);
+
+    if (!action) {
+      return;
+    }
+
+    if (action === 'export-visible') {
+      const accounts = getFilteredAccounts();
+      if (!accounts.length) {
+        showToast('No accounts available to export.', 'warning');
+        return;
+      }
+      exportAccountsData(accounts, 'accounts-visible');
+      return;
+    }
+
+    const selectedAccounts = getSelectedAccounts();
+    if (!selectedAccounts.length) {
+      showToast('Please select at least one account.', 'warning');
+      return;
+    }
+
+    if (action === 'single-reconnect') {
+      window.reconnectAccount(selectedAccounts[0].client_id);
+      return;
+    }
+
+    if (action === 'single-edit') {
+      window.editAccount(selectedAccounts[0].client_id);
+      return;
+    }
+
+    if (action === 'single-delete') {
+      window.deleteAccount(selectedAccounts[0].client_id);
+      return;
+    }
+
+    if (action === 'single-export') {
+      const identifier = selectedAccounts[0].client_id || selectedAccounts[0].username || 'account';
+      exportAccountsData(selectedAccounts, identifier);
+      return;
+    }
+
+    if (action === 'single-update') {
+      await updateAccountCredentials(selectedAccounts[0]);
+      return;
+    }
+
+    if (action === 'bulk-reconnect') {
+      await reconnectAccountsBulk(selectedAccounts);
+      return;
+    }
+
+    if (action === 'bulk-delete') {
+      await deleteAccountsBulk(selectedAccounts);
+      return;
+    }
+
+    if (action === 'bulk-export') {
+      exportAccountsData(selectedAccounts, `accounts-selected-${selectedAccounts.length}`);
     }
   }
 
@@ -1286,13 +1730,26 @@ window.pageScripts["Add-Account"] = function() {
 
   const accountsTableBody = document.getElementById('accounts-table-body');
   if (accountsTableBody) {
+    registerListener(accountsTableBody, 'change', event => {
+      const checkbox = event.target.closest('.account-select');
+      if (!checkbox) return;
+      const clientId = checkbox.dataset.clientId;
+      if (!clientId) return;
+      if (checkbox.checked) {
+        selectedAccountIds.add(clientId);
+      } else {
+        selectedAccountIds.delete(clientId);
+      }
+      updateSelectionUI();
+    });
+
     registerListener(accountsTableBody, 'click', event => {
       const actionButton = event.target.closest('[data-action]');
       if (!actionButton) return;
       const row = actionButton.closest('tr');
       if (!row) return;
       const clientId = row.dataset.clientId;
-      const account = allAccounts.find(acc => sanitizeClientId(acc.client_id || acc.username || '') === clientId);
+      const account = getAccountByRowId(clientId);
       if (!account) return;
 
       const action = actionButton.dataset.action;
@@ -1328,6 +1785,44 @@ window.pageScripts["Add-Account"] = function() {
       }
     });
   }
+
+  const selectAllCheckbox = document.getElementById('select-all-accounts');
+  if (selectAllCheckbox) {
+    registerListener(selectAllCheckbox, 'change', event => {
+      const shouldSelectAll = event.target.checked || event.target.indeterminate;
+      const filteredAccounts = getFilteredAccounts();
+      if (shouldSelectAll) {
+        filteredAccounts.forEach(acc => {
+          const index = allAccounts.indexOf(acc);
+          const rowId = getAccountRowId(acc, index >= 0 ? index : 0);
+          selectedAccountIds.add(rowId);
+        });
+      } else {
+        filteredAccounts.forEach(acc => {
+          const index = allAccounts.indexOf(acc);
+          const rowId = getAccountRowId(acc, index >= 0 ? index : 0);
+          selectedAccountIds.delete(rowId);
+        });
+      }
+      updateSelectionUI();
+    });
+  }
+
+  const bulkActionsDropdown = document.getElementById('more-dropdown');
+  if (bulkActionsDropdown) {
+    registerListener(bulkActionsDropdown, 'click', event => {
+      const actionButton = event.target.closest('[data-bulk-action]');
+      if (!actionButton) return;
+      event.preventDefault();
+      handleBulkMenuAction(actionButton.dataset.bulkAction)
+        .catch(error => {
+          console.error('Bulk action failed:', error);
+          showToast(`Action failed: ${error.message || error}`, 'error');
+        });
+    });
+  }
+
+  updateBulkActionsMenu();
 
   registerListener(document, 'click', event => {
     const toggle = event.target.closest('[data-dropdown-toggle]');
