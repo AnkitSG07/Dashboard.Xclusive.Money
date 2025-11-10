@@ -1003,8 +1003,8 @@ window.pageScripts["Add-Account"] = function() {
         <td class="mobile-hide lg-show">
           <div class="balance-cell">
             <span class="text-sm balance-text" data-field="balance">${escapeHtml(formatBalance(acc.opening_balance))}</span>
-            <button class="btn btn-icon btn-ghost balance-refresh-btn" type="button" data-action="refresh-balance" title="Refresh balance" aria-label="Refresh balance"${acc && acc.client_id ? '' : ' disabled'}>
-              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+            <button class="balance-refresh-btn" type="button" data-action="refresh-balance" title="Refresh balance" aria-label="Refresh balance"${acc && acc.client_id ? '' : ' disabled'}>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21 2v6h-6"></path>
                 <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
                 <path d="M3 22v-6h6"></path>
@@ -2010,11 +2010,14 @@ window.pageScripts["Add-Account"] = function() {
       updateCounts();
       applyFilters();
 
-      allAccounts.forEach(acc => {
-        const isConnected = (acc.status || '').toLowerCase() === 'connected';
-        if (isConnected) {
-          autoLoginResults[acc.client_id] = { status: 'success' };
-        } else {
+      const runAutoLoginChecks = () => {
+        allAccounts.forEach(acc => {
+          const isConnected = (acc.status || '').toLowerCase() === 'connected';
+          if (isConnected) {
+            autoLoginResults[acc.client_id] = { status: 'success' };
+            return;
+          }
+
           attemptAutoLoginForAccount(acc)
             .then(() => {
               if (!isActive) return;
@@ -2026,8 +2029,14 @@ window.pageScripts["Add-Account"] = function() {
               updateCounts();
               updateAccountCard();
             });
-        }
-      });
+        });
+      };
+
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(runAutoLoginChecks, { timeout: 1500 });
+      } else {
+        window.setTimeout(runAutoLoginChecks, 0);
+      }
     })
     .catch(error => {
       if (!isActive || accountsFetchController.signal.aborted) {
