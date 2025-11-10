@@ -868,15 +868,25 @@
             {% set palette = account_palette[loop.index0 % (account_palette|length)] %}
             {% set has_error = account.error %}
             <div class="summary-card">
+              {% set broker_label = account.broker or 'Account' %}
+              {% set broker_key = broker_label|lower|replace(' ', '') %}
+              {% set broker_key = broker_key|replace('-', '') %}
+              {% set broker_key = broker_key|replace('_', '') %}
+              {% set broker_key = broker_key|replace('&', 'and') %}
+              {% set broker_key = broker_key|replace('.', '') %}
+              {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
+              {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}  
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
-                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ palette.stroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                    </svg>
+                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                    <img
+                      src="{{ broker_icon }}"
+                      alt="{{ broker_label }} logo"
+                      style="width:100%; height:100%; object-fit:contain;"
+                    >
                   </div>
                   <div>
-                    <p style="margin:0; font-weight:700;">{{ account.broker or 'Account' }}</p>
+                    <p style="margin:0; font-weight:700;">{{ broker_label }}</p>
                     <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ account.client_id }}</p>
                   </div>
                 </div>
