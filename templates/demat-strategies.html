@@ -1649,6 +1649,11 @@
         }
       }
 
+      resume() {
+        this.showError();
+        this.renderStrategies();
+      }
+
       populateAccountFilters() {
         if (this.accountFilter) {
           const current = this.state.filters.account;
@@ -2323,18 +2328,18 @@ ${responseText || ''}`);
       }
     }
 
-    function initializeDematStrategiesPage() {
-      const root = document.querySelector('.strategies-page-root');
-      if (!root) {
-        return;
+      function initializeDematStrategiesPage() {
+        const root = document.querySelector('.strategies-page-root');
+        if (!root) {
+          return;
+        }
+        if (root.__dematStrategiesController) {
+          root.__dematStrategiesController.resume();
+          return;
+        }
+        root.__dematStrategiesController = new DematStrategiesPage(root);
       }
-      if (root.__dematStrategiesController) {
-        root.__dematStrategiesController.reload();
-        return;
-      }
-      root.__dematStrategiesController = new DematStrategiesPage(root);
-    }
-
+    
     window.pageScripts = window.pageScripts || {};
     window.pageScripts['demat-strategies'] = initializeDematStrategiesPage;
 
