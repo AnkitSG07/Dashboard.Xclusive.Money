@@ -1,4 +1,3 @@
-
 {% set spa_partial = spa_partial if spa_partial is defined else request.headers.get('X-Requested-With') == 'XMLHttpRequest' %}
 {% if spa_partial %}
   <title>{{ self.title() }}</title>
@@ -199,6 +198,232 @@
       border: 1px solid transparent;
     }
 
+    .profile-dropdown {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .profile-trigger {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 9999px;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .profile-trigger:focus-visible {
+      outline: 2px solid hsl(var(--primary));
+      outline-offset: 2px;
+    }
+
+    .profile-trigger:hover .profile-avatar {
+      box-shadow: 0 0 0 2px hsl(var(--foreground) / 0.1);
+    }
+
+    .profile-avatar {
+      position: relative;
+      display: flex;
+      height: 36px;
+      width: 36px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      overflow: hidden;
+      background: linear-gradient(135deg, hsl(250 70% 60%), hsl(260 80% 65%));
+      color: hsl(0 0% 100%);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    @media (min-width: 640px) {
+      .profile-avatar {
+        height: 40px;
+        width: 40px;
+      }
+    }
+
+    .profile-avatar img {
+      height: 100%;
+      width: 100%;
+      object-fit: cover;
+    }
+
+    .profile-avatar-fallback {
+      display: flex;
+      height: 100%;
+      width: 100%;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+    }
+
+    .profile-dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 12px);
+      min-width: 240px;
+      width: min(280px, calc(100vw - 24px));
+      border-radius: 12px;
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      box-shadow: 0 10px 25px -10px rgba(15, 23, 42, 0.35), 0 4px 6px -4px rgba(15, 23, 42, 0.15);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+      z-index: 60;
+    }
+
+    .profile-dropdown-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .profile-dropdown-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 16px 12px;
+    }
+
+    .profile-dropdown-avatar {
+      height: 48px;
+      width: 48px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, hsl(250 70% 60%), hsl(260 80% 65%));
+      color: hsl(0 0% 100%);
+      font-weight: 600;
+      font-size: 1.1rem;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .profile-dropdown-avatar img {
+      height: 100%;
+      width: 100%;
+      object-fit: cover;
+    }
+
+    .profile-dropdown-user {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .profile-dropdown-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .profile-dropdown-email {
+      font-size: 0.8125rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .profile-dropdown-list {
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 4px;
+    }
+
+    .profile-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: hsl(var(--foreground));
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      text-decoration: none;
+    }
+
+    .profile-dropdown-item:hover {
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      box-shadow: inset 0 0 0 1px hsl(var(--border));
+    }
+
+    .profile-dropdown-item .profile-dropdown-icon {
+      width: 20px;
+      height: 20px;
+      color: hsl(var(--muted-foreground));
+      flex-shrink: 0;
+    }
+
+    .profile-dropdown-item:hover .profile-dropdown-icon {
+      color: hsl(var(--foreground));
+    }
+
+    .profile-dropdown-item.is-active {
+      background: linear-gradient(135deg, hsl(250 70% 60%), hsl(260 80% 65%));
+      color: hsl(0 0% 100%);
+      box-shadow: none;
+    }
+
+    .profile-dropdown-item.is-active .profile-dropdown-icon {
+      color: hsl(0 0% 100%);
+    }
+
+    .profile-dropdown-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid hsl(var(--border));
+    }
+
+    .profile-theme-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: hsl(var(--muted-foreground));
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .profile-theme-button:hover {
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      transform: translateY(-1px);
+    }
+
+    .profile-theme-button svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .profile-theme-button.is-active {
+      background: linear-gradient(135deg, hsl(250 70% 60%), hsl(260 80% 65%));
+      color: hsl(0 0% 100%);
+      box-shadow: 0 8px 12px -6px rgba(79, 70, 229, 0.45);
+    }
+
+    .dark .profile-dropdown-menu {
+      box-shadow: 0 20px 25px -15px rgba(15, 23, 42, 0.65), 0 8px 12px -8px rgba(15, 23, 42, 0.55);
+    }
+  
     .avatar {
       width: 36px;
       height: 36px;
@@ -1677,28 +1902,118 @@
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         </button>
-        <div class="dropdown">
-          <button class="btn btn-ghost btn-icon hide-mobile" type="button" data-bs-toggle="dropdown">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.25M15.54 15.54l4.24 4.25M1 12h6M17 12h6M4.22 19.78l4.24-4.25M15.54 8.46l4.24-4.25"></path>
-            </svg>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><button class="dropdown-item" onclick="logout()">Logout</button></li>
-          </ul>
-        </div>
-        <a href="{{ url_for('user_profile') }}" class="avatar">
-          {% if logged_in_user and logged_in_user.profile_image %}
+        {% set profile_image_url = '' %}
+        {% set raw_name = '' %}
+        {% set raw_full_name = '' %}
+        {% set raw_email = '' %}
+        {% if logged_in_user %}
+          {% set raw_name = logged_in_user.name | default('', true) %}
+          {% set raw_full_name = logged_in_user.full_name | default('', true) %}
+          {% set raw_email = logged_in_user.email | default('', true) %}
+          {% if logged_in_user.profile_image %}
             {% if logged_in_user.profile_image.startswith('data:') %}
-              <img src="{{ logged_in_user.profile_image }}" alt="User">
+              {% set profile_image_url = logged_in_user.profile_image %}
             {% else %}
-              <img src="{{ url_for('profile_image_file', filename=logged_in_user.profile_image.split('/')[-1]) }}" alt="User">
+              {% set profile_image_url = url_for('profile_image_file', filename=logged_in_user.profile_image.split('/')[-1]) %}
             {% endif %}
-          {% else %}
-            <img src="{{ url_for('static', filename='user.png') }}" alt="User">
           {% endif %}
-        </a>
+        {% endif %}
+        {% set display_name = (raw_full_name or raw_name or 'Xclusive Money') %}
+        {% set display_email = (raw_email or 'xclusive.moneyy@gmail.com') %}
+        {% set fallback_text = (display_name or display_email) | trim %}
+        {% set avatar_initials = 'XM' %}
+        {% if fallback_text %}
+          {% set name_parts = fallback_text.split() %}
+          {% if name_parts|length > 1 %}
+            {% set avatar_initials = name_parts[0][0] ~ name_parts[-1][0] %}
+          {% else %}
+            {% set avatar_initials = fallback_text[:2] %}
+          {% endif %}
+        {% endif %}
+
+        <div class="profile-dropdown" id="profileDropdown">
+          <button class="profile-trigger" type="button" id="profileDropdownButton" aria-haspopup="true" aria-expanded="false">
+            <span class="visually-hidden">Open profile menu</span>
+            <div class="profile-avatar">
+              {% if profile_image_url %}
+                <img src="{{ profile_image_url }}" alt="{{ display_name }} avatar">
+              {% else %}
+                <span class="profile-avatar-fallback">{{ avatar_initials | upper }}</span>
+              {% endif %}
+            </div>
+          </button>
+          <div class="profile-dropdown-menu" id="profileDropdownMenu" role="menu" aria-labelledby="profileDropdownButton">
+            <div class="profile-dropdown-header">
+              <div class="profile-dropdown-avatar">
+                {% if profile_image_url %}
+                  <img src="{{ profile_image_url }}" alt="{{ display_name }} avatar">
+                {% else %}
+                  <span class="profile-avatar-fallback">{{ avatar_initials | upper }}</span>
+                {% endif %}
+              </div>
+              <div class="profile-dropdown-user">
+                <div class="profile-dropdown-name">{{ display_name }}</div>
+                <div class="profile-dropdown-email">{{ display_email }}</div>
+              </div>
+            </div>
+            <div class="profile-dropdown-list">
+              <a class="profile-dropdown-item is-active" href="{{ url_for('user_profile') }}" role="menuitem">
+                <svg class="profile-dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Account
+              </a>
+              <a class="profile-dropdown-item" href="/Summary" role="menuitem">
+                <svg class="profile-dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Dashboard
+              </a>
+              <button type="button" class="profile-dropdown-item" id="profileLogoutButton" role="menuitem" onclick="logout()">
+                <svg class="profile-dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Logout
+              </button>
+            </div>
+            <div class="profile-dropdown-footer">
+              <button type="button" class="profile-theme-button" data-theme-preference="system" title="Match system theme">
+                <span class="visually-hidden">Use system theme</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+              </button>
+              <button type="button" class="profile-theme-button" data-theme-preference="light" title="Light theme">
+                <span class="visually-hidden">Light theme</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+              </button>
+              <button type="button" class="profile-theme-button" data-theme-preference="dark" title="Dark theme">
+                <span class="visually-hidden">Dark theme</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -1923,7 +2238,11 @@
 
       const setStoredTheme = (theme) => {
         try {
-          localStorage.setItem(storageKey, theme);
+          if (!theme) {
+            localStorage.removeItem(storageKey);
+          } else {
+            localStorage.setItem(storageKey, theme);
+          }
         } catch (error) {}
       };
 
@@ -1932,19 +2251,153 @@
       };
 
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-      const stored = getStoredTheme();
-      const initialTheme = stored || (prefersDark.matches ? 'dark' : 'light');
-      applyTheme(initialTheme);
+      const updateThemeButtons = () => {
+        const storedPreference = getStoredTheme();
+        const activePreference = storedPreference === 'light' || storedPreference === 'dark' ? storedPreference : 'system';
+        document.querySelectorAll('.profile-theme-button').forEach(button => {
+          const target = button.getAttribute('data-theme-preference');
+          button.classList.toggle('is-active', target === activePreference);
+        });
+      };
+
+      const resolveTheme = () => {
+        const storedPreference = getStoredTheme();
+        if (storedPreference === 'light' || storedPreference === 'dark') {
+          applyTheme(storedPreference);
+          return storedPreference;
+        }
+        const systemTheme = prefersDark.matches ? 'dark' : 'light';
+        applyTheme(systemTheme);
+        return 'system';
+      };
+
+      window.setDashboardTheme = (preference) => {
+        if (preference === 'light' || preference === 'dark') {
+          setStoredTheme(preference);
+          applyTheme(preference);
+        } else {
+          setStoredTheme(null);
+          applyTheme(prefersDark.matches ? 'dark' : 'light');
+        }
+        updateThemeButtons();
+      };
+
+      window.toggleDashboardTheme = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+        const nextTheme = isDark ? 'light' : 'dark';
+        window.setDashboardTheme(nextTheme);
+      };
+
+      window.getDashboardThemePreference = () => {
+        const storedPreference = getStoredTheme();
+        if (storedPreference === 'light' || storedPreference === 'dark') {
+          return storedPreference;
+        }
+        return 'system';
+      };
+
+      window.updateProfileThemeButtons = updateThemeButtons;
+
+      resolveTheme();
+      updateThemeButtons();
 
       if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-          const isDark = document.documentElement.classList.contains('dark');
-          const nextTheme = isDark ? 'light' : 'dark';
-          applyTheme(nextTheme);
-          setStoredTheme(nextTheme);
-        });
+        themeToggle.addEventListener('click', window.toggleDashboardTheme);
+      }
+
+      const onSystemThemeChange = () => {
+        if (!getStoredTheme()) {
+          applyTheme(prefersDark.matches ? 'dark' : 'light');
+          updateThemeButtons();
+        }
+      };
+
+      if (typeof prefersDark.addEventListener === 'function') {
+        prefersDark.addEventListener('change', onSystemThemeChange);
+      } else if (typeof prefersDark.addListener === 'function') {
+        prefersDark.addListener(onSystemThemeChange);
       }
     })();
+
+    function initializeProfileDropdown() {
+      const dropdown = document.getElementById('profileDropdownMenu');
+      const trigger = document.getElementById('profileDropdownButton');
+
+      if (window.__profileDropdownCleanup) {
+        window.__profileDropdownCleanup();
+        window.__profileDropdownCleanup = null;
+      }
+
+      if (!dropdown || !trigger) {
+        return;
+      }
+
+      const closeDropdown = () => {
+        dropdown.classList.remove('show');
+        trigger.setAttribute('aria-expanded', 'false');
+      };
+
+      const openDropdown = () => {
+        dropdown.classList.add('show');
+        trigger.setAttribute('aria-expanded', 'true');
+      };
+
+      closeDropdown();
+
+      const onTriggerClick = (event) => {
+        event.preventDefault();
+        const isOpen = dropdown.classList.contains('show');
+        if (isOpen) {
+          closeDropdown();
+        } else {
+          openDropdown();
+        }
+      };
+
+      const onDocumentClick = (event) => {
+        if (!dropdown.contains(event.target) && !trigger.contains(event.target)) {
+          closeDropdown();
+        }
+      };
+
+      const onKeydown = (event) => {
+        if (event.key === 'Escape') {
+          closeDropdown();
+          trigger.focus();
+        }
+      };
+
+      trigger.addEventListener('click', onTriggerClick);
+      document.addEventListener('click', onDocumentClick);
+      document.addEventListener('keydown', onKeydown);
+
+      const themeButtons = dropdown.querySelectorAll('[data-theme-preference]');
+      themeButtons.forEach(button => {
+        if (button.dataset.bound === 'true') {
+          return;
+        }
+        button.dataset.bound = 'true';
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const preference = button.getAttribute('data-theme-preference');
+          if (preference && window.setDashboardTheme) {
+            window.setDashboardTheme(preference);
+          }
+          closeDropdown();
+        });
+      });
+
+      window.updateProfileThemeButtons?.();
+
+      window.__profileDropdownCleanup = () => {
+        trigger.removeEventListener('click', onTriggerClick);
+        document.removeEventListener('click', onDocumentClick);
+        document.removeEventListener('keydown', onKeydown);
+      };
+    }
+
+    window.initializeProfileDropdown = initializeProfileDropdown;
 
     // Sidebar toggle
     const menuToggle = document.getElementById('menuToggle');
@@ -2304,7 +2757,8 @@
 
         highlightActivePage();
         enableDropdowns();
-
+        window.initializeProfileDropdown?.();
+        
         setTimeout(reinitializePageScripts, 50);
         window.initializeNotificationsPanel?.();
       };
@@ -2479,6 +2933,7 @@
     // Initial setup
     window.addEventListener('DOMContentLoaded', () => {
       enableDropdowns();
+      window.initializeProfileDropdown?.();
       highlightActivePage();
       tagInitialPageAssets();
       setupSidebarSPALinks();
