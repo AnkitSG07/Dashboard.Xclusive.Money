@@ -441,7 +441,7 @@ window.pageScripts["Add-Account"] = function() {
       { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
     ],
     broker1: [
-      { label: "Broker 1 Client ID", name: "client_id", type: "text", placeholder: "Broker 1 Client ID" },
+      { label: "Other Broker Client ID", name: "client_id", type: "text", placeholder: "Other Broker Client ID" },
       { label: "MPIN", name: "mpin", type: "password", placeholder: "MPIN" },
       { label: "API Key", name: "api_key", type: "text", placeholder: "API Key" },
       { label: "Secret Key", name: "secret_key", type: "password", placeholder: "Secret Key" },
@@ -449,6 +449,10 @@ window.pageScripts["Add-Account"] = function() {
       { label: "Email Id (optional)", name: "email", type: "text", optional: true, placeholder: "Email Id (optional)" },
       { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true, placeholder: "Mobile no (optional)" }
     ]
+  };
+
+  const brokerNameOverrides = {
+    broker1: 'Other Broker'
   };
 
   const brokerColorMap = {
@@ -483,6 +487,9 @@ window.pageScripts["Add-Account"] = function() {
 
   function formatBrokerName(broker) {
     if (!broker) return '';
+    if (brokerNameOverrides[broker]) {
+      return brokerNameOverrides[broker];
+    }  
     return broker
       .split(/[_-]/)
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
