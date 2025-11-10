@@ -978,7 +978,7 @@ window.pageScripts["Add-Account"] = function() {
     tbody.innerHTML = '';
 
     accountsToRender.forEach((acc, index) => {
-      const sanitizedId = getAccountRowId(acc, 
+      const sanitizedId = getAccountRowId(acc, index);
       const row = document.createElement('tr');
       row.dataset.clientId = sanitizedId;
       row.dataset.developerUrl = getDeveloperUrl(acc) || '';
