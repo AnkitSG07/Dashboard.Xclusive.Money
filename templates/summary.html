@@ -257,6 +257,7 @@
                     {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                     {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
+                    {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -288,10 +289,13 @@
                       <td>{{ sell_avg is not none and format_currency(sell_avg) or '—' }}</td>
                       <td>{{ format_currency(holding.ltp) }}</td>
                       <td>
-                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" loading="lazy" decoding="async" />
+                        <span class="top-holdings-table__pnl {{ 'is-positive' if pnl_positive else 'is-negative' }}">
+                          {{ format_currency(holding.pnl) }}
+                          <small>{{ format_percentage(pnl_percent) }}</small>
+                        </span>
                       </td>
                       <td>
-                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" />
+                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" loading="lazy" decoding="async" />
                       </td>
                     </tr>
                   {% endfor %}
