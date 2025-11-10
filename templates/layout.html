@@ -382,40 +382,6 @@
       color: hsl(0 0% 100%);
     }
 
-    .profile-dropdown-footer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px;
-      border-top: 1px solid hsl(var(--border));
-    }
-
-    .profile-theme-button {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      border: none;
-      background: transparent;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: hsl(var(--muted-foreground));
-      cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-    }
-
-    .profile-theme-button:hover {
-      background: hsl(var(--muted));
-      color: hsl(var(--foreground));
-      transform: translateY(-1px);
-    }
-
-    .profile-theme-button svg {
-      width: 18px;
-      height: 18px;
-    }
-
     @media (max-width: 640px) {
       .profile-dropdown-menu {
         top: calc(100% + 8px);
@@ -443,23 +409,6 @@
         padding: 10px 12px;
         border-radius: 8px;
       }
-
-      .profile-dropdown-footer {
-        padding: 8px;
-        gap: 6px;
-      }
-
-      .profile-theme-button {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-      }
-    }
-
-    .profile-theme-button.is-active {
-      background: linear-gradient(135deg, hsl(250 70% 60%), hsl(260 80% 65%));
-      color: hsl(0 0% 100%);
-      box-shadow: 0 8px 12px -6px rgba(79, 70, 229, 0.45);
     }
 
     .dark .profile-dropdown-menu {
@@ -2024,36 +1973,6 @@
                 Logout
               </button>
             </div>
-            <div class="profile-dropdown-footer">
-              <button type="button" class="profile-theme-button" data-theme-preference="system" title="Match system theme">
-                <span class="visually-hidden">Use system theme</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                  <line x1="8" y1="21" x2="16" y2="21"></line>
-                  <line x1="12" y1="17" x2="12" y2="21"></line>
-                </svg>
-              </button>
-              <button type="button" class="profile-theme-button" data-theme-preference="light" title="Light theme">
-                <span class="visually-hidden">Light theme</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="5"></circle>
-                  <line x1="12" y1="1" x2="12" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="23"></line>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                  <line x1="1" y1="12" x2="3" y2="12"></line>
-                  <line x1="21" y1="12" x2="23" y2="12"></line>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                </svg>
-              </button>
-              <button type="button" class="profile-theme-button" data-theme-preference="dark" title="Dark theme">
-                <span class="visually-hidden">Dark theme</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -2293,15 +2212,6 @@
       };
 
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-      const updateThemeButtons = () => {
-        const storedPreference = getStoredTheme();
-        const activePreference = storedPreference === 'light' || storedPreference === 'dark' ? storedPreference : 'system';
-        document.querySelectorAll('.profile-theme-button').forEach(button => {
-          const target = button.getAttribute('data-theme-preference');
-          button.classList.toggle('is-active', target === activePreference);
-        });
-      };
-
       const resolveTheme = () => {
         const storedPreference = getStoredTheme();
         if (storedPreference === 'light' || storedPreference === 'dark') {
@@ -2321,7 +2231,6 @@
           setStoredTheme(null);
           applyTheme(prefersDark.matches ? 'dark' : 'light');
         }
-        updateThemeButtons();
       };
 
       window.toggleDashboardTheme = () => {
@@ -2338,10 +2247,7 @@
         return 'system';
       };
 
-      window.updateProfileThemeButtons = updateThemeButtons;
-
       resolveTheme();
-      updateThemeButtons();
 
       if (themeToggle) {
         themeToggle.addEventListener('click', window.toggleDashboardTheme);
@@ -2350,7 +2256,6 @@
       const onSystemThemeChange = () => {
         if (!getStoredTheme()) {
           applyTheme(prefersDark.matches ? 'dark' : 'light');
-          updateThemeButtons();
         }
       };
 
@@ -2412,26 +2317,7 @@
       trigger.addEventListener('click', onTriggerClick);
       document.addEventListener('click', onDocumentClick);
       document.addEventListener('keydown', onKeydown);
-
-      const themeButtons = dropdown.querySelectorAll('[data-theme-preference]');
-      themeButtons.forEach(button => {
-        if (button.dataset.bound === 'true') {
-          return;
-        }
-        button.dataset.bound = 'true';
-        button.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const preference = button.getAttribute('data-theme-preference');
-          if (preference && window.setDashboardTheme) {
-            window.setDashboardTheme(preference);
-          }
-          closeDropdown();
-        });
-      });
-
-      window.updateProfileThemeButtons?.();
-
+      
       window.__profileDropdownCleanup = () => {
         trigger.removeEventListener('click', onTriggerClick);
         document.removeEventListener('click', onDocumentClick);
