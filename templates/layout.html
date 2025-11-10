@@ -2250,22 +2250,47 @@
       });
       const whenStylesReady = Promise.all(stylesheetPromises);
 
-      pageContainer.innerHTML = fragment.html;
-      if (fragment.page) {
-        pageContainer.dataset.page = fragment.page;
-      }
-
-      if (fragment.title) {
-        document.title = fragment.title;
-      }
-
-      removeInjectedPageScripts();
-      whenStylesReady.then(() => {
+      const finalizeFragmentSwap = () => {
         previousPageStyles.forEach(style => style.remove());
-      }).catch(error => {
-        console.error('Failed to load page styles', error);
-      });
-      fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
+
+        pageContainer.innerHTML = fragment.html;
+
+        if (fragment.page) {
+          pageContainer.dataset.page = fragment.page;
+        }
+
+        if (fragment.title) {
+          document.title = fragment.title;
+        }
+
+        removeInjectedPageScripts();
+        fragment.scripts.forEach(descriptor => injectScriptDescriptor(descriptor));
+
+        highlightActivePage();
+        enableDropdowns();
+
+        setTimeout(reinitializePageScripts, 50);
+        window.initializeNotificationsPanel?.();
+      };
+
+      const hasPendingStyles = stylesheetPromises.length > 0;
+
+      if (hasPendingStyles) {
+        pageContainer.setAttribute('aria-busy', 'true');
+        whenStylesReady
+          .then(() => {
+            finalizeFragmentSwap();
+          })
+          .catch(error => {
+            console.error('Failed to load page styles', error);
+            finalizeFragmentSwap();
+          })
+          .finally(() => {
+            pageContainer.removeAttribute('aria-busy');
+          });
+      } else {
+        finalizeFragmentSwap();
+      }
 
       if (url) {
         if (navigation === 'replace') {
@@ -2275,11 +2300,6 @@
         }
       }
 
-      highlightActivePage();
-      enableDropdowns();
-
-      setTimeout(reinitializePageScripts, 50);
-      window.initializeNotificationsPanel?.();
       return true;
     }
 
