@@ -570,9 +570,23 @@
     }
 
     .drawer-header {
-      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
       padding: 16px;
       border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .drawer-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .drawer-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .drawer-title {
@@ -604,10 +618,29 @@
       font-weight: 500;
     }
 
+    .clear-button {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid hsl(var(--border));
+      background: transparent;
+      color: hsl(var(--foreground));
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .clear-button:hover:not(:disabled) {
+      background-color: hsl(var(--muted));
+    }
+
+    .clear-button:disabled,
+    .clear-button[aria-disabled="true"] {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .close-button {
-      position: absolute;
-      top: 16px;
-      right: 16px;
       background: none;
       border: none;
       cursor: pointer;
@@ -1812,14 +1845,17 @@
   <div class="drawer-overlay" id="notificationsOverlay" aria-hidden="true"></div>
   <aside class="notification-drawer" id="notificationsDrawer" aria-hidden="true" aria-labelledby="notificationsTitle" role="dialog">
     <div class="drawer-header">
-      <div>
+      <div class="drawer-header-info">
         <h2 class="drawer-title" id="notificationsTitle">Notifications Center</h2>
         <div class="notification-badge" id="drawerNotificationBadge" hidden>
           <span class="unread-badge" id="drawerUnreadBadge">0</span>
           <span class="unread-text">New notifications for you</span>
         </div>
       </div>
-      <button type="button" class="close-button" id="notificationsClose" aria-label="Close notifications">&times;</button>
+      <div class="drawer-header-actions">
+        <button type="button" class="clear-button" id="notificationsClear" aria-label="Clear all notifications" disabled>Clear all</button>
+        <button type="button" class="close-button" id="notificationsClose" aria-label="Close notifications">&times;</button>
+      </div>
     </div>
     <div class="drawer-tabs">
       <div class="tabs-list">
