@@ -1323,15 +1323,20 @@ window.pageScripts["Add-Account"] = function() {
     }
   }
 
-  async function refreshBalanceForAccount(acc) {
+  async function refreshBalanceForAccount(acc, options = {}) {
     if (!isActive) return;
+    const { cacheOnly = true } = options || {};
     const controller = new AbortController();
     const unregister = registerAbortController(controller);
     try {
+      const requestBody = { client_id: acc.client_id };
+      if (cacheOnly) {
+        requestBody.cache_only = true;
+      }
       const resp = await fetchJson('/api/account-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: acc.client_id }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
       if (!isActive) return;
@@ -1951,7 +1956,7 @@ window.pageScripts["Add-Account"] = function() {
               updateAccountCard();
             });
         }
-        refreshBalanceForAccount(acc)
+        refreshBalanceForAccount(acc, { cacheOnly: true })
           .then(() => {
             if (!isActive) return;
             updateCounts();
