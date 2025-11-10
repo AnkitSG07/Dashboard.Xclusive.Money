@@ -440,6 +440,8 @@ def get_broker_icon_map() -> dict:
         name, ext = os.path.splitext(filename)
         if ext.lstrip('.').lower() in ['png', 'jpg', 'jpeg', 'svg', 'webp']:
             icons[name] = url_for('static', filename=f'images/{filename}')
+    if 'other' in icons:
+        icons.setdefault('broker1', icons['other'])
     return icons
 
 
