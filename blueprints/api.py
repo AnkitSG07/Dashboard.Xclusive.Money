@@ -610,28 +610,14 @@ def _resolve_account(user, client_id: str | None) -> Account | None:
     return get_primary_account(user)
 
 
-def _get_holdings_payload(account: Account, cache_only: bool = False) -> tuple[list, bool]:
+def _get_holdings_payload(account: Account) -> tuple[list, bool]:
     key = _holdings_cache_key(account)
     now = datetime.utcnow()
 
-    cached_data: list = []
-    cached_entry = None
     with _HOLDINGS_LOCK:
-        cached_entry = _HOLDINGS_CACHE.get(key)
-        if cached_entry:
-            cached_data = deepcopy(cached_entry.get("data", []))
-            timestamp = cached_entry.get("timestamp")
-            try:
-                age = now - timestamp  # type: ignore[operator]
-            except TypeError:
-                age = _HOLDINGS_INTERVAL
-            stale_flag = bool(cached_entry.get("stale", False))
-            if age < _HOLDINGS_INTERVAL:
-                return cached_data, stale_flag
-            if cache_only:
-                return cached_data, True
-        elif cache_only:
-            return [], False
+        entry = _HOLDINGS_CACHE.get(key)
+        if entry and now - entry["timestamp"] < _HOLDINGS_INTERVAL:
+            return deepcopy(entry["data"]), entry.get("stale", False)
 
     from app import broker_api, _account_to_dict
 
@@ -645,6 +631,7 @@ def _get_holdings_payload(account: Account, cache_only: bool = False) -> tuple[l
     if not hasattr(api, "get_holdings"):
         raise AttributeError("Broker does not expose holdings")
 
+    cached_data = deepcopy(entry["data"]) if entry else []
     try:
         resp = _call_with_timeout(api.get_holdings, _BROKER_TIMEOUT_SECONDS)
         if isinstance(resp, dict):
