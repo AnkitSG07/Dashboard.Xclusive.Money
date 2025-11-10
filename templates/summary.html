@@ -1363,19 +1363,53 @@ window.pageScripts["Summary"] = function () {
       chip.classList.toggle("is-active", chip.dataset.period === period);
     });
   }
+  
+  const periodOrder = chips
+    .map((chip) => chip.dataset.period)
+    .filter((period, index, arr) => period && arr.indexOf(period) === index);
 
   let activePeriod = chips.find((chip) => chip.classList.contains("is-active"))?.dataset.period || "1D";
   if (!activePeriod || !(activePeriod in PERIOD_LIMITS)) {
-    activePeriod = "All";
+    activePeriod = periodOrder[0] || "All";
+  }
+
+  function findFallbackSeries(excludePeriod) {
+    if (!cachedSeries.length) {
+      return { period: excludePeriod, series: [] };
+    }
+
+    const candidateOrder = periodOrder.length
+      ? periodOrder
+      : Object.keys(PERIOD_LIMITS);
+
+    for (const candidate of candidateOrder) {
+      if (!candidate || candidate === excludePeriod) {
+        continue;
+      }
+      const candidateSeries = filterSeries(candidate);
+      if (candidateSeries.length) {
+        return { period: candidate, series: candidateSeries };
+      }
+    }
+
+    return { period: excludePeriod, series: cachedSeries.slice() };
   }
 
   function applyPeriod(period) {
     if (!period || !(period in PERIOD_LIMITS)) {
       period = activePeriod;
     }
-    activePeriod = period;
-    setActiveChip(period);
-    const series = filterSeries(period);
+    let resolvedPeriod = period;
+    let series = filterSeries(period);
+
+    if (!series.length && cachedSeries.length) {
+      const fallback = findFallbackSeries(period);
+      resolvedPeriod = fallback.period;
+      series = fallback.series;
+    }
+
+    activePeriod = resolvedPeriod;
+    setActiveChip(resolvedPeriod);
     updateChart(series);
   }
 
