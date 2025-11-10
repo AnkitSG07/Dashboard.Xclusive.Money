@@ -8888,19 +8888,14 @@ def summary():
         if not holdings:
             normalized_holdings: list[dict] = []
             try:
-                holdings_payload, holdings_stale = _get_holdings_payload(
-                    account, cache_only=True
-                )
+                holdings_payload, holdings_stale = _get_holdings_payload(account)
+                
             except AttributeError:
                 holdings_payload = []
             except Exception as exc:
                 snapshot.setdefault("errors", {}).setdefault("holdings", str(exc))
                 holdings_payload = []
             else:
-                if not holdings_payload:
-                    snapshot.setdefault("errors", {}).setdefault(
-                        "holdings", "Holdings are still loading"
-                    )
                 for entry in holdings_payload:
                     normalized = _normalize_holding_for_summary(entry)
                     if normalized:
