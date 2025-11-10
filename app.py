@@ -1151,7 +1151,13 @@ def _resolve_data_path(path: str) -> str:
     return os.path.join(DATA_DIR, path)
 
 
-def _account_to_dict(acc: Account) -> dict:
+def _account_to_dict(
+    acc: Account,
+    logs_by_client: dict[
+        str, list[SystemLog | tuple[SystemLog, dict[str, Any]]]
+    ]
+    | None = None,
+) -> dict:
     """Return a serialisable representation of an ``Account``.
 
     The ``errors`` field is intended for user-facing account issues (e.g. copy
@@ -1162,18 +1168,27 @@ def _account_to_dict(acc: Account) -> dict:
     errors: list[str] = []
     system_errors: list[str] = []
     try:
-        logs = (
-            SystemLog.query.filter_by(
-                user_id=str(acc.user_id),
-                level="ERROR",
+        if logs_by_client is None:
+            logs_iterable: list[SystemLog | tuple[SystemLog, dict[str, Any]]]
+            logs_iterable = (
+                SystemLog.query.filter_by(
+                    user_id=str(acc.user_id),
+                    level="ERROR",
+                )
+                .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
+                .order_by(SystemLog.timestamp.desc())
+                .limit(5)
+                .all()
             )
-            .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
-            .order_by(SystemLog.timestamp.desc())
-            .limit(5)
-            .all()
-        )
-        for log in logs:
-            details = log.details
+        else:
+            logs_iterable = logs_by_client.get(acc.client_id, [])
+
+        for entry in list(logs_iterable)[:5]:
+            if isinstance(entry, tuple):
+                log, details = entry
+            else:
+                log = entry
+                details = log.details
             if isinstance(details, str):
                 try:
                     details = json.loads(details)
@@ -6165,7 +6180,58 @@ def get_accounts():
             
         cache_only = request.args.get("cache_only") in ("1", "true", "True")
         
-        accounts = [_account_to_dict(acc) for acc in user.accounts]
+        user_accounts = list(user.accounts)
+
+        logs_by_client: dict[str, list[tuple[SystemLog, dict[str, Any]]]] | None
+        client_ids = {str(acc.client_id) for acc in user_accounts if acc.client_id}
+        if client_ids:
+            try:
+                grouped_logs: defaultdict[str, list[tuple[SystemLog, dict[str, Any]]]] = defaultdict(list)
+                satisfied_clients: set[str] = set()
+                logs_query = (
+                    SystemLog.query.filter_by(
+                        user_id=str(user.id),
+                        level="ERROR",
+                    )
+                    .filter(SystemLog.module.in_(["system", "copy_trading", "broker"]))
+                    .order_by(SystemLog.timestamp.desc())
+                )
+
+                for log in logs_query.yield_per(100):
+                    details = log.details
+                    if isinstance(details, str):
+                        try:
+                            details = json.loads(details)
+                        except Exception:
+                            details = {}
+
+                    if isinstance(details, dict):
+                        client_id = details.get("client_id")
+                        if client_id is not None:
+                            client_id = str(client_id)
+                    else:
+                        client_id = None
+
+                    if client_id in client_ids:
+                        bucket = grouped_logs[client_id]
+                        if len(bucket) < 5:
+                            if not isinstance(details, dict):
+                                details = {}
+                            bucket.append((log, details))
+                            if len(bucket) == 5:
+                                satisfied_clients.add(client_id)
+                        if len(satisfied_clients) == len(client_ids):
+                            break
+
+                logs_by_client = dict(grouped_logs)
+            except Exception as exc:
+                logger.error("Failed to prefetch logs for user %s: %s", user.id, exc)
+                db.session.rollback()
+                logs_by_client = None
+        else:
+            logs_by_client = {}
+
+        accounts = [_account_to_dict(acc, logs_by_client) for acc in user_accounts]
 
         # Add opening balances
         for acc in accounts:
@@ -6183,7 +6249,9 @@ def get_accounts():
                     user_id=user.id
                 ).all()
                 acc_copy = dict(acc)
-                acc_copy["children"] = [_account_to_dict(child) for child in children]
+                acc_copy["children"] = [
+                    _account_to_dict(child, logs_by_client) for child in children
+                ]
                 masters.append(acc_copy)
 
         return jsonify({
