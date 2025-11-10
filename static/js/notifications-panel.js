@@ -12,6 +12,7 @@
         const headerBadge = document.getElementById('notificationBadge');
         const drawerBadgeContainer = document.getElementById('drawerNotificationBadge');
         const drawerBadge = document.getElementById('drawerUnreadBadge');
+        const clearButton = document.getElementById('notificationsClear');
 
         if (!toggle || !drawer || !overlay || !list || !loadingState || !emptyState) {
             return;
@@ -23,6 +24,22 @@
 
         let notifications = [];
         let currentTab = 'all';
+        let isLoading = false;
+        let isClearing = false;
+
+        if (clearButton && !clearButton.dataset.defaultLabel) {
+            clearButton.dataset.defaultLabel = clearButton.textContent;
+        }
+
+        function updateClearButtonState() {
+            if (!clearButton) {
+                return;
+            }
+            const hasNotifications = notifications.length > 0;
+            const shouldDisable = !hasNotifications || isLoading || isClearing;
+            clearButton.disabled = shouldDisable;
+            clearButton.setAttribute('aria-disabled', shouldDisable.toString());
+        }
 
         function setDrawerOpen(isOpen) {
             drawer.classList.toggle('active', isOpen);
@@ -47,18 +64,22 @@
         }
 
         function showLoading() {
+            isLoading = true;
             loadingState.hidden = false;
             emptyState.hidden = true;
             list.hidden = true;
+            updateClearButtonState();
         }
 
         function showEmpty(message) {
+            isLoading = false;
             loadingState.hidden = true;
             list.hidden = true;
             emptyState.hidden = false;
             if (emptyMessage && typeof message === 'string') {
                 emptyMessage.textContent = message;
             }
+            updateClearButtonState();
         }
 
         function updateBadges(count) {
@@ -139,6 +160,7 @@
         }
 
         function renderNotifications() {
+            isLoading = false;
             if (!notifications.length) {
                 showEmpty('No notifications yet');
                 return;
@@ -234,6 +256,8 @@
                 card.appendChild(inner);
                 list.appendChild(card);
             });
+
+            updateClearButtonState();
         }
 
         async function loadNotifications() {
@@ -258,6 +282,42 @@
                 console.error('Failed to load notifications', error);
                 updateBadges(0);
                 showEmpty("We couldn't load your notifications right now.");
+            }
+        }
+
+        async function clearAllNotifications() {
+            if (!clearButton || isClearing || !notifications.length) {
+                return;
+            }
+
+            const originalLabel = clearButton.dataset.defaultLabel || clearButton.textContent;
+            isClearing = true;
+            updateClearButtonState();
+            clearButton.textContent = 'Clearing…';
+
+            try {
+                const response = await fetch('/api/notifications/clear', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                await response.json().catch(() => ({}));
+                notifications = [];
+                updateBadges(0);
+                showEmpty("You're all caught up!");
+            } catch (error) {
+                console.error('Failed to clear notifications', error);
+                if (typeof window.showCustomAlert === 'function') {
+                    window.showCustomAlert('Failed to clear notifications. Please try again.', 'Action required');
+                }
+            } finally {
+                isClearing = false;
+                clearButton.textContent = originalLabel;
+                updateClearButtonState();
             }
         }
 
@@ -287,6 +347,15 @@
             });
         });
 
+        if (clearButton && clearButton.dataset.notificationsBound !== 'true') {
+            clearButton.addEventListener('click', () => {
+                if (!clearButton.disabled) {
+                    clearAllNotifications();
+                }
+            });
+            clearButton.dataset.notificationsBound = 'true';
+        }
+    
         toggle.setAttribute('aria-expanded', 'false');
         toggle.dataset.notificationsBound = 'true';
     }
