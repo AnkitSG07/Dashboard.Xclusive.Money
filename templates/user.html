@@ -419,7 +419,7 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  function initializeUserProfilePage() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanels = document.querySelectorAll('.tab-panel');
     const imageInput = document.getElementById('profileImageInput');
@@ -454,6 +454,15 @@
         reader.readAsDataURL(file);
       });
     }
-  });
+  }
+
+  window.pageScripts = window.pageScripts || {};
+  window.pageScripts['users'] = initializeUserProfilePage;
+
+  if (document.readyState !== 'loading') {
+    initializeUserProfilePage();
+  } else {
+    document.addEventListener('DOMContentLoaded', initializeUserProfilePage, { once: true });
+  }
 </script>
 {% endblock %}
