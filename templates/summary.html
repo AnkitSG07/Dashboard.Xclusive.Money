@@ -855,7 +855,7 @@
     <section>
       <div class="summary-section-title">
         <h2>Account Summary</h2>
-        <a href="/account-config">Manage Accounts</a>
+        <a href="{{ url_for('AddAccount') }}">Manage Accounts</a>
       </div>
       <div class="summary-grid summary-grid-3">
         {% set account_palette = [
@@ -993,11 +993,16 @@
                     {% set product_label = (holding.product or 'Normal') %}
                     {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
                     {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
-                    {% set broker_label = broker_name|trim if broker_name else '' %}
-                    {% set broker_key = broker_label|lower|replace(' ', '') if broker_label and broker_label != '—' else '' %}
+                    {% set broker_label = holding.primary_broker or (holding.brokers|first if holding.brokers else '') %}
+                    {% set broker_label = broker_label|trim %}
+                    {% set broker_key = broker_label|lower|replace(' ', '') if broker_label else '' %}
+                    {% set broker_key = broker_key|replace('-', '') %}
+                    {% set broker_key = broker_key|replace('_', '') %}
+                    {% set broker_key = broker_key|replace('&', 'and') %}
+                    {% set broker_key = broker_key|replace('.', '') %}
                     {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
-                    {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
+                    {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1048,8 +1053,13 @@
                 {% set exchange_badge = holding.exchange and holding.exchange.upper() %}
                 {% set buy_avg = holding.buy_avg_price if holding.buy_avg_price is not none else (holding.cost / holding.quantity if holding.quantity > 0 else None) %}
                 {% set sell_avg = holding.sell_avg_price if holding.sell_avg_price is not none else ((holding.cost / (-holding.quantity)) if holding.quantity < 0 else None) %}
-                {% set broker_label = broker_name|trim if broker_name else '' %}
-                {% set broker_key = broker_label|lower|replace(' ', '') if broker_label and broker_label != '—' else '' %}
+                {% set broker_label = holding.primary_broker or (holding.brokers|first if holding.brokers else '') %}
+                {% set broker_label = broker_label|trim %}
+                {% set broker_key = broker_label|lower|replace(' ', '') if broker_label else '' %}
+                {% set broker_key = broker_key|replace('-', '') %}
+                {% set broker_key = broker_key|replace('_', '') %}
+                {% set broker_key = broker_key|replace('&', 'and') %}
+                {% set broker_key = broker_key|replace('.', '') %}
                 {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
                 {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                 {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
