@@ -1,0 +1,755 @@
+.summary-dashboard {
+    --summary-bg: #f5f7fb;
+    --summary-card: #ffffff;
+    --summary-border: #e6e9f2;
+    --summary-text: #111827;
+    --summary-muted: #6b7280;
+    --summary-primary: #4f46e5;
+    --summary-green: #059669;
+    --summary-red: #dc2626;
+    --summary-purple: #7c3aed;
+    --summary-blue: #2563eb;
+
+    color: var(--summary-text);
+    background: var(--summary-bg);
+    border-radius: 24px;
+    box-shadow: inset 0 0 0 1px rgba(230, 233, 242, 0.45);
+    padding: clamp(32px, 4vw, 48px) clamp(20px, 4vw, 32px);
+}
+
+.summary-dashboard .summary-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(24px, 4vw, 32px);
+}
+
+/* base grid helper */
+.summary-grid {
+    display: grid;
+    gap: 24px;
+}
+
+/* === TOP METRIC CARDS ROW (4 cards, like screenshot) === */
+.summary-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+}
+
+/* each top stat card */
+.summary-grid-4 .summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(17,24,39,0.04);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* top row in each card:
+     "Total Portfolio Value" on left
+     icon badge on right */
+.summary-grid-4 .summary-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+
+}
+
+/* label text in card header */
+.summary-grid-4 .summary-card-label {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 500;
+    color: #4b5563; /* grey-600 like screenshot */
+    flex: 1;  
+}
+
+/* icon badge on right of header */
+.summary-grid-4 .summary-card-title > div {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    /* background color for each card is still inline in HTML */
+}
+.summary-grid-4 .summary-card-title svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
+
+/* big rupee amount */
+.summary-grid-4 .summary-stat-value {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #111827;
+}
+
+/* green/red amount override for gain/loss cards */
+.summary-grid-4 .summary-stat-value.summary-stat-positive {
+    color: #059669; /* green-600 */
+}
+.summary-grid-4 .summary-stat-value.summary-stat-negative {
+    color: #dc2626; /* red-600 */
+}
+
+/* footnote under number (like "+16.23%") */
+.summary-grid-4 .summary-stat-footnote {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+    color: #059669;
+}
+.summary-grid-4 .summary-stat-footnote.summary-stat-negative {
+    color: #dc2626;
+}
+
+/* other grid groups below summary cards */
+.summary-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.summary-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.summary-period-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    align-items: stretch;
+}
+.summary-period-grid .summary-card--muted {
+    text-align: center;
+}
+    /* === TOP HOLDINGS TABLE & CARD VIEW === */
+.top-holdings-surface {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.top-holdings-table-container {
+    display: block;
+    overflow-x: auto;
+}
+
+.top-holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #1f2937;
+}
+
+.top-holdings-table thead th {
+    padding: 10px 12px;
+    font-weight: 500;
+    color: #6b7280;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.top-holdings-table thead th:nth-child(n + 4) {
+    text-align: right;
+}
+
+.top-holdings-table thead th:nth-child(2),
+.top-holdings-table thead th:nth-child(3),
+.top-holdings-table tbody td:nth-child(2),
+.top-holdings-table tbody td:nth-child(3),
+.top-holdings-table tbody td:last-child {
+    text-align: center;
+}
+
+.top-holdings-table thead th:last-child {
+    text-align: center;
+}
+
+.top-holdings-table tbody td:nth-child(4),
+.top-holdings-table tbody td:nth-child(5),
+.top-holdings-table tbody td:nth-child(6),
+.top-holdings-table tbody td:nth-child(7) {
+    text-align: right;
+}
+
+.top-holdings-table tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+    vertical-align: middle;
+}
+
+.top-holdings-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.top-holdings-card-list {
+    display: none;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(243,244,246,0.45), rgba(243,244,246,0));
+}
+
+.top-holdings-card {
+    background: #ffffff;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.top-holdings-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.top-holdings-card__identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.top-holdings-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.top-holdings-card__symbol {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.top-holdings-card__subtitle {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.top-holdings-card__value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.top-holdings-card__value-delta {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.top-holdings-card__value-delta.is-positive {
+    color: #16a34a;
+}
+
+.top-holdings-card__value-delta.is-negative {
+    color: #dc2626;
+}
+
+.top-holdings-card__chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.top-holdings-card__chips .top-holdings-card__broker {
+    margin-left: auto;
+}
+
+.top-holdings-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    line-height: 1;
+}
+
+.top-holdings-chip--product {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.top-holdings-card__broker {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: transparent;
+}
+
+.top-holdings-card__broker img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.top-holdings-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.top-holdings-card__qty {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.top-holdings-card__qty strong {
+    color: #111827;
+    font-weight: 700;
+}
+
+.top-holdings-card__ltp {
+    font-weight: 600;
+    color: #111827;
+}
+
+@media (max-width: 768px) {
+    .top-holdings-surface {
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .top-holdings-table-container {
+      display: none;
+    }
+
+    .top-holdings-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+      background: transparent;
+    }
+}
+
+
+/* responsive:
+     tablet/phone -> scroll horizontally for the 4 stat cards,
+     but other grids (3-col, 2-col) collapse to single-column */
+@media (max-width: 1024px) {
+    .summary-grid-4 {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(250px, 1fr);
+      grid-template-columns: unset;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .summary-grid-4 .summary-card {
+      min-width: 250px;
+    }
+
+    .summary-grid-4::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .summary-grid-4::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 999px;
+    }
+
+    .summary-grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .summary-grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+}
+
+/* dashboard container tweaks on very small screens */
+@media (max-width: 768px) {
+    .summary-grid-4 {
+      grid-auto-flow: row;
+      grid-auto-columns: unset;
+      grid-template-columns: 1fr;
+      overflow-x: visible;
+      padding-bottom: 0;
+    }
+
+    .summary-grid-4 .summary-card {
+      min-width: 0;
+    }
+
+    .summary-dashboard {
+      border-radius: 20px;
+      padding: 28px 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .summary-period-grid {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+}
+
+/* === GENERIC CARD STYLES (used in lower sections etc.) === */
+.summary-card,
+.summary-card--muted {
+    background: var(--summary-card);
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: clamp(10px, 1vw, 14px);
+    box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
+}
+
+/* muted card (empty states / small KPI boxes in performance section) */
+.summary-card--muted {
+    background: #f3f4f7;
+    border: none;
+    box-shadow: none;
+    text-align: center;
+}
+
+/* === ACCOUNT STATUS BADGES === */
+.summary-account-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: 8px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--status-color, var(--summary-muted));
+    background: var(--status-background-color, #f8f9fc);
+    border-color: var(--status-border-color, var(--summary-border));
+}
+.summary-account-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--status-color, currentColor);
+}
+.summary-account-status.summary-account-status--error {
+    color: var(--summary-red);
+    border-color: rgba(220, 38, 38, 0.24);
+    background: rgba(220, 38, 38, 0.08);
+}
+
+/* === LITTLE FILTER CHIPS (1D / 1W / etc.) === */
+.summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--summary-border);
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #ffffff;
+    color: var(--summary-muted);
+    user-select: none;
+}
+.summary-chip.is-active {
+    background: rgba(79, 70, 229, 0.08);
+    border-color: #dfe2f7;
+    color: var(--summary-primary);
+}
+
+/* === PERFORMANCE CHART BOX === */
+.summary-chart-container {
+    position: relative;
+    height: 240px;
+    border: 1px dashed var(--summary-border);
+    border-radius: 12px;
+    margin: 0 0 18px 0;
+    background: var(--summary-card);
+    overflow: hidden;
+}
+.summary-chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+.summary-chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--summary-muted);
+    font-size: 14px;
+    padding: 0 16px;
+    background: var(--summary-card);
+}
+.summary-chart-empty[hidden] {
+    display: none;
+}
+
+/* === PROGRESS BAR (sector allocation rows) === */
+.summary-progress {
+    height: 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    position: relative;
+    overflow: hidden;
+}
+.summary-progress > span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+}
+
+/* === TABLES (Top Holdings) === */
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.summary-table th,
+.summary-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #f1f3f8;
+}
+.summary-table thead th {
+    font-weight: 600;
+    color: var(--summary-muted);
+    text-align: left;
+}
+.summary-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* === HEADER CARD ("Dashboard Summary" block at top) === */
+.summary-header {
+    background: var(--summary-card);
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: clamp(24px, 4vw, 28px) clamp(20px, 4vw, 32px);
+    box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
+}
+.summary-header h1 {
+    font-size: clamp(26px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+.summary-header p {
+    margin: 8px 0 0 0;
+    color: var(--summary-muted);
+    font-size: clamp(14px, 2.4vw, 16px);
+}
+
+/* === SECTION HEADERS ("Account Summary", etc.) === */
+.summary-section-title {
+    margin-top: 1px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.summary-section-title h2 {
+
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+}
+.summary-section-title a {
+    text-decoration: none;
+    color: var(--summary-primary);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* === GENERIC CARD HEADER (used in other cards, e.g. "Top Holdings", etc.) === */
+.summary-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.summary-card-label {
+    margin: 0;
+    color: var(--summary-muted);
+    font-size: 14px;
+}
+
+/* === NUMERIC STAT / GENERIC (outside top tiles) === */
+.summary-stat-value {
+    margin: 0;
+    font-size: clamp(26px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.4px;
+}
+.summary-stat-positive {
+    color: var(--summary-green);
+}
+.summary-stat-negative {
+    color: var(--summary-red);
+}
+
+/* === RECENT TRANSACTIONS LIST === */
+.summary-transaction {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) auto;
+    align-items: center;
+    gap: 16px;
+}
+.summary-transaction + .summary-transaction {
+    margin-top: 14px;
+}
+.summary-transaction .info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.summary-transaction .timestamp {
+    font-size: 12px;
+    color: var(--summary-muted);
+    white-space: nowrap;
+    text-align: center;
+    justify-self: center;
+    min-width: 120px;
+}
+.summary-transaction .timestamp time {
+    display: block;
+}
+.summary-pill {
+    border: 1px solid var(--summary-border);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    background: #f1f4f8;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.summary-pill.summary-pill--sell {
+    border-color: #fad1d1;
+    color: var(--summary-red);
+    background: #fff5f5;
+}
+.summary-pill.summary-pill--dividend {
+    background: #ffffff;
+}
+.summary-value {
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+    justify-self: end;
+}
+
+@media (max-width: 640px) {
+    .summary-transaction {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 8px;
+    }
+    .summary-transaction .timestamp,
+    .summary-value {
+      justify-self: flex-start;
+      text-align: left;
+    }
+}
+
+/* default footnote style (used outside the top 4 cards) */
+.summary-stat-footnote {
+    margin: 6px 0 0 0;
+    font-size: 12px;
+    color: var(--summary-muted);
+}
+/* === Account Summary mobile layout === */
+@media (max-width: 768px) {
+/* Turn the account summary grid into a vertical list on mobile */
+.summary-section-title + .summary-grid.summary-grid-3 {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+}
+
+/* Style each broker card as a full-width tile */
+.summary-section-title + .summary-grid.summary-grid-3 .summary-card {
+    width: 100% !important;
+    min-width: 0 !important;
+
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    padding: 16px 20px !important;
+}
+
+/* Tweak the small "Connected" pill for mobile look */
+.summary-section-title + .summary-grid.summary-grid-3 .summary-account-status {
+    background: rgba(5, 150, 105, 0.1) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(5, 150, 105, 0.25) !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2;
+}
+}
+/* Alternative: hard 3 columns, no scroll */
+@media (max-width: 768px) {
+    .summary-period-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 12px;
+    }
+
+    .summary-period-grid .summary-card,
+    .summary-period-grid .summary-card--muted {
+      min-width: 0; /* allow them to shrink */
+    }
+}
