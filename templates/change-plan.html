@@ -385,8 +385,20 @@
             color: var(--foreground);
         }
 
+        .price-original {
+            font-size: 1.125rem;
+            color: var(--muted-foreground);
+            text-decoration: line-through;
+        }
+
         .price-period {
             font-size: 1.125rem;
+            color: var(--muted-foreground);
+        }
+
+        .price-discount {
+            margin-top: 8px;
+            font-size: 0.875rem;
             color: var(--muted-foreground);
         }
 
@@ -900,8 +912,8 @@
                             <select class="custom-select" id="billingCycle" onchange="updatePrice()">
                                 <option value="trial">7 Day Free Trial</option>
                                 <option value="monthly" selected>Monthly</option>
-                                <option value="quarterly">Quarterly (Save 10%)</option>
-                                <option value="yearly">Yearly (Save 25%)</option>
+                                <option value="quarterly">Quarterly (Save 16.69%)</option>
+                                <option value="yearly">Yearly (Save 40.02%)</option>
                             </select>
                         </div>
 
@@ -921,9 +933,11 @@
                         <div class="price-display-section">
                             <p class="price-label-text">Your Total</p>
                             <div class="price-wrapper">
-                                <span class="price-value" id="totalPrice">$79</span>
+                                <span class="price-value" id="totalPrice">₹0</span>
+                                <span class="price-original" id="originalPrice"></span>
                                 <span class="price-period" id="pricePeriod">/ month</span>
                             </div>
+                            <p class="price-discount" id="discountLabel"></p>  
                             <p class="price-breakdown" id="priceBreakdown">Copy Trading • Pro • Monthly</p>
                             <p class="price-per-product" id="perProductPrice"></p>
                         </div>
@@ -931,7 +945,10 @@
                         <button class="btn btn-primary btn-full pay-button" id="payButton">
                             Pay Now
                         </button>
-
+                        <a class="btn btn-primary btn-full pay-button" id="contactButton" href="/WhatsApp" target="_blank" rel="noopener" style="display: none;">
+                            Contact Us
+                        </a>
+                      
                         <div style="text-align: center;">
                             <div class="guarantee-badge">30 days refund guarantee</div>
                         </div>
@@ -1410,19 +1427,34 @@
         // Product selection state
         let selectedProducts = ['copy-trading'];
 
-        // Pricing data
-        const tierPrices = {
-            basic: 29,
-            pro: 79,
-            enterprise: 199
+        // Pricing data in INR
+        const pricingMatrix = {
+            basic: {
+                monthly: { base: 199, discount: 0, unit: 'month' },
+                quarterly: { base: 599, discount: 0.1669, unit: 'month' },
+                yearly: { base: 2499, discount: 0.4002, unit: 'year' }
+            },
+            pro: {
+                monthly: { base: 499, discount: 0, unit: 'month' },
+                quarterly: { base: 1499, discount: 0.4670, unit: 'month' },
+                yearly: { base: 3999, discount: 0.5001, unit: 'year' }
+            }
         };
 
-        const cycleDiscounts = {
-            trial: 1,
-            monthly: 0,
-            quarterly: 0.10,
-            yearly: 0.25
+        // Fallback pricing for enterprise leverages pro plan values to avoid gaps
+        pricingMatrix.enterprise = {
+            monthly: { ...pricingMatrix.pro.monthly },
+            quarterly: { ...pricingMatrix.pro.quarterly },
+            yearly: { ...pricingMatrix.pro.yearly }
         };
+
+        const currencyFormatter = new Intl.NumberFormat('en-IN', {
+            maximumFractionDigits: 0
+        });
+
+        function formatCurrency(value) {
+            return `₹${currencyFormatter.format(Math.round(value))}`;
+        }
 
         const productNames = {
             'xm-gpt': 'XM GPT',
@@ -1476,16 +1508,6 @@
                 displayText.textContent = `${selectedProducts.length} product${selectedProducts.length > 1 ? 's' : ''} selected`;
                 displayText.classList.remove('placeholder');
             }
-
-            // Auto-switch to Basic if trial is selected
-            const cycle = document.getElementById('billingCycle').value;
-            if (cycle === 'trial') {
-                document.getElementById('planTier').value = 'basic';
-                document.getElementById('planTier').disabled = true;
-            } else {
-                document.getElementById('planTier').disabled = false;
-            }
-
             updatePrice();
         }
 
@@ -1494,53 +1516,134 @@
             const cycle = document.getElementById('billingCycle').value;
             const tier = document.getElementById('planTier').value;
 
-            // Auto-switch to Basic if trial is selected
-            if (cycle === 'trial') {
-                document.getElementById('planTier').value = 'basic';
-                document.getElementById('planTier').disabled = true;
-            } else {
-                document.getElementById('planTier').disabled = false;
-            }
+            const payButton = document.getElementById('payButton');
+            const contactButton = document.getElementById('contactButton');
+            const isEnterprise = tier === 'enterprise';
 
-            // Calculate price
-            const basePrice = tierPrices[tier];
-            const discount = cycleDiscounts[cycle];
-            const productCount = selectedProducts.length || 1;
-            const pricePerProduct = basePrice * (1 - discount);
-            const totalPrice = Math.round(pricePerProduct * productCount);
+            const tierPricing = pricingMatrix[tier] || pricingMatrix.basic;
+            const productCount = Math.max(selectedProducts.length, 1);
 
-            // Determine period
-            let period = 'month';
-            if (cycle === 'trial') period = '7 days';
-            else if (cycle === 'quarterly') period = '3 months';
-            else if (cycle === 'yearly') period = 'year';
+            let basePricePerProduct = 0;
+            let finalPricePerProduct = 0;
+            let discount = 0;
+            let periodLabel = 'month';
+            let discountText = '';
 
-            // Update display
-            document.getElementById('totalPrice').textContent = `$${totalPrice}`;
-            document.getElementById('pricePeriod').textContent = `/ ${period}`;
-
-            // Build breakdown text
-            const productText = selectedProducts.length === 0 
+            const productText = selectedProducts.length === 0
                 ? 'No products selected'
                 : selectedProducts.map(id => productNames[id]).join(' + ');
 
-            document.getElementById('priceBreakdown').textContent = 
+            if (isEnterprise) {
+                document.getElementById('totalPrice').textContent = cycle === 'trial'
+                    ? 'Contact us to start your free trial'
+                    : 'Enquire now';
+                document.getElementById('pricePeriod').textContent = '';
+
+                const originalPriceElement = document.getElementById('originalPrice');
+                originalPriceElement.textContent = '';
+                originalPriceElement.style.display = 'none';
+
+                const discountLabel = document.getElementById('discountLabel');
+                discountLabel.textContent = cycle === 'trial'
+                    ? "We'll help you activate your 7-day enterprise trial."
+                    : 'Custom enterprise pricing — contact us for details.';
+
+                document.getElementById('priceBreakdown').textContent =
+                    `${productText} • ${tierNames[tier]} • ${cycleNames[cycle]}`;
+
+                document.getElementById('perProductPrice').textContent = '';
+
+                payButton.style.display = 'none';
+                payButton.disabled = true;
+                contactButton.style.display = 'inline-flex';
+
+                if (selectedProducts.length === 0) {
+                    contactButton.style.pointerEvents = 'none';
+                    contactButton.style.opacity = '0.5';
+                    contactButton.setAttribute('aria-disabled', 'true');
+                } else {
+                    contactButton.style.pointerEvents = '';
+                    contactButton.style.opacity = '';
+                    contactButton.removeAttribute('aria-disabled');
+                }
+
+                return;
+            }
+
+            if (cycle === 'trial') {
+                finalPricePerProduct = 0;
+                periodLabel = '7 days';
+                discountText = 'Free for the first 7 days';
+            } else {
+                const cyclePricing = tierPricing[cycle];
+                if (!cyclePricing) {
+                    console.warn('Missing pricing for tier/cycle combination', tier, cycle);
+                    return;
+                }
+
+                basePricePerProduct = cyclePricing.base;
+                discount = cyclePricing.discount;
+                finalPricePerProduct = Math.round(basePricePerProduct * (1 - discount));
+
+                if (cycle === 'monthly') {
+                    periodLabel = 'month';
+                    discountText = 'Billed monthly';
+                } else if (cycle === 'quarterly') {
+                    periodLabel = 'month';
+                    discountText = `${(discount * 100).toFixed(2)}% OFF • Billed quarterly`;
+                } else if (cycle === 'yearly') {
+                    periodLabel = 'year';
+                    discountText = `${(discount * 100).toFixed(2)}% OFF • Billed annually`;
+                }
+            }
+
+            let totalFinalPrice = finalPricePerProduct * productCount;
+            let totalBasePrice = basePricePerProduct * productCount;
+
+            if (selectedProducts.length === 0) {
+                totalFinalPrice = 0;
+                totalBasePrice = 0;
+            }
+
+            contactButton.style.pointerEvents = '';
+            contactButton.style.opacity = '';
+            contactButton.removeAttribute('aria-disabled');
+
+            document.getElementById('totalPrice').textContent = formatCurrency(totalFinalPrice);
+            document.getElementById('pricePeriod').textContent = `/ ${periodLabel}`;
+
+            const originalPriceElement = document.getElementById('originalPrice');
+            if (discount > 0) {
+                originalPriceElement.textContent = formatCurrency(totalBasePrice);
+                originalPriceElement.style.display = 'inline';
+            } else {
+                originalPriceElement.textContent = '';
+                originalPriceElement.style.display = 'none';
+            }
+
+            const discountLabel = document.getElementById('discountLabel');
+            discountLabel.textContent = discountText;
+
+            document.getElementById('priceBreakdown').textContent =
                 `${productText} • ${tierNames[tier]} • ${cycleNames[cycle]}`;
 
             // Show per-product price if multiple products
             const perProductElement = document.getElementById('perProductPrice');
             if (selectedProducts.length > 1) {
-                perProductElement.textContent = `$${Math.round(totalPrice / productCount)} per product`;
+                perProductElement.textContent = `${formatCurrency(finalPricePerProduct)} per product`;
             } else {
                 perProductElement.textContent = '';
             }
 
             // Disable pay button if no products selected
-            const payButton = document.getElementById('payButton');
             if (selectedProducts.length === 0) {
                 payButton.disabled = true;
+                payButton.style.display = 'inline-flex';
+                contactButton.style.display = 'none';
             } else {
                 payButton.disabled = false;
+                payButton.style.display = 'inline-flex';
+                contactButton.style.display = 'none';
             }
         }
 
