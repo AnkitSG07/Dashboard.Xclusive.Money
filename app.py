@@ -7937,6 +7937,29 @@ def api_notifications():
 
     return jsonify({'notifications': notifications})
 
+
+@app.route('/api/notifications/clear', methods=['POST'])
+@login_required
+def clear_notifications():
+    """Delete all notifications for the authenticated user."""
+    user = current_user()
+
+    if not user:
+        return jsonify({'cleared': 0})
+
+    try:
+        cleared = (
+            SystemLog.query.filter_by(user_id=str(user.id))
+            .delete(synchronize_session=False)
+        )
+        db.session.commit()
+    except Exception:  # pragma: no cover - logging path
+        db.session.rollback()
+        current_app.logger.exception('Failed to clear notifications')
+        return jsonify({'error': 'Failed to clear notifications'}), 500
+
+    return jsonify({'cleared': cleared or 0})
+
 @app.route('/api/dashboard-data')
 def dashboard_data():
     """API endpoint for dashboard data"""
