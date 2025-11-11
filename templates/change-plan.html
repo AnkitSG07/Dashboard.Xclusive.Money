@@ -14,34 +14,18 @@
         }
 
         /* Design System Colors (from index.css) */
-        :root {
-            --background: hsl(240, 20%, 97%);
-            --foreground: hsl(240, 10%, 15%);
-            --card: hsl(0, 0%, 100%);
-            --card-foreground: hsl(240, 10%, 15%);
-            --primary: hsl(250, 70%, 60%);
-            --primary-foreground: hsl(0, 0%, 100%);
-            --secondary: hsl(240, 5%, 96%);
-            --secondary-foreground: hsl(240, 10%, 15%);
-            --muted: hsl(240, 5%, 96%);
-            --muted-foreground: hsl(240, 4%, 46%);
-            --accent: hsl(250, 70%, 60%);
-            --border: hsl(240, 6%, 90%);
-            --success: hsl(142, 76%, 36%);
-            --radius: 0.75rem;
-        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            background: var(--background);
-            color: var(--foreground);
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
         }
 
         .main-container {
             min-height: 100vh;
-            background: var(--background);
+            background: hsl(var(--background));
             padding: 16px;
         }
 
@@ -57,9 +41,9 @@
             border-radius: 16px;
             background: linear-gradient(to bottom right, 
                 hsla(250, 70%, 60%, 0.1), 
-                var(--background), 
+                hsl(var(--background)), 
                 hsla(250, 70%, 60%, 0.1));
-            border: 1px solid var(--border);
+            border: 1px solid hsl(var(--border));
             padding: 48px 32px;
             margin-bottom: 32px;
         }
@@ -67,7 +51,7 @@
         .hero-subtitle {
             font-size: 0.875rem;
             font-weight: 600;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 12px;
@@ -76,16 +60,16 @@
         .hero-title {
             font-size: 2.25rem;
             font-weight: 700;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
             margin-bottom: 8px;
             line-height: 1.2;
         }
 
         /* Card Styles */
         .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.75rem;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
@@ -97,12 +81,12 @@
         .card-title {
             font-size: 1.5rem;
             font-weight: 700;
-            color: var(--card-foreground);
+            color: hsl(var(--foreground));
         }
 
         .card-description {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             margin-top: 4px;
         }
 
@@ -116,7 +100,7 @@
         }
 
         .subscription-inner-card {
-            border: 1px solid var(--border);
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
         }
 
@@ -142,7 +126,7 @@
 
         .billing-date {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         /* Buttons */
@@ -167,12 +151,12 @@
 
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--border);
-            color: var(--foreground);
+            border: 1px solid hsl(var(--border));
+            color: hsl(var(--foreground));
         }
 
         .btn-outline:hover {
-            background: var(--secondary);
+            background: hsl(var(--muted));
         }
 
         .btn-primary {
@@ -199,7 +183,7 @@
             border: 2px solid hsla(250, 70%, 60%, 0.2);
             background: linear-gradient(to bottom right, 
                 hsla(250, 70%, 60%, 0.05), 
-                var(--background));
+                hsl(var(--background)));
             margin-bottom: 32px;
         }
 
@@ -219,7 +203,7 @@
         .calculator-icon {
             width: 24px;
             height: 24px;
-            color: var(--primary);
+            color: hsl(var(--primary));
         }
 
         .calculator-title-wrapper h2 {
@@ -229,7 +213,7 @@
 
         .calculator-title-wrapper p {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         .calculator-inputs {
@@ -248,24 +232,24 @@
         .input-label {
             font-size: 0.875rem;
             font-weight: 600;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
         }
 
         .custom-select {
             height: 48px;
             width: 100%;
             border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--background);
+            border: 1px solid hsl(var(--border));
+            background: hsl(var(--background));
             padding: 8px 12px;
             font-size: 0.875rem;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
             cursor: pointer;
         }
 
         .custom-select:focus {
             outline: none;
-            border-color: var(--primary);
+            border-color: hsl(var(--primary));
             box-shadow: 0 0 0 2px hsla(250, 70%, 60%, 0.1);
         }
 
@@ -278,8 +262,8 @@
             height: 48px;
             width: 100%;
             border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--background);
+            border: 1px solid hsl(var(--border));
+            background: hsl(var(--background));
             padding: 8px 12px;
             font-size: 0.875rem;
             display: flex;
@@ -294,11 +278,11 @@
         }
 
         .multi-select-text {
-            color: var(--foreground);
+            color: hsl(var(--foreground));
         }
 
         .multi-select-text.placeholder {
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         .chevron-down {
@@ -315,8 +299,8 @@
             left: 0;
             right: 0;
             margin-top: 4px;
-            background: var(--card);
-            border: 1px solid var(--border);
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
             padding: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -340,8 +324,8 @@
             height: 16px;
             cursor: pointer;
             border-radius: 4px;
-            border: 1px solid var(--primary);
-            accent-color: var(--primary);
+            border: 1px solid hsl(var(--primary));
+            accent-color: hsl(var(--primary));
         }
 
         .checkbox-item label {
@@ -369,7 +353,7 @@
 
         .price-label-text {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             margin-bottom: 8px;
         }
 
@@ -383,36 +367,36 @@
         .price-value {
             font-size: 3rem;
             font-weight: 700;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
         }
 
         .price-original {
             font-size: 1.125rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             text-decoration: line-through;
         }
 
         .price-period {
             font-size: 1.125rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         .price-discount {
             margin-top: 8px;
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         .price-breakdown {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             margin-top: 16px;
             padding: 0 16px;
         }
 
         .price-per-product {
             font-size: 0.75rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             margin-top: 8px;
         }
 
@@ -436,8 +420,8 @@
 
         /* Security Card */
         .security-card {
-            background: var(--card);
-            border: 2px solid var(--border);
+            background: hsl(var(--card));
+            border: 2px solid hsl(var(--border));
             border-radius: 12px;
             padding: 24px;
             max-width: 36rem;
@@ -452,7 +436,7 @@
         }
 
         .security-subtitle {
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             margin-bottom: 16px;
             text-align: center;
             font-size: 0.875rem;
@@ -482,7 +466,7 @@
         .security-icon {
             width: 20px;
             height: 20px;
-            color: var(--primary);
+            color: hsl(var(--primary));
         }
 
         .security-text-box p:first-child {
@@ -492,7 +476,7 @@
 
         .security-text-box p:last-child {
             font-size: 0.75rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
         }
 
         .payment-methods {
@@ -617,10 +601,10 @@
         }
 
         .table-container {
-            border: 1px solid var(--border);
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
             overflow-x: auto;
-            background: var(--card);
+            background: hsl(var(--card));
         }
 
         table {
@@ -638,7 +622,7 @@
             text-align: left;
             font-weight: 700;
             font-size: 0.875rem;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
         }
 
         th:first-child {
@@ -722,7 +706,7 @@
 
         .tier-header-row {
             background: hsla(0, 0%, 0%, 0.02);
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid hsl(var(--border));
         }
 
         .tier-header-row td {
@@ -757,7 +741,7 @@
 
         td:first-child {
             font-weight: 500;
-            background: var(--card);
+            background: hsl(var(--card));
             position: sticky;
             left: 0;
             z-index: 10;
@@ -773,7 +757,7 @@
             justify-content: center;
             width: 20px;
             height: 20px;
-            color: var(--success);
+            color: hsl(var(--success));
         }
 
         .x-mark {
@@ -803,7 +787,7 @@
         }
 
         .faq-item {
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid hsl(var(--border));
         }
 
         .faq-item:last-child {
@@ -822,7 +806,7 @@
             text-align: left;
             font-size: 0.875rem;
             font-weight: 600;
-            color: var(--foreground);
+            color: hsl(var(--foreground));
         }
 
         .faq-trigger:hover {
@@ -853,11 +837,10 @@
 
         .faq-answer {
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: hsl(var(--muted-foreground));
             padding-bottom: 16px;
             line-height: 1.6;
         }
-
 
         /* Responsive Design */
         @media (max-width: 768px) {
