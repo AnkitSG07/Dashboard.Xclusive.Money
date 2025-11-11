@@ -5,6 +5,7 @@
 {% block styles %}
   {{ super() }}
     <style>
+
         /* Reset */
         * {
             margin: 0;
@@ -417,7 +418,7 @@
 
         .pay-button {
             max-width: 28rem;
-            margin: 0 auto 24px 188px;
+            margin: 0 auto 24px;
             padding: 20px 24px;
             font-size: 1.125rem;
         }
@@ -458,6 +459,7 @@
         }
 
         .security-icons-wrapper {
+            margin-top: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -493,9 +495,113 @@
             color: var(--muted-foreground);
         }
 
-        .security-icons {
+        .payment-methods {
             display: flex;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .payment-card {
+            width: 74px;
+            height: 32px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .payment-card.visa {
+            background: linear-gradient(135deg, #1a1f71, #004fba);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .payment-card.visa .brand-text {
+            font-weight: 800;
+            letter-spacing: 0.15em;
+        }
+
+        .payment-card.mastercard {
+            background: #101010;
+        }
+
+        .payment-card.mastercard .mc-logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .payment-card.mastercard .mc-circle {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .payment-card.mastercard .mc-circle.left {
+            background: #eb001b;
+            margin-right: -7px;
+        }
+
+        .payment-card.mastercard .mc-circle.right {
+            background: #f79e1b;
+            mix-blend-mode: screen;
+        }
+
+        .payment-card.amex {
+            background: linear-gradient(135deg, #0077c5, #00599d);
+            font-family: 'Helvetica Neue', 'Inter', sans-serif;
+            flex-direction: column;
+            gap: 0px;
+            padding: 8px 10px;
+            letter-spacing: 0;
+        }
+
+        .payment-card.amex .brand-line {
+            font-size: 0.6rem;
+            font-weight: 700;
+        }
+
+        .payment-card.amex .brand-line:last-child {
+            font-size: 0.6rem;
+            letter-spacing: 0.08em;
+        }
+
+        .payment-card.rupay {
+            background: linear-gradient(135deg, #002970, #011a44);
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .payment-card.rupay .brand-text {
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+        }
+
+        .payment-card.rupay .accent-orange {
+            color: #ff7a00;
+        }
+
+        .payment-card.rupay .accent-green {
+            color: #45b649;
+        }
+
+        .payment-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(140deg, rgba(255, 255, 255, 0.15), transparent 55%);
+            pointer-events: none;
         }
 
         /* Comparison Table */
@@ -752,6 +858,7 @@
             line-height: 1.6;
         }
 
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .main-container {
@@ -819,7 +926,41 @@
             th, td {
                 padding: 6px 8px;
             }
+            
         }
+    /* Tablet & Desktop only */
+            @media (min-width: 641px) {
+              /* Undo older broad .pay-button rules */
+              .price-summary .pay-button {
+                display: unset !important;
+                width: auto !important;
+                margin: 0 0 24px !important;
+              }
+
+              /* Center PAY NOW by default (non-Enterprise) */
+              #payButton {
+                display: block !important;               /* centers with margin:auto */
+                width: auto !important;
+                max-width: 28rem;
+                margin: 0 auto 24px !important;
+                padding: 20px 150px;
+              }
+
+              /* Respect JS hiding in Enterprise */
+              #payButton[style*="display: none"] { display: none !important; }
+              #contactButton[style*="display: none"] { display: none !important; }
+
+              /* When CONTACT is shown (Enterprise), center it */
+              #contactButton:not([style*="display: none"]) {
+                display: block !important;
+                width: auto;
+                max-width: 28rem;
+                margin: 0 auto 24px !important;
+                padding: 20px 24px;
+                text-align: center;
+              }
+            }
+
     </style>
 {% endblock %}
 
@@ -969,18 +1110,23 @@
                                         <p>SSL Encryption</p>
                                     </div>
                                 </div>
-                                <div class="security-icons">
-                                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                    </svg>
-                                    <svg style="width: 24px; height: 24px; color: hsl(240, 4%, 46%);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                                        <line x1="1" y1="10" x2="23" y2="10"/>
-                                    </svg>
-                                    <svg style="width: 24px; height: 24px; color: hsl(240, 4%, 46%);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                                        <line x1="1" y1="10" x2="23" y2="10"/>
-                                    </svg>
+                                <div class="payment-methods" aria-label="Accepted payment methods">
+                                    <div class="payment-card visa" role="img" aria-label="Visa">
+                                        <span class="brand-text">Visa</span>
+                                    </div>
+                                    <div class="payment-card mastercard" role="img" aria-label="Mastercard">
+                                        <div class="mc-logo" aria-hidden="true">
+                                            <span class="mc-circle left"></span>
+                                            <span class="mc-circle right"></span>
+                                        </div>
+                                    </div>
+                                    <div class="payment-card amex" role="img" aria-label="American Express">
+                                        <span class="brand-line">American</span>
+                                        <span class="brand-line">Express</span>
+                                    </div>
+                                    <div class="payment-card rupay" role="img" aria-label="RuPay">
+                                        <span class="brand-text">Ru<span class="accent-orange">P</span><span class="accent-green">ay</span></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
