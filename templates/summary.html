@@ -538,6 +538,54 @@
     );
     const xScaleType = hasTimeScale ? "time" : "linear";
 
+    const getValueColor = typeof window.getValueColor === "function"
+      ? (value) => window.getValueColor(value)
+      : (value) => {
+          if (!Number.isFinite(value)) {
+            return "rgba(79, 70, 229, 0.9)";
+          }
+          if (value > 0) {
+            return "#059669";
+          }
+          if (value < 0) {
+            return "#dc2626";
+          }
+          return "#94a3b8";
+        };
+
+    function readValueFromContext(context) {
+      if (!context || typeof context !== "object") {
+        return 0;
+      }
+
+      const parsedValue = context.parsed?.y;
+      const parsedNumber = Number(parsedValue);
+      if (Number.isFinite(parsedNumber)) {
+        return parsedNumber;
+      }
+
+      const raw = context.raw;
+      const rawNumber = Number(raw);
+      if (Number.isFinite(rawNumber)) {
+        return rawNumber;
+      }
+
+      if (raw && typeof raw === "object") {
+        const rawValue = raw.y ?? raw.value ?? raw[1];
+        const rawValueNumber = Number(rawValue);
+        if (Number.isFinite(rawValueNumber)) {
+          return rawValueNumber;
+        }
+      }
+
+      return 0;
+    }
+
+    const resolvePointColor = (context) => {
+      const value = readValueFromContext(context);
+      return getValueColor(value);
+    };
+
     function normalizeSeries(series) {
       if (!Array.isArray(series)) {
         return [];
@@ -582,6 +630,10 @@
               borderWidth: 2,
               pointRadius: 0,
               pointHoverRadius: 4,
+              pointBackgroundColor: resolvePointColor,
+              pointBorderColor: resolvePointColor,
+              pointHoverBackgroundColor: resolvePointColor,
+              pointHoverBorderColor: resolvePointColor,
             },
           ],
         },
@@ -608,8 +660,9 @@
                   });
                 },
                 label: (context) => {
-                  const value = Number(context.parsed.y || 0);
-                  return `Portfolio Value: ${value.toLocaleString(undefined, {
+                  const value = readValueFromContext(context);
+                  const numericValue = Number.isFinite(value) ? value : 0;
+                  return `Portfolio Value: ${numericValue.toLocaleString(undefined, {
                     style: "currency",
                     currency: "INR",
                     maximumFractionDigits: 2,
