@@ -3037,7 +3037,31 @@ window.pageScripts["copy-trading"] = function () {
     const closedCount = closedHoldings.length;
 
     const livePnl = openHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
-    const realisedPnl = closedHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
+    const dayPnlFromHoldings = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.dayChangeValue) ? h.dayChangeValue : 0), 0);
+
+    const dayPnlRaw = accountStats ? getValueInsensitive(accountStats, [
+      'day_pnl',
+      'dayPnl',
+      'pnl_day',
+      'pnlDay',
+      'pnl_today',
+      'pnlToday',
+      'day_pl',
+      'dayPl',
+      'day_profit',
+      'dayProfit',
+      'day_mtm',
+      'dayMtm',
+      'day_mtm_pl',
+      'dayMtmPl',
+      'day_gain',
+      'dayGain',
+      'day_change',
+      'dayChange'
+    ]) : undefined;
+
+    const dayPnlParsed = parseNumeric(dayPnlRaw);
+    const dayPnlValue = Number.isFinite(dayPnlParsed) ? dayPnlParsed : dayPnlFromHoldings;
 
     const marginAvailableRaw = accountStats ? getValueInsensitive(accountStats, [
       'available_margin',
@@ -3067,8 +3091,8 @@ window.pageScripts["copy-trading"] = function () {
             <div style="font-size:16px; font-weight:700; color:${inlineToneColor(livePnl, '#047857')};">${escapeHtml(formatCurrencyValue(livePnl))}</div>
           </div>
           <div>
-            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Realized P&L:</div>
-            <div style="font-size:16px; font-weight:700; color:${inlineToneColor(realisedPnl, '#047857')};">${escapeHtml(formatCurrencyValue(realisedPnl))}</div>
+            <div style="font-size:12px; color:#475569; margin-bottom:4px;">Day&#39;s P&amp;L:</div>
+            <div style="font-size:16px; font-weight:700; color:${inlineToneColor(dayPnlValue, '#047857')};">${escapeHtml(formatCurrencyValue(dayPnlValue))}</div>
           </div>
           <div>
             <div style="font-size:12px; color:#475569; margin-bottom:4px;">Open Positions:</div>
@@ -3095,11 +3119,14 @@ window.pageScripts["copy-trading"] = function () {
     const safeHoldings = Array.isArray(holdings) ? holdings : [];
     const lossCount = safeHoldings.filter(h => Number.isFinite(h.pnlValue) && h.pnlValue < 0).length;
     const totalPnl = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.pnlValue) ? h.pnlValue : 0), 0);
+    const totalDayPnl = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.dayChangeValue) ? h.dayChangeValue : 0), 0);  
     const totalInvested = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.investedValue) ? h.investedValue : 0), 0);
     const totalCurrent = safeHoldings.reduce((sum, h) => sum + (Number.isFinite(h.currentValue) ? h.currentValue : 0), 0);
 
     const viewTitle = view === 'closed' ? 'Closed' : 'Open';
     const lossLabel = view === 'closed' ? 'Loss Booked' : 'In Loss';
+    const pnlLabel = view === 'closed' ? "Day's P&L:" : 'Total P&L:';
+    const aggregatePnlValue = view === 'closed' ? totalDayPnl : totalPnl;
     const pnlLabel = view === 'closed' ? 'Realized P&L:' : 'Total P&L:';
     const emptyMessage = view === 'closed' ? 'No closed holdings available.' : 'No open holdings available.';  
 
@@ -3215,7 +3242,7 @@ window.pageScripts["copy-trading"] = function () {
               <span style="color:#0f172a; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalCurrent))}</span>
             </span>
             <span>${pnlLabel}
-              <span style="color:${inlineToneColor(totalPnl, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(totalPnl))}</span>
+              <span style="color:${inlineToneColor(aggregatePnlValue, '#0f172a')}; margin-left:4px;">${escapeHtml(formatCurrencyValue(aggregatePnlValue))}</span>
             </span>
           </div>
         </div>
@@ -3416,8 +3443,20 @@ window.pageScripts["copy-trading"] = function () {
     placedQty = Number.isFinite(placedQty) ? placedQty : null;
     let filledQty = typeof order.filled_qty === 'number' ? order.filled_qty : parseFloat(order.filled_qty);
     filledQty = Number.isFinite(filledQty) ? filledQty : null;
-    let avgPrice = typeof order.avg_price === 'number' ? order.avg_price : parseFloat(order.avg_price);
-    avgPrice = Number.isFinite(avgPrice) ? avgPrice : null;
+    const avgPriceRaw = getOrderField(order, [
+      'avg_price',
+      'average_price',
+      'avgprice',
+      'average',
+      'avg',
+      'avgPrice',
+      'tradePrice',
+      'tradedPrice',
+      'executedPrice',
+      'price'
+    ]);
+    const avgPriceNumeric = parseNumeric(avgPriceRaw);
+    const avgPrice = Number.isFinite(avgPriceNumeric) ? avgPriceNumeric : null;
 
     let qtyDisplay = '—';
     if (filledQty !== null && placedQty !== null && placedQty !== filledQty) {
