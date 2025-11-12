@@ -8720,6 +8720,7 @@ def summary():
     display_name = session.get("username", session.get("user"))
 
     accounts = Account.query.filter_by(user_id=user.id).all() if user else []
+    account_lookup: dict[int, Account] = {acc.id: acc for acc in accounts}
 
     owned_strategy_rows = (
         db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
@@ -9157,45 +9158,282 @@ def summary():
         for symbol, data in aggregated_holdings.items()
     }
 
-    recent_trades = (
-        Trade.query.filter_by(user_id=user.id)
-        .order_by(cast(Trade.timestamp, SADateTime).desc())
-        .limit(5)
-        .all()
-        if user
-        else []
-    )
+    def _normalize_order_transaction(order: dict, account_id: int) -> dict | None:
+        if not isinstance(order, dict):
+            return None
 
-    recent_transactions = []
-    for trade in recent_trades:
-        qty = _safe_float(trade.qty, 0.0)
-        price = _safe_float(trade.price, 0.0)
-        if price <= 0.0:
-            price = _safe_float(holding_price_lookup.get(trade.symbol), 0.0)
-        value = qty * price if price else 0.0
-        action = (trade.action or "").upper()
-        timestamp = trade.timestamp
-        timestamp_iso = ""
-        if timestamp:
-            if isinstance(timestamp, str):
-                timestamp_iso = timestamp
-            else:
-                if timestamp.tzinfo is None:
-                    timestamp_iso = timestamp.replace(tzinfo=timezone.utc).isoformat()
-                else:
-                    timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
-        recent_transactions.append(
-            {
-                "symbol": trade.symbol,
-                "action": action,
-                "quantity": int(qty) if qty.is_integer() else qty,
-                "price": price,
-                "value": value,
-                "broker": trade.broker or trade.client_id,
-                "timestamp": timestamp,
-                "timestamp_iso": timestamp_iso,
-            }
+        def _first_present(keys: tuple[str, ...]):
+            for key in keys:
+                if key in order and order.get(key) not in (None, ""):
+                    return order.get(key)
+            return None
+
+        symbol = _first_present(
+            (
+                "symbol",
+                "trading_symbol",
+                "tradingsymbol",
+                "instrument",
+                "instrument_name",
+                "product",
+            )
         )
+        if symbol is not None:
+            symbol = str(symbol).strip()
+        else:
+            symbol = "—"
+
+        raw_action = _first_present(
+            (
+                "action",
+                "transaction_type",
+                "transactionType",
+                "side",
+                "type",
+                "order_type",
+            )
+        )
+        action = str(raw_action).upper() if raw_action else ""
+
+        quantity_value = None
+        for key in (
+            "filled_quantity",
+            "filledQuantity",
+            "filled_qty",
+            "filledQty",
+            "quantity",
+            "qty",
+            "order_quantity",
+            "orderQuantity",
+            "disclosed_quantity",
+            "disclosedQuantity",
+        ):
+            if key in order:
+                quantity_value = _safe_float(order.get(key), None)
+                if quantity_value is not None:
+                    break
+        if quantity_value is None:
+            quantity_value = 0.0
+
+        price_value = None
+        for key in (
+            "average_price",
+            "averagePrice",
+            "avg_price",
+            "avgPrice",
+            "price",
+            "trigger_price",
+            "triggerPrice",
+            "order_price",
+            "orderPrice",
+        ):
+            if key in order:
+                price_value = _safe_float(order.get(key), None)
+                if price_value is not None:
+                    break
+        if price_value is None:
+            price_value = _safe_float(order.get("last_price"), None)
+        if price_value is None:
+            price_value = 0.0
+
+        timestamp_value = None
+        timestamp_raw = None
+        for key in (
+            "timestamp",
+            "updated_at",
+            "updatedAt",
+            "created_at",
+            "createdAt",
+            "order_timestamp",
+            "orderTimestamp",
+            "exchange_timestamp",
+            "exchangeTimestamp",
+            "event_time",
+            "eventTime",
+            "trade_time",
+            "tradeTime",
+            "order_time",
+            "orderTime",
+            "time",
+        ):
+            if key in order and order.get(key) not in (None, ""):
+                timestamp_raw = order.get(key)
+                parsed = parse_timestamp(timestamp_raw)
+                if parsed:
+                    if parsed.tzinfo is None:
+                        timestamp_value = parsed.replace(tzinfo=timezone.utc)
+                    else:
+                        timestamp_value = parsed.astimezone(timezone.utc)
+                    break
+        if timestamp_value is None and timestamp_raw is None:
+            for key in ("timestamp_epoch", "order_timestamp_epoch", "update_time"):
+                if key in order and order.get(key) not in (None, ""):
+                    timestamp_raw = order.get(key)
+                    parsed = parse_timestamp(timestamp_raw)
+                    if parsed:
+                        if parsed.tzinfo is None:
+                            timestamp_value = parsed.replace(tzinfo=timezone.utc)
+                        else:
+                            timestamp_value = parsed.astimezone(timezone.utc)
+                        break
+
+        broker_label = _first_present(
+            (
+                "broker",
+                "broker_name",
+                "brokerName",
+                "account",
+                "client_id",
+                "clientId",
+            )
+        )
+        if broker_label is None:
+            account_obj = account_lookup.get(account_id)
+            if account_obj is not None:
+                broker_label = account_obj.client_id or account_obj.broker
+        broker_label = broker_label or ""
+
+        order_id = _first_present(
+            (
+                "id",
+                "order_id",
+                "orderId",
+                "oms_order_id",
+                "omsOrderId",
+                "exchange_order_id",
+                "exchangeOrderId",
+                "guid",
+            )
+        )
+        if order_id is not None:
+            order_id = str(order_id)
+
+        value_amount = None
+        for key in (
+            "value",
+            "amount",
+            "order_value",
+            "orderValue",
+        ):
+            if key in order:
+                value_amount = _safe_float(order.get(key), None)
+                if value_amount is not None:
+                    break
+        if value_amount is None and quantity_value is not None and price_value is not None:
+            value_amount = quantity_value * price_value
+        if value_amount is None:
+            value_amount = 0.0
+
+        if isinstance(quantity_value, float) and quantity_value.is_integer():
+            quantity_display = int(quantity_value)
+        else:
+            quantity_display = quantity_value
+
+        timestamp_iso = ""
+        if timestamp_value is not None:
+            timestamp_iso = timestamp_value.astimezone(timezone.utc).isoformat()
+        elif isinstance(timestamp_raw, str):
+            timestamp_iso = timestamp_raw
+        elif timestamp_raw is not None:
+            try:
+                timestamp_iso = str(timestamp_raw)
+            except Exception:
+                timestamp_iso = ""
+
+        dedup_key: tuple = (
+            "order-id",
+            broker_label,
+            order_id,
+        )
+        if order_id is None:
+            dedup_key = (
+                "order-fields",
+                broker_label,
+                symbol,
+                action,
+                quantity_value,
+                price_value,
+                timestamp_iso,
+            )
+
+        return {
+            "symbol": symbol,
+            "action": action,
+            "quantity": quantity_display,
+            "price": price_value,
+            "value": value_amount,
+            "broker": broker_label,
+            "timestamp": timestamp_value or timestamp_raw,
+            "timestamp_iso": timestamp_iso,
+            "_sort_timestamp": timestamp_value,
+            "_dedup_key": dedup_key,
+        }
+
+    recent_transactions: list[dict[str, Any]] = []
+    collected_transactions: list[tuple[datetime | None, dict[str, Any]]] = []
+    seen_keys: set[tuple] = set()
+
+    for account_id, snapshot in account_snapshot_payloads.items():
+        orders_payload = (snapshot or {}).get("orders") or {}
+        order_items = orders_payload.get("items") or []
+        for order in order_items:
+            normalized = _normalize_order_transaction(order, account_id)
+            if not normalized:
+                continue
+            dedup_key = normalized.pop("_dedup_key", None)
+            if dedup_key is not None:
+                if dedup_key in seen_keys:
+                    continue
+                seen_keys.add(dedup_key)
+            sort_key = normalized.pop("_sort_timestamp", None)
+            collected_transactions.append((sort_key, normalized))
+
+    if collected_transactions:
+        collected_transactions.sort(
+            key=lambda pair: pair[0] or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        limit = 5
+        recent_transactions = [entry for _sort, entry in collected_transactions[:limit]]
+    else:
+        recent_trades = (
+            Trade.query.filter_by(user_id=user.id)
+            .order_by(cast(Trade.timestamp, SADateTime).desc())
+            .limit(5)
+            .all()
+            if user
+            else []
+        )
+
+        for trade in recent_trades:
+            qty = _safe_float(trade.qty, 0.0)
+            price = _safe_float(trade.price, 0.0)
+            if price <= 0.0:
+                price = _safe_float(holding_price_lookup.get(trade.symbol), 0.0)
+            value = qty * price if price else 0.0
+            action = (trade.action or "").upper()
+            timestamp = trade.timestamp
+            timestamp_iso = ""
+            if timestamp:
+                if isinstance(timestamp, str):
+                    timestamp_iso = timestamp
+                else:
+                    if timestamp.tzinfo is None:
+                        timestamp_iso = timestamp.replace(tzinfo=timezone.utc).isoformat()
+                    else:
+                        timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
+            recent_transactions.append(
+                {
+                    "symbol": trade.symbol,
+                    "action": action,
+                    "quantity": int(qty) if qty.is_integer() else qty,
+                    "price": price,
+                    "value": value,
+                    "broker": trade.broker or trade.client_id,
+                    "timestamp": timestamp,
+                    "timestamp_iso": timestamp_iso,
+                }
+            )
 
     notifications = (
         SystemLog.query.filter_by(user_id=str(user.id))
