@@ -9083,6 +9083,7 @@ def summary():
     }
     performance_summary["series"] = performance_series
 
+    processed_holdings: list[dict[str, Any]] = []
     for holding in aggregated_holdings.values():
         buy_qty = holding.pop("buy_total_qty", 0.0)
         buy_cost = holding.pop("buy_total_cost", 0.0)
@@ -9095,14 +9096,27 @@ def summary():
         holding["brokers"] = brokers_list
         holding["primary_broker"] = brokers_list[0] if brokers_list else None
 
-    top_holdings = sorted(
-        aggregated_holdings.values(), key=lambda h: h["market_value"], reverse=True
-    )[:5]
+        processed_holdings.append(holding)
 
-    for holding in top_holdings:
+    combined_holdings = sorted(
+        processed_holdings, key=lambda h: h["market_value"], reverse=True
+    )
+
+    for holding in combined_holdings:
         cost = holding.get("cost", 0.0)
         pnl = holding.get("pnl", 0.0)
         holding["pnl_percent"] = (pnl / cost * 100.0) if cost else 0.0
+
+    top_holdings = combined_holdings[:5]
+
+    broker_name_set: set[str] = set()
+    for holding in combined_holdings:
+        for broker in holding.get("brokers", []):
+            if not broker:
+                continue
+            broker_name_set.add(str(broker))
+
+    broker_names = ["All"] + sorted(broker_name_set, key=lambda name: name.lower())
 
     total_sector_amount = sum(sector_map.values())
     colors = [
@@ -9473,8 +9487,10 @@ def summary():
         display_name=display_name,
         overview=overview,
         account_summaries=account_summaries,
+        combined_holdings=combined_holdings,
         performance_summary=performance_summary,
         top_holdings=top_holdings,
+        broker_names=broker_names,
         sector_allocation=sector_allocation,
         account_allocation=account_allocation,
         recent_transactions=recent_transactions,
