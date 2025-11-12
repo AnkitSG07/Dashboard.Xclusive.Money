@@ -449,415 +449,387 @@
 </div>
 {% endblock %}
 
-
 {% block scripts %}
 <script>
-if (!window.pageScripts) window.pageScripts = {};
-window.pageScripts["Summary"] = function () {
-  const canvas = document.getElementById("portfolio-performance-chart");
-  const emptyState = document.getElementById("portfolio-performance-empty");
-  const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
-  const chartGlobal = window.Chart;
-  const brokerFilter = document.getElementById("broker-filter");
-  const holdingsTableRows = Array.from(
-    document.querySelectorAll(".top-holdings-table tbody tr")
-  );
-  const holdingsCards = Array.from(
-    document.querySelectorAll(".top-holdings-card-list .top-holdings-card")
-  );
+(function () {
+  const PAGE_NAME = "Summary";
+  const templateSeriesRaw = {{ performance_summary.series | default([]) | tojson | safe }};
+  const templateSeries = Array.isArray(templateSeriesRaw) ? templateSeriesRaw : [];
 
-  function parseBrokerList(element) {
-    if (!element || !element.dataset) {
-      return [];
-    }
-    const { brokers } = element.dataset;
-    if (!brokers) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(brokers);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      return brokers
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-  }
+  const getPrefetchData = typeof window.getPagePrefetchData === "function"
+    ? (page) => window.getPagePrefetchData(page)
+    : () => undefined;
+  const setPrefetchData = typeof window.setPagePrefetchData === "function"
+    ? (page, data, options) => window.setPagePrefetchData(page, data, options)
+    : () => undefined;
+  const runGlobalPrefetch = typeof window.runPagePrefetch === "function"
+    ? (options) => window.runPagePrefetch(PAGE_NAME, options)
+    : null;
 
-  function matchesSelectedBroker(brokers, selectedValue) {
-    if (!brokers || !brokers.length) {
-      return false;
-    }
-    const normalized = String(selectedValue || "").trim().toLowerCase();
-    if (!normalized || normalized === "all") {
-      return true;
-    }
-    return brokers
-      .map((broker) => String(broker || "").trim().toLowerCase())
-      .some((broker) => broker === normalized);
-  }
-
-  function applyBrokerFilter(selectedValue) {
-    const normalized = String(selectedValue || "").trim().toLowerCase();
-    const showAll = !normalized || normalized === "all";
-
-    holdingsTableRows.forEach((row) => {
-      if (!row) return;
-      const brokers = parseBrokerList(row);
-      const isVisible = showAll || matchesSelectedBroker(brokers, normalized);
-      row.style.display = isVisible ? "" : "none";
-    });
-
-    holdingsCards.forEach((card) => {
-      if (!card) return;
-      const brokers = parseBrokerList(card);
-      const isVisible = showAll || matchesSelectedBroker(brokers, normalized);
-      card.style.display = isVisible ? "" : "none";
+  let summaryPrefetcher = null;
+  if (typeof window.registerPagePrefetcher === "function") {
+    summaryPrefetcher = window.registerPagePrefetcher(PAGE_NAME, async ({ cached }) => {
+      try {
+        const response = await fetch("/api/summary", { credentials: "include" });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message = payload?.error || `Failed to load summary data (${response.status})`;
+          throw new Error(message);
+        }
+        if (!payload || typeof payload !== "object") {
+          return cached ?? null;
+        }
+        const normalized = { ...payload };
+        const summary = normalized.performance_summary && typeof normalized.performance_summary === "object"
+          ? { ...normalized.performance_summary }
+          : {};
+        if (!Array.isArray(summary.series)) {
+          summary.series = [];
+        }
+        normalized.performance_summary = summary;
+        return normalized;
+      } catch (error) {
+        console.error("Failed to prefetch summary data", error);
+        return cached ?? null;
+      }
     });
   }
 
-  if (brokerFilter) {
-    brokerFilter.addEventListener("change", (event) => {
-      applyBrokerFilter(event.target.value);
-    });
-    applyBrokerFilter(brokerFilter.value);
-  }
-  
-  if (!canvas) {
-    return;
+  const existingPayload = getPrefetchData(PAGE_NAME);
+  if (!existingPayload && templateSeries.length) {
+    setPrefetchData(PAGE_NAME, { performance_summary: { series: templateSeries } }, { persist: false });
   }
 
-  const hasChart = typeof chartGlobal === "function";
-  if (!hasChart) {
-    canvas.setAttribute("hidden", "");
-    if (emptyState) {
-      emptyState.hidden = false;
+  if (!window.pageScripts) window.pageScripts = {};
+  window.pageScripts[PAGE_NAME] = function () {
+    const canvas = document.getElementById("portfolio-performance-chart");
+    const emptyState = document.getElementById("portfolio-performance-empty");
+    const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
+    const chartGlobal = window.Chart;
+
+    if (!canvas) {
+      return;
     }
-    return;
-  }
 
-  const initialSeries = {{ performance_summary.series | default([]) | tojson | safe }};
-  const PERIOD_LIMITS = {
-    "1D": 1,
-    "1W": 7,
-    "1M": 30,
-    "3M": 90,
-    "6M": 180,
-    "1Y": 365,
-    "All": null,
-  };
-
-  let cachedSeries = [];
-  let chartInstance = null;
-  const hasTimeScale = !!(
-    chartGlobal?.registry?.getScale?.('time') &&
-    chartGlobal?._adapters?.date
-  );
-  const xScaleType = hasTimeScale ? 'time' : 'linear';
-
-  function normalizeSeries(series) {
-    if (!Array.isArray(series)) {
-      return [];
+    const hasChart = typeof chartGlobal === "function";
+    if (!hasChart) {
+      canvas.setAttribute("hidden", "");
+      if (emptyState) {
+        emptyState.hidden = false;
+      }
+      return;
     }
-    return series
-      .map((point) => {
-        if (!point) return null;
+
+    const PERIOD_LIMITS = {
+      "1D": 1,
+      "1W": 7,
+      "1M": 30,
+      "3M": 90,
+      "6M": 180,
+      "1Y": 365,
+      "All": null,
+    };
+
+    let cachedSeries = [];
+    let chartInstance = null;
+    const hasTimeScale = !!(
+      chartGlobal?.registry?.getScale?.("time") &&
+      chartGlobal?._adapters?.date
+    );
+    const xScaleType = hasTimeScale ? "time" : "linear";
+
+    function normalizeSeries(series) {
+      if (!Array.isArray(series)) {
+        return [];
+      }
+      return series
+        .map((point) => {
+          if (!point) return null;
+          const date = new Date(point.timestamp);
+          if (Number.isNaN(date.getTime())) return null;
+          const value = Number(point.value);
+          if (!Number.isFinite(value)) return null;
+          return { timestamp: date.toISOString(), value };
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+
+    function mapToDataset(series) {
+      return series.map((point) => {
         const date = new Date(point.timestamp);
-        if (Number.isNaN(date.getTime())) return null;
-        const value = Number(point.value);
-        if (!Number.isFinite(value)) return null;
-        return { timestamp: date.toISOString(), value };
-      })
-      .filter(Boolean)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  }
-
-  function mapToDataset(series) {
-    return series.map((point) => {
-      const date = new Date(point.timestamp);
-      const xValue = hasTimeScale ? date : date.getTime();
-      return { x: xValue, y: Number(point.value) };
-    });
-  }
-  const POSITIVE_COLOR = "#10b981";
-  const NEGATIVE_COLOR = "#ef4444";
-
-  function getValueColor(value) {
-    return value >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
-  }
-
-  function segmentColor(context) {
-    const nextValue = context?.p1?.parsed?.y;
-    if (typeof nextValue === "number" && Number.isFinite(nextValue)) {
-      return getValueColor(nextValue);
+        const xValue = hasTimeScale ? date : date.getTime();
+        return { x: xValue, y: Number(point.value) };
+      });
     }
-    const currentValue = context?.p0?.parsed?.y;
-    if (typeof currentValue === "number" && Number.isFinite(currentValue)) {
-      return getValueColor(currentValue);
-    }
-    return POSITIVE_COLOR;
-  }
 
-  function ensureChart() {
-    if (chartInstance) {
+    function ensureChart() {
+      if (chartInstance) {
+        return chartInstance;
+      }
+      const context = canvas.getContext("2d");
+      chartInstance = new chartGlobal(context, {
+        type: "line",
+        data: {
+          datasets: [
+            {
+              label: "Portfolio Performance",
+              data: [],
+              borderColor: "rgba(79, 70, 229, 0.9)",
+              backgroundColor: "rgba(79, 70, 229, 0.12)",
+              tension: 0.4,
+              fill: true,
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              intersect: false,
+              mode: "index",
+              callbacks: {
+                title: (items) => {
+                  const item = items?.[0];
+                  if (!item) return "";
+                  const date = new Date(item.parsed.x);
+                  return date.toLocaleString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "numeric",
+                  });
+                },
+                label: (context) => {
+                  const value = Number(context.parsed.y || 0);
+                  return `Portfolio Value: ${value.toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "INR",
+                    maximumFractionDigits: 2,
+                  })}`;
+                },
+              },
+            },
+          },
+          interaction: {
+            intersect: false,
+            mode: "index",
+          },
+          scales: {
+            x: {
+              type: xScaleType,
+              grid: {
+                display: false,
+              },
+              ticks: {
+                maxTicksLimit: 8,
+                color: "rgba(148, 163, 184, 0.9)",
+                autoSkip: true,
+              },
+            },
+            y: {
+              beginAtZero: false,
+              grid: {
+                color: "rgba(226, 232, 240, 0.5)",
+              },
+              ticks: {
+                callback: (value) => `₹${Number(value).toLocaleString()}`,
+                color: "rgba(100, 116, 139, 0.9)",
+              },
+            },
+          },
+        },
+      });
       return chartInstance;
     }
-    const context = canvas.getContext("2d");
-    chartInstance = new chartGlobal(context, {
-      type: "scatter",
-      data: {
-        datasets: [
-          {
-            label: "Portfolio Performance",
-            data: [],
-            showLine: true,
-            fill: false,
-            borderWidth: 2,
-            tension: 0.2,
-            segment: {
-              borderColor: segmentColor,
-            },
-            pointRadius: 4,
-            pointHoverRadius: 5,
-            pointBackgroundColor(context) {
-              return getValueColor(context.parsed.y);
-            },
-            pointBorderColor(context) {
-              return getValueColor(context.parsed.y);
-            },
-            pointHoverBackgroundColor(context) {
-              return getValueColor(context.parsed.y);
-            },
-            pointHoverBorderColor(context) {
-              return getValueColor(context.parsed.y);
-            },
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        parsing: false,
-        interaction: { mode: "index", intersect: false },
-        scales: {
-          x: {
-            type: xScaleType,
-            time: hasTimeScale ? { tooltipFormat: "MMM d, yyyy HH:mm" } : undefined,
-            grid: { color: "rgba(107, 114, 128, 0.15)" },
-            ticks: {
-              color: "#6b7280",
-              maxTicksLimit: 8,
-              callback(value) {
-                if (hasTimeScale) {
-                  return this.getLabelForValue(value);
-                }
-                const date = new Date(Number(value));
-                if (Number.isNaN(date.getTime())) return "";
-                return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-              },
-            },
-          },
-          y: {
-            grid: { color: "rgba(107, 114, 128, 0.15)" },
-            ticks: {
-              color: "#6b7280",
-              callback(value) {
-                return `₹${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-              },
-            },
-          },
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            mode: "index",
-            intersect: false,
-            callbacks: {
-              label(context) {
-                const value = context.parsed.y;
-                return `₹${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-              },
-            },
-          },
-        },
-        elements: {
-          point: {
-            borderWidth: 2,
-            radius: 4,
-            hoverRadius: 5,
-          },
-          line: {
-            borderWidth: 2,
-            tension: 0.2,
-          },
-        },
-      },
-    });
-    return chartInstance;
-  }
 
-  function toggleState(hasData) {
-    if (hasData) {
-      canvas.removeAttribute("hidden");
-      if (emptyState) emptyState.hidden = true;
-    } else {
-      canvas.setAttribute("hidden", "");
-      if (emptyState) emptyState.hidden = false;
-    }
-  }
-
-  function updateChart(series) {
-    const chart = ensureChart();
-    const hasData = Array.isArray(series) && series.length > 0;
-    toggleState(hasData);
-    if (!hasData) {
-      chart.data.datasets[0].data = [];
-      chart.update("none");
-      return;
-    }
-    chart.data.datasets[0].data = mapToDataset(series);
-    chart.update("none");
-  }
-
-  function filterSeries(periodKey) {
-    if (!cachedSeries.length) {
-      return [];
-    }
-    const limitDays = PERIOD_LIMITS[periodKey] ?? null;
-    if (!limitDays) {
-      return cachedSeries.slice();
-    }
-    const now = Date.now();
-    const threshold = now - limitDays * 24 * 60 * 60 * 1000;
-    return cachedSeries.filter((point) => {
-      const time = Date.parse(point.timestamp);
-      return Number.isFinite(time) && time >= threshold;
-    });
-  }
-
-  function setActiveChip(period) {
-    chips.forEach((chip) => {
-      chip.classList.toggle("is-active", chip.dataset.period === period);
-    });
-  }
-  
-  const periodOrder = chips
-    .map((chip) => chip.dataset.period)
-    .filter((period, index, arr) => period && arr.indexOf(period) === index);
-
-  let activePeriod = chips.find((chip) => chip.classList.contains("is-active"))?.dataset.period || "1D";
-  if (!activePeriod || !(activePeriod in PERIOD_LIMITS)) {
-    activePeriod = periodOrder[0] || "All";
-  }
-
-  function findFallbackSeries(excludePeriod) {
-    if (!cachedSeries.length) {
-      return { period: excludePeriod, series: [] };
-    }
-
-    const candidateOrder = periodOrder.length
-      ? periodOrder
-      : Object.keys(PERIOD_LIMITS);
-
-    for (const candidate of candidateOrder) {
-      if (!candidate || candidate === excludePeriod) {
-        continue;
-      }
-      const candidateSeries = filterSeries(candidate);
-      if (candidateSeries.length) {
-        return { period: candidate, series: candidateSeries };
+    function toggleState(hasData) {
+      const chart = ensureChart();
+      if (!chart) return;
+      if (hasData) {
+        canvas.removeAttribute("hidden");
+        if (emptyState) {
+          emptyState.hidden = true;
+        }
+      } else {
+        canvas.setAttribute("hidden", "");
+        if (emptyState) {
+          emptyState.hidden = false;
+        }
       }
     }
 
-    return { period: excludePeriod, series: cachedSeries.slice() };
-  }
+    function updateChart(series) {
+      const chart = ensureChart();
+      if (!chart) return;
 
-  function applyPeriod(period) {
-    if (!period || !(period in PERIOD_LIMITS)) {
-      period = activePeriod;
-    }
-    let resolvedPeriod = period;
-    let series = filterSeries(period);
-
-    if (!series.length && cachedSeries.length) {
-      const fallback = findFallbackSeries(period);
-      resolvedPeriod = fallback.period;
-      series = fallback.series;
+      const hasData = Array.isArray(series) && series.length > 0;
+      toggleState(hasData);
+      chart.data.datasets[0].data = mapToDataset(series);
+      chart.update();
     }
 
-    activePeriod = resolvedPeriod;
-    setActiveChip(resolvedPeriod);
-    updateChart(series);
-  }
-
-  function refreshSeries() {
-    fetch("/api/summary")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load summary data");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        const incoming = data?.performance_summary?.series;
-        if (!Array.isArray(incoming)) {
-          return;
-        }
-        cachedSeries = normalizeSeries(incoming);
-        applyPeriod(activePeriod);
-      })
-      .catch(() => {
-        if (!cachedSeries.length) {
-          toggleState(false);
+    function setActiveChip(period) {
+      chips.forEach((chip) => {
+        if (chip.dataset.period === period) {
+          chip.classList.add("active");
+          chip.setAttribute("aria-pressed", "true");
+        } else {
+          chip.classList.remove("active");
+          chip.setAttribute("aria-pressed", "false");
         }
       });
-  }
-
-  function bootstrap() {
-    cachedSeries = normalizeSeries(initialSeries);
-    applyPeriod(activePeriod);
-    refreshSeries();
-
-    const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
-    if (window[REFRESH_EVENT_KEY]) {
-      document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
     }
-    window[REFRESH_EVENT_KEY] = refreshSeries;
-    document.addEventListener("summary:refresh", refreshSeries);
-  }
 
-  const startBootstrap = () => {
-    if (startBootstrap._ran) {
-      return;
-    }
-    startBootstrap._ran = true;
-    bootstrap();
-  };
-
-  chips.forEach((chip) => {
-    if (chip.dataset.bound === "true") {
-      return;
-    }
-    chip.dataset.bound = "true";
-    const handleActivate = () => {
-      startBootstrap();
-      applyPeriod(chip.dataset.period);
-    };
-    chip.addEventListener("click", handleActivate);
-    chip.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        handleActivate();
+    function readInitialSeries() {
+      const payload = getPrefetchData(PAGE_NAME);
+      const cached = payload?.performance_summary?.series;
+      if (Array.isArray(cached) && cached.length) {
+        return cached;
       }
-    });
-  });
+      return templateSeries;
+    }
 
-  if ("requestIdleCallback" in window) {
-    requestIdleCallback(startBootstrap, { timeout: 500 });
-  } else {
-    setTimeout(startBootstrap, 0);
-  }
-};
+    let activePeriod = chips[0]?.dataset.period || "1M";
+
+    function filterSeries(period) {
+      if (!period || !(period in PERIOD_LIMITS)) {
+        return cachedSeries.slice();
+      }
+      const limit = PERIOD_LIMITS[period];
+      if (!limit) {
+        return cachedSeries.slice();
+      }
+      const now = Date.now();
+      const cutoff = now - limit * 24 * 60 * 60 * 1000;
+      return cachedSeries.filter(point => new Date(point.timestamp).getTime() >= cutoff);
+    }
+
+    function findFallbackSeries(excludePeriod) {
+      const periodOrder = Object.keys(PERIOD_LIMITS);
+      const candidateOrder = excludePeriod
+        ? [excludePeriod, ...periodOrder.filter(period => period !== excludePeriod)]
+        : Object.keys(PERIOD_LIMITS);
+
+      for (const candidate of candidateOrder) {
+        if (!candidate || candidate === excludePeriod) {
+          continue;
+        }
+        const candidateSeries = filterSeries(candidate);
+        if (candidateSeries.length) {
+          return { period: candidate, series: candidateSeries };
+        }
+      }
+
+      return { period: excludePeriod, series: cachedSeries.slice() };
+    }
+
+    function applyPeriod(period) {
+      if (!period || !(period in PERIOD_LIMITS)) {
+        period = activePeriod;
+      }
+      let resolvedPeriod = period;
+      let series = filterSeries(period);
+
+      if (!series.length && cachedSeries.length) {
+        const fallback = findFallbackSeries(period);
+        resolvedPeriod = fallback.period;
+        series = fallback.series;
+      }
+
+      activePeriod = resolvedPeriod;
+      setActiveChip(resolvedPeriod);
+      updateChart(series);
+    }
+
+    function syncFromPrefetch() {
+      const payload = getPrefetchData(PAGE_NAME);
+      const incoming = payload?.performance_summary?.series;
+      if (Array.isArray(incoming)) {
+        cachedSeries = normalizeSeries(incoming);
+        applyPeriod(activePeriod);
+      } else if (!cachedSeries.length) {
+        toggleState(false);
+      }
+    }
+
+    function refreshSeries(arg) {
+      const isEvent = arg && typeof arg === "object" && typeof arg.type === "string";
+      const requestedForce = !isEvent && arg && typeof arg === "object" && "force" in arg
+        ? !!arg.force
+        : false;
+      const shouldForce = requestedForce || !cachedSeries.length;
+      const runner = summaryPrefetcher || runGlobalPrefetch;
+
+      if (typeof runner !== "function") {
+        syncFromPrefetch();
+        return Promise.resolve();
+      }
+
+      return Promise.resolve(runner({ force: shouldForce }))
+        .then(() => {
+          syncFromPrefetch();
+        })
+        .catch((error) => {
+          console.error("Failed to refresh summary data", error);
+          if (!cachedSeries.length) {
+            toggleState(false);
+          }
+        });
+    }
+
+    function bootstrap() {
+      cachedSeries = normalizeSeries(readInitialSeries());
+      applyPeriod(activePeriod);
+      refreshSeries({ force: !cachedSeries.length });
+
+      const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
+      if (window[REFRESH_EVENT_KEY]) {
+        document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
+      }
+      window[REFRESH_EVENT_KEY] = refreshSeries;
+      document.addEventListener("summary:refresh", refreshSeries);
+    }
+
+    const startBootstrap = () => {
+      if (startBootstrap._ran) {
+        return;
+      }
+      startBootstrap._ran = true;
+      bootstrap();
+    };
+
+    chips.forEach((chip) => {
+      if (chip.dataset.bound === "true") {
+        return;
+      }
+      chip.dataset.bound = "true";
+      const handleActivate = () => {
+        startBootstrap();
+        applyPeriod(chip.dataset.period);
+      };
+      chip.addEventListener("click", handleActivate);
+      chip.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleActivate();
+        }
+      });
+    });
+
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(startBootstrap, { timeout: 500 });
+    } else {
+      setTimeout(startBootstrap, 0);
+    }
+  };
+})();
 </script>
 {% endblock %}
