@@ -580,6 +580,24 @@ window.pageScripts["Summary"] = function () {
       return { x: xValue, y: Number(point.value) };
     });
   }
+  const POSITIVE_COLOR = "#10b981";
+  const NEGATIVE_COLOR = "#ef4444";
+
+  function getValueColor(value) {
+    return value >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
+  }
+
+  function segmentColor(context) {
+    const nextValue = context?.p1?.parsed?.y;
+    if (typeof nextValue === "number" && Number.isFinite(nextValue)) {
+      return getValueColor(nextValue);
+    }
+    const currentValue = context?.p0?.parsed?.y;
+    if (typeof currentValue === "number" && Number.isFinite(currentValue)) {
+      return getValueColor(currentValue);
+    }
+    return POSITIVE_COLOR;
+  }
 
   function ensureChart() {
     if (chartInstance) {
@@ -587,19 +605,33 @@ window.pageScripts["Summary"] = function () {
     }
     const context = canvas.getContext("2d");
     chartInstance = new chartGlobal(context, {
-      type: "line",
+      type: "scatter",
       data: {
         datasets: [
           {
             label: "Portfolio Performance",
             data: [],
-            borderColor: "rgba(79, 70, 229, 0.9)",
-            backgroundColor: "rgba(79, 70, 229, 0.12)",
+            showLine: true,
+            fill: false,
             borderWidth: 2,
-            tension: 0.3,
-            fill: true,
-            pointRadius: 0,
-            pointHoverRadius: 3,
+            tension: 0.2,
+            segment: {
+              borderColor: segmentColor,
+            },
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            pointBackgroundColor(context) {
+              return getValueColor(context.parsed.y);
+            },
+            pointBorderColor(context) {
+              return getValueColor(context.parsed.y);
+            },
+            pointHoverBackgroundColor(context) {
+              return getValueColor(context.parsed.y);
+            },
+            pointHoverBorderColor(context) {
+              return getValueColor(context.parsed.y);
+            },
           },
         ],
       },
@@ -647,6 +679,17 @@ window.pageScripts["Summary"] = function () {
                 return `₹${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
               },
             },
+          },
+        },
+        elements: {
+          point: {
+            borderWidth: 2,
+            radius: 4,
+            hoverRadius: 5,
+          },
+          line: {
+            borderWidth: 2,
+            tension: 0.2,
           },
         },
       },
