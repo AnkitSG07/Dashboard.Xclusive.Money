@@ -7793,6 +7793,13 @@ def Whatsapp_support():
     return render_template("whatsapp.html")
 
 
+@app.route('/discord')
+def discord_page():
+    """Display the community Discord landing page."""
+
+    return render_template("discord.html")
+
+
 @app.route('/tutorials')
 def tutorials():
     """Render the tutorials hub with quick links to broker walkthroughs."""
