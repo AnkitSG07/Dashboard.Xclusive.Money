@@ -3369,20 +3369,37 @@ def get_order_book(client_id):
                     filled_qty = 0
 
                 # Extract average price
-                try:
-                    avg_price = float(
-                        order.get("averagePrice")
-                        or order.get("avg_price")
-                        or order.get("Avgprc")        # AliceBlue
-                        or order.get("avgprc")        # Finvasia
-                        or order.get("Prc")
-                        or order.get("tradePrice")
-                        or order.get("tradedPrice")
-                        or order.get("executedPrice")
-                        or 0
-                    )
-                except (TypeError, ValueError):
-                    avg_price = 0.0
+                avg_price = 0.0
+                avg_price_candidates = [
+                    "averagePrice",
+                    "avg_price",
+                    "Avgprc",        # AliceBlue
+                    "avgprc",        # Finvasia
+                    "Prc",
+                    "tradePrice",
+                    "tradedPrice",
+                    "executedPrice",
+                    "price",
+                    "orderPrice",
+                    "order_price",
+                ]
+
+                chosen_avg_price = None
+                for field in avg_price_candidates:
+                    raw_value = order.get(field)
+                    if raw_value in (None, "", "--", "-"):
+                        continue
+                    try:
+                        numeric_value = float(raw_value)
+                    except (TypeError, ValueError):
+                        continue
+                    if chosen_avg_price is None or numeric_value != 0.0:
+                        chosen_avg_price = numeric_value
+                    if numeric_value != 0.0:
+                        break
+
+                if chosen_avg_price is not None:
+                    avg_price = float(chosen_avg_price)
 
                 # Extract and format order time
                 order_time_raw = (
@@ -3466,14 +3483,14 @@ def get_order_book(client_id):
                     if not rejection_reason:
                         rejection_reason = _meaningful_reason(
                             _first_matching_field(
-                                order, lambda k: "description" in k
+                                order, lambda k: "message" in k
                             )
                         )
 
                     if not rejection_reason:
                         rejection_reason = _meaningful_reason(
                             _first_matching_field(
-                                order, lambda k: "message" in k
+                                order, lambda k: "description" in k
                             )
                         )
                         
