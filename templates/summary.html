@@ -223,7 +223,19 @@
           <a href="#">View All</a>
         </div>
         <div class="top-holdings-surface">
-          {% if top_holdings %}
+          <div class="top-holdings-toolbar">
+            <label class="summary-sr-only" for="broker-filter">Filter holdings by broker</label>
+            <div class="top-holdings-filter">
+              <span class="top-holdings-filter__label" aria-hidden="true">Broker</span>
+              <select id="broker-filter" class="top-holdings-filter__select">
+                {% for broker_name in broker_names %}
+                  {% set option_label = 'All brokers' if broker_name == 'All' else broker_name %}
+                  <option value="{{ broker_name }}">{{ option_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          {% if combined_holdings %}
             <div class="top-holdings-table-container">
               <table class="top-holdings-table">
                 <thead>
@@ -239,7 +251,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for holding in top_holdings %}
+                  {% for holding in combined_holdings %}
                     {% set pnl_positive = holding.pnl >= 0 %}
                     {% set symbol_display = holding.symbol or '—' %}
                     {% set avatar_text = symbol_display[:2].upper() %}
@@ -258,7 +270,7 @@
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                     {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
                     {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
-                    <tr>
+                    <tr data-brokers='{{ holding.brokers | tojson }}'>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
                           <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
@@ -303,7 +315,7 @@
               </table>
             </div>
             <div class="top-holdings-card-list">
-              {% for holding in top_holdings %}
+              {% for holding in combined_holdings %}
                 {% set pnl_positive = holding.pnl >= 0 %}
                 {% set symbol_display = holding.symbol or '—' %}
                 {% set avatar_text = symbol_display[:2].upper() %}
@@ -323,7 +335,7 @@
                 {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
                 {% set market_value = holding.market_value if holding.market_value is not none else (holding.cost + holding.pnl) %}
                 {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
-                <div class="top-holdings-card">
+                <div class="top-holdings-card" data-brokers='{{ holding.brokers | tojson }}'>
                   <div class="top-holdings-card__header">
                     <div class="top-holdings-card__identity">
                       <div class="top-holdings-card__avatar">{{ avatar_text }}</div>
@@ -446,7 +458,72 @@ window.pageScripts["Summary"] = function () {
   const emptyState = document.getElementById("portfolio-performance-empty");
   const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
   const chartGlobal = window.Chart;
+  const brokerFilter = document.getElementById("broker-filter");
+  const holdingsTableRows = Array.from(
+    document.querySelectorAll(".top-holdings-table tbody tr")
+  );
+  const holdingsCards = Array.from(
+    document.querySelectorAll(".top-holdings-card-list .top-holdings-card")
+  );
 
+  function parseBrokerList(element) {
+    if (!element || !element.dataset) {
+      return [];
+    }
+    const { brokers } = element.dataset;
+    if (!brokers) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(brokers);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return brokers
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  function matchesSelectedBroker(brokers, selectedValue) {
+    if (!brokers || !brokers.length) {
+      return false;
+    }
+    const normalized = String(selectedValue || "").trim().toLowerCase();
+    if (!normalized || normalized === "all") {
+      return true;
+    }
+    return brokers
+      .map((broker) => String(broker || "").trim().toLowerCase())
+      .some((broker) => broker === normalized);
+  }
+
+  function applyBrokerFilter(selectedValue) {
+    const normalized = String(selectedValue || "").trim().toLowerCase();
+    const showAll = !normalized || normalized === "all";
+
+    holdingsTableRows.forEach((row) => {
+      if (!row) return;
+      const brokers = parseBrokerList(row);
+      const isVisible = showAll || matchesSelectedBroker(brokers, normalized);
+      row.style.display = isVisible ? "" : "none";
+    });
+
+    holdingsCards.forEach((card) => {
+      if (!card) return;
+      const brokers = parseBrokerList(card);
+      const isVisible = showAll || matchesSelectedBroker(brokers, normalized);
+      card.style.display = isVisible ? "" : "none";
+    });
+  }
+
+  if (brokerFilter) {
+    brokerFilter.addEventListener("change", (event) => {
+      applyBrokerFilter(event.target.value);
+    });
+    applyBrokerFilter(brokerFilter.value);
+  }
+  
   if (!canvas) {
     return;
   }
