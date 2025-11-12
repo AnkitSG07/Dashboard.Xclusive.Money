@@ -22,6 +22,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.umd.min.js" defer data-global-script="true"></script>
   {% block styles %}{% endblock %}
   <style data-global-style="true">
+
   <style>
     
     .collapse:not(.tw-collapse) {
@@ -45,6 +46,7 @@
       --border: 240 6% 90%;
       --sidebar-background: 0 0% 100%;
       --sidebar-foreground: 240 10% 15%;
+      --success: 142 71% 45%;
       --shadow-soft: rgba(19, 33, 68, 0.08);
       --shadow-strong: rgba(55, 81, 255, 0.24);
     }
@@ -60,6 +62,7 @@
       --border: 217 19% 27%;
       --sidebar-background: 220 30% 8%;
       --sidebar-foreground: 210 40% 98%;
+      --success: 142 71% 45%;
     }
 
     body {
@@ -1212,6 +1215,7 @@
       --border: 240 6% 90%;
       --sidebar-background: 0 0% 100%;
       --sidebar-foreground: 240 10% 15%;
+      --success: 142 71% 45%;
       --shadow-soft: rgba(19, 33, 68, 0.08);
       --shadow-strong: rgba(55, 81, 255, 0.24);
     }
@@ -1227,6 +1231,7 @@
       --border: 217 19% 27%;
       --sidebar-background: 220 30% 8%;
       --sidebar-foreground: 210 40% 98%;
+      --success: 142 71% 45%;
     }
 
     body {
@@ -1828,14 +1833,7 @@
 /* Optional: keep active styling tidy for nested items */
 .sidebar .collapsible-content .sidebar-item{
   margin-left:8px;
-} 
-    /* === COMPAT SHIM: unify tokens to full hsl(...) strings and expose any missing vars === */
-:root {
-  --background: hsl(240, 20%, 97%);
-  --foreground: hsl(240, 10%, 15%);
-  --card: hsl(0, 0%, 100%);
-}
-    
+}   
   </style>
   <script>
     (function() {
