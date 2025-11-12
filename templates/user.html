@@ -4,6 +4,7 @@
 
 {% block styles %}
 <style>
+
   .user-page {
     min-height: 100vh;
     background-color: hsl(0 0% 100%);
@@ -246,9 +247,119 @@
 
   @media (min-width: 768px) and (max-width: 991.98px) {
     .form-grid {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(1, 1fr);
     }
   }
+/* Enhanced mobile overflow fixes */
+@media (max-width: 767px) {
+  .user-page {
+    padding: 60px 8px 32px;
+    overflow-x: hidden;
+  }
+
+  .user-container {
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .avatar-card,
+  .form-card,
+  .security-card {
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .general-grid {
+    gap: 20px;
+    padding: 0;
+  }
+
+  .avatar-circle {
+    width: 100px;
+    height: 100px;
+    font-size: 32px;
+  }
+
+  .avatar-username {
+    font-size: 14px;
+    word-break: break-all;
+  }
+
+  .form-field {
+    gap: 6px;
+    width: 100%;
+  }
+
+  .form-field label {
+    font-size: 13px;
+  }
+
+  .form-field input,
+  .form-field select {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+    padding: 8px 10px;
+    min-width: 0;
+  }
+
+  .avatar-upload {
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .primary-btn {
+    width: 100%;
+    padding: 0 16px;
+  }
+
+  .user-header h1 {
+    font-size: 20px;
+  }
+
+  .user-breadcrumb {
+    font-size: 12px;
+  }
+
+  .tab-button {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* Force everything to stay within bounds */
+  body {
+    overflow-x: hidden;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 375px) {
+  .user-page {
+    padding: 60px 4px 32px;
+  }
+
+  .avatar-card,
+  .form-card,
+  .security-card {
+    padding: 10px;
+  }
+
+  .avatar-circle {
+    width: 80px;
+    height: 80px;
+    font-size: 28px;
+  }
+}
 </style>
 {% endblock %}
 
