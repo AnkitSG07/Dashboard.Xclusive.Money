@@ -25,6 +25,17 @@
     gap: clamp(24px, 4vw, 32px);
 }
 
+.summary-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 /* base grid helper */
 .summary-grid {
     display: grid;
@@ -142,6 +153,71 @@
     border-radius: 12px;
     border: 1px solid #e5e7eb;
     overflow: hidden;
+}
+
+.top-holdings-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    flex-wrap: wrap;
+}
+
+.top-holdings-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.top-holdings-filter__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--summary-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.top-holdings-filter__select {
+    min-width: 180px;
+    max-width: 100%;
+    padding: 8px 32px 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
+    background-size: 12px 8px;
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.4;
+    appearance: none;
+    cursor: pointer;
+}
+
+.top-holdings-filter__select:focus {
+    outline: none;
+    border-color: var(--summary-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.top-holdings-filter__select:hover {
+    border-color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+    .top-holdings-toolbar {
+        justify-content: space-between;
+    }
+
+    .top-holdings-filter {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .top-holdings-filter__select {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
 }
 
 .top-holdings-table-container {
