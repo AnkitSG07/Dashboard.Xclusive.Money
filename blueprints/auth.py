@@ -104,6 +104,14 @@ def signup():
         if User.query.filter_by(email=email).first():
             return render_template('sign-up.html', error='User already exists')
 
+        if full_phone:
+            existing_by_phone = _find_user_by_phone(full_phone)
+            if existing_by_phone:
+                return render_template(
+                    'sign-up.html',
+                    error='Phone number already registered. Please log in or reset your password.',
+                )
+
         user = User(email=email)
         if full_phone:
             user.phone = full_phone
