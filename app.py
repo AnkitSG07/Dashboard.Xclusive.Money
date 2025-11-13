@@ -5875,7 +5875,17 @@ def add_account():
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
-            
+
+
+        dhan_token_id = data.get('dhan_token_id')
+        dhan_login_payload = data.get('dhan_login_payload')
+        if isinstance(dhan_login_payload, str):
+            try:
+                dhan_login_payload = json.loads(dhan_login_payload)
+            except json.JSONDecodeError:
+                logger.warning("Invalid dhan_login_payload provided; ignoring raw payload")
+                dhan_login_payload = None
+
         broker = data.get('broker')
         client_id = data.get('client_id')
         username = data.get('username')
@@ -5930,9 +5940,15 @@ def add_account():
         # ✅ STEP 4: Extract and validate broker-specific credentials
         credentials = {}
         
+        transient_fields = {'dhan_token_id', 'dhan_login_payload'}
+
         # Copy all credential fields except the basic ones
         for key, value in data.items():
-            if key not in ('broker', 'client_id', 'username') and value is not None:
+            if (
+                key not in ('broker', 'client_id', 'username')
+                and key not in transient_fields
+                and value is not None
+            ):
                 credentials[key] = value
 
         # ✅ STEP 5: Broker-specific validation and setup
@@ -5970,16 +5986,95 @@ def add_account():
                     validation_error = "Missing IMEI for Finvasia"
 
         elif broker == 'dhan':
-            
-            # Strip whitespace from credential fields before validation/storage
-            for field in ('access_token', 'api_key', 'api_secret'):
+            for field in (
+                'access_token',
+                'api_key',
+                'api_secret',
+                'token_expiry',
+                'token_time',
+                'dhan_client_name',
+            ):
                 value = credentials.get(field)
                 if isinstance(value, str):
                     credentials[field] = value.strip()
 
+            consent_payload = None
+            if isinstance(dhan_login_payload, dict) and dhan_login_payload:
+                consent_payload = dhan_login_payload
+            elif dhan_token_id:
+                token_id_str = str(dhan_token_id).strip()
+                if token_id_str:
+                    if not credentials.get('api_key') or not credentials.get('api_secret'):
+                        validation_error = "Missing API Key or API Secret for Dhan consent flow"
+                    else:
+                        try:
+                            consent_payload = dhan_auth.consume_consent(
+                                token_id=token_id_str,
+                                api_key=credentials.get('api_key'),
+                                api_secret=credentials.get('api_secret'),
+                            )
+                        except dhan_auth.DhanAuthError as exc:
+                            return jsonify({"error": str(exc)}), 400
+
+            if consent_payload:
+                access_token = consent_payload.get('accessToken') or consent_payload.get('access_token')
+                if access_token:
+                    credentials['access_token'] = str(access_token).strip()
+
+                expiry_iso = dhan_auth.parse_expiry(
+                    consent_payload.get('expiryTime')
+                    or consent_payload.get('expiry_time')
+                    or consent_payload.get('tokenValidity')
+                )
+                if expiry_iso:
+                    credentials['token_expiry'] = expiry_iso
+
+                token_time_iso = dhan_auth.parse_expiry(
+                    consent_payload.get('tokenGenerationTime')
+                    or consent_payload.get('token_generation_time')
+                )
+                if token_time_iso:
+                    credentials['token_time'] = token_time_iso
+
+                payload_client_name = (
+                    consent_payload.get('dhanClientName')
+                    or consent_payload.get('clientName')
+                )
+                if payload_client_name and not credentials.get('dhan_client_name'):
+                    credentials['dhan_client_name'] = str(payload_client_name).strip()
+
+                payload_client_id = (
+                    consent_payload.get('dhanClientId')
+                    or consent_payload.get('clientId')
+                )
+                if payload_client_id:
+                    normalized_client_id = str(payload_client_id).strip()
+                    if normalized_client_id:
+                        if normalized_client_id != client_id:
+                            duplicate_account = Account.query.filter_by(
+                                user_id=user.id,
+                                client_id=normalized_client_id,
+                                broker=broker,
+                            ).first()
+                            if duplicate_account:
+                                return jsonify(
+                                    {
+                                        "error": "Account already exists",
+                                        "existing_account": {
+                                            "client_id": duplicate_account.client_id,
+                                            "broker": duplicate_account.broker,
+                                            "username": duplicate_account.username,
+                                            "status": duplicate_account.status,
+                                            "role": duplicate_account.role,
+                                        },
+                                    }
+                                ), 400
+                        client_id = normalized_client_id
+                        credentials.setdefault('dhan_client_id', client_id)
+
             required_fields = ['api_key', 'api_secret', 'access_token']
             missing_fields = [field for field in required_fields if not credentials.get(field)]
-            if missing_fields:
+            if missing_fields and not validation_error:
                 validation_error = (
                     "Missing required fields for Dhan: "
                     + ', '.join(missing_fields)
