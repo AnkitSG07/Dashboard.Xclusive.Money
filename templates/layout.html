@@ -2445,6 +2445,19 @@
     const PAGE_STYLE_ATTR = 'data-page-style';
     const PAGE_STYLE_KEY_ATTR = 'data-page-style-key';
     const spaCache = new Map();
+    const SPA_CACHE_STORAGE_KEY = 'spa:fragment-cache:v1';
+    const SPA_CACHE_MAX_ENTRIES = 20;
+    let spaCacheHydrated = false;
+    const spaCacheStorageAvailable = (() => {
+      try {
+        const testKey = '__spa_cache_test__';
+        sessionStorage.setItem(testKey, '1');
+        sessionStorage.removeItem(testKey);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    })();
     window.pagePrefetchers = window.pagePrefetchers || {};
 
     const PAGE_PREFETCH_STORAGE_KEY = 'spa:page-prefetch-cache';
@@ -2693,6 +2706,97 @@
       return descriptor;
     }
 
+    function cloneDescriptor(descriptor) {
+      if (!descriptor || typeof descriptor !== 'object') return {};
+      const cloned = { ...descriptor };
+      if (descriptor.attrs && typeof descriptor.attrs === 'object') {
+        cloned.attrs = { ...descriptor.attrs };
+      }
+      return cloned;
+    }
+
+    function normalizeFragmentForCache(fragment, fallbackTimestamp) {
+      if (!fragment || typeof fragment !== 'object') return null;
+      const normalized = {
+        url: fragment.url || '',
+        html: fragment.html || '',
+        page: fragment.page || '',
+        styles: Array.isArray(fragment.styles) ? fragment.styles.map(cloneDescriptor) : [],
+        scripts: Array.isArray(fragment.scripts) ? fragment.scripts.map(cloneDescriptor) : [],
+        title: fragment.title || ''
+      };
+      const cachedAt = typeof fragment.cachedAt === 'number'
+        ? fragment.cachedAt
+        : (typeof fallbackTimestamp === 'number' ? fallbackTimestamp : Date.now());
+      normalized.cachedAt = cachedAt;
+      return normalized;
+    }
+
+    function pruneSpaCache(maxEntries = SPA_CACHE_MAX_ENTRIES) {
+      if (!Number.isFinite(maxEntries) || maxEntries <= 0) return;
+      if (spaCache.size <= maxEntries) return;
+      const ordered = Array.from(spaCache.entries())
+        .map(([key, fragment]) => ({ key, cachedAt: typeof fragment?.cachedAt === 'number' ? fragment.cachedAt : 0 }))
+        .sort((a, b) => a.cachedAt - b.cachedAt);
+      while (spaCache.size > maxEntries && ordered.length) {
+        const next = ordered.shift();
+        if (next) {
+          spaCache.delete(next.key);
+        }
+      }
+    }
+
+    function persistSpaCache() {
+      if (!spaCacheStorageAvailable) return;
+      try {
+        const entries = [];
+        spaCache.forEach((fragment, key) => {
+          const normalized = normalizeFragmentForCache(fragment);
+          if (!normalized) return;
+          entries.push({
+            key,
+            cachedAt: normalized.cachedAt || Date.now(),
+            fragment: normalized
+          });
+        });
+        const payload = {
+          version: 1,
+          entries
+        };
+        sessionStorage.setItem(SPA_CACHE_STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        // Ignore persistence errors
+      }
+    }
+
+    function hydrateSpaCache() {
+      if (spaCacheHydrated) return;
+      spaCacheHydrated = true;
+      if (!spaCacheStorageAvailable) return;
+      try {
+        const raw = sessionStorage.getItem(SPA_CACHE_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+        let hydrated = false;
+        entries
+          .filter(entry => entry && typeof entry.key === 'string' && entry.fragment && typeof entry.fragment === 'object')
+          .sort((a, b) => (a.cachedAt || 0) - (b.cachedAt || 0))
+          .forEach(entry => {
+            const normalized = normalizeFragmentForCache(entry.fragment, entry.cachedAt);
+            if (!normalized) return;
+            spaCache.set(entry.key, normalized);
+            hydrated = true;
+          });
+        pruneSpaCache(SPA_CACHE_MAX_ENTRIES);
+        if (hydrated) {
+          persistSpaCache();
+        }
+      } catch (error) {
+        // Ignore hydration errors
+      }
+    }
+  
     function parsePageFragment(html, url) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
@@ -2875,8 +2979,16 @@
     }
 
     function cacheFragment(cacheKey, fragment) {
+      hydrateSpaCache();
       if (fragment) {
-        spaCache.set(cacheKey, fragment);
+        const cachedAt = Date.now();
+        fragment.cachedAt = cachedAt;
+        const normalized = normalizeFragmentForCache(fragment, cachedAt);
+        if (normalized) {
+          spaCache.set(cacheKey, normalized);
+          pruneSpaCache(SPA_CACHE_MAX_ENTRIES);
+          persistSpaCache();
+        }
         if (fragment.page) {
           const maybePrefetch = runPagePrefetch(fragment.page);
           if (maybePrefetch && typeof maybePrefetch.then === 'function') {
@@ -2903,6 +3015,7 @@
 
     function schedulePrefetch(url) {
       const cacheKey = getCacheKey(url);
+      hydrateSpaCache();
       if (!url || spaCache.has(cacheKey)) {
         return Promise.resolve();
       }
@@ -2932,11 +3045,24 @@
       const links = Array.from(document.querySelectorAll('.sidebar .sidebar-item[href^="/"]'));
       const urls = Array.from(new Set(links.map(link => link.getAttribute('href')).filter(Boolean)));
       const queuePrefetch = () => {
-        let chain = Promise.resolve();
-        for (const url of urls) {
-          chain = chain.then(() => schedulePrefetch(url));
+        if (urls.length === 0) {
+          return Promise.resolve();
         }
-        return chain;
+
+        const maxConcurrency = Math.min(4, urls.length);
+        let nextIndex = 0;
+
+        const runNext = () => {
+          if (nextIndex >= urls.length) {
+            return Promise.resolve();
+          }
+
+          const url = urls[nextIndex++];
+          return schedulePrefetch(url).then(runNext);
+        };
+
+        const workers = Array.from({ length: maxConcurrency }, () => runNext());
+        return Promise.all(workers);
       };
 
       const sequence = 'requestIdleCallback' in window
@@ -2973,10 +3099,11 @@
     }
     
     function setupSidebarSPALinks() {
+      hydrateSpaCache();
       document.querySelectorAll('.sidebar .sidebar-item').forEach(link => {
         if (link.tagName !== 'A') return;
         if (link.dataset.spaBound === 'true') return;
-        link.dataset.spaBound = 'true';  
+        link.dataset.spaBound = 'true';
         
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
@@ -3046,12 +3173,18 @@
 
     // Initial setup
     window.addEventListener('DOMContentLoaded', () => {
+      hydrateSpaCache();
       enableDropdowns();
       window.initializeProfileDropdown?.();
       highlightActivePage();
       tagInitialPageAssets();
       setupSidebarSPALinks();
-      prefetchSidebarRoutes();
+      const prefetchSequence = prefetchSidebarRoutes();
+      if (prefetchSequence && typeof prefetchSequence.finally === 'function') {
+        prefetchSequence.finally(() => persistSpaCache());
+      } else {
+        persistSpaCache();
+      }
       window.initializeNotificationsPanel?.();
       setTimeout(reinitializePageScripts, 50);
     });
