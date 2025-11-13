@@ -49,6 +49,8 @@ def test_generate_session_token_success(monkeypatch):
 
 def test_check_token_valid_refreshes(monkeypatch):
     def fake_renew(**kwargs):  # noqa: ANN001
+        assert kwargs["api_key"] == "app-id"
+        assert kwargs["api_secret"] == "app-secret"
         return {
             "accessToken": "new-access",
             "expiryTime": "2030-01-01T00:00:00Z",
@@ -100,13 +102,36 @@ def test_renew_token_sends_json_body(monkeypatch):
     assert payload["accessToken"] == "renewed"
     assert captured["url"] == "https://example.com/v2/RenewToken"
     assert captured["timeout"] == 5.0
-    assert captured["json"] == {"clientId": "CID"}
+    assert captured["json"] == {"clientId": "CID", "dhanClientId": "CID"}
     assert captured["headers"] == {
         "access-token": "token-123",
         "dhanClientId": "CID",
+        "clientId": "CID",
         "Content-Type": "application/json",
     }
 
+
+
+
+def test_renew_token_includes_optional_auth_headers(monkeypatch):
+    captured = {}
+
+    def fake_post(url, **kwargs):  # noqa: ANN001
+        captured["headers"] = kwargs.get("headers")
+        return DummyResponse({"accessToken": "renewed", "expiryTime": "2030-01-01T00:00:00Z"})
+
+    monkeypatch.setattr(dhan_auth.requests, "post", fake_post)
+
+    dhan_auth.renew_token(
+        access_token="token-123",
+        client_id="CID",
+        api_key="app-id",
+        api_secret="app-secret",
+    )
+
+    assert captured["headers"]["app_id"] == "app-id"
+    assert captured["headers"]["app_secret"] == "app-secret"
+    assert captured["headers"]["clientId"] == "CID"
 
 
 
@@ -143,7 +168,9 @@ def test_broker_trims_credentials_and_headers(monkeypatch):
     assert broker.headers["access-token"] == "refreshed-token"
     assert broker.persist_credentials["access_token"] == "refreshed-token"
     assert broker.token_expiry is not None and broker.token_expiry.startswith("2031-01-01")
-    assert broker.dhan_client_name == " Trader One "
+    assert broker.dhan_client_name == "Trader One"
 
     assert captured["access_token"] == "token-abc"
     assert captured["client_id"] == "CID123"
+    assert captured["api_key"] == "app-id"
+    assert captured["api_secret"] == "app-secret"
