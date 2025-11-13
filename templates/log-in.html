@@ -1,822 +1,359 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Sign In - Xclusive Money</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background-color: #ffffff;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 448px;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .icon-circle {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-    }
-
-    .icon-circle.primary {
-      background-color: rgba(59, 130, 246, 0.2);
-    }
-
-    .icon-circle.success {
-      background-color: rgba(34, 197, 94, 0.2);
-    }
-
-    .icon-circle svg {
-      width: 40px;
-      height: 40px;
-    }
-
-    .title {
-      font-size: 28px;
-      font-weight: bold;
-      color: #0f172a;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-
-    .subtitle a {
-      color: #3b82f6;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .subtitle a:hover {
-      text-decoration: underline;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    .label {
-      display: block;
-      font-size: 14px;
-      font-weight: 500;
-      color: #64748b;
-      margin-bottom: 8px;
-    }
-
-    .input-wrapper {
-      position: relative;
-    }
-
-    .input {
-      width: 100%;
-      height: 40px;
-      padding: 8px 12px;
-      font-size: 14px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      background-color: #ffffff;
-      color: #0f172a;
-      transition: all 0.2s;
-    }
-
-    .input:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .input::placeholder {
-      color: #94a3b8;
-    }
-
-    .input-with-icon {
-      padding-right: 40px;
-    }
-
-    .input-icon {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: #64748b;
-      transition: color 0.2s;
-    }
-
-    .input-icon:hover {
-      color: #0f172a;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .country-select {
-      width: 100px;
-      height: 40px;
-      padding: 8px 12px;
-      font-size: 14px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      background-color: #ffffff;
-      color: #0f172a;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .country-select:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .input-type-toggle {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .toggle-btn {
-      flex: 1;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      background-color: #ffffff;
-      color: #64748b;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .toggle-btn.active {
-      background-color: #3b82f6;
-      color: #ffffff;
-      border-color: #3b82f6;
-    }
-
-    .toggle-btn:hover:not(.active) {
-      background-color: #f8fafc;
-    }
-
-    .button {
-      width: 100%;
-      height: 48px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 12px;
-    }
-
-    .button-primary {
-      background-color: #3b82f6;
-      color: #ffffff;
-    }
-
-    .button-primary:hover {
-      background-color: #2563eb;
-    }
-
-    .button-secondary {
-      background-color: #f1f5f9;
-      color: #0f172a;
-    }
-
-    .button-secondary:hover {
-      background-color: #e2e8f0;
-    }
-
-    .text-link {
-      display: block;
-      text-align: center;
-      font-size: 14px;
-      color: #0f172a;
-      text-decoration: none;
-      margin-top: 12px;
-      transition: color 0.2s;
-    }
-
-    .text-link:hover {
-      color: #3b82f6;
-    }
-
-    .forgot-link {
-      text-align: left;
-      margin-bottom: 16px;
-    }
-
-    .forgot-link a {
-      font-size: 14px;
-      color: #3b82f6;
-      text-decoration: none;
-    }
-
-    .forgot-link a:hover {
-      text-decoration: underline;
-    }
-
-    .otp-container {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin: 24px 0;
-    }
-
-    .otp-input {
-      width: 48px;
-      height: 48px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 600;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      background-color: #ffffff;
-      color: #0f172a;
-      transition: all 0.2s;
-    }
-
-    .otp-input:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .actions-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 14px;
-      margin-top: 16px;
-    }
-
-    .actions-row button {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      font-size: 14px;
-      transition: color 0.2s;
-    }
-
-    .actions-row .back-btn {
-      color: #0f172a;
-    }
-
-    .actions-row .back-btn:hover {
-      color: #3b82f6;
-    }
-
-    .actions-row .resend-btn {
-      color: #3b82f6;
-    }
-
-    .actions-row .resend-btn:hover {
-      text-decoration: underline;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 16px 24px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #ffffff;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s;
-      z-index: 1000;
-      display: none;
-    }
-
-    .toast.show {
-      display: block;
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .toast.success {
-      background-color: #22c55e;
-    }
-
-    .toast.error {
-      background-color: #ef4444;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    @media (max-width: 640px) {
-      .title {
-        font-size: 24px;
-      }
-
-      .otp-input {
-        width: 42px;
-        height: 42px;
-        font-size: 18px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Xclusive Money</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: hsl(240, 20%, 97%);
+            color: hsl(240, 10%, 15%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 28rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: hsl(240, 10%, 15%);
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: hsl(240, 4%, 46%);
+        }
+        
+        .link {
+            color: hsl(250, 70%, 60%);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        label {
+            color: hsl(240, 4%, 46%);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        select, input {
+            padding: 0.625rem 0.75rem;
+            border: 1px solid hsl(240, 6%, 90%);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        select {
+            width: 7rem;
+        }
+        
+        input {
+            flex: 1;
+            width: 100%;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: hsl(250, 70%, 60%);
+            box-shadow: 0 0 0 3px hsla(250, 70%, 60%, 0.1);
+        }
+        
+        .password-wrapper {
+            position: relative;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: hsl(240, 4%, 46%);
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+        
+        .toggle-password:hover {
+            color: hsl(240, 10%, 15%);
+        }
+        
+        .forgot-password {
+            text-align: left;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: hsl(250, 70%, 60%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: hsl(250, 70%, 55%);
+        }
+        
+        .btn-secondary {
+            background: hsl(240, 5%, 96%);
+            color: hsl(240, 10%, 15%);
+        }
+        
+        .btn-secondary:hover {
+            background: hsl(240, 5%, 92%);
+        }
+        
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: hsl(142, 76%, 36%);
+        }
+        
+        .toast.error {
+            background: hsl(0, 72%, 51%);
+        }
+        
+        .toast.show {
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+        
+        @media (min-width: 640px) {
+            h1 {
+                font-size: 2.25rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Password Login Screen -->
-    <div id="passwordScreen">
-      <div class="header">
-        <h1 class="title">Sign in to Xclusive Money</h1>
-        <p class="subtitle">
-          New user?
-          <a href="{{ url_for('auth.signup') }}">Create an account</a>
-        </p>
-      </div>
-
-      <form id="passwordForm" method="post" action="{{ url_for('auth.login') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if next %}
-        <input type="hidden" name="next" id="nextField" value="{{ next }}">
-        {% endif %}
-        <div class="form-group">
-          <label class="label">Email or Mobile</label>
-          <div class="input-type-toggle">
-            <button type="button" class="toggle-btn active" id="emailToggle" onclick="switchToEmail()">Email</button>
-            <button type="button" class="toggle-btn" id="mobileToggle" onclick="switchToMobile()">Mobile</button>
-          </div>
-
-          <!-- Email Input -->
-          <div id="emailInput">
-            <input
-              type="email"
-              class="input"
-              id="email"
-              name="email"
-              placeholder="Enter your email"
-              autocomplete="email"
-              required
-            />
-          </div>
-
-          <!-- Mobile Input -->
-          <div id="mobileInput" class="hidden">
-            <div class="input-row">
-              <select class="country-select" id="countryCode" name="country_code" aria-label="Country code">
-                <option value="+91">+91</option>
-                <option value="+1">+1</option>
-                <option value="+44">+44</option>
-                <option value="+61">+61</option>
-              </select>
-              <input
-                type="tel"
-                class="input"
-                id="mobile"
-                name="mobile"
-                placeholder="XXXXXXXXXX"
-                maxlength="10"
-                inputmode="numeric"
-                autocomplete="tel-national"
-              />
+    <div class="container">
+        <div class="header">
+            <h1>Sign in to Xclusive Money</h1>
+            <p class="subtitle">
+                New user? 
+                <a href="{{ url_for('auth.signup') }}" class="link">Create an account</a>
+            </p>
+        </div>
+        {% set selected_code = request.form.get('country_code', '+91') %}
+        <form class="form" id="signInForm" method="post" action="{{ url_for('auth.login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if next %}
+            <input type="hidden" name="next" id="nextField" value="{{ next }}">
+            {% endif %}
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="you@example.com"
+                    value="{{ request.form.get('email', '') }}"
+                    autocomplete="email"
+                />
             </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="label" for="password">Password</label>
-          <div class="input-wrapper">
-            <input
-              type="password"
-              class="input input-with-icon"
-              id="password"
-              name="password"
-              placeholder="Enter your password"
-              autocomplete="current-password"
-              required
-            />
-            <span class="input-icon" onclick="togglePassword('password', 'passwordIcon')">
-              <svg id="passwordIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            </span>
-          </div>
-        </div>
-
-        <div class="forgot-link">
-          <a href="{{ url_for('auth.request_password_reset') }}">Forgot password?</a>
-        </div>
-
-        <button type="submit" class="button button-primary">Login</button>
-
-        <button type="button" class="button button-secondary" onclick="showOtpScreen()">Login with OTP</button>
-      </form>
-    </div>
-
-    <!-- OTP Phone/Email Screen -->
-    <div id="otpPhoneScreen" class="hidden">
-      <div class="header">
-        <div class="icon-circle primary">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-          </svg>
-        </div>
-        <h1 class="title">Enter your details!</h1>
-        <p class="subtitle">
-          We will send a 6-digit OTP to verify your identity.
-        </p>
-      </div>
-
-      <form id="otpPhoneForm">
-        <div class="form-group">
-          <label class="label">Email or Mobile</label>
-          <div class="input-type-toggle">
-            <button type="button" class="toggle-btn active" id="otpEmailToggle" onclick="switchOtpToEmail()">Email</button>
-            <button type="button" class="toggle-btn" id="otpMobileToggle" onclick="switchOtpToMobile()">Mobile</button>
-          </div>
-
-          <!-- Email Input for OTP -->
-          <div id="otpEmailInput">
-            <input
-              type="email"
-              class="input"
-              id="otpEmail"
-              placeholder="Enter your email"
-              autocomplete="email"
-              required
-            />
-          </div>
-
-          <!-- Mobile Input for OTP -->
-          <div id="otpMobileInput" class="hidden">
-            <div class="input-row">
-              <select class="country-select" id="otpCountryCode" aria-label="Country code">
-                <option value="+91">+91</option>
-                <option value="+1">+1</option>
-                <option value="+44">+44</option>
-                <option value="+61">+61</option>
-              </select>
-              <input
-                type="tel"
-                class="input"
-                id="otpMobile"
-                placeholder="XXXXXXXXXX"
-                maxlength="10"
-                inputmode="numeric"
-                autocomplete="tel-national"
-              />
+            <div class="form-group">
+                <label for="phone">mobile</label>
+                <div class="input-row">
+                    <select id="countryCode" name="country_code">
+                        <option value="+1" {{ '+1' == selected_code and 'selected' or '' }}>🇺🇸 +1</option>
+                        <option value="+44" {{ '+44' == selected_code and 'selected' or '' }}>🇬🇧 +44</option>
+                        <option value="+91" {{ '+91' == selected_code and 'selected' or '' }}>🇮🇳 +91</option>
+                        <option value="+86" {{ '+86' == selected_code and 'selected' or '' }}>🇨🇳 +86</option>
+                        <option value="+81" {{ '+81' == selected_code and 'selected' or '' }}>🇯🇵 +81</option>
+                        <option value="+82" {{ '+82' == selected_code and 'selected' or '' }}>🇰🇷 +82</option>
+                        <option value="+61" {{ '+61' == selected_code and 'selected' or '' }}>🇦🇺 +61</option>
+                        <option value="+49" {{ '+49' == selected_code and 'selected' or '' }}>🇩🇪 +49</option>
+                        <option value="+33" {{ '+33' == selected_code and 'selected' or '' }}>🇫🇷 +33</option>
+                        <option value="+39" {{ '+39' == selected_code and 'selected' or '' }}>🇮🇹 +39</option>
+                    </select>
+                    <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        placeholder="XXXXXXXXXX"
+                        maxlength="10"
+                        value="{{ request.form.get('phone', '') }}"
+                        autocomplete="tel"
+                    />
+                </div>
             </div>
-          </div>
-        </div>
-
-        <button type="submit" class="button button-primary">Send OTP</button>
-
-        <a href="#" class="text-link" onclick="showPasswordScreen(); return false;">‹ Return to sign in</a>
-      </form>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="password-wrapper">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        placeholder="Enter your password" 
+                        required
+                    />
+                    <button type="button" class="toggle-password" onclick="togglePassword()">
+                        <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="forgot-password">
+                <a href="{{ url_for('auth.request_password_reset') }}" class="link">Forgot password?</a>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Login</button>
+            
+            <a href="{{ url_for('auth.login_otp') }}" class="btn btn-secondary">Login with OTP</a>
+        </form>
     </div>
-
-    <!-- OTP Verify Screen -->
-    <div id="otpVerifyScreen" class="hidden">
-      <div class="header">
-        <div class="icon-circle success">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-          </svg>
-        </div>
-        <h1 class="title">Verify OTP</h1>
-        <p class="subtitle" id="otpSentTo">
-          Enter the 6-digit code sent to your contact
-        </p>
-      </div>
-
-      <form id="otpVerifyForm">
-        <div class="form-group">
-          <label class="label">6-digit OTP</label>
-          <div class="otp-container">
-            <input type="text" class="otp-input" maxlength="1" id="otp1" onkeyup="moveToNext(this, 'otp2')" onkeydown="moveToPrev(event, this, null)">
-            <input type="text" class="otp-input" maxlength="1" id="otp2" onkeyup="moveToNext(this, 'otp3')" onkeydown="moveToPrev(event, this, 'otp1')">
-            <input type="text" class="otp-input" maxlength="1" id="otp3" onkeyup="moveToNext(this, 'otp4')" onkeydown="moveToPrev(event, this, 'otp2')">
-            <input type="text" class="otp-input" maxlength="1" id="otp4" onkeyup="moveToNext(this, 'otp5')" onkeydown="moveToPrev(event, this, 'otp3')">
-            <input type="text" class="otp-input" maxlength="1" id="otp5" onkeyup="moveToNext(this, 'otp6')" onkeydown="moveToPrev(event, this, 'otp4')">
-            <input type="text" class="otp-input" maxlength="1" id="otp6" onkeydown="moveToPrev(event, this, 'otp5')">
-          </div>
-        </div>
-
-        <button type="submit" class="button button-primary">Verify &amp; Login</button>
-
-        <div class="actions-row">
-          <button type="button" class="back-btn" onclick="showOtpPhoneScreen()">‹ Change contact</button>
-          <button type="button" class="resend-btn" onclick="resendOtp()">Resend OTP</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast" class="toast"></div>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-  <script>
-    window.serverMessages = {{ messages | tojson | safe }};
-  </script>
-  {% endwith %}
-
-  <script>
-    let currentInputType = 'email';
-    let otpInputType = 'email';
-    let otpContact = '';
-    const loginEndpoint = {{ url_for('auth.login') | tojson }};
-    const nextValue = {{ (next or '') | tojson }};
-    const defaultRedirect = {{ url_for('summary') | tojson }};
-
-    // Toggle between email and mobile for password login
-    function switchToEmail() {
-      currentInputType = 'email';
-      document.getElementById('emailToggle').classList.add('active');
-      document.getElementById('mobileToggle').classList.remove('active');
-      document.getElementById('emailInput').classList.remove('hidden');
-      document.getElementById('mobileInput').classList.add('hidden');
-    }
-
-    function switchToMobile() {
-      currentInputType = 'mobile';
-      document.getElementById('mobileToggle').classList.add('active');
-      document.getElementById('emailToggle').classList.remove('active');
-      document.getElementById('mobileInput').classList.remove('hidden');
-      document.getElementById('emailInput').classList.add('hidden');
-    }
-
-    // Toggle between email and mobile for OTP login
-    function switchOtpToEmail() {
-      otpInputType = 'email';
-      document.getElementById('otpEmailToggle').classList.add('active');
-      document.getElementById('otpMobileToggle').classList.remove('active');
-      document.getElementById('otpEmailInput').classList.remove('hidden');
-      document.getElementById('otpMobileInput').classList.add('hidden');
-    }
-
-    function switchOtpToMobile() {
-      otpInputType = 'mobile';
-      document.getElementById('otpMobileToggle').classList.add('active');
-      document.getElementById('otpEmailToggle').classList.remove('active');
-      document.getElementById('otpMobileInput').classList.remove('hidden');
-      document.getElementById('otpEmailInput').classList.add('hidden');
-    }
-
-    // Password toggle
-    function togglePassword(inputId, iconId) {
-      const input = document.getElementById(inputId);
-      const icon = document.getElementById(iconId);
-
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-      } else {
-        input.type = 'password';
-        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-      }
-    }
-
-    // Screen navigation
-    function showPasswordScreen() {
-      document.getElementById('passwordScreen').classList.remove('hidden');
-      document.getElementById('otpPhoneScreen').classList.add('hidden');
-      document.getElementById('otpVerifyScreen').classList.add('hidden');
-    }
-
-    function showOtpScreen() {
-      document.getElementById('passwordScreen').classList.add('hidden');
-      document.getElementById('otpPhoneScreen').classList.remove('hidden');
-      document.getElementById('otpVerifyScreen').classList.add('hidden');
-    }
-
-    function showOtpPhoneScreen() {
-      document.getElementById('passwordScreen').classList.add('hidden');
-      document.getElementById('otpPhoneScreen').classList.remove('hidden');
-      document.getElementById('otpVerifyScreen').classList.add('hidden');
-    }
-
-    function showOtpVerifyScreen() {
-      document.getElementById('passwordScreen').classList.add('hidden');
-      document.getElementById('otpPhoneScreen').classList.add('hidden');
-      document.getElementById('otpVerifyScreen').classList.remove('hidden');
-    }
-
-    // OTP input navigation
-    function moveToNext(current, nextId) {
-      if (current.value.length === 1 && nextId) {
-        document.getElementById(nextId).focus();
-      }
-    }
-
-    function moveToPrev(event, current, prevId) {
-      if (event.key === 'Backspace' && current.value.length === 0 && prevId) {
-        document.getElementById(prevId).focus();
-      }
-    }
-
-    // Toast notification
-    function showToast(message, type) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.className = `toast ${type} show`;
-
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
-    }
-
-    function handleServerMessages() {
-      if (Array.isArray(window.serverMessages)) {
-        window.serverMessages.forEach((message) => {
-          if (Array.isArray(message) && message.length === 2) {
-            const [category, text] = message;
-            showToast(text, category === 'error' ? 'error' : 'success');
-          }
-        });
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', handleServerMessages);
-
-    // Password form submission
-    document.getElementById('passwordForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-      const password = document.getElementById('password').value.trim();
-
-      if (currentInputType === 'email') {
-        const email = document.getElementById('email').value.trim();
-        if (!email || !email.includes('@')) {
-          showToast('Please enter a valid email address', 'error');
-          return;
-        }
-        if (!password) {
-          showToast('Please enter your password', 'error');
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('csrf_token', csrfToken);
-        formData.append('email', email);
-        formData.append('password', password);
-        if (nextValue) {
-          formData.append('next', nextValue);
-        }
-
-        try {
-          const response = await fetch(loginEndpoint, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin',
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
+    
+    <div id="toast" class="toast"></div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    <script>
+        window.serverMessages = {{ messages | tojson | safe }};
+    </script>
+    {% endwith %}
+    
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
             }
-          });
-
-          if (response.redirected) {
-            showToast('Login successful!', 'success');
+        }
+        
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
             setTimeout(() => {
-              window.location.href = response.url;
-            }, 1200);
-            return;
-          }
-
-          const text = await response.text();
-          if (text.includes('Invalid credentials')) {
-            showToast('Invalid credentials. Please try again.', 'error');
-          } else {
-            showToast('Unable to log in. Please try again.', 'error');
-          }
-        } catch (error) {
-          console.error(error);
-          showToast('An unexpected error occurred. Please try again.', 'error');
+                toast.className = 'toast';
+            }, 3000);
         }
-      } else {
-        const mobile = document.getElementById('mobile').value.trim();
-        if (!mobile || mobile.length < 10) {
-          showToast('Please enter a valid 10-digit mobile number', 'error');
-          return;
-        }
-        showToast('Mobile number login with password is not supported. Please use email or OTP login.', 'error');
-      }
-    });
+        
+        const phoneInput = document.getElementById('phone');
+        const emailInput = document.getElementById('email');
 
-    // OTP phone form submission
-    document.getElementById('otpPhoneForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      if (otpInputType === 'email') {
-        const email = document.getElementById('otpEmail').value.trim();
-        if (!email || !email.includes('@')) {
-          showToast('Please enter a valid email address', 'error');
-          return;
-        }
-        otpContact = email;
-        document.getElementById('otpSentTo').textContent = `Enter the 6-digit code sent to ${email}`;
-      } else {
-        const mobile = document.getElementById('otpMobile').value.trim();
-        const countryCode = document.getElementById('otpCountryCode').value;
-        if (!mobile || mobile.length < 10) {
-          showToast('Please enter a valid 10-digit mobile number', 'error');
-          return;
-        }
-        otpContact = countryCode + mobile;
-        document.getElementById('otpSentTo').textContent = `Enter the 6-digit code sent to ${countryCode}${mobile}`;
-      }
-
-      showToast('OTP sent successfully!', 'success');
-      showOtpVerifyScreen();
-      document.getElementById('otp1').focus();
-    });
-
-    // OTP verify form submission
-    document.getElementById('otpVerifyForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      const otp = document.getElementById('otp1').value +
-                  document.getElementById('otp2').value +
-                  document.getElementById('otp3').value +
-                  document.getElementById('otp4').value +
-                  document.getElementById('otp5').value +
-                  document.getElementById('otp6').value;
-
-      if (otp.length !== 6) {
-        showToast('Please enter the complete 6-digit OTP', 'error');
-        return;
-      }
-
-      showToast('Login successful!', 'success');
-      setTimeout(() => {
-        window.location.href = nextValue || defaultRedirect;
-      }, 1500);
-    });
-
-    // Resend OTP
-    function resendOtp() {
-      showToast('OTP resent successfully!', 'success');
-      for (let i = 1; i <= 6; i++) {
-        document.getElementById('otp' + i).value = '';
-      }
-      document.getElementById('otp1').focus();
-    }
-
-    // Only allow numbers in mobile and OTP inputs
-    const mobileInput = document.getElementById('mobile');
-    if (mobileInput) {
-      mobileInput.addEventListener('input', function() {
-        this.value = this.value.replace(/\D/g, '');
-      });
-    }
-
-    const otpMobileInput = document.getElementById('otpMobile');
-    if (otpMobileInput) {
-      otpMobileInput.addEventListener('input', function() {
-        this.value = this.value.replace(/\D/g, '');
-      });
-    }
-
-    for (let i = 1; i <= 6; i++) {
-      const otpField = document.getElementById('otp' + i);
-      if (otpField) {
-        otpField.addEventListener('input', function() {
-          this.value = this.value.replace(/\D/g, '');
+        phoneInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
         });
-      }
-    }
-  </script>
+
+        document.getElementById('signInForm').addEventListener('submit', function(e) {
+            const passwordInput = document.getElementById('password');
+            const phoneValue = phoneInput.value.trim();
+            const emailValue = emailInput.value.trim();
+
+            if (!phoneValue && !emailValue) {
+                e.preventDefault();
+                showToast('Please enter your email or phone number', 'error');
+                emailInput.focus();
+                return;
+            }
+
+            if (phoneValue && phoneValue.length < 10) {
+                e.preventDefault();
+                showToast('Please enter a valid phone number', 'error');
+                phoneInput.focus();
+                return;
+            }
+
+            if (!passwordInput.value.trim()) {
+                e.preventDefault();
+                showToast('Please enter your password', 'error');
+                passwordInput.focus();
+            }
+        });
+        
+        if (Array.isArray(window.serverMessages)) {
+            window.serverMessages.forEach(function(messageTuple) {
+                if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
+                    return;
+                }
+                const category = messageTuple[0];
+                const message = messageTuple[1];
+                const type = category === 'error' ? 'error' : 'success';
+                showToast(message, type);
+            });
+        }
+    </script>
 </body>
 </html>
