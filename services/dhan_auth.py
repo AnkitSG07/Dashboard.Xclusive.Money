@@ -155,7 +155,8 @@ def renew_token(
     headers: Dict[str, str] = {
         "access-token": token,
         "dhanClientId": client_identifier,
-        "clientId": client_identifier,
+        "client-id": client_identifier,
+        "client_id": client_identifier,
         "Content-Type": "application/json",
     }
     if api_key and api_secret:
@@ -166,7 +167,11 @@ def renew_token(
     # and newer clients expect it under both clientId and dhanClientId keys for
     # compatibility, so send both while still including the authentication
     # headers.
-    request_body = {"clientId": client_identifier, "dhanClientId": client_identifier}
+    request_body = {
+        "clientId": client_identifier,
+        "dhanClientId": client_identifier,
+        "client_id": client_identifier,
+    }
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
