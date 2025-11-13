@@ -1457,7 +1457,115 @@
 
     class DematStrategiesPage {
       constructor(root) {
+        this.root = null;
+        this.container = null;
+        this.searchInput = null;
+        this.statusFilter = null;
+        this.accountFilter = null;
+        this.createButton = null;
+        this.loadingMessage = null;
+        this.errorMessage = null;
+        this.emptyMessage = null;
+        this.editModal = null;
+        this.payloadModal = null;
+        this.editTitle = null;
+        this.nameInput = null;
+        this.typeSelect = null;
+        this.descriptionInput = null;
+        this.accountSelect = null;
+        this.saveButton = null;
+        this.payloadWebhook = null;
+        this.payloadCode = null;
+        this.payloadName = null;
+        this.logsModal = null;
+        this.logsTitle = null;
+        this.logsSubtitle = null;
+        this.logsContainer = null;
+        this.logsLoading = null;
+        this.logsEmpty = null;
+        this.state = {
+          strategies: [],
+          accounts: [],
+          filters: {
+            search: '',
+            searchRaw: '',
+            status: 'all',
+            account: ''
+          },
+          editing: null
+        };
+        this.accountIdMap = new Map();
+        this.accountClientMap = new Map();
+        this.accountVersion = 0;
+        this.isSaving = false;
+        this.webhookBase = '';
+        this.webhookToken = '';
+        this.logsRequestId = 0;
+        this.currentLogsStrategy = null;
+        this.hasLoaded = false;
+        this.isReloading = false;
+        this.boundEvents = [];
+        this.handleSearchInput = () => {
+          const value = this.searchInput?.value || '';
+          this.state.filters.searchRaw = value;
+          this.state.filters.search = value.trim().toLowerCase();
+          this.renderStrategies();
+        };
+        this.handleStatusFilterChange = () => {
+          this.state.filters.status = this.statusFilter?.value || 'all';
+          this.renderStrategies();
+        };
+        this.handleAccountFilterChange = () => {
+          this.state.filters.account = this.accountFilter?.value || '';
+          this.renderStrategies();
+        };
+        this.handleCreateButtonClick = () => {
+          window.location.href = '/create-alerts';
+        };
+        this.boundContainerClick = (event) => this.handleContainerClick(event);
+        this.handleCloseEditButton = () => this.closeEditModal();
+        this.handleClosePayloadButton = () => this.closePayloadModal();
+        this.handleCloseLogsButton = () => this.closeLogsModal();
+        this.handleEditModalClick = (event) => {
+          if (event.target === this.editModal) {
+            this.closeEditModal();
+          }
+        };
+        this.handlePayloadModalClick = (event) => {
+          if (event.target === this.payloadModal) {
+            this.closePayloadModal();
+            return;
+          }
+          const copyBtn = event.target.closest('.strategy-copy-icon-btn');
+          if (!copyBtn) {
+            return;
+          }
+          const target = copyBtn.dataset.copyTarget;
+          if (target === 'webhook') {
+            copyToClipboard(this.payloadWebhook?.textContent?.trim() || '');
+          } else if (target === 'payload') {
+            copyToClipboard(this.payloadCode?.textContent?.trim() || '');
+          }
+        };
+        this.handleLogsModalClick = (event) => {
+          if (event.target === this.logsModal) {
+            this.closeLogsModal();
+          }
+        };
+        this.handleGlobalKeydown = (event) => {
+          if (event.key === 'Escape') {
+            this.closeLogsModal();
+          }
+        };
+        this.attach(root);
+        this.reload();
+      }
+
+      captureDomReferences(root) {
         this.root = root;
+        if (!root) {
+          return;
+        }
         this.container = root.querySelector('#strategiesContainer');
         this.searchInput = root.querySelector('[data-strategy-search]');
         this.statusFilter = root.querySelector('[data-strategy-filter="status"]');
@@ -1483,125 +1591,107 @@
         this.logsContainer = document.getElementById('logsContainer');
         this.logsLoading = document.getElementById('logsLoading');
         this.logsEmpty = document.getElementById('logsEmpty');
-        this.state = {
-          strategies: [],
-          accounts: [],
-          filters: {
-            search: '',
-            searchRaw: '',
-            status: 'all',
-            account: ''
-          },
-          editing: null
-        };
-        this.accountIdMap = new Map();
-        this.accountClientMap = new Map();
-        this.accountVersion = 0;
-        this.isSaving = false;
-        this.webhookBase = root.dataset.webhookBase || '';
-        this.webhookToken = root.dataset.webhookToken || '';
-        this.logsRequestId = 0;
-        this.currentLogsStrategy = null;
-        this.handleGlobalKeydown = (event) => {
-          if (event.key === 'Escape') {
-            this.closeLogsModal();
-          }
-        };
+        const dataset = root.dataset || {};
+        if (dataset.webhookBase !== undefined) {
+          this.webhookBase = dataset.webhookBase || '';
+        }
+        if (dataset.webhookToken !== undefined) {
+          this.webhookToken = dataset.webhookToken || '';
+        }
         if (!this.webhookBase && this.webhookToken) {
           const origin = window.location.origin.replace(/\/$/, '');
           this.webhookBase = origin + '/webhook/' + this.webhookToken;
         }
+      }
+
+      registerEvent(target, eventName, handler) {
+        if (!target || !eventName || !handler) {
+          return;
+        }
+        target.addEventListener(eventName, handler);
+        this.boundEvents.push({ target, eventName, handler });
+      }
+
+      detachEvents() {
+        if (!Array.isArray(this.boundEvents) || !this.boundEvents.length) {
+          this.boundEvents = [];
+          return;
+        }
+        this.boundEvents.forEach(({ target, eventName, handler }) => {
+          try {
+            target.removeEventListener(eventName, handler);
+          } catch (error) {
+            // ignore cleanup errors
+          }
+        });
+        this.boundEvents = [];
+      }
+
+      attach(root) {
+        if (!root) {
+          return;
+        }
+        this.detachEvents();
+        this.captureDomReferences(root);
         this.bindEvents();
-        this.reload();
       }
 
       bindEvents() {
+        if (!Array.isArray(this.boundEvents)) {
+          this.boundEvents = [];
+        }
         if (this.searchInput) {
           this.searchInput.value = this.state.filters.searchRaw;
-          this.searchInput.addEventListener('input', () => {
-            const value = this.searchInput.value || '';
-            this.state.filters.searchRaw = value;
-            this.state.filters.search = value.trim().toLowerCase();
-            this.renderStrategies();
-          });
+          this.registerEvent(this.searchInput, 'input', this.handleSearchInput);
         }
 
         if (this.statusFilter) {
           this.statusFilter.value = this.state.filters.status;
-          this.statusFilter.addEventListener('change', () => {
-            this.state.filters.status = this.statusFilter.value || 'all';
-            this.renderStrategies();
-          });
+          this.registerEvent(this.statusFilter, 'change', this.handleStatusFilterChange);
         }
 
         if (this.accountFilter) {
-          this.accountFilter.addEventListener('change', () => {
-            this.state.filters.account = this.accountFilter.value || '';
-            this.renderStrategies();
-          });
+          this.accountFilter.value = this.state.filters.account;
+          this.registerEvent(this.accountFilter, 'change', this.handleAccountFilterChange);
         }
 
         if (this.createButton) {
-          this.createButton.addEventListener('click', () => {
-            window.location.href = '/create-alerts';
-          });
+          this.registerEvent(this.createButton, 'click', this.handleCreateButtonClick);
         }
 
         if (this.container) {
-          this.container.addEventListener('click', (event) => this.handleContainerClick(event));
+          this.registerEvent(this.container, 'click', this.boundContainerClick);
         }
 
         document.querySelectorAll('[data-close="edit"]').forEach(btn => {
-          btn.addEventListener('click', () => this.closeEditModal());
+          this.registerEvent(btn, 'click', this.handleCloseEditButton);
         });
 
         document.querySelectorAll('[data-close="payload"]').forEach(btn => {
-          btn.addEventListener('click', () => this.closePayloadModal());
+          this.registerEvent(btn, 'click', this.handleClosePayloadButton);
         });
 
         if (this.editModal) {
-          this.editModal.addEventListener('click', (event) => {
-            if (event.target === this.editModal) {
-              this.closeEditModal();
-            }
-          });
+          this.registerEvent(this.editModal, 'click', this.handleEditModalClick);
         }
 
         if (this.payloadModal) {
-          this.payloadModal.addEventListener('click', (event) => {
-            if (event.target === this.payloadModal) {
-              this.closePayloadModal();
-              return;
-            }
-            const copyBtn = event.target.closest('.strategy-copy-icon-btn');
-            if (!copyBtn) {
-              return;
-            }
-            const target = copyBtn.dataset.copyTarget;
-            if (target === 'webhook') {
-              copyToClipboard(this.payloadWebhook?.textContent?.trim() || '');
-            } else if (target === 'payload') {
-              copyToClipboard(this.payloadCode?.textContent?.trim() || '');
-            }
-          });
+          this.registerEvent(this.payloadModal, 'click', this.handlePayloadModalClick);
         }
 
         document.querySelectorAll('[data-close="logs"]').forEach(btn => {
-          btn.addEventListener('click', () => this.closeLogsModal());
+          this.registerEvent(btn, 'click', this.handleCloseLogsButton);
         });
 
         if (this.logsModal) {
-          this.logsModal.addEventListener('click', (event) => {
-            if (event.target === this.logsModal) {
-              this.closeLogsModal();
-            }
-          });
+          this.registerEvent(this.logsModal, 'click', this.handleLogsModalClick);
         }
 
-        document.addEventListener('keydown', this.handleGlobalKeydown);
+        this.registerEvent(document, 'keydown', this.handleGlobalKeydown);
       }
 
       async reload() {
+        this.isReloading = true;
         this.setLoading(true);
         this.showError();
         try {
@@ -1637,6 +1727,7 @@
           this.populateAccountFilters();
           const strategies = Array.isArray(strategiesPayload) ? strategiesPayload : [];
           this.state.strategies = strategies;
+          this.hasLoaded = true;
           this.renderStrategies();
         } catch (error) {
           console.error('Failed to load strategies', error);
@@ -1645,12 +1736,21 @@
             this.container.innerHTML = '';
           }
         } finally {
+          this.isReloading = false;
           this.setLoading(false);
         }
       }
 
       resume() {
         this.showError();
+        if (!this.hasLoaded) {
+          this.setLoading(true);
+          if (!this.isReloading) {
+            this.reload();
+          }
+          return;
+        }
+        this.populateAccountFilters();
         this.renderStrategies();
       }
 
@@ -2296,7 +2396,7 @@ ${responseText || ''}`);
 
       handleContainerClick(event) {
         const button = event.target.closest('[data-action]');
-        if (!button || !this.container.contains(button)) {
+        if (!button || !this.container || !this.container.contains(button)) {
           return;
         }
         const id = button.getAttribute('data-id');
@@ -2333,11 +2433,13 @@ ${responseText || ''}`);
         if (!root) {
           return;
         }
-        if (root.__dematStrategiesController) {
-          root.__dematStrategiesController.resume();
+        const existing = window.__dematStrategiesController;
+        if (existing) {
+          existing.attach(root);
+          existing.resume();
           return;
         }
-        root.__dematStrategiesController = new DematStrategiesPage(root);
+        window.__dematStrategiesController = new DematStrategiesPage(root);
       }
     
     window.pageScripts = window.pageScripts || {};
