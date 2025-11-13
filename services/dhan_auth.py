@@ -137,6 +137,8 @@ def renew_token(
     *,
     access_token: str,
     client_id: str,
+    api_key: Optional[str] = None,
+    api_secret: Optional[str] = None,
     api_base: str = API_BASE_URL,
     timeout: float = 10.0,
 ) -> Dict[str, Any]:
@@ -150,12 +152,16 @@ def renew_token(
     if not client_identifier:
         raise DhanAuthError("Client id required for token renewal")
 
-    headers = {
+    headers: Dict[str, str] = {
         "access-token": token,
         "dhanClientId": client_identifier,
         "clientId": client_identifier,
         "Content-Type": "application/json",
     }
+    if api_key and api_secret:
+        headers.update(
+            _auth_headers(str(api_key).strip(), str(api_secret).strip())
+        )
     # Dhan's RenewToken endpoint requires the client id in the JSON payload,
     # and newer clients expect it under both clientId and dhanClientId keys for
     # compatibility, so send both while still including the authentication
