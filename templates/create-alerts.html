@@ -507,6 +507,13 @@
 
     const BROKER_KEYS = ['dhan', 'aliceblue', 'angelone', 'iifl', 'kotak', 'upstox'];
 
+    if (!Array.isArray(window.cachedMasterAccounts)) {
+      window.cachedMasterAccounts = null;
+    }
+    if (!Array.isArray(window.cachedSymbols)) {
+      window.cachedSymbols = null;
+    }
+  
     const masterAccountsContainer = document.getElementById('masterAccountsContainer');
     const exchangeSelect = document.getElementById('exchange');
     const symbolTokenInput = document.getElementById('symbolToken');
@@ -807,6 +814,16 @@
       });
     }
 
+    function applyInitialAccountSelections() {
+      if (!masterAccountsContainer) {
+        return;
+      }
+      const selected = new Set(initialMasterAccounts.map(value => String(value)));
+      masterAccountsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = selected.has(cb.value);
+      });
+    }
+
     function renderAccounts(accounts) {
       if (!masterAccountsContainer) {
         return;
@@ -835,44 +852,77 @@
           </label>
         `;
       }).join('');
-      if (isEditMode && initialMasterAccounts.length) {
-        const selected = new Set(initialMasterAccounts.map(value => String(value)));
-        masterAccountsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          if (selected.has(cb.value)) {
-            cb.checked = true;
-          }
-        });
-      }
+      applyInitialAccountSelections();
       bindAccountCheckboxes();
+    }
+
+    let masterAccountsRequest = null;
+
+    function fetchAndRenderMasterAccounts() {
+      return fetchJson('/api/accounts?cache_only=1').then(payload => {
+        const accounts = Array.isArray(payload?.masters) ? payload.masters : Array.isArray(payload?.accounts) ? payload.accounts : [];
+        window.cachedMasterAccounts = accounts;
+        renderAccounts(accounts);
+        updateWebhookPreview();
+        return accounts;
+      }).catch(error => {
+        console.error('Failed to load accounts', error);
+        masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0; color: #ef4444;">Failed to load accounts. Please try again.</p>';
+        throw error;
+      });
     }
 
     function loadMasterAccounts() {
       if (!masterAccountsContainer) {
+        return Promise.resolve([]);
+      }
+
+      const cachedAccounts = Array.isArray(window.cachedMasterAccounts) ? window.cachedMasterAccounts : null;
+      if (cachedAccounts) {
+        renderAccounts(cachedAccounts);
+        updateWebhookPreview();
+      } else {
+        masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0;">Loading accounts...</p>';
+      }
+
+      if (!masterAccountsRequest) {
+        masterAccountsRequest = fetchAndRenderMasterAccounts().finally(() => {
+          masterAccountsRequest = null;
+        });
+      }
+
+      return masterAccountsRequest || Promise.resolve(cachedAccounts || []);
+    }
+
+    function hydrateSymbolMap(list) {
+      symbolMap = {};
+      if (!Array.isArray(list)) {
+        updateTokens();
         return;
       }
-      masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0;">Loading accounts...</p>';
-      fetchJson('/api/accounts?cache_only=1').then(payload => {
-        const accounts = Array.isArray(payload?.masters) ? payload.masters : Array.isArray(payload?.accounts) ? payload.accounts : [];
-        renderAccounts(accounts);
-        updateWebhookPreview();
-      }).catch(error => {
-        console.error('Failed to load accounts', error);
-        masterAccountsContainer.innerHTML = '<p class="strategy-form-hint" style="margin: 0; color: #ef4444;">Failed to load accounts. Please try again.</p>';
+      list.forEach(item => {
+        if (item?.symbol) {
+          symbolMap[item.symbol.toUpperCase()] = item;
+        }
       });
+      updateTokens();
     }
 
     function loadSymbols() {
-      fetchJson('/api/symbols').then(list => {
+      const cachedSymbols = Array.isArray(window.cachedSymbols) ? window.cachedSymbols : null;
+      if (cachedSymbols) {
+        hydrateSymbolMap(cachedSymbols);
+        return Promise.resolve(cachedSymbols);
+      }
+      return fetchJson('/api/symbols').then(list => {
         if (Array.isArray(list)) {
-          list.forEach(item => {
-            if (item?.symbol) {
-              symbolMap[item.symbol.toUpperCase()] = item;
-            }
-          });
-          updateTokens();
+          window.cachedSymbols = list;
+          hydrateSymbolMap(list);
         }
+        return list;
       }).catch(error => {
         console.warn('Unable to load symbol metadata', error);
+        return [];
       });
     }
 
@@ -916,6 +966,8 @@
         initialMasterAccounts = payloadObject.masterAccounts.map(value => String(value));
       }
 
+      applyInitialAccountSelections();
+ 
       if (payloadObject) {
         const exchangeValue = payloadObject.exchange;
         if (Array.isArray(exchangeValue)) {
@@ -1029,6 +1081,8 @@
         }
 
         applyPayloadToForm(payload, strategy);
+        applyInitialAccountSelections();
+        updateWebhookPreview(); 
       } catch (error) {
         console.error('Failed to load strategy for editing', error);
         window.alert('Unable to load strategy details. Returning to strategies list.');
@@ -1159,18 +1213,13 @@
     updateAlertMode();
     updateTokens();
     updateWebhookPreview();
+
     loadMasterAccounts();
 
     if (isEditMode) {
-      loadStrategyForEdit().then(() => {
-        loadMasterAccounts();
-      }).catch(() => {
-        loadMasterAccounts();
-      });
-    } else {
-      loadMasterAccounts();
+      loadStrategyForEdit();
     }
- 
+
     loadSymbols();
   };
 </script>
