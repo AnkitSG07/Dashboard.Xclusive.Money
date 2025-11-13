@@ -974,34 +974,23 @@ window.pageScripts["Add-Account"] = function() {
     section.innerHTML = `
       <label class="form-label">Dhan Login Flow</label>
       <p class="form-helper text-muted">
-        Launch the consent page and approve access. When Dhan redirects back with a token_id, the form fills automatically.
+        Submitting the Add Account form will open the Dhan consent window automatically. Complete the approval in the new tab
+        and return here—we'll restore your details and finish connecting as soon as the token arrives.
       </p>
-      <div class="dhan-consent-actions">
-        <div class="consent-buttons" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-          <button type="button" class="btn btn-outline" data-dhan-action="start">Start Login</button>
-          <div class="copy-field token-entry" style="flex:1 1 260px;">
-            <input class="form-input" name="dhan_token_id" type="text" placeholder="Paste token_id from Dhan" autocomplete="off">
-            <button type="button" class="btn btn-primary" data-dhan-action="complete">Complete Login</button>
-          </div>
-        </div>
-        <p class="form-helper text-muted" data-dhan-status>Complete login to fill the access token automatically.</p>
-      </div>
+      <p class="form-helper text-muted" data-dhan-status>We'll update the access token here once consent is complete.</p>
     `;
 
     container.appendChild(section);
 
     const accessInput = container.querySelector('input[name="access_token"]');
     if (accessInput && !accessInput.value) {
-      accessInput.placeholder = 'Filled after Complete Login';
+      accessInput.placeholder = 'Filled automatically after consent';
     }
     const expiryInput = container.querySelector('input[name="token_expiry"]');
     if (expiryInput && !expiryInput.value) {
       expiryInput.placeholder = 'Auto-filled when available';
     }
 
-    const startBtn = section.querySelector('[data-dhan-action="start"]');
-    const completeBtn = section.querySelector('[data-dhan-action="complete"]');
-    const tokenInput = section.querySelector('input[name="dhan_token_id"]');
     const statusEl = section.querySelector('[data-dhan-status]');
 
     const clientInput = container.querySelector('input[name="client_id"]');
@@ -1011,9 +1000,6 @@ window.pageScripts["Add-Account"] = function() {
 
     restoreDhanFormSnapshot(container);
   
-    if (dhanLoginState && tokenInput) {
-      tokenInput.value = dhanLoginState.tokenId || '';
-    }
     if (dhanLoginState && accessInput && dhanLoginState.accessToken) {
       accessInput.value = dhanLoginState.accessToken;
     }
@@ -1040,8 +1026,8 @@ window.pageScripts["Add-Account"] = function() {
       const apiSecret = getTrimmedValue(apiSecretInput);
 
       if (!clientId || !apiKey || !apiSecret) {
-        showToast('Enter Client ID, API Key, and API Secret before starting the Dhan login.', 'warning');
-        setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret to start the login.', 'warning');
+        showToast('Enter Client ID, API Key, and API Secret before we can launch the Dhan consent.', 'warning');
+        setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret so we can launch the consent flow.', 'warning');
         return false;
       }
 
@@ -1053,9 +1039,7 @@ window.pageScripts["Add-Account"] = function() {
       clearDhanLoginState();
       if (accessInput) accessInput.value = '';
       if (expiryInput) expiryInput.value = '';
-      if (tokenInput) tokenInput.value = '';
 
-      if (startBtn) startBtn.disabled = true;
       setDhanStatus(statusEl, 'Opening Dhan consent in a new tab...', 'info');
 
       try {
@@ -1074,9 +1058,7 @@ window.pageScripts["Add-Account"] = function() {
             markPendingDhanSubmission();
           }
           window.open(response.login_url, '_blank', 'noopener');
-          const successMessage = setPendingSubmit
-            ? 'Consent page opened. Complete the login on Dhan and we will finish connecting the account automatically.'
-            : 'Consent page opened. Approve access, copy the token_id shown by Dhan, paste it below, then click Complete Login.';
+          const successMessage = 'Consent page opened. Complete the approval on Dhan and return here to finish connecting automatically.';
           setDhanStatus(statusEl, successMessage, 'success');
           showToast(successMessage, 'info');
           return true;
@@ -1089,18 +1071,18 @@ window.pageScripts["Add-Account"] = function() {
         setDhanStatus(statusEl, error.message || 'Failed to start Dhan login.', 'danger');
         showToast(`Failed to start Dhan login: ${error.message}`, 'error');
         return false;
-      } finally {
-        if (startBtn) startBtn.disabled = false;
       }
     };
 
     const runCompleteConsent = async (providedTokenId, options = {}) => {
       const { triggeredByCallback = false } = options;
-      const tokenId = (providedTokenId || getTrimmedValue(tokenInput)).trim();
+      const tokenId = (providedTokenId || '').trim();
 
       if (!tokenId) {
-        showToast('Paste the token_id from the Dhan consent page before completing login.', 'warning');
-        setDhanStatus(statusEl, 'Paste the token_id from Dhan to complete login.', 'warning');
+        if (!triggeredByCallback) {
+          showToast('Waiting for the token from Dhan. Complete the consent in the opened tab.', 'warning');
+          setDhanStatus(statusEl, 'Waiting for the token from Dhan to finish connecting your account.', 'warning');
+        }
         return null;
       }
 
@@ -1123,11 +1105,6 @@ window.pageScripts["Add-Account"] = function() {
 
       persistDhanFormSnapshot(container);
 
-      if (tokenInput) {
-        tokenInput.value = tokenId;
-      }
-
-      if (completeBtn) completeBtn.disabled = true;
       setDhanStatus(statusEl, 'Finishing consent flow and fetching token...', 'info');
       if (triggeredByCallback) {
         showToast('Completing Dhan login with the returned token...', 'info');
@@ -1201,7 +1178,6 @@ window.pageScripts["Add-Account"] = function() {
         setDhanStatus(statusEl, error.message || 'Failed to complete Dhan login.', 'danger');
         showToast(`Failed to complete Dhan login: ${error.message}`, 'error');
       } finally {
-        if (completeBtn) completeBtn.disabled = false;
         if (completedSuccessfully) {
           const shouldAutoSubmit = consumePendingDhanSubmission();
           if (shouldAutoSubmit && !editingAccountId) {
@@ -1224,36 +1200,15 @@ window.pageScripts["Add-Account"] = function() {
       return responsePayload;
     };
 
-    if (startBtn) {
-      registerListener(startBtn, 'click', () => {
-        runStartConsent().catch(error => {
-          console.error('Failed to initiate Dhan consent:', error);
-        });
-      });
-    }
-
-    if (completeBtn) {
-      registerListener(completeBtn, 'click', () => {
-        runCompleteConsent().catch(error => {
-          console.error('Failed to complete Dhan consent:', error);
-        });
-      });
-    }
-
     dhanConsentController = {
       container,
       start: runStartConsent,
       complete: runCompleteConsent,
-      statusEl,
-      tokenInput
     };
 
     const tokenFromCallback = pendingDhanTokenId;
     if (tokenFromCallback) {
       pendingDhanTokenId = null;
-      if (tokenInput) {
-        tokenInput.value = tokenFromCallback;
-      }
       if (statusEl) {
         setDhanStatus(statusEl, 'Completing Dhan login with the returned token...', 'info');
       }
@@ -2509,12 +2464,12 @@ window.pageScripts["Add-Account"] = function() {
         if (!editingAccountId && !hasAccessToken) {
           const controller = dhanConsentController;
           if (controller && typeof controller.start === 'function') {
-            showToast('Starting the Dhan consent flow. Complete the login and we will finish connecting automatically.', 'info');
+            showToast('Starting the Dhan consent flow. Complete the approval and we will finish connecting automatically.', 'info');
             controller
               .start({ setPendingSubmit: true })
               .catch(error => console.error('Failed to start Dhan consent during submit:', error));
           } else {
-            showToast('Select Dhan and start the consent login to fetch an access token before adding the account.', 'warning');
+            showToast('Select Dhan and submit again to launch the consent flow automatically.', 'warning');
           }
           return;
         }
