@@ -153,6 +153,7 @@ def renew_token(
     headers = {
         "access-token": token,
         "dhanClientId": client_identifier,
+        "clientId": client_identifier,
         "Content-Type": "application/json",
     }
     # Dhan's RenewToken endpoint requires the client id in the JSON payload,
