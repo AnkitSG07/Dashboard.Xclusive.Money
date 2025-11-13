@@ -5421,12 +5421,14 @@ def reconnect_account():
         if (acc_db.broker or '').lower() == 'dhan':
             access_token = new_creds.get('access_token')
             if access_token:
+                api_key = new_creds.get('api_key') or new_creds.get('app_id')
+                api_secret = new_creds.get('api_secret') or new_creds.get('app_secret')
                 try:
                     renewal = dhan_auth.renew_token(
                         access_token=access_token,
                         client_id=client_id,
-                        api_key=new_creds.get('api_key'),
-                        api_secret=new_creds.get('api_secret'),
+                        api_key=api_key,
+                        api_secret=api_secret,
                     )
                 except dhan_auth.DhanAuthError as exc:
                     logger.warning(
@@ -5817,6 +5819,8 @@ def dhan_token_renew():
     data = request.get_json() or {}
     access_token = data.get('access_token')
     client_id = data.get('client_id')
+    api_key = data.get('api_key') or data.get('app_id')
+    api_secret = data.get('api_secret') or data.get('app_secret')
 
     if not access_token or not client_id:
         return jsonify({"error": "Missing access_token or client_id"}), 400
@@ -5825,8 +5829,9 @@ def dhan_token_renew():
         payload = dhan_auth.renew_token(
             access_token=access_token,
             client_id=str(client_id),
-            api_key=data.get('api_key'),
-            api_secret=data.get('api_secret'),
+            api_key=api_key,
+            api_secret=api_secret,
+
         )
     except dhan_auth.DhanAuthError as exc:
         return jsonify({"error": str(exc)}), 400
