@@ -5425,6 +5425,8 @@ def reconnect_account():
                     renewal = dhan_auth.renew_token(
                         access_token=access_token,
                         client_id=client_id,
+                        api_key=new_creds.get('api_key'),
+                        api_secret=new_creds.get('api_secret'),
                     )
                 except dhan_auth.DhanAuthError as exc:
                     logger.warning(
@@ -5823,6 +5825,8 @@ def dhan_token_renew():
         payload = dhan_auth.renew_token(
             access_token=access_token,
             client_id=str(client_id),
+            api_key=data.get('api_key'),
+            api_secret=data.get('api_secret'),
         )
     except dhan_auth.DhanAuthError as exc:
         return jsonify({"error": str(exc)}), 400
