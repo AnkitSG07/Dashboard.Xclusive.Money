@@ -156,8 +156,10 @@ def renew_token(
         "Content-Type": "application/json",
     }
     # Dhan's RenewToken endpoint requires the client id in the JSON payload,
-    # so send it explicitly while still including the authentication headers.
-    request_body = {"clientId": client_identifier}
+    # and newer clients expect it under both clientId and dhanClientId keys for
+    # compatibility, so send both while still including the authentication
+    # headers.
+    request_body = {"clientId": client_identifier, "dhanClientId": client_identifier}
     try:
         response = requests.post(
             f"{api_base.rstrip('/')}/RenewToken",
