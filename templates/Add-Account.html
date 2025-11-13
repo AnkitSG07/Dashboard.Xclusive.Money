@@ -357,6 +357,159 @@ window.pageScripts["Add-Account"] = function() {
     persistDhanLoginState();
   }
 
+  const DHAN_FORM_STORAGE_KEY = 'add-account:dhan-form';
+  const DHAN_PENDING_SUBMIT_KEY = 'add-account:dhan-pending-submit';
+  const DHAN_STORAGE_TTL_MS = 5 * 60 * 1000; // five minutes
+  const DHAN_FORM_FIELDS_TO_STORE = [
+    'username',
+    'client_id',
+    'api_key',
+    'api_secret',
+    'client_name',
+    'email',
+    'mobile'
+  ];
+
+  let pendingDhanTokenId = null;
+  let dhanConsentController = null;
+
+  function safeStorageGet(key) {
+    try {
+      return window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch (error) {
+      console.warn('Failed to read storage key', key, error);
+      return null;
+    }
+  }
+
+  function safeStorageSet(key, value) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (error) {
+      console.warn('Failed to persist storage key', key, error);
+    }
+  }
+
+  function safeStorageRemove(key) {
+    try {
+      if (window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.warn('Failed to remove storage key', key, error);
+    }
+  }
+
+  function isExpiredTimestamp(savedAt) {
+    if (typeof savedAt !== 'number') {
+      return true;
+    }
+    return Date.now() - savedAt > DHAN_STORAGE_TTL_MS;
+  }
+
+  function getPersistedDhanForm() {
+    const raw = safeStorageGet(DHAN_FORM_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      if (isExpiredTimestamp(parsed.savedAt)) {
+        safeStorageRemove(DHAN_FORM_STORAGE_KEY);
+        return null;
+      }
+      return parsed;
+    } catch (error) {
+      console.warn('Failed to parse stored Dhan form snapshot:', error);
+      safeStorageRemove(DHAN_FORM_STORAGE_KEY);
+      return null;
+    }
+  }
+
+  function persistDhanFormSnapshot(container) {
+    if (!container) {
+      return null;
+    }
+    const values = {};
+    DHAN_FORM_FIELDS_TO_STORE.forEach(name => {
+      const input = container.querySelector(`input[name="${CSS.escape(name)}"]`);
+      if (input && input.value) {
+        values[name] = input.value;
+      }
+    });
+    if (Object.keys(values).length === 0) {
+      safeStorageRemove(DHAN_FORM_STORAGE_KEY);
+      return null;
+    }
+    const snapshot = {
+      values,
+      savedAt: Date.now()
+    };
+    safeStorageSet(DHAN_FORM_STORAGE_KEY, JSON.stringify(snapshot));
+    return snapshot;
+  }
+
+  function restoreDhanFormSnapshot(container) {
+    if (!container) {
+      return null;
+    }
+    const snapshot = getPersistedDhanForm();
+    if (!snapshot || !snapshot.values || typeof snapshot.values !== 'object') {
+      return null;
+    }
+    Object.entries(snapshot.values).forEach(([name, value]) => {
+      const input = container.querySelector(`input[name="${CSS.escape(name)}"]`);
+      if (input && !input.value) {
+        input.value = value;
+        try {
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (error) {
+          console.warn('Failed to dispatch input event for', name, error);
+        }
+      }
+    });
+    return snapshot;
+  }
+
+  function clearPersistedDhanForm() {
+    safeStorageRemove(DHAN_FORM_STORAGE_KEY);
+  }
+
+  function markPendingDhanSubmission() {
+    const payload = {
+      savedAt: Date.now(),
+      value: '1'
+    };
+    safeStorageSet(DHAN_PENDING_SUBMIT_KEY, JSON.stringify(payload));
+  }
+
+  function clearPendingDhanSubmission() {
+    safeStorageRemove(DHAN_PENDING_SUBMIT_KEY);
+  }
+
+  function consumePendingDhanSubmission() {
+    const raw = safeStorageGet(DHAN_PENDING_SUBMIT_KEY);
+    safeStorageRemove(DHAN_PENDING_SUBMIT_KEY);
+    if (!raw) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.value !== '1' || isExpiredTimestamp(parsed.savedAt)) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.warn('Failed to parse pending submission flag:', error);
+      return false;
+    }
+  }
+
   function cloneAccountsList(accounts) {
     if (!Array.isArray(accounts)) {
       return [];
@@ -558,8 +711,26 @@ window.pageScripts["Add-Account"] = function() {
       { label: "Dhan Client ID", name: "client_id", type: "text" },
       { label: "API Key (App ID)", name: "api_key", type: "text", tip: "From Dhan → Profile → Access DhanHQ APIs." },
       { label: "API Secret", name: "api_secret", type: "password" },
-      { label: "Access Token", name: "access_token", type: "password", tip: "Use Start Login → Complete Login to generate an access token." },
-      { label: "Token Expiry (optional)", name: "token_expiry", type: "text", optional: true, tip: "ISO timestamp from the login completion response." },
+     {
+        label: "Access Token",
+        name: "access_token",
+        type: "password",
+        optional: true,
+        readonly: true,
+        autofillOnly: true,
+        placeholder: "Auto-filled after completing consent login",
+        tip: "Auto-filled after completing the consent login."
+      },
+      {
+        label: "Token Expiry",
+        name: "token_expiry",
+        type: "text",
+        optional: true,
+        readonly: true,
+        autofillOnly: true,
+        placeholder: "Filled from the login response",
+        tip: "Auto-filled from the login completion response (ISO timestamp)."
+      },
       { label: "Client Name", name: "client_name", type: "text" },
       { label: "Email Id (optional)", name: "email", type: "text", optional: true },
       { label: "Mobile no (optional)", name: "mobile", type: "text", optional: true }
@@ -789,6 +960,7 @@ window.pageScripts["Add-Account"] = function() {
 
   function setupDhanConsentSection(container) {
     if (!container) {
+      dhanConsentController = null;
       return;
     }
 
@@ -802,7 +974,7 @@ window.pageScripts["Add-Account"] = function() {
     section.innerHTML = `
       <label class="form-label">Dhan Login Flow</label>
       <p class="form-helper text-muted">
-        Launch the consent page, approve access, then paste the token_id provided by Dhan before completing login.
+        Launch the consent page and approve access. When Dhan redirects back with a token_id, the form fills automatically.
       </p>
       <div class="dhan-consent-actions">
         <div class="consent-buttons" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
@@ -837,6 +1009,8 @@ window.pageScripts["Add-Account"] = function() {
     const apiSecretInput = container.querySelector('input[name="api_secret"]');
     const nameInput = container.querySelector('input[name="client_name"]');
 
+    restoreDhanFormSnapshot(container);
+  
     if (dhanLoginState && tokenInput) {
       tokenInput.value = dhanLoginState.tokenId || '';
     }
@@ -849,8 +1023,8 @@ window.pageScripts["Add-Account"] = function() {
     if (dhanLoginState && nameInput && dhanLoginState.dhanClientName && !nameInput.value) {
       nameInput.value = dhanLoginState.dhanClientName;
     }
-    if (dhanLoginState && clientInput && dhanLoginState.dhanClientId) {
-      clientInput.value = clientInput.value || dhanLoginState.dhanClientId;
+    if (dhanLoginState && clientInput && dhanLoginState.dhanClientId && !clientInput.value) {
+      clientInput.value = dhanLoginState.dhanClientId;
     }
 
     if (dhanLoginState && statusEl) {
@@ -859,139 +1033,232 @@ window.pageScripts["Add-Account"] = function() {
 
     const getTrimmedValue = input => (input && typeof input.value === 'string' ? input.value.trim() : '');
 
-    if (startBtn) {
-      registerListener(startBtn, 'click', async () => {
-        const clientId = getTrimmedValue(clientInput);
-        const apiKey = getTrimmedValue(apiKeyInput);
-        const apiSecret = getTrimmedValue(apiSecretInput);
+    const runStartConsent = async (options = {}) => {
+      const { setPendingSubmit = false } = options;
+      const clientId = getTrimmedValue(clientInput);
+      const apiKey = getTrimmedValue(apiKeyInput);
+      const apiSecret = getTrimmedValue(apiSecretInput);
 
-        if (!clientId || !apiKey || !apiSecret) {
-          showToast('Enter Client ID, API Key, and API Secret before starting the Dhan login.', 'warning');
-          setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret to start the login.', 'warning');
-          return;
-        }
+      if (!clientId || !apiKey || !apiSecret) {
+        showToast('Enter Client ID, API Key, and API Secret before starting the Dhan login.', 'warning');
+        setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret to start the login.', 'warning');
+        return false;
+      }
 
-        clearDhanLoginState();
-        if (accessInput) accessInput.value = '';
-        if (expiryInput) expiryInput.value = '';
-        if (tokenInput) tokenInput.value = '';
+      persistDhanFormSnapshot(container);
+      if (!setPendingSubmit) {
+        clearPendingDhanSubmission();
+      }
 
-        startBtn.disabled = true;
-        setDhanStatus(statusEl, 'Opening Dhan consent in a new tab...', 'info');
+      clearDhanLoginState();
+      if (accessInput) accessInput.value = '';
+      if (expiryInput) expiryInput.value = '';
+      if (tokenInput) tokenInput.value = '';
 
-        try {
-          const response = await fetchJson('/api/dhan/login/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              client_id: clientId,
-              api_key: apiKey,
-              api_secret: apiSecret
-            })
-          });
+      if (startBtn) startBtn.disabled = true;
+      setDhanStatus(statusEl, 'Opening Dhan consent in a new tab...', 'info');
 
-          if (response && response.login_url) {
-            window.open(response.login_url, '_blank', 'noopener');
-            setDhanStatus(
-              statusEl,
-              'Consent page opened. Approve access, copy the token_id shown by Dhan, paste it below, then click Complete Login.',
-              'success'
-            );
-            showToast('Consent page opened. Complete login on Dhan and paste the token_id to continue.', 'info');
-          } else {
-            setDhanStatus(statusEl, 'Failed to receive a consent URL from Dhan.', 'danger');
-            showToast('Failed to start Dhan login: missing consent URL.', 'error');
+      try {
+        const response = await fetchJson('/api/dhan/login/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: clientId,
+            api_key: apiKey,
+            api_secret: apiSecret
+          })
+        });
+
+        if (response && response.login_url) {
+          if (setPendingSubmit) {
+            markPendingDhanSubmission();
           }
-        } catch (error) {
-          setDhanStatus(statusEl, error.message || 'Failed to start Dhan login.', 'danger');
-          showToast(`Failed to start Dhan login: ${error.message}`, 'error');
-        } finally {
-          startBtn.disabled = false;
+          window.open(response.login_url, '_blank', 'noopener');
+          const successMessage = setPendingSubmit
+            ? 'Consent page opened. Complete the login on Dhan and we will finish connecting the account automatically.'
+            : 'Consent page opened. Approve access, copy the token_id shown by Dhan, paste it below, then click Complete Login.';
+          setDhanStatus(statusEl, successMessage, 'success');
+          showToast(successMessage, 'info');
+          return true;
         }
+
+        setDhanStatus(statusEl, 'Failed to receive a consent URL from Dhan.', 'danger');
+        showToast('Failed to start Dhan login: missing consent URL.', 'error');
+        return false;
+      } catch (error) {
+        setDhanStatus(statusEl, error.message || 'Failed to start Dhan login.', 'danger');
+        showToast(`Failed to start Dhan login: ${error.message}`, 'error');
+        return false;
+      } finally {
+        if (startBtn) startBtn.disabled = false;
+      }
+    };
+
+    const runCompleteConsent = async (providedTokenId, options = {}) => {
+      const { triggeredByCallback = false } = options;
+      const tokenId = (providedTokenId || getTrimmedValue(tokenInput)).trim();
+
+      if (!tokenId) {
+        showToast('Paste the token_id from the Dhan consent page before completing login.', 'warning');
+        setDhanStatus(statusEl, 'Paste the token_id from Dhan to complete login.', 'warning');
+        return null;
+      }
+
+      let clientId = getTrimmedValue(clientInput);
+      let apiKey = getTrimmedValue(apiKeyInput);
+      let apiSecret = getTrimmedValue(apiSecretInput);
+
+      if (!clientId || !apiKey || !apiSecret) {
+        restoreDhanFormSnapshot(container);
+        clientId = clientId || getTrimmedValue(clientInput);
+        apiKey = apiKey || getTrimmedValue(apiKeyInput);
+        apiSecret = apiSecret || getTrimmedValue(apiSecretInput);
+      }
+
+      if (!clientId || !apiKey || !apiSecret) {
+        showToast('Client ID, API Key, and API Secret are required to complete the Dhan login.', 'warning');
+        setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret to complete login.', 'warning');
+        return null;
+      }
+
+      persistDhanFormSnapshot(container);
+
+      if (tokenInput) {
+        tokenInput.value = tokenId;
+      }
+
+      if (completeBtn) completeBtn.disabled = true;
+      setDhanStatus(statusEl, 'Finishing consent flow and fetching token...', 'info');
+      if (triggeredByCallback) {
+        showToast('Completing Dhan login with the returned token...', 'info');
+      }
+
+      let responsePayload = null;
+      let completedSuccessfully = false;
+
+      try {
+        const response = await fetchJson('/api/dhan/login/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token_id: tokenId,
+            api_key: apiKey,
+            api_secret: apiSecret,
+            client_id: clientId
+          })
+        });
+
+        responsePayload = response;
+
+        const accessToken = response.access_token || '';
+        const expiry = response.expiry_time || '';
+
+        if (accessInput) {
+          accessInput.value = accessToken;
+          try {
+            accessInput.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch (error) {
+            console.warn('Failed to dispatch input event for access token', error);
+          }
+        }
+        if (expiryInput) {
+          expiryInput.value = expiry;
+          try {
+            expiryInput.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch (error) {
+            console.warn('Failed to dispatch input event for token expiry', error);
+          }
+        }
+        if (response.dhan_client_name && nameInput && !nameInput.value) {
+          nameInput.value = response.dhan_client_name;
+        }
+        if (response.dhan_client_id && clientInput && !clientInput.value) {
+          clientInput.value = response.dhan_client_id;
+        }
+
+        const rawPayload = response.raw && typeof response.raw === 'object' ? response.raw : null;
+        const tokenTime = rawPayload
+          ? rawPayload.tokenGenerationTime || rawPayload.token_generation_time || rawPayload.generatedAt
+          : null;
+
+        dhanLoginState = {
+          tokenId,
+          accessToken,
+          expiry,
+          payload: rawPayload,
+          tokenTime: tokenTime || null,
+          completedAt: new Date().toISOString(),
+          dhanClientId: response.dhan_client_id || clientId,
+          dhanClientName: response.dhan_client_name || (nameInput ? nameInput.value : '')
+        };
+        persistDhanLoginState();
+        clearPersistedDhanForm();
+
+        setDhanStatus(statusEl, 'Access token fetched successfully from Dhan.', 'success');
+        showToast('Dhan login completed and access token filled automatically.');
+        completedSuccessfully = true;
+      } catch (error) {
+        setDhanStatus(statusEl, error.message || 'Failed to complete Dhan login.', 'danger');
+        showToast(`Failed to complete Dhan login: ${error.message}`, 'error');
+      } finally {
+        if (completeBtn) completeBtn.disabled = false;
+        if (completedSuccessfully) {
+          const shouldAutoSubmit = consumePendingDhanSubmission();
+          if (shouldAutoSubmit && !editingAccountId) {
+            setDhanStatus(statusEl, 'Access token fetched. Completing account connection...', 'info');
+            showToast('Finishing Dhan account connection…', 'info');
+            window.requestAnimationFrame(() => {
+              const formEl = document.getElementById('broker-credentials-form');
+              if (formEl) {
+                try {
+                  formEl.requestSubmit();
+                } catch (submitError) {
+                  console.warn('Automatic Dhan form submission failed:', submitError);
+                }
+              }
+            });
+          }
+        }
+      }
+
+      return responsePayload;
+    };
+
+    if (startBtn) {
+      registerListener(startBtn, 'click', () => {
+        runStartConsent().catch(error => {
+          console.error('Failed to initiate Dhan consent:', error);
+        });
       });
     }
 
     if (completeBtn) {
-      registerListener(completeBtn, 'click', async () => {
-        const clientId = getTrimmedValue(clientInput);
-        const apiKey = getTrimmedValue(apiKeyInput);
-        const apiSecret = getTrimmedValue(apiSecretInput);
-        const tokenId = getTrimmedValue(tokenInput);
+      registerListener(completeBtn, 'click', () => {
+        runCompleteConsent().catch(error => {
+          console.error('Failed to complete Dhan consent:', error);
+        });
+      });
+    }
 
-        if (!clientId || !apiKey || !apiSecret) {
-          showToast('Client ID, API Key, and API Secret are required to complete the Dhan login.', 'warning');
-          setDhanStatus(statusEl, 'Provide Client ID, API Key, and API Secret to complete login.', 'warning');
-          return;
-        }
+    dhanConsentController = {
+      container,
+      start: runStartConsent,
+      complete: runCompleteConsent,
+      statusEl,
+      tokenInput
+    };
 
-        if (!tokenId) {
-          showToast('Paste the token_id from the Dhan consent page before completing login.', 'warning');
-          setDhanStatus(statusEl, 'Paste the token_id from Dhan to complete login.', 'warning');
-          return;
-        }
-
-        completeBtn.disabled = true;
-        setDhanStatus(statusEl, 'Finishing consent flow and fetching token...', 'info');
-
-        try {
-          const response = await fetchJson('/api/dhan/login/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              token_id: tokenId,
-              api_key: apiKey,
-              api_secret: apiSecret,
-              client_id: clientId
-            })
-          });
-
-          const accessToken = response.access_token || '';
-          const expiry = response.expiry_time || '';
-
-          if (tokenInput) {
-            tokenInput.value = tokenId;
-          }
-
-          if (accessInput) {
-            accessInput.value = accessToken;
-            accessInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          if (expiryInput) {
-            expiryInput.value = expiry;
-            expiryInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          if (response.dhan_client_name && nameInput && !nameInput.value) {
-            nameInput.value = response.dhan_client_name;
-          }
-          if (response.dhan_client_id && clientInput && !clientInput.value) {
-            clientInput.value = response.dhan_client_id;
-          }
-
-          const rawPayload = response.raw && typeof response.raw === 'object' ? response.raw : null;
-          const tokenTime = rawPayload
-            ? rawPayload.tokenGenerationTime || rawPayload.token_generation_time || rawPayload.generatedAt
-            : null;
-
-          dhanLoginState = {
-            tokenId,
-            accessToken,
-            expiry,
-            payload: rawPayload,
-            tokenTime: tokenTime || null,
-            completedAt: new Date().toISOString(),
-            dhanClientId: response.dhan_client_id || clientId,
-            dhanClientName: response.dhan_client_name || (nameInput ? nameInput.value : '')
-          };
-          persistDhanLoginState();
-
-          setDhanStatus(statusEl, 'Access token fetched successfully from Dhan.', 'success');
-          showToast('Dhan login completed and access token filled automatically.');
-        } catch (error) {
-          setDhanStatus(statusEl, error.message || 'Failed to complete Dhan login.', 'danger');
-          showToast(`Failed to complete Dhan login: ${error.message}`, 'error');
-        } finally {
-          completeBtn.disabled = false;
-        }
+    const tokenFromCallback = pendingDhanTokenId;
+    if (tokenFromCallback) {
+      pendingDhanTokenId = null;
+      if (tokenInput) {
+        tokenInput.value = tokenFromCallback;
+      }
+      if (statusEl) {
+        setDhanStatus(statusEl, 'Completing Dhan login with the returned token...', 'info');
+      }
+      runCompleteConsent(tokenFromCallback, { triggeredByCallback: true }).catch(error => {
+        console.error('Automatic Dhan login completion failed:', error);
       });
     }
   }
@@ -1077,25 +1344,59 @@ window.pageScripts["Add-Account"] = function() {
     }
 
     fields.forEach(f => {
-      const isRequired = f.optional ? '' : 'required';
-      const ph = f.placeholder || f.label;
-      const inputId = escapeHtml(f.name);
-      if (f.type === 'password') {
+      const inputName = typeof f.name === 'string' ? f.name : '';
+      const inputType = typeof f.type === 'string' ? f.type : 'text';
+      const placeholder = typeof f.placeholder === 'string' ? f.placeholder : f.label;
+      const inputId = escapeHtml(inputName);
+
+      const classList = ['form-input'];
+      if (f.className) classList.push(f.className);
+      if (f.readonly) classList.push('bg-light', 'input-readonly');
+
+      const attributeParts = [
+        `class="${escapeHtml(classList.join(' '))}"`,
+        `name="${escapeHtml(inputName)}"`,
+        `type="${escapeHtml(inputType)}"`,
+        `id="${inputId}"`,
+        `placeholder="${escapeHtml(placeholder || '')}"`
+      ];
+
+      if (!f.optional) {
+        attributeParts.push('required');
+      }
+      if (f.readonly) {
+        attributeParts.push('readonly', 'aria-readonly="true"', 'data-force-readonly="true"');
+      }
+      if (f.autofillOnly) {
+        attributeParts.push('data-autofill-only="true"');
+      }
+      if (f.autocomplete) {
+        attributeParts.push(`autocomplete="${escapeHtml(f.autocomplete)}"`);
+      }
+      if (typeof f.maxlength === 'number') {
+        attributeParts.push(`maxlength="${escapeHtml(String(f.maxlength))}"`);
+      }
+
+      const attributeString = attributeParts.join(' ');
+
+      if (inputType === 'password') {
         formHtml += `
         <div class="form-group">
           <label class="form-label" for="${inputId}">${escapeHtml(f.label)}</label>
           <div class="password-field">
-            <input class="form-input" name="${escapeHtml(f.name)}" type="password" id="${inputId}" placeholder="${escapeHtml(ph)}" ${isRequired}>
+            <input ${attributeString}>
             <button class="toggle-password" type="button" data-target="${inputId}" aria-label="Toggle password visibility">
               <i class="bi bi-eye"></i>
             </button>
           </div>
+          ${f.tip ? `<p class="form-helper text-muted">${escapeHtml(f.tip)}</p>` : ''}
         </div>`;
       } else {
         formHtml += `
         <div class="form-group">
           <label class="form-label" for="${inputId}">${escapeHtml(f.label)}</label>
-          <input class="form-input" name="${escapeHtml(f.name)}" type="${escapeHtml(f.type)}" id="${inputId}" placeholder="${escapeHtml(ph)}" ${isRequired}>
+          <input ${attributeString}>
+          ${f.tip ? `<p class="form-helper text-muted">${escapeHtml(f.tip)}</p>` : ''}
         </div>`;
       }
     });
@@ -1119,6 +1420,8 @@ window.pageScripts["Add-Account"] = function() {
       setupDhanConsentSection(container);
     } else {
       clearDhanLoginState();
+      clearPendingDhanSubmission();
+      dhanConsentController = null;
     }
 
     if (brokerRedirectPaths[broker]) {
@@ -1169,6 +1472,29 @@ window.pageScripts["Add-Account"] = function() {
     }
   }
 
+  function activateBroker(broker) {
+    if (!broker) {
+      return;
+    }
+    const cards = document.querySelectorAll('.broker-card');
+    let found = false;
+    cards.forEach(card => {
+      const isTarget = card.dataset.broker === broker;
+      card.classList.toggle('active', isTarget);
+      if (isTarget) {
+        found = true;
+      }
+    });
+    showBrokerForm(broker);
+    if (!found) {
+      window.requestAnimationFrame(() => {
+        document.querySelectorAll('.broker-card').forEach(card => {
+          card.classList.toggle('active', card.dataset.broker === broker);
+        });
+      });
+    }
+  }
+
   function openAddAccountForm() {
     const addAccountSection = document.getElementById('add-account-section');
     const addBtnText = document.getElementById('add-btn-text');
@@ -1188,8 +1514,14 @@ window.pageScripts["Add-Account"] = function() {
     if (form) {
       form.reset();
       form.querySelectorAll('input').forEach(input => {
-        input.readOnly = false;
-        input.classList.remove('bg-light');
+        const forceReadonly = input.dataset.forceReadonly === 'true' || input.dataset.autofillOnly === 'true';
+        if (forceReadonly) {
+          input.readOnly = true;
+          input.classList.add('bg-light', 'input-readonly');
+        } else {
+          input.readOnly = false;
+          input.classList.remove('bg-light', 'input-readonly');
+        }
       });
     }
 
@@ -1201,9 +1533,11 @@ window.pageScripts["Add-Account"] = function() {
     currentBrokerSelected = null;
 
     clearDhanLoginState();
+    clearPersistedDhanForm();
+    clearPendingDhanSubmission();
+    dhanConsentController = null;
     
     document.querySelectorAll('.broker-card').forEach(i => i.classList.remove('active'));
-
     populateBrokerCarousel();
 
     if (addAccountSection) addAccountSection.style.display = 'none';
@@ -2087,7 +2421,18 @@ window.pageScripts["Add-Account"] = function() {
   const urlParams = new URLSearchParams(window.location.search);
   const openAddAccountParam = urlParams.get('openAddAccount');
   const normalizedParam = (openAddAccountParam || '').toLowerCase();
-  const shouldOpenAddAccount = openAddAccountParam !== null && !['0', 'false', 'no'].includes(normalizedParam);
+  const shouldOpenFromParam = openAddAccountParam !== null && !['0', 'false', 'no'].includes(normalizedParam);
+  const tokenIdFromUrl = urlParams.get('tokenId') || urlParams.get('token_id');
+  const hasPersistedDhanForm = Boolean(getPersistedDhanForm());
+  const needsDhanResume = Boolean(tokenIdFromUrl) || hasPersistedDhanForm;
+  const shouldOpenAddAccount = shouldOpenFromParam || needsDhanResume;
+
+  if (tokenIdFromUrl) {
+    pendingDhanTokenId = tokenIdFromUrl;
+    urlParams.delete('tokenId');
+    urlParams.delete('token_id');
+  }
+
   if (shouldOpenAddAccount) {
     openAddAccountForm();
     populateBrokerCarousel();
@@ -2100,6 +2445,13 @@ window.pageScripts["Add-Account"] = function() {
       });
     }
 
+    if (needsDhanResume) {
+      activateBroker('dhan');
+    }
+  }
+
+  if (shouldOpenFromParam || tokenIdFromUrl) {
+    
     urlParams.delete('openAddAccount');
     const newQuery = urlParams.toString();
     const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash}`;
@@ -2153,8 +2505,17 @@ window.pageScripts["Add-Account"] = function() {
       }
 
       if (data['broker'] === 'dhan') {
-        if (!editingAccountId && (!dhanLoginState || !dhanLoginState.accessToken)) {
-          showToast('Complete the Dhan login flow to fetch an access token before adding the account.', 'warning');
+        const hasAccessToken = dhanLoginState && dhanLoginState.accessToken;
+        if (!editingAccountId && !hasAccessToken) {
+          const controller = dhanConsentController;
+          if (controller && typeof controller.start === 'function') {
+            showToast('Starting the Dhan consent flow. Complete the login and we will finish connecting automatically.', 'info');
+            controller
+              .start({ setPendingSubmit: true })
+              .catch(error => console.error('Failed to start Dhan consent during submit:', error));
+          } else {
+            showToast('Select Dhan and start the consent login to fetch an access token before adding the account.', 'warning');
+          }
           return;
         }
 
@@ -2191,7 +2552,13 @@ window.pageScripts["Add-Account"] = function() {
       })
       .then(resp => {
         showToast(resp.message || resp.error || 'Operation completed.');
-        if (resp.message) location.reload();
+        if (resp.message) {
+          if (data['broker'] === 'dhan') {
+            clearPersistedDhanForm();
+            clearPendingDhanSubmission();
+          }
+          location.reload();
+        }
       })
       .catch(error => showToast(`Failed to save account: ${error.message}`, 'error'));
     });
