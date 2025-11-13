@@ -214,6 +214,8 @@ class DhanBroker(BrokerBase):
             payload = dhan_auth.renew_token(
                 access_token=self.access_token,
                 client_id=str(self.client_id),
+                api_key=self.api_key,
+                api_secret=self.api_secret,
                 api_base=self.api_base,
                 timeout=self.timeout,
             )
