@@ -5,248 +5,267 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sign Up - Xclusive Money</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: hsl(240, 20%, 97%);
+            color: hsl(240, 10%, 15%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 28rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: hsl(240, 10%, 15%);
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: hsl(240, 4%, 46%);
+        }
+        
+        .link {
+            color: hsl(250, 70%, 60%);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        label {
+            color: hsl(240, 4%, 46%);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        select,
+        input {
+            padding: 0.625rem 0.75rem;
+            border: 1px solid hsl(240, 6%, 90%);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        select {
+            width: 7rem;
+        }
+        
+        input {
+            flex: 1;
+            width: 100%;
+        }
+        
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: hsl(250, 70%, 60%);
+            box-shadow: 0 0 0 3px hsla(250, 70%, 60%, 0.1);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: hsl(250, 70%, 60%);
+            color: white;
+        }
+        
+        .btn:hover {
+            background: hsl(250, 70%, 55%);
+        }
+        
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: hsl(142, 76%, 36%);
+        }
+        
+        .toast.error {
+            background: hsl(0, 72%, 51%);
+        }
+        
+        .toast.show {
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+        
+        @media (min-width: 640px) {
+            h1 {
+                font-size: 2.25rem;
+            }
+        }
+    </style>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #0f172a;">
-    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background-color: #ffffff;">
-        <div style="width: 100%; max-width: 448px;">
-            <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="font-size: 36px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; line-height: 1.2;">
-                    Get started absolutely free
-                </h1>
-                <p style="color: #64748b; margin: 0; font-size: 14px;">
-                    Already have an account?
-                    <a href="{{ url_for('auth.login') }}" style="color: #3b82f6; font-weight: 500; text-decoration: none;">
-                        Sign in
-                    </a>
-                </p>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Get started absolutely free</h1>
+            <p class="subtitle">
+                Already have an account?
+                <a href="{{ url_for('auth.login') }}" class="link">Sign in</a>
+            </p>
+        </div>
+
+        <form class="form" id="signUpForm" method="post" action="{{ url_for('auth.signup') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="full_phone" id="fullPhone" value="{{ request.form.get('full_phone', '') }}">
+
+            <div class="form-group">
+                <label for="email">email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="your@email.com"
+                    value="{{ request.form.get('email', '') }}"
+                    required
+                />
             </div>
-            {% if error %}
-            <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 6px; background-color: #fee2e2; color: #b91c1c; font-size: 14px;">
-                {{ error }}
-            </div>
-            {% endif %}
-            <form id="signupForm" method="post" action="{{ url_for('auth.signup') }}" onsubmit="return handleSubmit(event)" style="display: flex; flex-direction: column; gap: 16px;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="full_phone" id="fullPhone" value="{{ request.form.get('full_phone', '') }}">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label for="email" style="font-size: 14px; font-weight: 500; color: #64748b;">
-                        email
-                    </label>
+
+            <div class="form-group">
+                <label for="phone">mobile</label>
+                <div class="input-row">
+                    <select id="countryCode" name="country_code">
+                        <option value="+1" {% if request.form.get('country_code', '+91') == '+1' %}selected{% endif %}>🇺🇸 +1</option>
+                        <option value="+44" {% if request.form.get('country_code') == '+44' %}selected{% endif %}>🇬🇧 +44</option>
+                        <option value="+91" {% if request.form.get('country_code', '+91') == '+91' %}selected{% endif %}>🇮🇳 +91</option>
+                        <option value="+86" {% if request.form.get('country_code') == '+86' %}selected{% endif %}>🇨🇳 +86</option>
+                        <option value="+81" {% if request.form.get('country_code') == '+81' %}selected{% endif %}>🇯🇵 +81</option>
+                        <option value="+82" {% if request.form.get('country_code') == '+82' %}selected{% endif %}>🇰🇷 +82</option>
+                        <option value="+61" {% if request.form.get('country_code') == '+61' %}selected{% endif %}>🇦🇺 +61</option>
+                        <option value="+49" {% if request.form.get('country_code') == '+49' %}selected{% endif %}>🇩🇪 +49</option>
+                        <option value="+33" {% if request.form.get('country_code') == '+33' %}selected{% endif %}>🇫🇷 +33</option>
+                        <option value="+39" {% if request.form.get('country_code') == '+39' %}selected{% endif %}>🇮🇹 +39</option>
+                    </select>
                     <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        placeholder="your@email.com"
-                        value="{{ request.form.get('email', '') }}"
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        placeholder="XXXXXXXXXX"
+                        value="{{ request.form.get('phone', '') }}"
+                        maxlength="10"
                         required
-                        style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background-color: #ffffff; color: #0f172a; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
-                        onfocus="this.style.borderColor='#3b82f6'"
-                        onblur="this.style.borderColor='#e2e8f0'"
                     />
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label for="phone" style="font-size: 14px; font-weight: 500; color: #64748b;">
-                        mobile
-                    </label>
-                    <div style="display: flex; gap: 8px;">
-                        <select id="countryCode" name="country_code" style="width: 100px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background-color: #ffffff; color: #0f172a; cursor: pointer; outline: none;">
-                            <option value="+91" {% if request.form.get('country_code', '+91') == '+91' %}selected{% endif %}>+91</option>
-                            <option value="+1" {% if request.form.get('country_code') == '+1' %}selected{% endif %}>+1</option>
-                            <option value="+44" {% if request.form.get('country_code') == '+44' %}selected{% endif %}>+44</option>
-                            <option value="+86" {% if request.form.get('country_code') == '+86' %}selected{% endif %}>+86</option>
-                            <option value="+81" {% if request.form.get('country_code') == '+81' %}selected{% endif %}>+81</option>
-                            <option value="+61" {% if request.form.get('country_code') == '+61' %}selected{% endif %}>+61</option>
-                            <option value="+971" {% if request.form.get('country_code') == '+971' %}selected{% endif %}>+971</option>
-                        </select>
-                        <input
-                            type="tel"
-                            id="phone"
-                            name="phone"
-                            placeholder="XXXXXXXXXX"
-                            value="{{ request.form.get('phone', '') }}"
-                            maxlength="10"
-                            required
-                            style="flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background-color: #ffffff; color: #0f172a; outline: none; transition: border-color 0.2s;"
-                            onfocus="this.style.borderColor='#3b82f6'"
-                            onblur="this.style.borderColor='#e2e8f0'"
-                            oninput="this.value = this.value.replace(/\D/g, '')"
-                        />
-                    </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label for="password" style="font-size: 14px; font-weight: 500; color: #64748b;">
-                        Password
-                    </label>
-                    <div style="position: relative;">
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="Create a strong password"
-                            required
-                            minlength="8"
-                            style="width: 100%; padding: 10px 40px 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background-color: #ffffff; color: #0f172a; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
-                            onfocus="this.style.borderColor='#3b82f6'"
-                            onblur="this.style.borderColor='#e2e8f0'"
-                        />
-                        <button
-                            type="button"
-                            onclick="togglePassword('password', 'eyeIcon1')"
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; color: #64748b;"
-                        >
-                            <svg id="eyeIcon1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">
-                        Must be at least 8 characters
-                    </p>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label for="confirmPassword" style="font-size: 14px; font-weight: 500; color: #64748b;">
-                        Confirm Password
-                    </label>
-                    <div style="position: relative;">
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            name="confirm_password"
-                            placeholder="Re-enter your password"
-                            required
-                            minlength="8"
-                            style="width: 100%; padding: 10px 40px 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background-color: #ffffff; color: #0f172a; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
-                            onfocus="this.style.borderColor='#3b82f6'"
-                            onblur="this.style.borderColor='#e2e8f0'"
-                        />
-                        <button
-                            type="button"
-                            onclick="togglePassword('confirmPassword', 'eyeIcon2')"
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; color: #64748b;"
-                        >
-                            <svg id="eyeIcon2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <button
-                    type="submit"
-                    style="width: 100%; padding: 14px 16px; background-color: #3b82f6; color: #ffffff; border: none; border-radius: 6px; font-size: 16px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; margin-top: 8px;"
-                    onmouseover="this.style.backgroundColor='#2563eb'"
-                    onmouseout="this.style.backgroundColor='#3b82f6'"
-                >
-                    Create account
-                </button>
-                <p style="text-align: center; font-size: 12px; color: #64748b; margin: 8px 0 0 0;">
-                    By creating an account, you agree to our
-                    <a href="terms.html" style="color: #3b82f6; text-decoration: none;">Terms of Service</a>
-                    and
-                    <a href="privacy.html" style="color: #3b82f6; text-decoration: none;">Privacy Policy</a>
-                </p>
-            </form>
-        </div>
+            </div>
+
+            <button type="submit" class="btn">Create account</button>
+        </form>
     </div>
-    <div id="toast" style="position: fixed; top: 20px; right: 20px; padding: 16px 24px; background-color: #10b981; color: #ffffff; border-radius: 6px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); display: none; z-index: 1000; font-size: 14px; font-weight: 500;">
-        Account created successfully!
-    </div>
+
+    <div id="toast" class="toast"></div>
+
     <script>
-        function togglePassword(fieldId, iconId) {
-            const passwordInput = document.getElementById(fieldId);
-            const eyeIcon = document.getElementById(iconId);
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-            } else {
-                passwordInput.type = 'password';
-                eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-            }
-        }
-        function handleSubmit(event) {
-            const form = event.target;
-            const email = document.getElementById('email').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const countryCode = document.getElementById('countryCode').value;
-            if (!email || !email.includes('@')) {
-                showToast('Please enter a valid email address', 'error');
-                return false;
-            }
-            if (!phone || phone.length < 10) {
-                showToast('Please enter a valid phone number', 'error');
-                return false;
-            }
-            if (password.length < 8) {
-                showToast('Password must be at least 8 characters', 'error');
-                return false;
-            }
-            if (password !== confirmPassword) {
-                showToast('Passwords do not match', 'error');
-                return false;
-            }
-            if (!isPasswordStrong(password)) {
-                showToast('Password must contain uppercase, lowercase, number, and special character', 'error');
-                return false;
-            }
-            document.getElementById('fullPhone').value = countryCode + phone;
-            return true;
-        }
-        function isPasswordStrong(password) {
-            const hasUpperCase = /[A-Z]/.test(password);
-            const hasLowerCase = /[a-z]/.test(password);
-            const hasNumber = /[0-9]/.test(password);
-            const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-            return hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
-        }
         function showToast(message, type) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.style.backgroundColor = type === 'error' ? '#ef4444' : '#10b981';
-            toast.style.display = 'block';
+            toast.className = `toast ${type} show`;
+
             setTimeout(() => {
-                toast.style.display = 'none';
+                toast.className = 'toast';
             }, 3000);
         }
-        document.getElementById('confirmPassword').addEventListener('input', function() {
-            const password = document.getElementById('password').value;
-            const confirmPassword = this.value;
-            if (confirmPassword && password !== confirmPassword) {
-                this.style.borderColor = '#ef4444';
-            } else if (confirmPassword && password === confirmPassword) {
-                this.style.borderColor = '#10b981';
-            } else {
-                this.style.borderColor = '#e2e8f0';
-            }
+
+        document.getElementById('phone').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
         });
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                input.addEventListener('focus', function() {
-                    if (this.id !== 'confirmPassword') {
-                        this.style.borderColor = '#3b82f6';
-                    }
-                    this.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+
+        const verificationBaseUrl = "{{ url_for('auth.otp_verification') }}";
+
+        document.getElementById('signUpForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const countryCode = document.getElementById('countryCode').value;
+
+            if (!phone || phone.length < 10) {
+                showToast('Please enter a valid phone number', 'error');
+                return;
+            }
+
+            if (!email || !email.includes('@')) {
+                showToast('Please enter a valid email address', 'error');
+                return;
+            }
+
+            document.getElementById('fullPhone').value = countryCode + phone;
+            showToast('OTP sent to your phone number', 'success');
+
+            setTimeout(() => {
+                const params = new URLSearchParams({
+                    phone: countryCode + phone,
+                    email,
                 });
-                input.addEventListener('blur', function() {
-                    if (this.id === 'confirmPassword') {
-                        const password = document.getElementById('password').value;
-                        const confirmPassword = this.value;
-                        if (confirmPassword && password !== confirmPassword) {
-                            this.style.borderColor = '#ef4444';
-                        } else if (confirmPassword && password === confirmPassword) {
-                            this.style.borderColor = '#10b981';
-                        } else {
-                            this.style.borderColor = '#e2e8f0';
-                        }
-                    } else {
-                        this.style.borderColor = '#e2e8f0';
-                    }
-                    this.style.boxShadow = 'none';
-                });
-            });
+                window.location.href = `${verificationBaseUrl}?${params.toString()}`;
+            }, 1000);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
             const serverError = {{ (error or None)|tojson }};
             if (serverError) {
                 showToast(serverError, 'error');
