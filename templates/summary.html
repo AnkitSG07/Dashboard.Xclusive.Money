@@ -542,6 +542,9 @@
         if (!snapshot || typeof snapshot !== "object") {
           return false;
         }
+        if (typeof snapshot.placeholder === "boolean") {
+          return snapshot.placeholder;
+        }
         if (!snapshot.stale) {
           return false;
         }
