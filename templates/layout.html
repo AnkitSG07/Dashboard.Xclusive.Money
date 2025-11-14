@@ -2508,7 +2508,7 @@
       return pagePrefetchCache.get(page);
     }
 
-    function setPagePrefetchData(page, data, { persist = true } = {}) {
+    function updatePagePrefetchData(page, data, { persist = true } = {}) {
       if (!page) return data;
       hydratePagePrefetchCache();
       pagePrefetchCache.set(page, data);
@@ -2543,7 +2543,7 @@
         const context = {
           cached,
           getCached: () => getPagePrefetchData(page),
-          setCached: (value, options) => setPagePrefetchData(page, value, options),
+          setCached: (value, options) => updatePagePrefetchData(page, value, options),
           clearCached: (options) => clearPagePrefetchData(page, options)
         };
 
@@ -2551,7 +2551,7 @@
           .then(() => loader(context))
           .then(result => {
             if (result !== undefined) {
-              setPagePrefetchData(page, result);
+              updatePagePrefetchData(page, result);
               return result;
             }
             const latest = getPagePrefetchData(page);
@@ -2605,7 +2605,7 @@
     window.registerPagePrefetcher = registerPagePrefetcher;
     window.runPagePrefetch = runPagePrefetch;
     window.getPagePrefetchData = getPagePrefetchData;
-    window.setPagePrefetchData = (page, data, options) => setPagePrefetchData(page, data, options);
+    window.setPagePrefetchData = (page, data, options) => updatePagePrefetchData(page, data, options);
     window.clearPagePrefetchData = (page, options) => clearPagePrefetchData(page, options);
     
     function getCacheKey(url) {
