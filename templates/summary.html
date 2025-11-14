@@ -681,6 +681,8 @@
 
     let cachedSeries = [];
     let chartInstance = null;
+    const DWELL_REFRESH_MS = 3000;
+    let dwellRefreshTimer = null;
     const hasTimeScale = !!(
       chartGlobal?.registry?.getScale?.("time") &&
       chartGlobal?._adapters?.date
@@ -951,6 +953,21 @@
       updateChart(series);
     }
 
+    function clearDwellRefreshTimer() {
+      if (dwellRefreshTimer !== null) {
+        clearTimeout(dwellRefreshTimer);
+        dwellRefreshTimer = null;
+      }
+    }
+
+    function scheduleDwellRefresh() {
+      clearDwellRefreshTimer();
+      dwellRefreshTimer = window.setTimeout(() => {
+        dwellRefreshTimer = null;
+        refreshSeries({ force: true });
+      }, DWELL_REFRESH_MS);
+    }
+
     function syncFromPrefetch() {
       const payload = getPrefetchData(PAGE_NAME);
       const incoming = payload?.performance_summary?.series;
@@ -963,6 +980,7 @@
     }
 
     function refreshSeries(arg) {
+      clearDwellRefreshTimer();
       const isEvent = arg && typeof arg === "object" && typeof arg.type === "string";
       const requestedForce = !isEvent && arg && typeof arg === "object" && "force" in arg
         ? !!arg.force
@@ -970,27 +988,34 @@
       const shouldForce = requestedForce || !cachedSeries.length;
       const runner = summaryPrefetcher || runGlobalPrefetch;
 
+      let refreshPromise;
+
       if (typeof runner !== "function") {
         syncFromPrefetch();
-        return Promise.resolve();
+        refreshPromise = Promise.resolve();
+      } else {
+        refreshPromise = Promise.resolve(runner({ force: shouldForce }))
+          .then(() => {
+            syncFromPrefetch();
+          })
+          .catch((error) => {
+            console.error("Failed to refresh summary data", error);
+            if (!cachedSeries.length) {
+              toggleState(false);
+            }
+          });
       }
 
-      return Promise.resolve(runner({ force: shouldForce }))
-        .then(() => {
-          syncFromPrefetch();
-        })
-        .catch((error) => {
-          console.error("Failed to refresh summary data", error);
-          if (!cachedSeries.length) {
-            toggleState(false);
-          }
-        });
+      return refreshPromise.finally(() => {
+        scheduleDwellRefresh();
+      });
     }
 
     function bootstrap() {
+      clearDwellRefreshTimer();
       cachedSeries = normalizeSeries(readInitialSeries());
       applyPeriod(activePeriod);
-      refreshSeries({ force: !cachedSeries.length });
+      refreshSeries({ force: true });
 
       const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
       if (window[REFRESH_EVENT_KEY]) {
