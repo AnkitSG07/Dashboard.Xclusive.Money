@@ -473,9 +473,6 @@
   const getPrefetchData = typeof window.getPagePrefetchData === "function"
     ? (page) => window.getPagePrefetchData(page)
     : () => undefined;
-  const setPrefetchData = typeof window.setPagePrefetchData === "function"
-    ? (page, data, options) => window.setPagePrefetchData(page, data, options)
-    : () => undefined;
   const runGlobalPrefetch = typeof window.runPagePrefetch === "function"
     ? (options) => window.runPagePrefetch(PAGE_NAME, options)
     : null;
@@ -507,11 +504,6 @@
         return cached ?? null;
       }
     });
-  }
-
-  const existingPayload = getPrefetchData(PAGE_NAME);
-  if (!existingPayload && templateSeries.length) {
-    setPrefetchData(PAGE_NAME, { performance_summary: { series: templateSeries } }, { persist: false });
   }
 
   if (!window.pageScripts) window.pageScripts = {};
