@@ -8763,6 +8763,9 @@ def summary():
     def _is_placeholder_snapshot(snapshot: dict | None) -> bool:
         if not isinstance(snapshot, dict):
             return False
+        placeholder_flag = snapshot.get("placeholder")
+        if isinstance(placeholder_flag, bool):
+            return placeholder_flag
         if not snapshot.get("stale"):
             return False
         if snapshot.get("portfolio"):
@@ -8785,6 +8788,7 @@ def summary():
             "stale": True,
             "cached_at": None,
             "age": None,
+            "placeholder": True,
         }
         if message:
             placeholder.setdefault("errors", {})["snapshot"] = message
