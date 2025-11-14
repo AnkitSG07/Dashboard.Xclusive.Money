@@ -130,6 +130,11 @@ def _prepare_snapshot_for_response(entry: dict) -> dict:
     data = deepcopy(entry.get("data", {}))
     data.setdefault("errors", {})
     data.setdefault("stale", False)
+    placeholder_flag = data.get("placeholder")
+    if isinstance(placeholder_flag, bool):
+        data["placeholder"] = placeholder_flag
+    else:
+        data["placeholder"] = False
     cached_at = entry.get("timestamp", now)
     if isinstance(cached_at, datetime):
         data["cached_at"] = cached_at.isoformat() + "Z"
@@ -294,10 +299,12 @@ def get_cached_dashboard_snapshot(
                 "account": {},
                 "errors": {},
                 "stale": True,
+                "placeholder": True,
             },
         }
         placeholder = _prepare_snapshot_for_response(placeholder_entry)
         placeholder["stale"] = True
+        placeholder["placeholder"] = True
 
         scheduled = _enqueue_snapshot_refresh(account, key)
         if scheduled is False:
