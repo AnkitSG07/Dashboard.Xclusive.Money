@@ -8809,12 +8809,9 @@ def summary():
                         "error": message,
                     }
 
-                snapshot = get_cached_dashboard_snapshot(account_obj, prefer_cache=True) or {}
-                if _is_placeholder_snapshot(snapshot):
-                    snapshot = (
-                        get_cached_dashboard_snapshot(account_obj, prefer_cache=False)
-                        or snapshot
-                    )
+                snapshot = (
+                    get_cached_dashboard_snapshot(account_obj, prefer_cache=True) or {}
+                )
                 return {
                     "account_id": account_id,
                     "snapshot": snapshot,
@@ -8933,7 +8930,7 @@ def summary():
     sector_map: dict[str, float] = defaultdict(float)
     account_summaries: list[dict] = []
     account_allocation_values: list[tuple[str | None, float]] = []
-
+    any_account_refreshing = False
 
     accounts_with_credentials = [acc for acc in accounts if acc.credentials]
     account_snapshot_payloads: dict[int, dict] = {}
@@ -8991,7 +8988,9 @@ def summary():
         summary_entry = {
             "broker": account.broker,
             "client_id": account.client_id,
+            "account_id": account.id,
             "error": None,
+            "refreshing": False,
         }
         _apply_status(summary_entry, status_label, status_palette)
 
@@ -9010,10 +9009,17 @@ def summary():
             snapshot = _placeholder_snapshot(error_message)
 
         snapshot = snapshot or {}
+        placeholder_snapshot = _is_placeholder_snapshot(snapshot)
+        if placeholder_snapshot and not error_message:
+            summary_entry["refreshing"] = True
+            any_account_refreshing = True
+            _apply_status(summary_entry, "Refreshing", _status_palette("#4f46e5"))
+
         positions = snapshot.get("portfolio") if isinstance(snapshot, dict) else []
         metrics, holdings = _compute_account_metrics(positions or [])
         holdings_fallback_used = False
         holdings_stale = False
+        if not holdings and not placeholder_snapshot:
         if not holdings:
             normalized_holdings: list[dict] = []
             try:
@@ -9587,6 +9593,12 @@ def summary():
         "Active" if expiry and expiry >= datetime.utcnow() else "Expired"
     )
 
+    refreshing_account_count = sum(
+        1 for entry in account_summaries if entry.get("refreshing")
+    )
+    if refreshing_account_count and not any_account_refreshing:
+        any_account_refreshing = True
+
     overview = {
         "total_portfolio_value": total_portfolio_value,
         "total_investment": total_investment,
@@ -9595,7 +9607,9 @@ def summary():
         "today_gain_loss": today_pnl,
         "today_gain_loss_percent": today_gain_loss_percent,
     }
-
+    overview["is_refreshing"] = any_account_refreshing
+    overview["refreshing_account_count"] = refreshing_account_count
+    
     return render_template(
         "summary.html",
         accounts=accounts,
