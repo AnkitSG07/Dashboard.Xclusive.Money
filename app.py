@@ -9020,7 +9020,6 @@ def summary():
         holdings_fallback_used = False
         holdings_stale = False
         if not holdings and not placeholder_snapshot:
-        if not holdings:
             normalized_holdings: list[dict] = []
             try:
                 holdings_payload, holdings_stale = _get_holdings_payload(account)
