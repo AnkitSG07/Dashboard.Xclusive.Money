@@ -1,9 +1,766 @@
+
 {% extends "layout.html" %}
 {% block title %}Dashboard Summary - DhanBot{% endblock %}
 
 {% block styles %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/summary.css') }}">
+<style>
+  .summary-dashboard {
+    --summary-bg: #f5f7fb;
+    --summary-card: #ffffff;
+    --summary-border: #e6e9f2;
+    --summary-text: #111827;
+    --summary-muted: #6b7280;
+    --summary-primary: #4f46e5;
+    --summary-green: #059669;
+    --summary-red: #dc2626;
+    --summary-purple: #7c3aed;
+    --summary-blue: #2563eb;
+  
+    color: var(--summary-text);
+    background: var(--summary-bg);
+    border-radius: 24px;
+    box-shadow: inset 0 0 0 1px rgba(230, 233, 242, 0.45);
+    padding: clamp(32px, 4vw, 48px) clamp(20px, 4vw, 32px);
+  }
+  
+  .summary-dashboard .summary-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(24px, 4vw, 32px);
+  }
+  
+  /* base grid helper */
+  .summary-grid {
+    display: grid;
+    gap: 24px;
+  }
+  
+  /* === TOP METRIC CARDS ROW (4 cards, like screenshot) === */
+  .summary-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+  }
+  
+  /* each top stat card */
+  .summary-grid-4 .summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(17,24,39,0.04);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  
+  /* top row in each card:
+     "Total Portfolio Value" on left
+     icon badge on right */
+  .summary-grid-4 .summary-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+   
+  }
+  
+  /* label text in card header */
+  .summary-grid-4 .summary-card-label {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 500;
+    color: #4b5563; /* grey-600 like screenshot */
+    flex: 1;  
+  }
+  
+  /* icon badge on right of header */
+  .summary-grid-4 .summary-card-title > div {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    /* background color for each card is still inline in HTML */
+  }
+  .summary-grid-4 .summary-card-title svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+  }
+  
+  /* big rupee amount */
+  .summary-grid-4 .summary-stat-value {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #111827;
+  }
+  
+  /* green/red amount override for gain/loss cards */
+  .summary-grid-4 .summary-stat-value.summary-stat-positive {
+    color: #059669; /* green-600 */
+  }
+  .summary-grid-4 .summary-stat-value.summary-stat-negative {
+    color: #dc2626; /* red-600 */
+  }
+  
+  /* footnote under number (like "+16.23%") */
+  .summary-grid-4 .summary-stat-footnote {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+    color: #059669;
+  }
+  .summary-grid-4 .summary-stat-footnote.summary-stat-negative {
+    color: #dc2626;
+  }
+  
+  /* other grid groups below summary cards */
+  .summary-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .summary-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .summary-period-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    align-items: stretch;
+  }
+  .summary-period-grid .summary-card--muted {
+    text-align: center;
+}
+    /* === TOP HOLDINGS TABLE & CARD VIEW === */
+  .top-holdings-surface {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+  }
+
+  .top-holdings-table-container {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .top-holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #1f2937;
+  }
+
+  .top-holdings-table thead th {
+    padding: 10px 12px;
+    font-weight: 500;
+    color: #6b7280;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+
+  .top-holdings-table thead th:nth-child(n + 4) {
+    text-align: right;
+  }
+
+  .top-holdings-table thead th:nth-child(2),
+  .top-holdings-table thead th:nth-child(3),
+  .top-holdings-table tbody td:nth-child(2),
+  .top-holdings-table tbody td:nth-child(3),
+  .top-holdings-table tbody td:last-child {
+    text-align: center;
+  }
+
+  .top-holdings-table thead th:last-child {
+    text-align: center;
+  }
+
+  .top-holdings-table tbody td:nth-child(4),
+  .top-holdings-table tbody td:nth-child(5),
+  .top-holdings-table tbody td:nth-child(6),
+  .top-holdings-table tbody td:nth-child(7) {
+    text-align: right;
+  }
+
+  .top-holdings-table tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+    vertical-align: middle;
+  }
+
+  .top-holdings-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .top-holdings-card-list {
+    display: none;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(243,244,246,0.45), rgba(243,244,246,0));
+  }
+
+  .top-holdings-card {
+    background: #ffffff;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .top-holdings-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .top-holdings-card__identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .top-holdings-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .top-holdings-card__symbol {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .top-holdings-card__subtitle {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .top-holdings-card__value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .top-holdings-card__value-delta {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .top-holdings-card__value-delta.is-positive {
+    color: #16a34a;
+  }
+
+  .top-holdings-card__value-delta.is-negative {
+    color: #dc2626;
+  }
+
+  .top-holdings-card__chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .top-holdings-card__chips .top-holdings-card__broker {
+    margin-left: auto;
+  }
+
+  .top-holdings-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    line-height: 1;
+  }
+
+  .top-holdings-chip--product {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.2);
+  }
+
+  .top-holdings-card__broker {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .top-holdings-card__broker img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .top-holdings-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #4b5563;
+  }
+
+  .top-holdings-card__qty {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .top-holdings-card__qty strong {
+    color: #111827;
+    font-weight: 700;
+  }
+
+  .top-holdings-card__ltp {
+    font-weight: 600;
+    color: #111827;
+  }
+
+  @media (max-width: 768px) {
+    .top-holdings-surface {
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .top-holdings-table-container {
+      display: none;
+    }
+
+    .top-holdings-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+      background: transparent;
+    }
+  }
+
+  
+  /* responsive:
+     tablet/phone -> scroll horizontally for the 4 stat cards,
+     but other grids (3-col, 2-col) collapse to single-column */
+  @media (max-width: 1024px) {
+    .summary-grid-4 {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(250px, 1fr);
+      grid-template-columns: unset;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+  
+    .summary-grid-4 .summary-card {
+      min-width: 250px;
+    }
+  
+    .summary-grid-4::-webkit-scrollbar {
+      height: 6px;
+    }
+  
+    .summary-grid-4::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.15);
+      border-radius: 999px;
+    }
+  
+    .summary-grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+  
+    .summary-grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+  }
+  
+  /* dashboard container tweaks on very small screens */
+  @media (max-width: 768px) {
+    .summary-grid-4 {
+      grid-auto-flow: row;
+      grid-auto-columns: unset;
+      grid-template-columns: 1fr;
+      overflow-x: visible;
+      padding-bottom: 0;
+    }
+
+    .summary-grid-4 .summary-card {
+      min-width: 0;
+    }
+
+    .summary-dashboard {
+      border-radius: 20px;
+      padding: 28px 20px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .summary-period-grid {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+  }
+    
+  /* === GENERIC CARD STYLES (used in lower sections etc.) === */
+  .summary-card,
+  .summary-card--muted {
+    background: var(--summary-card);
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: clamp(10px, 1vw, 14px);
+    box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
+  }
+  
+  /* muted card (empty states / small KPI boxes in performance section) */
+  .summary-card--muted {
+    background: #f3f4f7;
+    border: none;
+    box-shadow: none;
+    text-align: center;
+  }
+  
+  /* === ACCOUNT STATUS BADGES === */
+  .summary-account-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: 8px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--status-color, var(--summary-muted));
+    background: var(--status-background-color, #f8f9fc);
+    border-color: var(--status-border-color, var(--summary-border));
+  }
+  .summary-account-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--status-color, currentColor);
+  }
+  .summary-account-status.summary-account-status--error {
+    color: var(--summary-red);
+    border-color: rgba(220, 38, 38, 0.24);
+    background: rgba(220, 38, 38, 0.08);
+  }
+  
+  /* === LITTLE FILTER CHIPS (1D / 1W / etc.) === */
+  .summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--summary-border);
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #ffffff;
+    color: var(--summary-muted);
+    user-select: none;
+  }
+  .summary-chip.is-active {
+    background: rgba(79, 70, 229, 0.08);
+    border-color: #dfe2f7;
+    color: var(--summary-primary);
+  }
+  
+  /* === PERFORMANCE CHART BOX === */
+  .summary-chart-container {
+    position: relative;
+    height: 240px;
+    border: 1px dashed var(--summary-border);
+    border-radius: 12px;
+    margin: 0 0 18px 0;
+    background: var(--summary-card);
+    overflow: hidden;
+  }
+  .summary-chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .summary-chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--summary-muted);
+    font-size: 14px;
+    padding: 0 16px;
+    background: var(--summary-card);
+  }
+  .summary-chart-empty[hidden] {
+    display: none;
+  }
+  
+  /* === PROGRESS BAR (sector allocation rows) === */
+  .summary-progress {
+    height: 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-progress > span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+  }
+  
+  /* === TABLES (Top Holdings) === */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .summary-table th,
+  .summary-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #f1f3f8;
+  }
+  .summary-table thead th {
+    font-weight: 600;
+    color: var(--summary-muted);
+    text-align: left;
+  }
+  .summary-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* === HEADER CARD ("Dashboard Summary" block at top) === */
+  .summary-header {
+    background: var(--summary-card);
+    border: 1px solid var(--summary-border);
+    border-radius: 12px;
+    padding: clamp(24px, 4vw, 28px) clamp(20px, 4vw, 32px);
+    box-shadow: 0 2px 10px rgba(28, 31, 43, 0.03);
+  }
+  .summary-header h1 {
+    font-size: clamp(26px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+  .summary-header p {
+    margin: 8px 0 0 0;
+    color: var(--summary-muted);
+    font-size: clamp(14px, 2.4vw, 16px);
+  }
+  
+  /* === SECTION HEADERS ("Account Summary", etc.) === */
+  .summary-section-title {
+    margin-top: 1px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .summary-section-title h2 {
+  
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+  }
+  .summary-section-title a {
+    text-decoration: none;
+    color: var(--summary-primary);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  
+  /* === GENERIC CARD HEADER (used in other cards, e.g. "Top Holdings", etc.) === */
+  .summary-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .summary-card-label {
+    margin: 0;
+    color: var(--summary-muted);
+    font-size: 14px;
+  }
+  
+  /* === NUMERIC STAT / GENERIC (outside top tiles) === */
+  .summary-stat-value {
+    margin: 0;
+    font-size: clamp(26px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.4px;
+  }
+  .summary-stat-positive {
+    color: var(--summary-green);
+  }
+  .summary-stat-negative {
+    color: var(--summary-red);
+  }
+  
+  /* === RECENT TRANSACTIONS LIST === */
+  .summary-transaction {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) auto;
+    align-items: center;
+    gap: 16px;
+  }
+  .summary-transaction + .summary-transaction {
+    margin-top: 14px;
+  }
+  .summary-transaction .info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .summary-transaction .timestamp {
+    font-size: 12px;
+    color: var(--summary-muted);
+    white-space: nowrap;
+    text-align: center;
+    justify-self: center;
+    min-width: 120px;
+  }
+  .summary-transaction .timestamp time {
+    display: block;
+  }
+  .summary-pill {
+    border: 1px solid var(--summary-border);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    background: #f1f4f8;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .summary-pill.summary-pill--sell {
+    border-color: #fad1d1;
+    color: var(--summary-red);
+    background: #fff5f5;
+  }
+  .summary-pill.summary-pill--dividend {
+    background: #ffffff;
+  }
+  .summary-value {
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+    justify-self: end;
+  }
+
+  @media (max-width: 640px) {
+    .summary-transaction {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 8px;
+    }
+    .summary-transaction .timestamp,
+    .summary-value {
+      justify-self: flex-start;
+      text-align: left;
+    }
+  }
+  
+  /* default footnote style (used outside the top 4 cards) */
+  .summary-stat-footnote {
+    margin: 6px 0 0 0;
+    font-size: 12px;
+    color: var(--summary-muted);
+  }
+/* === Account Summary mobile layout === */
+@media (max-width: 768px) {
+  /* Turn the account summary grid into a vertical list on mobile */
+  .summary-section-title + .summary-grid.summary-grid-3 {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  /* Style each broker card as a full-width tile */
+  .summary-section-title + .summary-grid.summary-grid-3 .summary-card {
+    width: 100% !important;
+    min-width: 0 !important;
+
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    padding: 16px 20px !important;
+  }
+
+  /* Tweak the small "Connected" pill for mobile look */
+  .summary-section-title + .summary-grid.summary-grid-3 .summary-account-status {
+    background: rgba(5, 150, 105, 0.1) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(5, 150, 105, 0.25) !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2;
+  }
+}
+  /* Alternative: hard 3 columns, no scroll */
+  @media (max-width: 768px) {
+    .summary-period-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 12px;
+    }
+  
+    .summary-period-grid .summary-card,
+    .summary-period-grid .summary-card--muted {
+      min-width: 0; /* allow them to shrink */
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -27,17 +784,6 @@
         </div>
       </div>
     </section>
-
-    {% if overview.is_refreshing %}
-      <div
-        class="summary-refresh-notice"
-        role="status"
-        aria-live="polite"
-        style="margin: 12px 0 20px; padding: 12px 16px; border-radius: 12px; background: rgba(79, 70, 229, 0.08); color: var(--summary-blue); border: 1px solid rgba(79, 70, 229, 0.24);"
-      >
-        Updating portfolio data for {{ overview.refreshing_account_count }} account{{ 's' if overview.refreshing_account_count != 1 else '' }} in the background. This page will refresh automatically when the latest values are ready.
-      </div>
-    {% endif %}
 
     <section class="summary-grid summary-grid-4">
       <div class="summary-card">
@@ -122,32 +868,16 @@
           {% for account in account_summaries %}
             {% set palette = account_palette[loop.index0 % (account_palette|length)] %}
             {% set has_error = account.error %}
-            <div
-              class="summary-card"
-              data-account-card
-              data-refreshing="{{ 'true' if account.refreshing else 'false' }}"
-              data-client-id="{{ account.client_id or '' }}"
-              data-account-id="{{ account.account_id or '' }}"
-            >
-              {% set broker_label = account.broker or 'Account' %}
-              {% set broker_key = broker_label|lower|replace(' ', '') %}
-              {% set broker_key = broker_key|replace('-', '') %}
-              {% set broker_key = broker_key|replace('_', '') %}
-              {% set broker_key = broker_key|replace('&', 'and') %}
-              {% set broker_key = broker_key|replace('.', '') %}
-              {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
-              {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}  
+            <div class="summary-card">
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
-                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                    <img
-                      src="{{ broker_icon }}"
-                      alt="{{ broker_label }} logo"
-                      style="width:100%; height:100%; object-fit:contain;"
-                    >
+                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ palette.stroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
                   </div>
                   <div>
-                    <p style="margin:0; font-weight:700;">{{ broker_label }}</p>
+                    <p style="margin:0; font-weight:700;">{{ account.broker or 'Account' }}</p>
                     <p style="margin:2px 0 0 0; color:var(--summary-muted); font-size:12px;">{{ account.client_id }}</p>
                   </div>
                 </div>
@@ -158,10 +888,13 @@
                   {{ account.status_label }}
                 </div>
               </div>
+            {% if account.cached_at %}
+              {# Footnote removed: no stale or last updated message #}
+            {% elif account.stale and not has_error %}
+              {# Footnote removed for stale accounts without cached data #}
+            {% endif %}
             {% if has_error %}
               <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
-            {% elif account.refreshing %}
-              <p class="summary-stat-footnote" style="margin:0; color:var(--summary-blue);">Refreshing portfolio data…</p>
             {% endif %}
           </div>
           {% endfor %}
@@ -237,19 +970,7 @@
           <a href="#">View All</a>
         </div>
         <div class="top-holdings-surface">
-          <div class="top-holdings-toolbar">
-            <label class="summary-sr-only" for="broker-filter">Filter holdings by broker</label>
-            <div class="top-holdings-filter">
-              <span class="top-holdings-filter__label" aria-hidden="true">Broker</span>
-              <select id="broker-filter" class="top-holdings-filter__select">
-                {% for broker_name in broker_names %}
-                  {% set option_label = 'All brokers' if broker_name == 'All' else broker_name %}
-                  <option value="{{ broker_name }}">{{ option_label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-          {% if combined_holdings %}
+          {% if top_holdings %}
             <div class="top-holdings-table-container">
               <table class="top-holdings-table">
                 <thead>
@@ -265,7 +986,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for holding in combined_holdings %}
+                  {% for holding in top_holdings %}
                     {% set pnl_positive = holding.pnl >= 0 %}
                     {% set symbol_display = holding.symbol or '—' %}
                     {% set avatar_text = symbol_display[:2].upper() %}
@@ -283,8 +1004,7 @@
                     {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                     {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
-                    {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
-                    <tr data-brokers='{{ holding.brokers | tojson }}'>
+                    <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
                           <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
@@ -315,13 +1035,10 @@
                       <td>{{ sell_avg is not none and format_currency(sell_avg) or '—' }}</td>
                       <td>{{ format_currency(holding.ltp) }}</td>
                       <td>
-                        <span class="top-holdings-table__pnl {{ 'is-positive' if pnl_positive else 'is-negative' }}">
-                          {{ format_currency(holding.pnl) }}
-                          <small>{{ format_percentage(pnl_percent) }}</small>
-                        </span>
+                        <span style="color:{{ '#16a34a' if pnl_positive else '#dc2626' }}; font-weight:600;">{{ format_currency(holding.pnl) }}</span>
                       </td>
                       <td>
-                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" loading="lazy" decoding="async" />
+                        <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" style="height: 28px; width: 28px; display: block; object-fit: contain; margin-left: auto; margin-right: auto; border-radius: 6px; background: transparent;" />
                       </td>
                     </tr>
                   {% endfor %}
@@ -329,7 +1046,7 @@
               </table>
             </div>
             <div class="top-holdings-card-list">
-              {% for holding in combined_holdings %}
+              {% for holding in top_holdings %}
                 {% set pnl_positive = holding.pnl >= 0 %}
                 {% set symbol_display = holding.symbol or '—' %}
                 {% set avatar_text = symbol_display[:2].upper() %}
@@ -349,7 +1066,7 @@
                 {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
                 {% set market_value = holding.market_value if holding.market_value is not none else (holding.cost + holding.pnl) %}
                 {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
-                <div class="top-holdings-card" data-brokers='{{ holding.brokers | tojson }}'>
+                <div class="top-holdings-card">
                   <div class="top-holdings-card__header">
                     <div class="top-holdings-card__identity">
                       <div class="top-holdings-card__avatar">{{ avatar_text }}</div>
@@ -371,7 +1088,7 @@
                       <span class="top-holdings-chip">{{ exchange_badge }}</span>
                     {% endif %}
                     <span class="top-holdings-card__broker">
-                      <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}" loading="lazy" decoding="async">
+                      <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" title="{{ holding.brokers|join(', ') }}">
                     </span>
                   </div>
                   <div class="top-holdings-card__meta">
@@ -463,592 +1180,288 @@
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 <script>
-(function () {
-  const PAGE_NAME = "Summary";
-  const templateSeriesRaw = {{ performance_summary.series | default([]) | tojson | safe }};
-  const templateSeries = Array.isArray(templateSeriesRaw) ? templateSeriesRaw : [];
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts["Summary"] = function () {
+  const canvas = document.getElementById("portfolio-performance-chart");
+  const emptyState = document.getElementById("portfolio-performance-empty");
+  const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
+  const chartGlobal = window.Chart;
 
-  const getPrefetchData = typeof window.getPagePrefetchData === "function"
-    ? (page) => window.getPagePrefetchData(page)
-    : () => undefined;
-  const runGlobalPrefetch = typeof window.runPagePrefetch === "function"
-    ? (options) => window.runPagePrefetch(PAGE_NAME, options)
-    : null;
+  if (!canvas) {
+    return;
+  }
 
-  let summaryPrefetcher = null;
-  if (typeof window.registerPagePrefetcher === "function") {
-    summaryPrefetcher = window.registerPagePrefetcher(PAGE_NAME, async ({ cached }) => {
-      try {
-        const response = await fetch("/api/summary", { credentials: "include" });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message = payload?.error || `Failed to load summary data (${response.status})`;
-          throw new Error(message);
-        }
-        if (!payload || typeof payload !== "object") {
-          return cached ?? null;
-        }
-        const normalized = { ...payload };
-        const summary = normalized.performance_summary && typeof normalized.performance_summary === "object"
-          ? { ...normalized.performance_summary }
-          : {};
-        if (!Array.isArray(summary.series)) {
-          summary.series = [];
-        }
-        normalized.performance_summary = summary;
-        return normalized;
-      } catch (error) {
-        console.error("Failed to prefetch summary data", error);
-        return cached ?? null;
-      }
+  const hasChart = typeof chartGlobal === "function";
+  if (!hasChart) {
+    canvas.setAttribute("hidden", "");
+    if (emptyState) {
+      emptyState.hidden = false;
+    }
+    return;
+  }
+
+  const initialSeries = {{ performance_summary.series | default([]) | tojson | safe }};
+  const PERIOD_LIMITS = {
+    "1D": 1,
+    "1W": 7,
+    "1M": 30,
+    "3M": 90,
+    "6M": 180,
+    "1Y": 365,
+    "All": null,
+  };
+
+  let cachedSeries = [];
+  let chartInstance = null;
+  const hasTimeScale = !!(
+    chartGlobal?.registry?.getScale?.('time') &&
+    chartGlobal?._adapters?.date
+  );
+  const xScaleType = hasTimeScale ? 'time' : 'linear';
+
+  function normalizeSeries(series) {
+    if (!Array.isArray(series)) {
+      return [];
+    }
+    return series
+      .map((point) => {
+        if (!point) return null;
+        const date = new Date(point.timestamp);
+        if (Number.isNaN(date.getTime())) return null;
+        const value = Number(point.value);
+        if (!Number.isFinite(value)) return null;
+        return { timestamp: date.toISOString(), value };
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
+
+  function mapToDataset(series) {
+    return series.map((point) => {
+      const date = new Date(point.timestamp);
+      const xValue = hasTimeScale ? date : date.getTime();
+      return { x: xValue, y: Number(point.value) };
     });
   }
 
-  if (!window.pageScripts) window.pageScripts = {};
-  window.pageScripts[PAGE_NAME] = function () {
-    const canvas = document.getElementById("portfolio-performance-chart");
-    const emptyState = document.getElementById("portfolio-performance-empty");
-    const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
-    const chartGlobal = window.Chart;
-
-    function setupAccountRefreshPolling() {
-      if (setupAccountRefreshPolling._ran) {
-        return;
-      }
-      setupAccountRefreshPolling._ran = true;
-
-      const accountCards = Array.from(
-        document.querySelectorAll('[data-account-card][data-refreshing="true"]')
-      );
-      if (!accountCards.length) {
-        return;
-      }
-
-      const POLL_INTERVAL_MS = 5000;
-      const MAX_ATTEMPTS = 12;
-      let reloadScheduled = false;
-
-      const isPlaceholderSnapshot = (snapshot) => {
-        if (!snapshot || typeof snapshot !== "object") {
-          return false;
-        }
-        if (typeof snapshot.placeholder === "boolean") {
-          return snapshot.placeholder;
-        }
-        if (!snapshot.stale) {
-          return false;
-        }
-        const portfolio = Array.isArray(snapshot.portfolio)
-          ? snapshot.portfolio
-          : [];
-        if (portfolio.length) {
-          return false;
-        }
-        const accountStats = snapshot.account && typeof snapshot.account === "object"
-          ? snapshot.account
-          : null;
-        if (accountStats && Object.keys(accountStats).length) {
-          return false;
-        }
-        const orders = snapshot.orders && typeof snapshot.orders === "object"
-          ? snapshot.orders.items
-          : null;
-        if (Array.isArray(orders) && orders.length) {
-          return false;
-        }
-        const errors = snapshot.errors && typeof snapshot.errors === "object"
-          ? snapshot.errors
-          : null;
-        if (errors && Object.keys(errors).length) {
-          return false;
-        }
-        return true;
-      };
-
-      const buildSnapshotUrl = (card) => {
-        const clientId = (card.getAttribute("data-client-id") || "").trim();
-        const accountId = (card.getAttribute("data-account-id") || "").trim();
-        const params = new URLSearchParams();
-        params.set("cache", "1");
-        if (!clientId && accountId) {
-          params.set("account_id", accountId);
-        }
-        let url = "/api/dashboard/snapshot";
-        if (clientId) {
-          url += `/${encodeURIComponent(clientId)}`;
-        }
-        const query = params.toString();
-        if (query) {
-          url += `?${query}`;
-        }
-        return url;
-      };
-
-      const scheduleNext = (card, attempt) => {
-        if (reloadScheduled || attempt + 1 >= MAX_ATTEMPTS) {
-          return;
-        }
-        setTimeout(() => pollCard(card, attempt + 1), POLL_INTERVAL_MS);
-      };
-
-      const pollCard = (card, attempt = 0) => {
-        const url = buildSnapshotUrl(card);
-        if (!url) {
-          return;
-        }
-        fetch(url, { credentials: "include" })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`Request failed with status ${response.status}`);
-            }
-            return response.json().catch(() => null);
-          })
-          .then((snapshot) => {
-            if (!snapshot || typeof snapshot !== "object") {
-              scheduleNext(card, attempt);
-              return;
-            }
-            if (snapshot.error) {
-              scheduleNext(card, attempt);
-              return;
-            }
-            const placeholder = isPlaceholderSnapshot(snapshot);
-            if (!placeholder) {
-              const portfolio = Array.isArray(snapshot.portfolio)
-                ? snapshot.portfolio
-                : [];
-              const accountStats = snapshot.account && typeof snapshot.account === "object"
-                ? snapshot.account
-                : null;
-              const hasPortfolio = portfolio.length > 0;
-              const hasAccountStats = !!(accountStats && Object.keys(accountStats).length);
-              const hasCachedAt = Boolean(snapshot.cached_at);
-              if (hasPortfolio || hasAccountStats || hasCachedAt) {
-                if (!reloadScheduled) {
-                  reloadScheduled = true;
-                  window.location.reload();
-                }
-                return;
-              }
-            }
-            scheduleNext(card, attempt);
-          })
-          .catch(() => {
-            scheduleNext(card, attempt);
-          });
-      };
-
-      accountCards.forEach((card, index) => {
-        const initialDelay = POLL_INTERVAL_MS * Math.min(index, 4);
-        setTimeout(() => pollCard(card, 0), initialDelay);
-      });
-    }
-
-    setupAccountRefreshPolling();
-  
-    if (!canvas) {
-      return;
-    }
-
-    const hasChart = typeof chartGlobal === "function";
-    if (!hasChart) {
-      canvas.setAttribute("hidden", "");
-      if (emptyState) {
-        emptyState.hidden = false;
-      }
-      return;
-    }
-
-    const PERIOD_LIMITS = {
-      "1D": 1,
-      "1W": 7,
-      "1M": 30,
-      "3M": 90,
-      "6M": 180,
-      "1Y": 365,
-      "All": null,
-    };
-
-    let cachedSeries = [];
-    let chartInstance = null;
-    const DWELL_REFRESH_MS = 3000;
-    let dwellRefreshTimer = null;
-    const hasTimeScale = !!(
-      chartGlobal?.registry?.getScale?.("time") &&
-      chartGlobal?._adapters?.date
-    );
-    const xScaleType = hasTimeScale ? "time" : "linear";
-
-    const getValueColor = typeof window.getValueColor === "function"
-      ? (value) => window.getValueColor(value)
-      : (value) => {
-          if (!Number.isFinite(value)) {
-            return "rgba(79, 70, 229, 0.9)";
-          }
-          if (value > 0) {
-            return "#059669";
-          }
-          if (value < 0) {
-            return "#dc2626";
-          }
-          return "#94a3b8";
-        };
-
-    function readValueFromContext(context) {
-      if (!context || typeof context !== "object") {
-        return 0;
-      }
-
-      const parsedValue = context.parsed?.y;
-      const parsedNumber = Number(parsedValue);
-      if (Number.isFinite(parsedNumber)) {
-        return parsedNumber;
-      }
-
-      const raw = context.raw;
-      const rawNumber = Number(raw);
-      if (Number.isFinite(rawNumber)) {
-        return rawNumber;
-      }
-
-      if (raw && typeof raw === "object") {
-        const rawValue = raw.y ?? raw.value ?? raw[1];
-        const rawValueNumber = Number(rawValue);
-        if (Number.isFinite(rawValueNumber)) {
-          return rawValueNumber;
-        }
-      }
-
-      return 0;
-    }
-
-    const resolvePointColor = (context) => {
-      const value = readValueFromContext(context);
-      return getValueColor(value);
-    };
-
-    function normalizeSeries(series) {
-      if (!Array.isArray(series)) {
-        return [];
-      }
-      return series
-        .map((point) => {
-          if (!point) return null;
-          const date = new Date(point.timestamp);
-          if (Number.isNaN(date.getTime())) return null;
-          const value = Number(point.value);
-          if (!Number.isFinite(value)) return null;
-          return { timestamp: date.toISOString(), value };
-        })
-        .filter(Boolean)
-        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    }
-
-    function mapToDataset(series) {
-      return series.map((point) => {
-        const date = new Date(point.timestamp);
-        const xValue = hasTimeScale ? date : date.getTime();
-        return { x: xValue, y: Number(point.value) };
-      });
-    }
-
-    function ensureChart() {
-      if (chartInstance) {
-        return chartInstance;
-      }
-      const context = canvas.getContext("2d");
-      chartInstance = new chartGlobal(context, {
-        type: "line",
-        data: {
-          datasets: [
-            {
-              label: "Portfolio Performance",
-              data: [],
-              borderColor: "rgba(79, 70, 229, 0.9)",
-              backgroundColor: "rgba(79, 70, 229, 0.12)",
-              tension: 0.4,
-              fill: true,
-              borderWidth: 2,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              pointBackgroundColor: resolvePointColor,
-              pointBorderColor: resolvePointColor,
-              pointHoverBackgroundColor: resolvePointColor,
-              pointHoverBorderColor: resolvePointColor,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: true,
-              intersect: false,
-              mode: "index",
-              callbacks: {
-                title: (items) => {
-                  const item = items?.[0];
-                  if (!item) return "";
-                  const date = new Date(item.parsed.x);
-                  return date.toLocaleString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "numeric",
-                  });
-                },
-                label: (context) => {
-                  const value = readValueFromContext(context);
-                  const numericValue = Number.isFinite(value) ? value : 0;
-                  return `Portfolio Value: ${numericValue.toLocaleString(undefined, {
-                    style: "currency",
-                    currency: "INR",
-                    maximumFractionDigits: 2,
-                  })}`;
-                },
-              },
-            },
-          },
-          interaction: {
-            intersect: false,
-            mode: "index",
-          },
-          scales: {
-            x: {
-              type: xScaleType,
-              grid: {
-                display: false,
-              },
-              ticks: {
-                maxTicksLimit: 8,
-                color: "rgba(148, 163, 184, 0.9)",
-                autoSkip: true,
-              },
-            },
-            y: {
-              beginAtZero: false,
-              grid: {
-                color: "rgba(226, 232, 240, 0.5)",
-              },
-              ticks: {
-                callback: (value) => `₹${Number(value).toLocaleString()}`,
-                color: "rgba(100, 116, 139, 0.9)",
-              },
-            },
-          },
-        },
-      });
+  function ensureChart() {
+    if (chartInstance) {
       return chartInstance;
     }
+    const context = canvas.getContext("2d");
+    chartInstance = new chartGlobal(context, {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "Portfolio Performance",
+            data: [],
+            borderColor: "rgba(79, 70, 229, 0.9)",
+            backgroundColor: "rgba(79, 70, 229, 0.12)",
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        parsing: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: {
+            type: xScaleType,
+            time: hasTimeScale ? { tooltipFormat: "MMM d, yyyy HH:mm" } : undefined,
+            grid: { color: "rgba(107, 114, 128, 0.15)" },
+            ticks: {
+              color: "#6b7280",
+              maxTicksLimit: 8,
+              callback(value) {
+                if (hasTimeScale) {
+                  return this.getLabelForValue(value);
+                }
+                const date = new Date(Number(value));
+                if (Number.isNaN(date.getTime())) return "";
+                return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+              },
+            },
+          },
+          y: {
+            grid: { color: "rgba(107, 114, 128, 0.15)" },
+            ticks: {
+              color: "#6b7280",
+              callback(value) {
+                return `₹${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+              },
+            },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            callbacks: {
+              label(context) {
+                const value = context.parsed.y;
+                return `₹${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              },
+            },
+          },
+        },
+      },
+    });
+    return chartInstance;
+  }
 
-    function toggleState(hasData) {
-      const chart = ensureChart();
-      if (!chart) return;
-      if (hasData) {
-        canvas.removeAttribute("hidden");
-        if (emptyState) {
-          emptyState.hidden = true;
+  function toggleState(hasData) {
+    if (hasData) {
+      canvas.removeAttribute("hidden");
+      if (emptyState) emptyState.hidden = true;
+    } else {
+      canvas.setAttribute("hidden", "");
+      if (emptyState) emptyState.hidden = false;
+    }
+  }
+
+  function updateChart(series) {
+    const chart = ensureChart();
+    const hasData = Array.isArray(series) && series.length > 0;
+    toggleState(hasData);
+    if (!hasData) {
+      chart.data.datasets[0].data = [];
+      chart.update("none");
+      return;
+    }
+    chart.data.datasets[0].data = mapToDataset(series);
+    chart.update("none");
+  }
+
+  function filterSeries(periodKey) {
+    if (!cachedSeries.length) {
+      return [];
+    }
+    const limitDays = PERIOD_LIMITS[periodKey] ?? null;
+    if (!limitDays) {
+      return cachedSeries.slice();
+    }
+    const now = Date.now();
+    const threshold = now - limitDays * 24 * 60 * 60 * 1000;
+    return cachedSeries.filter((point) => {
+      const time = Date.parse(point.timestamp);
+      return Number.isFinite(time) && time >= threshold;
+    });
+  }
+
+  function setActiveChip(period) {
+    chips.forEach((chip) => {
+      chip.classList.toggle("is-active", chip.dataset.period === period);
+    });
+  }
+  
+  const periodOrder = chips
+    .map((chip) => chip.dataset.period)
+    .filter((period, index, arr) => period && arr.indexOf(period) === index);
+
+  let activePeriod = chips.find((chip) => chip.classList.contains("is-active"))?.dataset.period || "1D";
+  if (!activePeriod || !(activePeriod in PERIOD_LIMITS)) {
+    activePeriod = periodOrder[0] || "All";
+  }
+
+  function findFallbackSeries(excludePeriod) {
+    if (!cachedSeries.length) {
+      return { period: excludePeriod, series: [] };
+    }
+
+    const candidateOrder = periodOrder.length
+      ? periodOrder
+      : Object.keys(PERIOD_LIMITS);
+
+    for (const candidate of candidateOrder) {
+      if (!candidate || candidate === excludePeriod) {
+        continue;
+      }
+      const candidateSeries = filterSeries(candidate);
+      if (candidateSeries.length) {
+        return { period: candidate, series: candidateSeries };
+      }
+    }
+
+    return { period: excludePeriod, series: cachedSeries.slice() };
+  }
+
+  function applyPeriod(period) {
+    if (!period || !(period in PERIOD_LIMITS)) {
+      period = activePeriod;
+    }
+    let resolvedPeriod = period;
+    let series = filterSeries(period);
+
+    if (!series.length && cachedSeries.length) {
+      const fallback = findFallbackSeries(period);
+      resolvedPeriod = fallback.period;
+      series = fallback.series;
+    }
+
+    activePeriod = resolvedPeriod;
+    setActiveChip(resolvedPeriod);
+    updateChart(series);
+  }
+
+  function refreshSeries() {
+    fetch("/api/summary")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to load summary data");
         }
-      } else {
-        canvas.setAttribute("hidden", "");
-        if (emptyState) {
-          emptyState.hidden = false;
+        return response.json();
+      })
+      .then((data) => {
+        const incoming = data?.performance_summary?.series;
+        if (!Array.isArray(incoming)) {
+          return;
         }
-      }
-    }
-
-    function updateChart(series) {
-      const chart = ensureChart();
-      if (!chart) return;
-
-      const hasData = Array.isArray(series) && series.length > 0;
-      toggleState(hasData);
-      chart.data.datasets[0].data = mapToDataset(series);
-      chart.update();
-    }
-
-    function setActiveChip(period) {
-      chips.forEach((chip) => {
-        if (chip.dataset.period === period) {
-          chip.classList.add("active");
-          chip.setAttribute("aria-pressed", "true");
-        } else {
-          chip.classList.remove("active");
-          chip.setAttribute("aria-pressed", "false");
-        }
-      });
-    }
-
-    function readInitialSeries() {
-      const payload = getPrefetchData(PAGE_NAME);
-      const cached = payload?.performance_summary?.series;
-      if (Array.isArray(cached) && cached.length) {
-        return cached;
-      }
-      return templateSeries;
-    }
-
-    let activePeriod = chips[0]?.dataset.period || "1M";
-
-    function filterSeries(period) {
-      if (!period || !(period in PERIOD_LIMITS)) {
-        return cachedSeries.slice();
-      }
-      const limit = PERIOD_LIMITS[period];
-      if (!limit) {
-        return cachedSeries.slice();
-      }
-      const now = Date.now();
-      const cutoff = now - limit * 24 * 60 * 60 * 1000;
-      return cachedSeries.filter(point => new Date(point.timestamp).getTime() >= cutoff);
-    }
-
-    function findFallbackSeries(excludePeriod) {
-      const periodOrder = Object.keys(PERIOD_LIMITS);
-      const candidateOrder = excludePeriod
-        ? [excludePeriod, ...periodOrder.filter(period => period !== excludePeriod)]
-        : Object.keys(PERIOD_LIMITS);
-
-      for (const candidate of candidateOrder) {
-        if (!candidate || candidate === excludePeriod) {
-          continue;
-        }
-        const candidateSeries = filterSeries(candidate);
-        if (candidateSeries.length) {
-          return { period: candidate, series: candidateSeries };
-        }
-      }
-
-      return { period: excludePeriod, series: cachedSeries.slice() };
-    }
-
-    function applyPeriod(period) {
-      if (!period || !(period in PERIOD_LIMITS)) {
-        period = activePeriod;
-      }
-      let resolvedPeriod = period;
-      let series = filterSeries(period);
-
-      if (!series.length && cachedSeries.length) {
-        const fallback = findFallbackSeries(period);
-        resolvedPeriod = fallback.period;
-        series = fallback.series;
-      }
-
-      activePeriod = resolvedPeriod;
-      setActiveChip(resolvedPeriod);
-      updateChart(series);
-    }
-
-    function clearDwellRefreshTimer() {
-      if (dwellRefreshTimer !== null) {
-        clearTimeout(dwellRefreshTimer);
-        dwellRefreshTimer = null;
-      }
-    }
-
-    function scheduleDwellRefresh() {
-      clearDwellRefreshTimer();
-      dwellRefreshTimer = window.setTimeout(() => {
-        dwellRefreshTimer = null;
-        refreshSeries({ force: true });
-      }, DWELL_REFRESH_MS);
-    }
-
-    function syncFromPrefetch() {
-      const payload = getPrefetchData(PAGE_NAME);
-      const incoming = payload?.performance_summary?.series;
-      if (Array.isArray(incoming)) {
         cachedSeries = normalizeSeries(incoming);
         applyPeriod(activePeriod);
-      } else if (!cachedSeries.length) {
-        toggleState(false);
-      }
-    }
-
-    function refreshSeries(arg) {
-      clearDwellRefreshTimer();
-      const isEvent = arg && typeof arg === "object" && typeof arg.type === "string";
-      const requestedForce = !isEvent && arg && typeof arg === "object" && "force" in arg
-        ? !!arg.force
-        : false;
-      const shouldForce = requestedForce || !cachedSeries.length;
-      const runner = summaryPrefetcher || runGlobalPrefetch;
-
-      let refreshPromise;
-
-      if (typeof runner !== "function") {
-        syncFromPrefetch();
-        refreshPromise = Promise.resolve();
-      } else {
-        refreshPromise = Promise.resolve(runner({ force: shouldForce }))
-          .then(() => {
-            syncFromPrefetch();
-          })
-          .catch((error) => {
-            console.error("Failed to refresh summary data", error);
-            if (!cachedSeries.length) {
-              toggleState(false);
-            }
-          });
-      }
-
-      return refreshPromise.finally(() => {
-        scheduleDwellRefresh();
-      });
-    }
-
-    function bootstrap() {
-      clearDwellRefreshTimer();
-      cachedSeries = normalizeSeries(readInitialSeries());
-      applyPeriod(activePeriod);
-      refreshSeries({ force: true });
-
-      const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
-      if (window[REFRESH_EVENT_KEY]) {
-        document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
-      }
-      window[REFRESH_EVENT_KEY] = refreshSeries;
-      document.addEventListener("summary:refresh", refreshSeries);
-    }
-
-    const startBootstrap = () => {
-      if (startBootstrap._ran) {
-        return;
-      }
-      startBootstrap._ran = true;
-      bootstrap();
-    };
-
-    chips.forEach((chip) => {
-      if (chip.dataset.bound === "true") {
-        return;
-      }
-      chip.dataset.bound = "true";
-      const handleActivate = () => {
-        startBootstrap();
-        applyPeriod(chip.dataset.period);
-      };
-      chip.addEventListener("click", handleActivate);
-      chip.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleActivate();
+      })
+      .catch(() => {
+        if (!cachedSeries.length) {
+          toggleState(false);
         }
       });
-    });
+  }
 
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(startBootstrap, { timeout: 500 });
-    } else {
-      setTimeout(startBootstrap, 0);
+  cachedSeries = normalizeSeries(initialSeries);
+  applyPeriod(activePeriod);
+  refreshSeries();
+
+  const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
+  if (window[REFRESH_EVENT_KEY]) {
+    document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
+  }
+  window[REFRESH_EVENT_KEY] = refreshSeries;
+  document.addEventListener("summary:refresh", refreshSeries);
+
+  chips.forEach((chip) => {
+    if (chip.dataset.bound === "true") {
+      return;
     }
-  };
-})();
+    chip.dataset.bound = "true";
+    const handleActivate = () => applyPeriod(chip.dataset.period);
+    chip.addEventListener("click", handleActivate);
+    chip.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleActivate();
+      }
+    });
+  });
+};
 </script>
 {% endblock %}
