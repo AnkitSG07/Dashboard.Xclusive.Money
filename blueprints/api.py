@@ -657,7 +657,19 @@ def _get_holdings_payload(account: Account) -> tuple[list, bool]:
 @login_required_api
 def dashboard_snapshot(client_id=None):
     user = current_user()
-    account = _resolve_account(user, client_id)
+    account = None
+    account_id_param = request.args.get("account_id")
+    if account_id_param:
+        try:
+            account_id_value = int(account_id_param)
+        except (TypeError, ValueError):
+            account_id_value = None
+        if account_id_value is not None:
+            account = Account.query.filter_by(
+                user_id=user.id, id=account_id_value
+            ).first()
+    if account is None:
+        account = _resolve_account(user, client_id)
     if not account or not account.credentials:
         return jsonify({"error": "Account not configured"}), 400
 
