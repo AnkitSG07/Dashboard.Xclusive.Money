@@ -88,6 +88,7 @@ from blueprints.api import (
     api_bp,
     login_required_api,
     get_cached_dashboard_snapshot,
+    update_dashboard_snapshot_cache,
     _get_holdings_payload,
 )
 from services.webhook_server import webhook_bp
