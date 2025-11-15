@@ -3097,73 +3097,127 @@
         }
       });
     }
-    
+
+    function navigateDashboard(url, { replace = false } = {}) {
+      const fallbackToLocation = () => {
+        if (typeof url === 'string' && url) {
+          window.location.href = url;
+        }
+      };
+
+      if (!url) {
+        return Promise.resolve(false);
+      }
+
+      if (typeof url !== 'string' || !url.startsWith('/')) {
+        fallbackToLocation();
+        return Promise.resolve(false);
+      }
+
+      try {
+        hydrateSpaCache();
+
+        if (currentSPAFetchController) {
+          currentSPAFetchController.abort();
+        }
+
+        currentSPARequestId += 1;
+        const requestId = currentSPARequestId;
+        const abortController = new AbortController();
+        currentSPAFetchController = abortController;
+
+        const cacheKey = getCacheKey(url);
+        const cachedFragment = spaCache.get(cacheKey);
+        const initialNavigation = replace ? 'replace' : 'push';
+
+        if (cachedFragment) {
+          try {
+            applyPageFragment(cachedFragment, { url, navigation: initialNavigation });
+          } catch (error) {
+            console.error('Failed to apply cached fragment:', error);
+          }
+        }
+
+        return fetchPageFragment(url, { signal: abortController.signal })
+          .then(fragment => {
+            if (requestId !== currentSPARequestId) {
+              return false;
+            }
+
+            if (!fragment) {
+              if (!cachedFragment) {
+                fallbackToLocation();
+              }
+              return false;
+            }
+
+            cacheFragment(cacheKey, fragment);
+            const navigation = replace ? 'replace' : (cachedFragment ? 'replace' : 'push');
+            const applied = applyPageFragment(fragment, { url, navigation });
+
+            if (!applied && !cachedFragment) {
+              fallbackToLocation();
+            }
+
+            if (currentSPAFetchController === abortController) {
+              currentSPAFetchController = null;
+            }
+
+            return Boolean(applied);
+          })
+          .catch(error => {
+            if (abortController.signal.aborted) {
+              return false;
+            }
+
+            if (currentSPAFetchController === abortController) {
+              currentSPAFetchController = null;
+            }
+
+            console.error('Failed to load:', error);
+            if (!cachedFragment) {
+              fallbackToLocation();
+            }
+
+            return false;
+          });
+      } catch (error) {
+        console.error('Failed to navigate via SPA:', error);
+        fallbackToLocation();
+        return Promise.resolve(false);
+      }
+    }
+
+    window.navigateDashboard = navigateDashboard;
+
     function setupSidebarSPALinks() {
       hydrateSpaCache();
       document.querySelectorAll('.sidebar .sidebar-item').forEach(link => {
         if (link.tagName !== 'A') return;
         if (link.dataset.spaBound === 'true') return;
         link.dataset.spaBound = 'true';
-        
+
         link.addEventListener('click', function (e) {
           const url = this.getAttribute('href');
           if (!url || !url.startsWith('/')) return;
           if (this.getAttribute('target') === '_blank') return;
-          
+
           e.preventDefault();
 
-          if (currentSPAFetchController) {
-            currentSPAFetchController.abort();
-          }
-
-          currentSPARequestId += 1;
-          const requestId = currentSPARequestId;
-          const abortController = new AbortController();
-          currentSPAFetchController = abortController;
-
           setActiveSidebarLink(this);
-          
+
           // Close sidebar on mobile
           if (window.innerWidth < 768) {
             toggleSidebar(false);
             document.body.classList.remove('sidebar-open');
           }
 
-          const cacheKey = getCacheKey(url);
-          const cachedFragment = spaCache.get(cacheKey);
-          if (cachedFragment) {
-            applyPageFragment(cachedFragment, { url, navigation: 'push' });
-          }
-
-          fetchPageFragment(url, { signal: abortController.signal })
-            .then(fragment => {
-              if (requestId !== currentSPARequestId) return;
-
-              if (!fragment) {
-                if (!cachedFragment) {
-                  window.location.href = url;
-                }
-                return;
-              }
-
-              cacheFragment(cacheKey, fragment);
-              const navigation = cachedFragment ? 'replace' : 'push';
-              applyPageFragment(fragment, { url, navigation });
-
-              if (currentSPAFetchController === abortController) {
-                currentSPAFetchController = null;
-              }
-            })
-            .catch(err => {
-              if (abortController.signal.aborted) return;
-              if (currentSPAFetchController === abortController) {
-                currentSPAFetchController = null;
-              }
-              console.error('Failed to load:', err);
-              if (!cachedFragment) {
-                window.location.href = url;
-              }
+          const navigation = navigateDashboard(url);
+          if (navigation && typeof navigation.catch === 'function') {
+            navigation.catch(() => {
+              window.location.href = url;
             });
+          }
         });
       });
     }
