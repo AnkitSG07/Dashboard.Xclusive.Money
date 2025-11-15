@@ -8516,9 +8516,31 @@ def _compute_account_metrics(positions: list[dict]):
             or position.get("name")
             or "Unknown"
         )
-        raw_qty = position.get("netQty") or position.get("netqty")
-        qty = _summary_safe_float(raw_qty, 0.0)
-        if qty == 0:
+        quantity_keys = (
+            "netQty",
+            "netqty",
+            "availableQty",
+            "available_quantity",
+            "totalQty",
+            "quantity",
+            "qty",
+        )
+        qty = None
+        for key in quantity_keys:
+            if key not in position:
+                continue
+            raw_qty = position.get(key)
+            if raw_qty in (None, ""):
+                continue
+            candidate_qty = _summary_safe_float(raw_qty, None)
+            if candidate_qty is None:
+                continue
+            if candidate_qty != 0:
+                qty = candidate_qty
+                break
+            if qty is None:
+                qty = candidate_qty
+        if qty in (None, 0):
             continue
 
         buy_avg = _summary_safe_float(
