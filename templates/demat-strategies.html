@@ -2253,7 +2253,22 @@
 
       openEditModal(strategy) {
         const url = strategy && strategy.id ? `/create-alerts?strategy_id=${encodeURIComponent(strategy.id)}` : '/create-alerts';
-        window.location.href = url;
+        const navigate = window.navigateDashboard;
+        if (typeof navigate === 'function') {
+          try {
+            const result = navigate(url);
+            if (result && typeof result.catch === 'function') {
+              result.catch(() => {
+                window.location.href = url;
+              });
+            }
+          } catch (error) {
+            console.error('Failed to open edit modal via SPA navigation:', error);
+            window.location.href = url;
+          }
+        } else {
+          window.location.href = url;
+        }
       }
 
       ensureTypeOption(value) {
