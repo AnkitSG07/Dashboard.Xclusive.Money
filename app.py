@@ -8242,16 +8242,44 @@ def _build_summary_series(
 
     log_rows = logs
     if log_rows is None and strategy_ids:
-        log_rows = (
-            db.session.query(
-                StrategyLog.timestamp.label("timestamp"),
-                StrategyLog.performance["pnl"].as_float().label("pnl"),
-            )
-            .filter(StrategyLog.strategy_id.in_(strategy_ids))
-            .order_by(cast(StrategyLog.timestamp, SADateTime).desc())
-            .limit(max_points)
-            .all()
+        strategy_model = StrategyLog
+        timestamp_attr = getattr(strategy_model, "timestamp", None)
+        performance_accessor = None
+        try:
+            raw_performance = getattr(strategy_model, "performance")
+            performance_accessor = raw_performance["pnl"].as_float()
+        except Exception:  # pragma: no cover - defensive
+            performance_accessor = None
+
+        can_label = (
+            timestamp_attr is not None
+            and hasattr(timestamp_attr, "label")
+            and performance_accessor is not None
+            and hasattr(performance_accessor, "label")
         )
+
+        if can_label:
+            log_rows = (
+                db.session.query(
+                    timestamp_attr.label("timestamp"),
+                    performance_accessor.label("pnl"),
+                )
+                .filter(strategy_model.strategy_id.in_(strategy_ids))
+                .order_by(cast(timestamp_attr, SADateTime).desc())
+                .limit(max_points)
+                .all()
+            )
+        else:
+            base_query = getattr(strategy_model, "query", None)
+            if base_query is not None:
+                log_rows = (
+                    base_query.filter(strategy_model.strategy_id.in_(strategy_ids))
+                    .order_by(cast(timestamp_attr, SADateTime).desc())
+                    .limit(max_points)
+                    .all()
+                )
+            else:
+                log_rows = []
 
     if log_rows:
         for row in reversed(log_rows):
@@ -8264,6 +8292,12 @@ def _build_summary_series(
             else:
                 timestamp_value = getattr(row, "timestamp", None)
                 pnl_value = getattr(row, "pnl", None)
+                if pnl_value is None:
+                    performance = getattr(row, "performance", None)
+                    if isinstance(performance, dict):
+                        pnl_value = performance.get("pnl")
+                    elif performance is not None:
+                        pnl_value = getattr(performance, "pnl", None)
 
             timestamp = _ensure_datetime(timestamp_value)
             if not timestamp:
@@ -8873,9 +8907,7 @@ def summary():
                         "error": message,
                     }
 
-                snapshot = (
-                    get_cached_dashboard_snapshot(account_obj, prefer_cache=True) or {}
-                )
+                snapshot = update_dashboard_snapshot_cache(account_obj) or {}
                 return {
                     "account_id": account_id,
                     "snapshot": snapshot,
@@ -9179,13 +9211,6 @@ def summary():
                     else 0.0
                 )
 
-        summary_entry.update(
-            {
-                "stale": bool(snapshot.get("stale")),
-                "cached_at": snapshot.get("cached_at"),
-                "age": snapshot.get("age"),
-            }
-        )
         account_summaries.append(summary_entry)
 
         account_allocation_values.append(
