@@ -8543,39 +8543,77 @@ def _compute_account_metrics(positions: list[dict]):
         if qty in (None, 0):
             continue
 
-        buy_avg = _summary_safe_float(
-            position.get("buyAvg")
-            if position.get("buyAvg") is not None
-            else position.get("buyavg"),
-            0.0,
-        )
-        sell_avg = _summary_safe_float(
-            position.get("sellAvg")
-            if position.get("sellAvg") is not None
-            else position.get("sellavg"),
-            0.0,
-        )
-        ltp = _summary_safe_float(
-            position.get("ltp")
-            if position.get("ltp") is not None
-            else position.get("lastPrice"),
-            0.0,
-        )
+        def _extract_numeric(entry: dict, keys: tuple[str, ...]):
+            found_key = False
+            zero_candidate = None
+            for key in keys:
+                if key not in entry:
+                    continue
+                raw_value = entry.get(key)
+                if raw_value in (None, ""):
+                    continue
+                found_key = True
+                candidate = _summary_safe_float(raw_value, None)
+                if candidate is None:
+                    continue
+                if candidate != 0.0:
+                    return candidate, True
+                if zero_candidate is None:
+                    zero_candidate = candidate
+            if zero_candidate is not None:
+                return zero_candidate, True
+            if found_key:
+                return 0.0, True
+            return None, False
 
-        profit_fields = None
-        for key in (
+        buy_avg_candidates = (
+            "buyAvg",
+            "buyavg",
+            "avgCostPrice",
+            "avgPrice",
+            "averagePrice",
+            "average_price",
+        )
+        buy_avg, _ = _extract_numeric(position, buy_avg_candidates)
+        if buy_avg is None:
+            buy_avg = 0.0
+
+        sell_avg_candidates = (
+            "sellAvg",
+            "sellavg",
+            "avgSellPrice",
+            "averageSellPrice",
+            "avg_sell_price",
+            "average_sell_price",
+        )
+        sell_avg, _ = _extract_numeric(position, sell_avg_candidates)
+        if sell_avg is None:
+            sell_avg = 0.0
+
+        ltp_candidates = (
+            "ltp",
+            "last_price",
+            "lastPrice",
+            "lastTradedPrice",
+            "marketPrice",
+            "currentPrice",
+            "closePrice",
+        )
+        ltp, _ = _extract_numeric(position, ltp_candidates)
+        if ltp is None:
+            ltp = 0.0
+
+        profit_candidates = (
             "profitAndLoss",
             "profitandloss",
             "pnl",
             "pl",
             "unrealizedProfit",
             "unrealizedprofit",
-        ):
-            if key in position and position[key] is not None:
-                profit_fields = position[key]
-                break
-
-        pnl = _summary_safe_float(profit_fields, 0.0)
+        )
+        pnl, pnl_found = _extract_numeric(position, profit_candidates)
+        if pnl is None:
+            pnl = 0.0
 
         day_change_fields = (
             "day_change",
@@ -8619,12 +8657,12 @@ def _compute_account_metrics(positions: list[dict]):
         qty_abs = abs(qty)
         if qty > 0:
             cost_basis = qty * buy_avg
-            if profit_fields is None:
+            if not pnl_found:
                 pnl = (ltp * qty) - cost_basis
             market_value = cost_basis + pnl
         else:
             cost_basis = qty_abs * sell_avg
-            if profit_fields is None:
+            if not pnl_found:
                 pnl = cost_basis - (ltp * qty_abs)
             market_value = cost_basis - pnl
 
