@@ -60,7 +60,7 @@ from time import time
 from mail import mail
 from collections import defaultdict
 from typing import Any
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from models import (
     db,
     User,
@@ -8942,50 +8942,92 @@ def summary():
 
     if accounts_with_credentials:
         max_workers = min(len(accounts_with_credentials), 8) or 1
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_map = {
-                executor.submit(_load_account_snapshot, acc.id): acc.id
-                for acc in accounts_with_credentials
-            }
-            done, not_done = wait(future_map.keys(), timeout=_SNAPSHOT_WORKER_TIMEOUT)
+        executor = ThreadPoolExecutor(max_workers=max_workers)
 
-            for future in done:
-                account_id = future_map[future]
-                try:
-                    result = future.result()
-                except Exception as exc:  # pragma: no cover - defensive
-                    message = str(exc)
-                    logger.exception(
-                        "Snapshot load failed for account %s", account_id
-                    )
-                    account_snapshot_payloads[account_id] = _placeholder_snapshot(message)
-                    account_snapshot_errors[account_id] = message
-                    continue
+        future_map = {
+            executor.submit(_load_account_snapshot, acc.id): acc.id
+            for acc in accounts_with_credentials
+        }
+        pending_futures = set(future_map.keys())
+        cancelled_account_ids: list[int] = []
+        completed_account_ids: list[int] = []
 
-                snapshot = result.get("snapshot")
-                if not isinstance(snapshot, dict):
-                    snapshot = {}
-                else:
-                    snapshot = snapshot or {}
-                error_message = result.get("error")
-                if error_message and not snapshot.get("errors"):
-                    snapshot["errors"] = {"snapshot": error_message}
-                elif error_message:
-                    snapshot.setdefault("errors", {}).setdefault(
-                        "snapshot", error_message
-                    )
-                account_snapshot_payloads[account_id] = snapshot
-                account_snapshot_errors[account_id] = error_message
+        def _handle_future(future):
+            account_id = future_map[future]
+            try:
+                result = future.result()
+            except Exception as exc:  # pragma: no cover - defensive
+                message = str(exc)
+                logger.exception(
+                    "Snapshot load failed for account %s", account_id
+                )
+                account_snapshot_payloads[account_id] = _placeholder_snapshot(message)
+                account_snapshot_errors[account_id] = message
+                return account_id
 
-            for future in not_done:
+            snapshot = result.get("snapshot")
+            if not isinstance(snapshot, dict):
+                snapshot = {}
+            else:
+                snapshot = snapshot or {}
+            error_message = result.get("error")
+            if error_message and not snapshot.get("errors"):
+                snapshot["errors"] = {"snapshot": error_message}
+            elif error_message:
+                snapshot.setdefault("errors", {}).setdefault(
+                    "snapshot", error_message
+                )
+            account_snapshot_payloads[account_id] = snapshot
+            account_snapshot_errors[account_id] = error_message
+            return account_id
+
+        try:
+            deadline = time() + _SNAPSHOT_WORKER_TIMEOUT
+            while pending_futures:
+                remaining = deadline - time()
+                if remaining <= 0:
+                    break
+                slice_timeout = min(remaining, 0.5)
+                done, not_done = wait(
+                    pending_futures,
+                    timeout=slice_timeout,
+                    return_when=FIRST_COMPLETED,
+                )
+                for future in done:
+                    account_id = _handle_future(future)
+                    completed_account_ids.append(account_id)
+                pending_futures = not_done
+
+            # Harvest any futures that completed while evaluating timeout budget.
+            for future in list(pending_futures):
+                if future.done():
+                    pending_futures.discard(future)
+                    account_id = _handle_future(future)
+                    completed_account_ids.append(account_id)
+
+            # Mark any remaining pending futures as timed out and cancel them.
+            for future in pending_futures:
                 account_id = future_map[future]
                 future.cancel()
+                cancelled_account_ids.append(account_id)
                 message = "Snapshot loading timed out"
                 logger.warning(
                     "Timed out loading dashboard snapshot for account %s", account_id
                 )
                 account_snapshot_payloads[account_id] = _placeholder_snapshot(message)
                 account_snapshot_errors[account_id] = message
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        if completed_account_ids:
+            logger.info(
+                "Completed dashboard snapshot loads for accounts %s",
+                completed_account_ids,
+            )
+        if cancelled_account_ids:
+            logger.warning(
+                "Cancelled dashboard snapshot loads for accounts %s", cancelled_account_ids
+            )
                 
     for account in accounts:
         status_label, status_palette = _account_status_label(account)
