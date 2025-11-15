@@ -888,11 +888,6 @@
                   {{ account.status_label }}
                 </div>
               </div>
-            {% if account.cached_at %}
-              {# Footnote removed: no stale or last updated message #}
-            {% elif account.stale and not has_error %}
-              {# Footnote removed for stale accounts without cached data #}
-            {% endif %}
             {% if has_error %}
               <p class="summary-stat-footnote" style="color:var(--summary-red); margin:0;">{{ account.error }}</p>
             {% endif %}
