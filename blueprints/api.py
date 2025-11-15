@@ -555,25 +555,25 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
     }
 
     positions_failed = False
+    orders_future = None
+    positions_future = None
+    account_future = None
+
+    def _future_result(future):
+        try:
+            return future.result(timeout=_BROKER_TIMEOUT_SECONDS)
+        except FuturesTimeoutError as exc:  # pragma: no cover - concurrency edge
+            future.cancel()
+            raise TimeoutError(str(exc))
 
     if hasattr(api, "get_positions"):
-        try:
-            resp = _call_with_timeout(api.get_positions, _BROKER_TIMEOUT_SECONDS)
-            snapshot["portfolio"] = _normalize_portfolio_data(resp, account)
-        except Exception as exc:
-            snapshot["errors"]["portfolio"] = str(exc)
-            snapshot["portfolio"] = existing_portfolio
-            positions_failed = True
+        positions_future = _EXECUTOR.submit(api.get_positions)
     else:
         snapshot["errors"]["portfolio"] = "Broker does not expose positions"
         positions_failed = True
 
     if hasattr(api, "get_order_list"):
-        try:
-            resp = _call_with_timeout(api.get_order_list, _BROKER_TIMEOUT_SECONDS)
-            snapshot["orders"] = _normalize_orders(resp)
-        except Exception as exc:
-            snapshot["errors"]["orders"] = str(exc)
+        orders_future = _EXECUTOR.submit(api.get_order_list)
     else:
         snapshot["errors"]["orders"] = "Broker does not expose order list"
 
@@ -585,8 +585,29 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
             break
 
     if profile_method is not None:
+        account_future = _EXECUTOR.submit(profile_method)
+    elif not snapshot["account"]:
+        snapshot["errors"]["account"] = "Broker does not expose account stats"
+
+    if positions_future is not None:
         try:
-            resp = _call_with_timeout(profile_method, _BROKER_TIMEOUT_SECONDS)
+            resp = _future_result(positions_future)
+            snapshot["portfolio"] = _normalize_portfolio_data(resp, account)
+        except Exception as exc:
+            snapshot["errors"]["portfolio"] = str(exc)
+            snapshot["portfolio"] = existing_portfolio
+            positions_failed = True
+
+    if orders_future is not None:
+        try:
+            resp = _future_result(orders_future)
+            snapshot["orders"] = _normalize_orders(resp)
+        except Exception as exc:
+            snapshot["errors"]["orders"] = str(exc)
+
+    if account_future is not None:
+        try:
+            resp = _future_result(account_future)
             stats = _normalize_account_stats(resp)
             if stats:
                 snapshot["account"] = stats
@@ -600,8 +621,6 @@ def _collect_snapshot(account: Account, existing: dict | None = None) -> dict:
             snapshot["errors"]["account"] = str(exc)
             snapshot["account"] = existing_account
             account_failed = True
-    elif not snapshot["account"]:
-        snapshot["errors"]["account"] = "Broker does not expose account stats"
 
     snapshot["stale"] = positions_failed or account_failed
     return snapshot
