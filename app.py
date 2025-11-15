@@ -9642,8 +9642,9 @@ def summary():
         }
 
     recent_transactions: list[dict[str, Any]] = []
-    collected_transactions: list[tuple[datetime | None, dict[str, Any]]] = []
+    collected_transactions: list[tuple[datetime, dict[str, Any]]] = []
     seen_keys: set[tuple] = set()
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(days=2)
 
     for account_id, snapshot in account_snapshot_payloads.items():
         orders_payload = (snapshot or {}).get("orders") or {}
@@ -9658,11 +9659,39 @@ def summary():
                     continue
                 seen_keys.add(dedup_key)
             sort_key = normalized.pop("_sort_timestamp", None)
-            collected_transactions.append((sort_key, normalized))
+            timestamp_for_filter = sort_key
+            if timestamp_for_filter is None:
+                timestamp_field = normalized.get("timestamp")
+                if isinstance(timestamp_field, datetime):
+                    timestamp_for_filter = timestamp_field
+                elif isinstance(timestamp_field, str):
+                    parsed_timestamp = parse_timestamp(timestamp_field)
+                    if parsed_timestamp:
+                        if parsed_timestamp.tzinfo is None:
+                            timestamp_for_filter = parsed_timestamp.replace(
+                                tzinfo=timezone.utc
+                            )
+                        else:
+                            timestamp_for_filter = parsed_timestamp.astimezone(
+                                timezone.utc
+                            )
+            if timestamp_for_filter is None:
+                continue
+            if timestamp_for_filter.tzinfo is None:
+                timestamp_for_filter = timestamp_for_filter.replace(
+                    tzinfo=timezone.utc
+                )
+            else:
+                timestamp_for_filter = timestamp_for_filter.astimezone(
+                    timezone.utc
+                )
+            if timestamp_for_filter < recent_cutoff:
+                continue
+            collected_transactions.append((timestamp_for_filter, normalized))
 
     if collected_transactions:
         collected_transactions.sort(
-            key=lambda pair: pair[0] or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda pair: pair[0],
             reverse=True,
         )
         limit = 5
@@ -9685,15 +9714,22 @@ def summary():
             value = qty * price if price else 0.0
             action = (trade.action or "").upper()
             timestamp = trade.timestamp
-            timestamp_iso = ""
-            if timestamp:
-                if isinstance(timestamp, str):
-                    timestamp_iso = timestamp
-                else:
-                    if timestamp.tzinfo is None:
-                        timestamp_iso = timestamp.replace(tzinfo=timezone.utc).isoformat()
-                    else:
-                        timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
+            timestamp_dt = None
+            if isinstance(timestamp, datetime):
+                timestamp_dt = timestamp
+            elif isinstance(timestamp, str):
+                parsed_timestamp = parse_timestamp(timestamp)
+                if parsed_timestamp:
+                    timestamp_dt = parsed_timestamp
+            if timestamp_dt is None:
+                continue
+            if timestamp_dt.tzinfo is None:
+                timestamp_dt = timestamp_dt.replace(tzinfo=timezone.utc)
+            else:
+                timestamp_dt = timestamp_dt.astimezone(timezone.utc)
+            if timestamp_dt < recent_cutoff:
+                continue
+            timestamp_iso = timestamp_dt.isoformat()
             recent_transactions.append(
                 {
                     "symbol": trade.symbol,
@@ -9702,7 +9738,7 @@ def summary():
                     "price": price,
                     "value": value,
                     "broker": trade.broker or trade.client_id,
-                    "timestamp": timestamp,
+                    "timestamp": timestamp_dt,
                     "timestamp_iso": timestamp_iso,
                 }
             )
