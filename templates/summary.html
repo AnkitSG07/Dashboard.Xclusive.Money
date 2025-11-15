@@ -143,7 +143,109 @@
   .summary-period-grid .summary-card--muted {
     text-align: center;
 }
-    /* === TOP HOLDINGS TABLE & CARD VIEW === */
+  .top-holdings-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .top-holdings-controls #top-holdings-toggle {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--summary-blue);
+    text-decoration: none;
+  }
+
+  .top-holdings-controls #top-holdings-toggle:hover {
+    text-decoration: underline;
+  }
+
+  .top-holdings-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .top-holdings-filter__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--summary-muted);
+  }
+
+  .top-holdings-filter__icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .top-holdings-filter__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--summary-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .top-holdings-filter__control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .top-holdings-filter__select {
+    appearance: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background-color: #f9fafb;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 8px 40px 8px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .top-holdings-filter__control::after {
+    content: "";
+    position: absolute;
+    right: 16px;
+    width: 10px;
+    height: 6px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E")
+      no-repeat center center / contain;
+    pointer-events: none;
+  }
+
+  .top-holdings-filter__select:hover {
+    border-color: #d1d5db;
+    background-color: #ffffff;
+  }
+
+  .top-holdings-filter__select:focus {
+    outline: none;
+    border-color: var(--summary-blue);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+
+  @media (max-width: 640px) {
+    .top-holdings-controls {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .top-holdings-controls #top-holdings-toggle {
+      margin-left: 0;
+    }
+  }
+
+  /* === TOP HOLDINGS TABLE & CARD VIEW === */
   .top-holdings-surface {
     background: #ffffff;
     border-radius: 12px;
@@ -963,12 +1065,22 @@
         <div class="summary-section-title" style="margin-bottom:12px;">
           <h2>Top Holdings</h2>
           <div class="top-holdings-controls">
-            <label class="summary-sr-only" for="top-holdings-broker-filter">Filter top holdings by broker</label>
-            <select id="top-holdings-broker-filter" class="summary-select">
-              {% for broker in broker_names %}
-                <option value="{{ broker }}">{{ broker }}</option>
-              {% endfor %}
-            </select>
+            <div class="top-holdings-filter">
+              <span class="top-holdings-filter__icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18M6 9.75h12M10 15h4" />
+                </svg>
+              </span>
+              <span class="top-holdings-filter__label">Filters:</span>
+              <div class="top-holdings-filter__control">
+                <label class="summary-sr-only" for="top-holdings-broker-filter">Filter top holdings by broker</label>
+                <select id="top-holdings-broker-filter" class="top-holdings-filter__select">
+                  {% for broker in broker_names %}
+                    <option value="{{ broker }}">{{ broker }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
             <a href="#" id="top-holdings-toggle" hidden>View All</a>
           </div>
         </div>
