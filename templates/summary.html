@@ -969,7 +969,7 @@
                 <option value="{{ broker }}">{{ broker }}</option>
               {% endfor %}
             </select>
-            <a href="#">View All</a>
+            <a href="#" id="top-holdings-toggle" hidden>View All</a>
           </div>
         </div>
         <div class="top-holdings-surface">
@@ -1008,7 +1008,6 @@
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                     {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
                     <tr data-brokers='{{ holding.brokers | tojson | safe }}'>
-                    <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
                           <div style="height: 28px; width: 28px; border-radius: 6px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color:#111827;">
@@ -1126,7 +1125,7 @@
     <section class="summary-card">
       <div class="summary-section-title" style="margin-bottom:12px;">
         <h2>Recent Transactions</h2>
-        <a href="#">View All</a>
+        <a href="#" id="recent-transactions-toggle" hidden>View All</a>
       </div>
 
       <div>
@@ -1206,7 +1205,15 @@ window.pageScripts["Summary"] = function () {
     ? Array.from(holdingsCardList.querySelectorAll(".top-holdings-card"))
     : [];
   const holdingsEmptyState = document.getElementById("top-holdings-empty-state");
+  const holdingsToggle = document.getElementById("top-holdings-toggle");
+  const transactionsToggle = document.getElementById("recent-transactions-toggle");
+  const transactionItems = Array.from(document.querySelectorAll(".summary-transaction"));
 
+  const HOLDINGS_LIMIT = 5;
+  const TRANSACTIONS_LIMIT = 5;
+  let holdingsShowAll = false;
+  let transactionsShowAll = false;
+  
   const brokerCache = new WeakMap();
 
   function normalizeBrokerName(value) {
@@ -1242,45 +1249,85 @@ window.pageScripts["Summary"] = function () {
     return brokerList;
   }
 
-  function applyBrokerFilter(selectedBroker) {
-    if (!brokerFilter) {
+  function matchesBroker(element, normalizedSelection, showAllSelection) {
+    if (!element) {
+      return false;
+    }
+    if (showAllSelection) {
+      return true;
+    }
+    const brokers = extractBrokers(element)
+      .map((name) => normalizeBrokerName(name))
+      .filter(Boolean);
+    if (!brokers.length) {
+      return false;
+    }
+    return brokers.includes(normalizedSelection);
+  }
+
+  function updateTransactionsVisibility() {
+    if (!transactionItems.length) {
+      if (transactionsToggle) {
+        transactionsToggle.hidden = true;
+      }
       return;
     }
 
-    const normalizedSelection = normalizeBrokerName(selectedBroker);
-    const showAll = !normalizedSelection || normalizedSelection === "all";
+    const shouldCollapse = transactionItems.length > TRANSACTIONS_LIMIT;
+    if (!shouldCollapse && transactionsShowAll) {
+      transactionsShowAll = false;
+    }
+
+    transactionItems.forEach((item, index) => {
+      const shouldShow = transactionsShowAll || index < TRANSACTIONS_LIMIT;
+      item.style.display = shouldShow ? "" : "none";
+    });
+
+    if (transactionsToggle) {
+      transactionsToggle.hidden = !shouldCollapse;
+      if (shouldCollapse) {
+        transactionsToggle.textContent = transactionsShowAll ? "View Less" : "View All";
+      }
+    }
+  }
+
+  function applyBrokerFilter(selectedBroker) {
+    const normalizedSelection = normalizeBrokerName(
+      typeof selectedBroker === "string" ? selectedBroker : ""
+    );
+    const showAllSelection =
+      !normalizedSelection || normalizedSelection === "all";
+
     let visibleRows = 0;
     let visibleCards = 0;
-
-    const matchesBroker = (element) => {
-      if (!element) {
-        return false;
-      }
-      if (showAll) {
-        return true;
-      }
-      const brokers = extractBrokers(element)
-        .map((name) => normalizeBrokerName(name))
-        .filter(Boolean);
-      if (!brokers.length) {
-        return false;
-      }
-      return brokers.includes(normalizedSelection);
-    };
+    let tableMatchCount = 0;
+    let cardMatchCount = 0;
 
     holdingsTableRows.forEach((row) => {
-      const isMatch = matchesBroker(row);
-      row.style.display = isMatch ? "" : "none";
+      const isMatch = matchesBroker(row, normalizedSelection, showAllSelection);
       if (isMatch) {
-        visibleRows += 1;
+        const shouldShow = holdingsShowAll || tableMatchCount < HOLDINGS_LIMIT;
+        row.style.display = shouldShow ? "" : "none";
+        tableMatchCount += 1;
+        if (shouldShow) {
+          visibleRows += 1;
+        }
+      } else {
+        row.style.display = "none";
       }
     });
 
     holdingsCardItems.forEach((card) => {
-      const isMatch = matchesBroker(card);
-      card.style.display = isMatch ? "" : "none";
+      const isMatch = matchesBroker(card, normalizedSelection, showAllSelection);
       if (isMatch) {
-        visibleCards += 1;
+        const shouldShow = holdingsShowAll || cardMatchCount < HOLDINGS_LIMIT;
+        card.style.display = shouldShow ? "" : "none";
+        cardMatchCount += 1;
+        if (shouldShow) {
+          visibleCards += 1;
+        }
+      } else {
+        card.style.display = "none";
       }
     });
 
@@ -1297,12 +1344,54 @@ window.pageScripts["Summary"] = function () {
       const hasVisible = visibleRows + visibleCards > 0;
       holdingsEmptyState.hidden = hasVisible;
     }
+
+    const totalMatches = Math.max(tableMatchCount, cardMatchCount);
+    if (totalMatches <= HOLDINGS_LIMIT && holdingsShowAll) {
+      holdingsShowAll = false;
+    }
+
+    if (holdingsToggle) {
+      holdingsToggle.hidden = totalMatches <= HOLDINGS_LIMIT;
+      if (!holdingsToggle.hidden) {
+        holdingsToggle.textContent = holdingsShowAll ? "View Less" : "View All";
+      }
+    }
+  }
+
+  updateTransactionsVisibility();
+
+  if (transactionsToggle) {
+    transactionsToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (transactionItems.length <= TRANSACTIONS_LIMIT) {
+        return;
+      }
+      transactionsShowAll = !transactionsShowAll;
+      updateTransactionsVisibility();
+    });
   }
 
   if (brokerFilter) {
     applyBrokerFilter(brokerFilter.value);
     brokerFilter.addEventListener("change", () => {
       applyBrokerFilter(brokerFilter.value);
+    });
+  } else {
+    applyBrokerFilter("");
+  }
+
+  if (holdingsToggle) {
+    holdingsToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      const totalHoldings = Math.max(
+        holdingsTableRows.length,
+        holdingsCardItems.length
+      );
+      if (totalHoldings <= HOLDINGS_LIMIT) {
+        return;
+      }
+      holdingsShowAll = !holdingsShowAll;
+      applyBrokerFilter(brokerFilter ? brokerFilter.value : "");
     });
   }
 
