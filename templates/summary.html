@@ -962,7 +962,15 @@
       <div class="summary-card" style="grid-column:1/-1;">
         <div class="summary-section-title" style="margin-bottom:12px;">
           <h2>Top Holdings</h2>
-          <a href="#">View All</a>
+          <div class="top-holdings-controls">
+            <label class="summary-sr-only" for="top-holdings-broker-filter">Filter top holdings by broker</label>
+            <select id="top-holdings-broker-filter" class="summary-select">
+              {% for broker in broker_names %}
+                <option value="{{ broker }}">{{ broker }}</option>
+              {% endfor %}
+            </select>
+            <a href="#">View All</a>
+          </div>
         </div>
         <div class="top-holdings-surface">
           {% if top_holdings %}
@@ -999,6 +1007,7 @@
                     {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
                     {% set broker_icon = broker_icon or url_for('static', filename='images/logo.png') %}
                     {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
+                    <tr data-brokers='{{ holding.brokers | tojson | safe }}'>
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1061,7 +1070,7 @@
                 {% set broker_alt_text = (broker_label if broker_label and broker_label != '—' else 'Broker') ~ ' logo' %}
                 {% set market_value = holding.market_value if holding.market_value is not none else (holding.cost + holding.pnl) %}
                 {% set pnl_percent = holding.pnl_percent if holding.pnl_percent is not none else ((holding.pnl / holding.cost * 100.0) if holding.cost else 0.0) %}
-                <div class="top-holdings-card">
+                <div class="top-holdings-card" data-brokers='{{ holding.brokers | tojson | safe }}'>
                   <div class="top-holdings-card__header">
                     <div class="top-holdings-card__identity">
                       <div class="top-holdings-card__avatar">{{ avatar_text }}</div>
@@ -1101,6 +1110,9 @@
                   </div>
                 </div>
               {% endfor %}
+            </div>
+            <div id="top-holdings-empty-state" class="top-holdings-empty" hidden>
+              No holdings match the selected broker.
             </div>
           {% else %}
             <div style="padding: 24px 16px; text-align: center; color: #6b7280; font-size: 12px;">
@@ -1184,6 +1196,115 @@ window.pageScripts["Summary"] = function () {
   const emptyState = document.getElementById("portfolio-performance-empty");
   const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
   const chartGlobal = window.Chart;
+  const brokerFilter = document.getElementById("top-holdings-broker-filter");
+  const holdingsTableContainer = document.querySelector(".top-holdings-table-container");
+  const holdingsTableRows = holdingsTableContainer
+    ? Array.from(holdingsTableContainer.querySelectorAll("tbody tr"))
+    : [];
+  const holdingsCardList = document.querySelector(".top-holdings-card-list");
+  const holdingsCardItems = holdingsCardList
+    ? Array.from(holdingsCardList.querySelectorAll(".top-holdings-card"))
+    : [];
+  const holdingsEmptyState = document.getElementById("top-holdings-empty-state");
+
+  const brokerCache = new WeakMap();
+
+  function normalizeBrokerName(value) {
+    if (!value) {
+      return "";
+    }
+    return String(value).toLowerCase().trim();
+  }
+
+  function extractBrokers(element) {
+    if (!element) {
+      return [];
+    }
+    if (brokerCache.has(element)) {
+      return brokerCache.get(element);
+    }
+    const rawValue = element.dataset?.brokers;
+    let brokerList = [];
+    if (rawValue) {
+      try {
+        const parsed = JSON.parse(rawValue);
+        if (Array.isArray(parsed)) {
+          brokerList = parsed.map((item) => String(item));
+        }
+      } catch (error) {
+        brokerList = String(rawValue)
+          .split(/\s*,\s*/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+    brokerCache.set(element, brokerList);
+    return brokerList;
+  }
+
+  function applyBrokerFilter(selectedBroker) {
+    if (!brokerFilter) {
+      return;
+    }
+
+    const normalizedSelection = normalizeBrokerName(selectedBroker);
+    const showAll = !normalizedSelection || normalizedSelection === "all";
+    let visibleRows = 0;
+    let visibleCards = 0;
+
+    const matchesBroker = (element) => {
+      if (!element) {
+        return false;
+      }
+      if (showAll) {
+        return true;
+      }
+      const brokers = extractBrokers(element)
+        .map((name) => normalizeBrokerName(name))
+        .filter(Boolean);
+      if (!brokers.length) {
+        return false;
+      }
+      return brokers.includes(normalizedSelection);
+    };
+
+    holdingsTableRows.forEach((row) => {
+      const isMatch = matchesBroker(row);
+      row.style.display = isMatch ? "" : "none";
+      if (isMatch) {
+        visibleRows += 1;
+      }
+    });
+
+    holdingsCardItems.forEach((card) => {
+      const isMatch = matchesBroker(card);
+      card.style.display = isMatch ? "" : "none";
+      if (isMatch) {
+        visibleCards += 1;
+      }
+    });
+
+    if (holdingsTableContainer) {
+      holdingsTableContainer.hidden =
+        holdingsTableRows.length > 0 && visibleRows === 0;
+    }
+    if (holdingsCardList) {
+      holdingsCardList.hidden =
+        holdingsCardItems.length > 0 && visibleCards === 0;
+    }
+
+    if (holdingsEmptyState) {
+      const hasVisible = visibleRows + visibleCards > 0;
+      holdingsEmptyState.hidden = hasVisible;
+    }
+  }
+
+  if (brokerFilter) {
+    applyBrokerFilter(brokerFilter.value);
+    brokerFilter.addEventListener("change", () => {
+      applyBrokerFilter(brokerFilter.value);
+    });
+  }
 
   if (!canvas) {
     return;
