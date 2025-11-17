@@ -173,6 +173,7 @@
         <form class="form" id="signUpForm" method="post" action="{{ url_for('auth.signup') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="full_phone" id="fullPhone" value="{{ request.form.get('full_phone', '') }}">
+            <input type="hidden" name="stage" value="send_otp">
 
             <div class="form-group">
                 <label for="email">email</label>
@@ -219,6 +220,12 @@
 
     <div id="toast" class="toast"></div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    <script>
+        window.serverMessages = {{ messages | tojson | safe }};
+    </script>
+    {% endwith %}
+
     <script>
         function showToast(message, type) {
             const toast = document.getElementById('toast');
@@ -234,43 +241,23 @@
             this.value = this.value.replace(/\D/g, '');
         });
 
-        const verificationBaseUrl = "{{ url_for('auth.otp_verification') }}";
-
-        document.getElementById('signUpForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const email = document.getElementById('email').value;
+        document.getElementById('signUpForm').addEventListener('submit', function() {
             const phone = document.getElementById('phone').value;
             const countryCode = document.getElementById('countryCode').value;
-
-            if (!phone || phone.length < 10) {
-                showToast('Please enter a valid phone number', 'error');
-                return;
-            }
-
-            if (!email || !email.includes('@')) {
-                showToast('Please enter a valid email address', 'error');
-                return;
-            }
-
             document.getElementById('fullPhone').value = countryCode + phone;
-            showToast('OTP sent to your phone number', 'success');
-
-            setTimeout(() => {
-                const params = new URLSearchParams({
-                    phone: countryCode + phone,
-                    email,
-                });
-                window.location.href = `${verificationBaseUrl}?${params.toString()}`;
-            }, 1000);
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const serverError = {{ (error or None)|tojson }};
-            if (serverError) {
-                showToast(serverError, 'error');
-            }
-        });
+        if (Array.isArray(window.serverMessages)) {
+            window.serverMessages.forEach(function(messageTuple) {
+                if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
+                    return;
+                }
+                const category = messageTuple[0];
+                const message = messageTuple[1];
+                const type = category === 'error' ? 'error' : 'success';
+                showToast(message, type);
+            });
+        }
     </script>
 </body>
 </html>
