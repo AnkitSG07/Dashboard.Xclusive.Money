@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: hsl(240, 20%, 97%);
@@ -21,17 +21,17 @@
             justify-content: center;
             padding: 1rem;
         }
-        
+
         .container {
             width: 100%;
             max-width: 28rem;
         }
-        
+
         .header {
             text-align: center;
             margin-bottom: 2rem;
         }
-        
+
         .icon-wrapper {
             width: 5rem;
             height: 5rem;
@@ -41,57 +41,57 @@
             justify-content: center;
             margin: 0 auto 1rem;
         }
-        
+
         .icon-wrapper.primary {
             background: hsla(250, 70%, 60%, 0.2);
         }
-        
+
         .icon-wrapper.success {
             background: hsla(142, 76%, 36%, 0.2);
         }
-        
+
         .icon {
             color: hsl(250, 70%, 60%);
         }
-        
+
         .icon.success {
             color: hsl(142, 76%, 36%);
         }
-        
+
         h1 {
             font-size: 1.5rem;
             font-weight: 700;
             color: hsl(240, 10%, 15%);
             margin-bottom: 1rem;
         }
-        
+
         .description {
             color: hsl(240, 4%, 46%);
         }
-        
+
         .form {
             display: flex;
             flex-direction: column;
             gap: 1rem;
         }
-        
+
         .form-group {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
-        
+
         label {
             color: hsl(240, 4%, 46%);
             font-size: 0.875rem;
             font-weight: 500;
         }
-        
+
         .input-row {
             display: flex;
             gap: 0.5rem;
         }
-        
+
         select, input {
             padding: 0.625rem 0.75rem;
             border: 1px solid hsl(240, 6%, 90%);
@@ -100,28 +100,33 @@
             background: white;
             transition: all 0.2s;
         }
-        
+
         select {
             width: 7rem;
         }
-        
+
         input {
             flex: 1;
             width: 100%;
         }
-        
+
         input:focus, select:focus {
             outline: none;
             border-color: hsl(250, 70%, 60%);
             box-shadow: 0 0 0 3px hsla(250, 70%, 60%, 0.1);
         }
-        
+
+        input:disabled {
+            background: hsl(240, 5%, 96%);
+            color: hsl(240, 4%, 46%);
+        }
+
         .otp-container {
             display: flex;
             gap: 0.5rem;
             justify-content: center;
         }
-        
+
         .otp-input {
             width: 3rem;
             height: 3rem;
@@ -130,7 +135,7 @@
             font-weight: 600;
             padding: 0;
         }
-        
+
         .btn {
             padding: 0.75rem 1.5rem;
             border-radius: 0.5rem;
@@ -142,11 +147,11 @@
             background: hsl(250, 70%, 60%);
             color: white;
         }
-        
+
         .btn:hover {
             background: hsl(250, 70%, 55%);
         }
-        
+
         .link-btn {
             background: none;
             border: none;
@@ -155,30 +160,30 @@
             font-size: 1rem;
             padding: 0.5rem;
         }
-        
+
         .link-btn:hover {
             color: hsl(250, 70%, 60%);
         }
-        
+
         .footer-links {
             display: flex;
             justify-content: space-between;
             font-size: 0.875rem;
         }
-        
+
         .link {
             color: hsl(250, 70%, 60%);
             text-decoration: none;
         }
-        
+
         .link:hover {
             text-decoration: underline;
         }
-        
+
         .hidden {
             display: none;
         }
-        
+
         .toast {
             position: fixed;
             top: 1rem;
@@ -191,19 +196,31 @@
             display: none;
             animation: slideIn 0.3s ease-out;
         }
-        
+
         .toast.success {
             background: hsl(142, 76%, 36%);
         }
-        
+
         .toast.error {
             background: hsl(0, 72%, 51%);
         }
-        
+
         .toast.show {
             display: block;
         }
-        
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -212,7 +229,7 @@
                 transform: translateX(0);
             }
         }
-        
+
         @media (min-width: 640px) {
             h1 {
                 font-size: 1.875rem;
@@ -222,7 +239,17 @@
 </head>
 <body>
     <div class="container">
-        <!-- Step 1: Enter Phone Number -->
+        {% with flashed = get_flashed_messages(with_categories=true) %}
+        <div aria-live="polite" class="sr-only" id="flashFallback">
+            {% for category, message in flashed %}
+            <div data-category="{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% set flash_payload = flashed %}
+        {% endwith %}
+        {% set country_code_value = country_code_value or '+91' %}
+        {% set phone_value = phone_value or '' %}
+        {% set phone_display = phone_display or '' %}
         <div id="phoneStep" class="{% if step == 'otp' %}hidden{% endif %}">
             <div class="header">
                 <div class="icon-wrapper primary">
@@ -232,36 +259,35 @@
                 </div>
                 <h1>Please enter your mobile number!</h1>
                 <p class="description">
-                    We will send a 6-digit OTP to your number to verify your number.
+                    We will send a 6-digit OTP to your number to verify your identity.
                 </p>
             </div>
-            
 
             <form class="form" id="phoneForm" method="post" action="{{ url_for('auth.login_otp') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="stage" value="send_otp">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label for="phone">mobile</label>
                     <div class="input-row">
                         <select id="countryCode" name="country_code">
-                            <option value="+1" {% if request.form.get('country_code') == '+1' %}selected{% endif %}>🇺🇸 +1</option>
-                            <option value="+44" {% if request.form.get('country_code') == '+44' %}selected{% endif %}>🇬🇧 +44</option>
-                            <option value="+91" {% if request.form.get('country_code', '+91') == '+91' %}selected{% endif %}>🇮🇳 +91</option>
-                            <option value="+86" {% if request.form.get('country_code') == '+86' %}selected{% endif %}>🇨🇳 +86</option>
-                            <option value="+81" {% if request.form.get('country_code') == '+81' %}selected{% endif %}>🇯🇵 +81</option>
-                            <option value="+82" {% if request.form.get('country_code') == '+82' %}selected{% endif %}>🇰🇷 +82</option>
-                            <option value="+61" {% if request.form.get('country_code') == '+61' %}selected{% endif %}>🇦🇺 +61</option>
-                            <option value="+49" {% if request.form.get('country_code') == '+49' %}selected{% endif %}>🇩🇪 +49</option>
-                            <option value="+33" {% if request.form.get('country_code') == '+33' %}selected{% endif %}>🇫🇷 +33</option>
-                            <option value="+39" {% if request.form.get('country_code') == '+39' %}selected{% endif %}>🇮🇹 +39</option>
+                            <option value="+1" {% if country_code_value == '+1' %}selected{% endif %}>🇺🇸 +1</option>
+                            <option value="+44" {% if country_code_value == '+44' %}selected{% endif %}>🇬🇧 +44</option>
+                            <option value="+91" {% if country_code_value == '+91' %}selected{% endif %}>🇮🇳 +91</option>
+                            <option value="+86" {% if country_code_value == '+86' %}selected{% endif %}>🇨🇳 +86</option>
+                            <option value="+81" {% if country_code_value == '+81' %}selected{% endif %}>🇯🇵 +81</option>
+                            <option value="+82" {% if country_code_value == '+82' %}selected{% endif %}>🇰🇷 +82</option>
+                            <option value="+61" {% if country_code_value == '+61' %}selected{% endif %}>🇦🇺 +61</option>
+                            <option value="+49" {% if country_code_value == '+49' %}selected{% endif %}>🇩🇪 +49</option>
+                            <option value="+33" {% if country_code_value == '+33' %}selected{% endif %}>🇫🇷 +33</option>
+                            <option value="+39" {% if country_code_value == '+39' %}selected{% endif %}>🇮🇹 +39</option>
                         </select>
                         <input
                             type="tel"
                             id="phone"
                             name="phone"
                             placeholder="XXXXXXXXXX"
+                            value="{{ phone_value }}"
                             maxlength="10"
-                            value="{{ request.form.get('phone', '') }}"
                             required
                         />
                     </div>
@@ -275,7 +301,6 @@
             </form>
         </div>
 
-        <!-- Step 2: Verify OTP -->
         <div id="otpStep" class="{% if step != 'otp' %}hidden{% endif %}">
             <div class="header">
                 <div class="icon-wrapper success">
@@ -284,54 +309,55 @@
                     </svg>
                 </div>
                 <h1>Verify OTP</h1>
-                <p class="description" id="phoneDisplay">{% if phone_display %}Enter the 6-digit code sent to {{ phone_display }}{% endif %}</p>
+                <p class="description" id="phoneDisplay">Enter the 6-digit code sent to {{ phone_display }}</p>
             </div>
 
             <form class="form" id="otpForm" method="post" action="{{ url_for('auth.login_otp') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="stage" value="verify_otp">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="phoneDisplayInput">mobile</label>
+                    <input type="text" id="phoneDisplayInput" value="{{ phone_display }}" disabled>
+                </div>
                 <div class="form-group">
                     <label>6-digit OTP</label>
                     <div class="otp-container">
-                        <input type="text" class="otp-input" maxlength="1" id="otp1" name="otp1" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp2" name="otp2" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp3" name="otp3" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp4" name="otp4" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp5" name="otp5" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp6" name="otp6" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp1" name="otp1" inputmode="numeric">
+                        <input type="text" class="otp-input" maxlength="1" id="otp2" name="otp2" inputmode="numeric">
+                        <input type="text" class="otp-input" maxlength="1" id="otp3" name="otp3" inputmode="numeric">
+                        <input type="text" class="otp-input" maxlength="1" id="otp4" name="otp4" inputmode="numeric">
+                        <input type="text" class="otp-input" maxlength="1" id="otp5" name="otp5" inputmode="numeric">
+                        <input type="text" class="otp-input" maxlength="1" id="otp6" name="otp6" inputmode="numeric">
                     </div>
                 </div>
 
                 <button type="submit" class="btn">Verify &amp; Login</button>
-            </form>
 
-            <div class="footer-links">
-                <button type="button" class="link-btn" onclick="window.location.href='{{ url_for('auth.login_otp') }}'" style="padding: 0;">
-                    ‹ Change number
-                </button>
-                <form method="post" action="{{ url_for('auth.login_otp') }}" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="stage" value="resend_otp">
-                    <button type="submit" class="link" style="border: none; background: none; cursor: pointer; padding: 0;">
-                        Resend OTP
+                <div class="footer-links">
+                    <button type="button" class="link-btn" onclick="window.location.href='{{ url_for('auth.login_otp', reset=1) }}'" style="padding: 0;">
+                        ‹ Change number
                     </button>
-                </form>
-            </div>
+                    <form method="post" action="{{ url_for('auth.login_otp') }}">
+                        <input type="hidden" name="stage" value="resend_otp">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="link" style="border: none; background: none; cursor: pointer; padding: 0;">
+                            Resend OTP
+                        </button>
+                    </form>
+                </div>
+            </form>
         </div>
     </div>
 
     <div id="toast" class="toast"></div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
     <script>
-        window.serverMessages = {{ messages | tojson | safe }};
-    </script>
-    {% endwith %}
-
-    <script>
-        document.getElementById('phone').addEventListener('input', function(e) {
-            this.value = this.value.replace(/\D/g, '');
-        });
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function(e) {
+                this.value = this.value.replace(/\D/g, '');
+            });
+        }
 
         const otpInputs = document.querySelectorAll('.otp-input');
         otpInputs.forEach((input, index) => {
@@ -360,17 +386,19 @@
             }, 3000);
         }
 
-        if (Array.isArray(window.serverMessages)) {
-            window.serverMessages.forEach(function(messageTuple) {
-                if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
-                    return;
-                }
-                const category = messageTuple[0];
-                const message = messageTuple[1];
-                const type = category === 'error' ? 'error' : 'success';
-                showToast(message, type);
-            });
+        const flashMessages = {{ (flash_payload or [])|tojson }};
+        if (flashMessages.length) {
+            const [category, message] = flashMessages[flashMessages.length - 1];
+            const type = category === 'error' ? 'error' : 'success';
+            showToast(message, type);
         }
+
+        {% if step == 'otp' %}
+        const firstEmpty = Array.from(otpInputs).find(input => !input.value);
+        if (firstEmpty) {
+            firstEmpty.focus();
+        }
+        {% endif %}
     </script>
 </body>
 </html>
