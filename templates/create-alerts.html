@@ -622,6 +622,41 @@
         .map(item => String(item));
     }
 
+    function buildPayloadFromStrategy(strategy) {
+      if (!strategy || typeof strategy !== 'object') {
+        return {};
+      }
+
+      const payload = {
+        exchange: expandBoth(strategy.exchange || 'NSE', ['NSE', 'BSE']),
+        transactionType: expandBoth(strategy.transaction_type || 'BUY', ['BUY', 'SELL']),
+        orderType: strategy.order_type || 'limit',
+        orderValidity: strategy.order_validity || 'day',
+        productType: strategy.product_type || 'intraday',
+        masterAccounts: parseMasterAccounts(strategy.master_accounts)
+      };
+
+      const qty = Number(strategy.order_qty);
+      if (!Number.isNaN(qty)) {
+        payload.orderQty = qty;
+      }
+
+      const orderValue = Number(strategy.order_value);
+      if (!Number.isNaN(orderValue)) {
+        payload.orderValue = orderValue;
+      }
+
+      if (strategy.allowed_tickers === '__WATCHLIST_DYNAMIC__') {
+        payload.tradingSymbols = [DYNAMIC_TICKER_TOKEN];
+      } else if (strategy.allowed_tickers) {
+        payload.tradingSymbols = parseMasterAccounts(strategy.allowed_tickers);
+      } else {
+        payload.tradingSymbols = [];
+      }
+
+      return payload;
+    }
+ 
     function escapeRegExp(value) {
       return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
@@ -1001,16 +1036,31 @@
         }
       }
 
+      let transactionTypeValue = null;
       if (payloadObject && payloadObject.transactionType) {
         alertTypeManual.checked = true;
         alertTypeStrategy.checked = false;
+
+        const txValue = payloadObject.transactionType;
+        if (Array.isArray(txValue)) {
+          const normalized = txValue.map(value => String(value).toUpperCase());
+          if (normalized.includes('BUY') && normalized.includes('SELL')) {
+            transactionTypeValue = 'BOTH';
+          } else if (normalized.includes('SELL')) {
+            transactionTypeValue = 'SELL';
+          } else if (normalized.includes('BUY')) {
+            transactionTypeValue = 'BUY';
+          }
+        } else {
+          transactionTypeValue = String(txValue).toUpperCase();
+        }
       } else {
         alertTypeStrategy.checked = true;
         alertTypeManual.checked = false;
       }
       updateAlertMode();
-      if (payloadObject && payloadObject.transactionType) {
-        setSelectValue(transactionTypeSelect, payloadObject.transactionType);
+      if (transactionTypeValue) {
+        setSelectValue(transactionTypeSelect, transactionTypeValue);
       }
 
       if (payloadObject && payloadObject.orderQty !== undefined && payloadObject.orderQty !== null) {
@@ -1044,19 +1094,34 @@
           submitButton.textContent = 'Update Strategy';
         }
         const strategy = await fetchJson(`/api/strategies/${encodeURIComponent(editingStrategyId)}`);
-        initialMasterAccounts = parseMasterAccounts(strategy?.master_accounts);
+        const strategyPayload = buildPayloadFromStrategy(strategy);
 
-        let payload = null;
+        if (Array.isArray(strategyPayload.masterAccounts)) {
+          initialMasterAccounts = strategyPayload.masterAccounts.map(value => String(value));
+        } else {
+          initialMasterAccounts = parseMasterAccounts(strategy?.master_accounts);
+        }
+
+        let cachedPayload = null;
         try {
           const stored = window.localStorage.getItem(`strategyPayload_${editingStrategyId}`);
           if (stored) {
             const parsed = JSON.parse(stored);
             if (parsed && typeof parsed === 'object') {
-              payload = parsed;
+              cachedPayload = parsed;
             }
           }
         } catch (error) {
           console.warn('Failed to parse stored payload for strategy', error);
+        }
+
+        const payload = { ...strategyPayload };
+        if (cachedPayload && typeof cachedPayload === 'object') {
+          Object.entries(cachedPayload).forEach(([key, value]) => {
+            if (value !== undefined) {
+              payload[key] = value;
+            }
+          });
         }
 
         if (payload && Array.isArray(payload.masterAccounts)) {
@@ -1130,9 +1195,30 @@
 
     copyPreviewBtn.addEventListener('click', () => copyToClipboard(webhookPreview.value || ''));
 
+    const navigateToStrategies = () => {
+      const navigate = window.navigateDashboard;
+      if (typeof navigate === 'function') {
+        try {
+          const navigation = navigate('/demat-strategies');
+          Promise.resolve(navigation).then(success => {
+            if (success === false) {
+              window.location.href = '/demat-strategies';
+            }
+          }).catch(() => {
+            window.location.href = '/demat-strategies';
+          });
+          return;
+        } catch (error) {
+          console.error('SPA navigation failed, falling back to full redirect', error);
+        }
+      }
+      window.location.href = '/demat-strategies';
+    };
+
     cancelButton.addEventListener('click', () => {
       if (window.confirm('Are you sure you want to cancel? All changes will be lost.')) {
-        window.location.href = '/demat-strategies';
+        navigateToStrategies();
+       
       }
     });
 
@@ -1203,7 +1289,8 @@
           }
         }
         window.alert(isEditMode ? 'Strategy updated successfully.' : 'Strategy created successfully.');
-        window.location.href = '/demat-strategies';
+        navigateToStrategies();
+       
       }).catch(error => {
         window.alert(error.message || (isEditMode ? 'Failed to update strategy.' : 'Failed to create strategy.'));
       });
