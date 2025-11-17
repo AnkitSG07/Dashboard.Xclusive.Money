@@ -223,7 +223,7 @@
 <body>
     <div class="container">
         <!-- Step 1: Enter Phone Number -->
-        <div id="phoneStep">
+        <div id="phoneStep" class="{% if step == 'otp' %}hidden{% endif %}">
             <div class="header">
                 <div class="icon-wrapper primary">
                     <svg class="icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -236,42 +236,47 @@
                 </p>
             </div>
             
-            <form class="form" id="phoneForm">
+
+            <form class="form" id="phoneForm" method="post" action="{{ url_for('auth.login_otp') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="stage" value="send_otp">
                 <div class="form-group">
                     <label for="phone">mobile</label>
                     <div class="input-row">
-                        <select id="countryCode">
-                            <option value="+1">🇺🇸 +1</option>
-                            <option value="+44">🇬🇧 +44</option>
-                            <option value="+91" selected>🇮🇳 +91</option>
-                            <option value="+86">🇨🇳 +86</option>
-                            <option value="+81">🇯🇵 +81</option>
-                            <option value="+82">🇰🇷 +82</option>
-                            <option value="+61">🇦🇺 +61</option>
-                            <option value="+49">🇩🇪 +49</option>
-                            <option value="+33">🇫🇷 +33</option>
-                            <option value="+39">🇮🇹 +39</option>
+                        <select id="countryCode" name="country_code">
+                            <option value="+1" {% if request.form.get('country_code') == '+1' %}selected{% endif %}>🇺🇸 +1</option>
+                            <option value="+44" {% if request.form.get('country_code') == '+44' %}selected{% endif %}>🇬🇧 +44</option>
+                            <option value="+91" {% if request.form.get('country_code', '+91') == '+91' %}selected{% endif %}>🇮🇳 +91</option>
+                            <option value="+86" {% if request.form.get('country_code') == '+86' %}selected{% endif %}>🇨🇳 +86</option>
+                            <option value="+81" {% if request.form.get('country_code') == '+81' %}selected{% endif %}>🇯🇵 +81</option>
+                            <option value="+82" {% if request.form.get('country_code') == '+82' %}selected{% endif %}>🇰🇷 +82</option>
+                            <option value="+61" {% if request.form.get('country_code') == '+61' %}selected{% endif %}>🇦🇺 +61</option>
+                            <option value="+49" {% if request.form.get('country_code') == '+49' %}selected{% endif %}>🇩🇪 +49</option>
+                            <option value="+33" {% if request.form.get('country_code') == '+33' %}selected{% endif %}>🇫🇷 +33</option>
+                            <option value="+39" {% if request.form.get('country_code') == '+39' %}selected{% endif %}>🇮🇹 +39</option>
                         </select>
-                        <input 
-                            type="tel" 
-                            id="phone" 
-                            placeholder="XXXXXXXXXX" 
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            placeholder="XXXXXXXXXX"
                             maxlength="10"
+                            value="{{ request.form.get('phone', '') }}"
                             required
                         />
                     </div>
                 </div>
-                
+
                 <button type="submit" class="btn">Send OTP</button>
-                
+
                 <button type="button" class="link-btn" onclick="window.location.href='{{ url_for('auth.login') }}'">
                     ‹ Return to sign in
                 </button>
             </form>
         </div>
-        
+
         <!-- Step 2: Verify OTP -->
-        <div id="otpStep" class="hidden">
+        <div id="otpStep" class="{% if step != 'otp' %}hidden{% endif %}">
             <div class="header">
                 <div class="icon-wrapper success">
                     <svg class="icon success" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -279,121 +284,93 @@
                     </svg>
                 </div>
                 <h1>Verify OTP</h1>
-                <p class="description" id="phoneDisplay"></p>
+                <p class="description" id="phoneDisplay">{% if phone_display %}Enter the 6-digit code sent to {{ phone_display }}{% endif %}</p>
             </div>
-            
-            <form class="form" id="otpForm">
+
+            <form class="form" id="otpForm" method="post" action="{{ url_for('auth.login_otp') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="stage" value="verify_otp">
                 <div class="form-group">
                     <label>6-digit OTP</label>
                     <div class="otp-container">
-                        <input type="text" class="otp-input" maxlength="1" id="otp1" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp2" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp3" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp4" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp5" />
-                        <input type="text" class="otp-input" maxlength="1" id="otp6" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp1" name="otp1" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp2" name="otp2" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp3" name="otp3" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp4" name="otp4" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp5" name="otp5" />
+                        <input type="text" class="otp-input" maxlength="1" id="otp6" name="otp6" />
                     </div>
                 </div>
-                
+
                 <button type="submit" class="btn">Verify &amp; Login</button>
-                
-                <div class="footer-links">
-                    <button type="button" class="link-btn" onclick="changeNumber()" style="padding: 0;">
-                        ‹ Change number
-                    </button>
-                    <button type="button" class="link" onclick="resendOTP()" style="border: none; background: none; cursor: pointer; padding: 0;">
+            </form>
+
+            <div class="footer-links">
+                <button type="button" class="link-btn" onclick="window.location.href='{{ url_for('auth.login_otp') }}'" style="padding: 0;">
+                    ‹ Change number
+                </button>
+                <form method="post" action="{{ url_for('auth.login_otp') }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="stage" value="resend_otp">
+                    <button type="submit" class="link" style="border: none; background: none; cursor: pointer; padding: 0;">
                         Resend OTP
                     </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-    
+
     <div id="toast" class="toast"></div>
-    
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
     <script>
-        const otpLoginSuccessUrl = "{{ url_for('summary') }}";
-        
-        let savedCountryCode = '+91';
-        let savedPhone = '';
-        
+        window.serverMessages = {{ messages | tojson | safe }};
+    </script>
+    {% endwith %}
+
+    <script>
         document.getElementById('phone').addEventListener('input', function(e) {
             this.value = this.value.replace(/\D/g, '');
         });
-        
+
         const otpInputs = document.querySelectorAll('.otp-input');
         otpInputs.forEach((input, index) => {
             input.addEventListener('input', function(e) {
                 this.value = this.value.replace(/\D/g, '');
-                
+
                 if (this.value && index < otpInputs.length - 1) {
                     otpInputs[index + 1].focus();
                 }
             });
-            
+
             input.addEventListener('keydown', function(e) {
                 if (e.key === 'Backspace' && !this.value && index > 0) {
                     otpInputs[index - 1].focus();
                 }
             });
         });
-        
+
         function showToast(message, type) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = `toast ${type} show`;
-            
+
             setTimeout(() => {
                 toast.className = 'toast';
             }, 3000);
         }
-        
-        function changeNumber() {
-            document.getElementById('otpStep').classList.add('hidden');
-            document.getElementById('phoneStep').classList.remove('hidden');
-            otpInputs.forEach(input => input.value = '');
+
+        if (Array.isArray(window.serverMessages)) {
+            window.serverMessages.forEach(function(messageTuple) {
+                if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
+                    return;
+                }
+                const category = messageTuple[0];
+                const message = messageTuple[1];
+                const type = category === 'error' ? 'error' : 'success';
+                showToast(message, type);
+            });
         }
-        
-        function resendOTP() {
-            showToast('OTP sent to your phone number', 'success');
-        }
-        
-        document.getElementById('phoneForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const phone = document.getElementById('phone').value;
-            const countryCode = document.getElementById('countryCode').value;
-            
-            if (!phone || phone.length < 10) {
-                showToast('Please enter a valid phone number', 'error');
-                return;
-            }
-            
-            savedCountryCode = countryCode;
-            savedPhone = phone;
-            
-            document.getElementById('phoneDisplay').textContent = `Enter the 6-digit code sent to ${countryCode}${phone}`;
-            document.getElementById('phoneStep').classList.add('hidden');
-            document.getElementById('otpStep').classList.remove('hidden');
-            
-            showToast('OTP sent to your phone number', 'success');
-        });
-        
-        document.getElementById('otpForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const otp = Array.from(otpInputs).map(input => input.value).join('');
-            
-            if (otp.length !== 6) {
-                showToast('Please enter the 6-digit OTP', 'error');
-                return;
-            }
-            
-            showToast('Login successful!', 'success');
-            setTimeout(() => {
-                window.location.href = otpLoginSuccessUrl;
-            }, 1000);
-        });
     </script>
 </body>
 </html>
