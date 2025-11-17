@@ -223,7 +223,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="email" id="emailField" value="{{ email }}">
             <input type="hidden" name="full_phone" id="fullPhoneField" value="{{ phone }}">
-            <input type="hidden" name="otp" id="otpField" value="">
+            <input type="hidden" name="stage" value="verify_otp">
 
             <div class="form-group">
                 <label for="phoneDisplay">mobile</label>
@@ -238,12 +238,12 @@
             <div class="form-group">
                 <label>6-digit OTP</label>
                 <div class="otp-container">
-                    <input type="text" class="otp-input" maxlength="1" id="otp1">
-                    <input type="text" class="otp-input" maxlength="1" id="otp2">
-                    <input type="text" class="otp-input" maxlength="1" id="otp3">
-                    <input type="text" class="otp-input" maxlength="1" id="otp4">
-                    <input type="text" class="otp-input" maxlength="1" id="otp5">
-                    <input type="text" class="otp-input" maxlength="1" id="otp6">
+                    <input type="text" class="otp-input" maxlength="1" id="otp1" name="otp1">
+                    <input type="text" class="otp-input" maxlength="1" id="otp2" name="otp2">
+                    <input type="text" class="otp-input" maxlength="1" id="otp3" name="otp3">
+                    <input type="text" class="otp-input" maxlength="1" id="otp4" name="otp4">
+                    <input type="text" class="otp-input" maxlength="1" id="otp5" name="otp5">
+                    <input type="text" class="otp-input" maxlength="1" id="otp6" name="otp6">
                 </div>
             </div>
 
@@ -272,6 +272,7 @@
                     <input
                         type="password"
                         id="confirmPassword"
+                        name="confirm_password"
                         placeholder="Confirm password"
                         required
                     />
@@ -343,29 +344,27 @@
 
         const otpForm = document.getElementById('otpForm');
         otpForm.addEventListener('submit', function(e) {
-            e.preventDefault();
 
             const otp = otpInputs.map(input => input.value).join('');
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
             if (otp.length !== 6) {
+                e.preventDefault();
                 showToast('Please enter the 6-digit OTP', 'error');
                 return;
             }
 
             if (password.length < 6) {
+                e.preventDefault();
                 showToast('Password must be at least 6 characters', 'error');
                 return;
             }
 
             if (password !== confirmPassword) {
+                e.preventDefault();
                 showToast('Passwords do not match', 'error');
-                return;
             }
-
-            document.getElementById('otpField').value = otp;
-            otpForm.submit();
         });
 
         if (Array.isArray(window.serverMessages)) {
