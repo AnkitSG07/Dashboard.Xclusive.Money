@@ -618,6 +618,21 @@
     background: var(--summary-card);
     overflow: hidden;
   }
+  .summary-chart-skeleton {
+    position: absolute;
+    inset: 12px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #f5f7fb 0%, #eef2ff 50%, #f5f7fb 100%);
+    background-size: 200% 100%;
+    animation: summary-shimmer 1.4s ease-in-out infinite;
+  }
+  .summary-chart-skeleton[hidden] {
+    display: none;
+  }
+  @keyframes summary-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
   .summary-chart-container canvas {
     width: 100% !important;
     height: 100% !important;
@@ -1043,6 +1058,14 @@
       </div>
 
       <div class="summary-chart-container">
+        <div
+          id="portfolio-performance-loading"
+          class="summary-chart-skeleton"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading portfolio performance"
+          hidden
+        ></div>
         <canvas id="portfolio-performance-chart" aria-label="Portfolio performance trend" role="img"></canvas>
         <div id="portfolio-performance-empty" class="summary-chart-empty" hidden>
           No performance data available yet.
@@ -1305,6 +1328,7 @@ if (!window.pageScripts) window.pageScripts = {};
 window.pageScripts["Summary"] = function () {
   const canvas = document.getElementById("portfolio-performance-chart");
   const emptyState = document.getElementById("portfolio-performance-empty");
+  const loadingState = document.getElementById("portfolio-performance-loading");
   const chips = Array.from(document.querySelectorAll(".summary-chip[data-period]"));
   const chartGlobal = window.Chart;
   const brokerFilter = document.getElementById("top-holdings-broker-filter");
@@ -1532,6 +1556,7 @@ window.pageScripts["Summary"] = function () {
   };
 
   let cachedSeries = [];
+  let isLoadingSeries = false;
   let chartInstance = null;
   const hasTimeScale = !!(
     chartGlobal?.registry?.getScale?.('time') &&
@@ -1637,14 +1662,31 @@ window.pageScripts["Summary"] = function () {
     return chartInstance;
   }
 
+  function setLoadingState(isLoading) {
+    isLoadingSeries = Boolean(isLoading);
+    if (loadingState) {
+      loadingState.hidden = !isLoadingSeries;
+    }
+  }
+
   function toggleState(hasData) {
     if (hasData) {
       canvas.removeAttribute("hidden");
       if (emptyState) emptyState.hidden = true;
-    } else {
-      canvas.setAttribute("hidden", "");
-      if (emptyState) emptyState.hidden = false;
+      setLoadingState(false);
+      return;
     }
+
+    canvas.setAttribute("hidden", "");
+
+    if (isLoadingSeries) {
+      if (emptyState) emptyState.hidden = true;
+      setLoadingState(true);
+      return;
+    }
+
+    if (emptyState) emptyState.hidden = false;
+    setLoadingState(false);
   }
 
   function updateChart(series) {
@@ -1732,6 +1774,7 @@ window.pageScripts["Summary"] = function () {
   }
 
   function refreshSeries() {
+    setLoadingState(!cachedSeries.length);
     fetch("/api/summary")
       .then((response) => {
         if (!response.ok) {
@@ -1742,12 +1785,18 @@ window.pageScripts["Summary"] = function () {
       .then((data) => {
         const incoming = data?.performance_summary?.series;
         if (!Array.isArray(incoming)) {
+          setLoadingState(false);
+          if (!cachedSeries.length) {
+            toggleState(false);
+          }
           return;
         }
         cachedSeries = normalizeSeries(incoming);
+        setLoadingState(false);
         applyPeriod(activePeriod);
       })
       .catch(() => {
+        setLoadingState(false);
         if (!cachedSeries.length) {
           toggleState(false);
         }
@@ -1755,7 +1804,12 @@ window.pageScripts["Summary"] = function () {
   }
 
   cachedSeries = normalizeSeries(initialSeries);
-  applyPeriod(activePeriod);
+  if (cachedSeries.length) {
+    applyPeriod(activePeriod);
+  } else {
+    setLoadingState(true);
+    toggleState(false);
+  }
   refreshSeries();
 
   const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
@@ -1781,4 +1835,3 @@ window.pageScripts["Summary"] = function () {
   });
 };
 </script>
-{% endblock %}
