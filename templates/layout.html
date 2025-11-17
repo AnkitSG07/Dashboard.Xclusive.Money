@@ -51,20 +51,6 @@
       --shadow-strong: rgba(55, 81, 255, 0.24);
     }
 
-    .dark {
-      --background: 222 47% 11%;
-      --foreground: 210 40% 98%;
-      --card: 220 26% 14%;
-      --primary: 221 83% 53%;
-      --primary-foreground: 0 0% 100%;
-      --muted: 217 19% 27%;
-      --muted-foreground: 215 20% 70%;
-      --border: 217 19% 27%;
-      --sidebar-background: 220 30% 8%;
-      --sidebar-foreground: 210 40% 98%;
-      --success: 142 71% 45%;
-    }
-
     body {
       font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: hsl(var(--background));
@@ -123,11 +109,6 @@
       border-bottom: 1px solid hsl(var(--border));
       background: hsl(var(--card));
       backdrop-filter: blur(8px);
-    }
-
-    .dark .header {
-      background: hsl(222 47% 11% / 0.95);
-      border-bottom-color: hsl(217 19% 27%);
     }
 
     .header-content {
@@ -412,10 +393,6 @@
         padding: 10px 12px;
         border-radius: 8px;
       }
-    }
-
-    .dark .profile-dropdown-menu {
-      box-shadow: 0 20px 25px -15px rgba(15, 23, 42, 0.65), 0 8px 12px -8px rgba(15, 23, 42, 0.55);
     }
   
     .avatar {
@@ -1079,20 +1056,6 @@
         width: 100%;
       }
     }
-
-    .dark .drawer-header,
-    .dark .drawer-tabs {
-      border-color: hsl(var(--border));
-    }
-
-    .dark .notification-card {
-      background-color: hsla(38, 92%, 50%, 0.12);
-      border-color: hsla(38, 92%, 50%, 0.35);
-    }
-
-    .dark .notification-card:hover {
-      background-color: hsla(38, 92%, 50%, 0.18);
-    }
     
     .broker-icon-wrap {
       display: flex;
@@ -1220,20 +1183,6 @@
       --shadow-strong: rgba(55, 81, 255, 0.24);
     }
 
-    .dark {
-      --background: 222 47% 11%;
-      --foreground: 210 40% 98%;
-      --card: 220 26% 14%;
-      --primary: 221 83% 53%;
-      --primary-foreground: 0 0% 100%;
-      --muted: 217 19% 27%;
-      --muted-foreground: 215 20% 70%;
-      --border: 217 19% 27%;
-      --sidebar-background: 220 30% 8%;
-      --sidebar-foreground: 210 40% 98%;
-      --success: 142 71% 45%;
-    }
-
     body {
       font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: hsl(var(--background));
@@ -1292,11 +1241,6 @@
       border-bottom: 1px solid hsl(var(--border));
       background: hsl(var(--card));
       backdrop-filter: blur(8px);
-    }
-
-    .dark .header {
-      background: hsl(222 47% 11% / 0.95);
-      border-bottom-color: hsl(217 19% 27%);
     }
 
     .header-content {
@@ -1835,19 +1779,6 @@
   margin-left:8px;
 }   
   </style>
-  <script>
-    (function() {
-      const storageKey = 'dashboard-theme';
-      try {
-        const storedTheme = localStorage.getItem(storageKey);
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-        const initialTheme = storedTheme || (prefersDark.matches ? 'dark' : 'light');
-        document.documentElement.classList.toggle('dark', initialTheme === 'dark');
-      } catch (error) {
-        document.documentElement.classList.remove('dark');
-      }
-    })();
-  </script>
 </head>
 <body>
   <!-- Header/Navbar -->
@@ -1877,19 +1808,6 @@
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
           <span class="badge header-notification-badge" id="notificationBadge" style="display: none;">0</span>
-        </button>
-        <button class="btn btn-ghost btn-icon" id="themeToggle">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
         </button>
         {% set profile_image_url = '' %}
         {% set raw_name = '' %}
@@ -2188,88 +2106,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" data-global-script="true"></script>
   <script src="{{ url_for('static', filename='js/notifications-panel.js') }}" defer data-global-script="true"></script>
   <script id="spa-script" data-global-script="true">
-    // Theme toggle functionality
-    (function() {
-      const storageKey = 'dashboard-theme';
-      const themeToggle = document.getElementById('themeToggle');
-      
-      const getStoredTheme = () => {
-        try {
-          return localStorage.getItem(storageKey);
-        } catch (error) {
-          return null;
-        }
-      };
-
-      const setStoredTheme = (theme) => {
-        try {
-          if (!theme) {
-            localStorage.removeItem(storageKey);
-          } else {
-            localStorage.setItem(storageKey, theme);
-          }
-        } catch (error) {}
-      };
-
-      const applyTheme = (theme) => {
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-      };
-
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-      const resolveTheme = () => {
-        const storedPreference = getStoredTheme();
-        if (storedPreference === 'light' || storedPreference === 'dark') {
-          applyTheme(storedPreference);
-          return storedPreference;
-        }
-        const systemTheme = prefersDark.matches ? 'dark' : 'light';
-        applyTheme(systemTheme);
-        return 'system';
-      };
-
-      window.setDashboardTheme = (preference) => {
-        if (preference === 'light' || preference === 'dark') {
-          setStoredTheme(preference);
-          applyTheme(preference);
-        } else {
-          setStoredTheme(null);
-          applyTheme(prefersDark.matches ? 'dark' : 'light');
-        }
-      };
-
-      window.toggleDashboardTheme = () => {
-        const isDark = document.documentElement.classList.contains('dark');
-        const nextTheme = isDark ? 'light' : 'dark';
-        window.setDashboardTheme(nextTheme);
-      };
-
-      window.getDashboardThemePreference = () => {
-        const storedPreference = getStoredTheme();
-        if (storedPreference === 'light' || storedPreference === 'dark') {
-          return storedPreference;
-        }
-        return 'system';
-      };
-
-      resolveTheme();
-
-      if (themeToggle) {
-        themeToggle.addEventListener('click', window.toggleDashboardTheme);
-      }
-
-      const onSystemThemeChange = () => {
-        if (!getStoredTheme()) {
-          applyTheme(prefersDark.matches ? 'dark' : 'light');
-        }
-      };
-
-      if (typeof prefersDark.addEventListener === 'function') {
-        prefersDark.addEventListener('change', onSystemThemeChange);
-      } else if (typeof prefersDark.addListener === 'function') {
-        prefersDark.addListener(onSystemThemeChange);
-      }
-    })();
-
     function initializeProfileDropdown() {
       const dropdown = document.getElementById('profileDropdownMenu');
       const trigger = document.getElementById('profileDropdownButton');
