@@ -360,6 +360,9 @@ CACHE_TTL = 300
 # Seconds to retain webhook identifiers before expiring them
 WEBHOOK_ID_TTL = 60
 
+# Seconds to cache the summary performance series to avoid repeated aggregation
+SUMMARY_SERIES_CACHE_TTL = 600
+
 def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed_symbols=None) -> None:
     """Persist broker info for *user_id* to the alert guard service.
 
@@ -8350,6 +8353,45 @@ def _build_summary_series(
 
     return series
 
+
+def _summary_series_cache_key(user_id: int) -> str:
+    return f"summary:series:{user_id}"
+
+
+def _get_cached_summary_series(user: User | None) -> list[dict]:
+    if not user:
+        return []
+
+    cached = cache_get(_summary_series_cache_key(user.id))
+    if isinstance(cached, list):
+        return cached
+
+    return []
+
+
+def _get_summary_series(
+    user: User | None,
+    strategy_ids: list[int],
+    *,
+    logs: list | None = None,
+    use_cache: bool = True,
+) -> list[dict]:
+    if not user or not strategy_ids:
+        return []
+
+    cache_key = _summary_series_cache_key(user.id)
+    if use_cache:
+        cached = cache_get(cache_key)
+        if isinstance(cached, list):
+            return cached
+
+    series = _build_summary_series(user, strategy_ids, logs=logs)
+
+    if use_cache:
+        cache_set(cache_key, series, ttl=SUMMARY_SERIES_CACHE_TTL)
+
+    return series
+
 def _compute_intraday_pnl(
     strategy_today_pnl: float,
     holdings: dict[str, dict],
@@ -8766,6 +8808,14 @@ def summary():
         return f"{quantity:,.2f}"
 
     user = current_user()
+
+    fast_flag = request.args.get("fast")
+    fast_summary_load = (
+        fast_flag is None
+        or str(fast_flag).lower() in {"1", "true", "yes", "on"}
+    )
+
+    cached_summary_series: list[dict] = _get_cached_summary_series(user)
 
     preferred_timezone_name = None
     if user:
@@ -9316,9 +9366,14 @@ def summary():
         total_investment=total_investment,
     )
 
-    performance_series = _build_summary_series(
-        user, unique_strategy_ids, logs=list(chart_log_rows)
-    )
+    if fast_summary_load:
+        performance_series = cached_summary_series
+    else:
+        performance_series = _get_summary_series(
+            user,
+            unique_strategy_ids,
+            logs=list(chart_log_rows),
+        )
 
     period_windows: list[tuple[str, int, str]] = [
         ("1D", 1, "var(--summary-green)"),
@@ -9817,7 +9872,12 @@ def summary_payload():
     ]
     strategy_ids = list(dict.fromkeys(owned_ids + subscription_ids))
 
-    series = _build_summary_series(user, strategy_ids)
+    refresh_flag = request.args.get("refresh")
+    use_cache = not (
+        refresh_flag and str(refresh_flag).lower() in {"1", "true", "yes", "on"}
+    )
+
+    series = _get_summary_series(user, strategy_ids, use_cache=use_cache)
     return jsonify({"performance_summary": {"series": series}})
 
 
