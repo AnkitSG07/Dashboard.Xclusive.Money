@@ -184,7 +184,37 @@
 <!-- This link is here as a fallback, but can be removed if your layout handles it. -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+if (!window.pageScripts) window.pageScripts = {};
+window.pageScripts['groups'] = function () {
+    const TEARDOWN_KEY = '__groupsTeardown';
+    if (typeof window[TEARDOWN_KEY] === 'function') {
+        window[TEARDOWN_KEY]();
+    }
+
+    const pageContainer = document.querySelector('#page-container[data-page="groups"]');
+    if (!pageContainer) {
+        return;
+    }
+
+    const listeners = [];
+    const registerListener = (target, type, handler, options) => {
+        if (!target || typeof target.addEventListener !== 'function') return;
+        target.addEventListener(type, handler, options);
+        listeners.push(() => {
+            if (target && typeof target.removeEventListener === 'function') {
+                target.removeEventListener(type, handler, options);
+            }
+        });
+    };
+
+    const teardown = () => {
+        listeners.forEach(unbind => unbind());
+        listeners.length = 0;
+        window[TEARDOWN_KEY] = null;
+    };
+
+    window[TEARDOWN_KEY] = teardown;
+
     let groupsCache = [];
 
     // --- Utility Functions ---
@@ -324,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Handlers ---
-    document.getElementById('createGroupForm').addEventListener('submit', async e => {
+    registerListener(document.getElementById('createGroupForm'), 'submit', async e => {
         e.preventDefault();
         const name = document.getElementById('groupName').value.trim();
         if (!name) { showAlert('Group name cannot be empty.', 'warning'); return; }
@@ -341,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { /* showAlert is called in fetchJson */ }
     });
 
-    document.getElementById('addMemberForm').addEventListener('submit', async e => {
+    registerListener(document.getElementById('addMemberForm'), 'submit', async e => {
         e.preventDefault();
         const group = document.getElementById('addGroupSelect').value;
         const client_id = document.getElementById('accountSelect').value;
@@ -358,9 +388,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { /* showAlert is called in fetchJson */ }
     });
     
-    document.getElementById('removeGroupSelect').addEventListener('change', updateRemoveAccountOptions);
+    registerListener(document.getElementById('removeGroupSelect'), 'change', updateRemoveAccountOptions);
 
-    document.getElementById('removeMemberForm').addEventListener('submit', async e => {
+    registerListener(document.getElementById('removeMemberForm'), 'submit', async e => {
         e.preventDefault();
         const group = document.getElementById('removeGroupSelect').value;
         const client_id = document.getElementById('removeAccountSelect').value;
@@ -395,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { /* showAlert is called in fetchJson */ }
     });
 
-    document.getElementById('deleteGroupForm').addEventListener('submit', async e => {
+    registerListener(document.getElementById('deleteGroupForm'), 'submit', async e => {
         e.preventDefault();
         const name = document.getElementById('deleteGroupSelect').value;
         if (!name) { showAlert('Please select a group to delete.', 'warning'); return; }
@@ -408,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { /* showAlert is called in fetchJson */ }
     });
 
-    document.getElementById('groupOrderForm').addEventListener('submit', async e => {
+    registerListener(document.getElementById('groupOrderForm'), 'submit', async e => {
         e.preventDefault();
         const group_name = document.getElementById('orderGroupSelect').value;
         const symbol = document.getElementById('orderSymbol').value.trim();
@@ -442,6 +472,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('newGroupName').focus();
         }
     };
-});
+};
+
+function initGroupsPage() {
+    if (window.pageScripts && typeof window.pageScripts['groups'] === 'function') {
+        window.pageScripts['groups']();
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGroupsPage);
+} else {
+    initGroupsPage();
+}
 </script>
 {% endblock %}
