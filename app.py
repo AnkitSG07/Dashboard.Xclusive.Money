@@ -1558,6 +1558,7 @@ def get_opening_balance_for_account(acc, cache_only=False):
         return bal
 
     bal = None
+    api = None
     try:
         api = broker_api(acc)
         if hasattr(api, "get_opening_balance"):
@@ -1569,7 +1570,32 @@ def get_opening_balance_for_account(acc, cache_only=False):
     except Exception as e:
         print(f"Failed to fetch balance for {client_id}: {e}")
 
-    cache_set(key, bal, ttl=CACHE_TTL)
+    if isinstance(bal, (int, float)):
+        cache_set(key, bal, ttl=CACHE_TTL)
+    else:
+        if acc.get("broker") == "finvasia" and api and hasattr(api, "get_limits"):
+            try:
+                limits_result = api.get_limits()
+                if isinstance(limits_result, dict):
+                    status = limits_result.get("status")
+                    error = limits_result.get("error")
+                    logger.warning(
+                        "Finvasia get_limits returned status=%s error=%s for %s while fetching opening balance",
+                        status,
+                        error,
+                        client_id,
+                    )
+                else:
+                    logger.warning(
+                        "Finvasia get_limits returned unexpected response %s for %s while fetching opening balance",
+                        limits_result,
+                        client_id,
+                    )
+            except Exception:
+                logger.exception(
+                    "Failed to retrieve Finvasia limits for %s while fetching opening balance",
+                    client_id,
+                )
     return bal
 
 # Utility loaders for admin dashboard
