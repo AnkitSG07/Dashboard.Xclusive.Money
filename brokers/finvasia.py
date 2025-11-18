@@ -525,6 +525,8 @@ class FinvasiaBroker(BrokerBase):
         if isinstance(result, dict):
             limits = result.get("limits") if result.get("status") == "success" else result
             if isinstance(limits, dict):
+                first_non_zero = None
+                balances = []
                 for key in [
                     "cash",
                     "availablecash",
@@ -536,10 +538,22 @@ class FinvasiaBroker(BrokerBase):
                 ]:
                     if key in limits:
                         try:
-                            return float(limits[key])
+                            value = float(limits[key])
                         except (TypeError, ValueError):
                             pass
-        return None
+
+                        else:
+                            balances.append(value)
+                            if first_non_zero is None and value != 0:
+                                first_non_zero = value
+
+                if first_non_zero is not None:
+                    return first_non_zero
+
+                if balances:
+                    return max(balances)
+
+        return 0
  
 
     def last_auth_error(self):
