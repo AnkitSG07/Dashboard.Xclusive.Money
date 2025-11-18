@@ -13,10 +13,9 @@ from flask import (
     current_app,
 )
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from twilio.base.exceptions import TwilioRestException
-
 from models import db, User
 from services import sms
+from services.sms import MSG91Error
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -147,7 +146,7 @@ def login_otp():
                     display_phone = f"{country_code_value}{normalized_phone}" if country_code_value else normalized_phone
                     try:
                         sms.send_otp(display_phone)
-                    except (RuntimeError, TwilioRestException) as exc:
+                    except MSG91Error as exc:
                         flash(f'Could not send OTP: {exc}', 'error')
                     else:
                         _set_login_session(user, display_phone, normalized_phone)
@@ -176,7 +175,7 @@ def login_otp():
 
                 try:
                     verification = sms.check_otp(stored['phone_display'], otp)
-                except (RuntimeError, TwilioRestException) as exc:
+                except MSG91Error as exc:
                     flash(f'Could not verify OTP: {exc}', 'error')
                 else:
                     if verification.status != 'approved':
@@ -202,7 +201,7 @@ def login_otp():
                 else:
                     try:
                         sms.send_otp(stored['phone_display'])
-                    except (RuntimeError, TwilioRestException) as exc:
+                    except MSG91Error as exc:
                         flash(f'Could not send OTP: {exc}', 'error')
                     else:
                         _set_login_session(
@@ -260,7 +259,7 @@ def signup():
 
             try:
                 sms.send_otp(phone_display)
-            except (RuntimeError, TwilioRestException) as exc:
+            except MSG91Error as exc:
                 return render_template('sign-up.html', error=f'Could not send OTP: {exc}')
 
             _set_signup_session(email, phone_display, normalized_phone)
@@ -316,7 +315,7 @@ def signup():
 
             try:
                 verification = sms.check_otp(pending_signup['phone_display'], otp)
-            except (RuntimeError, TwilioRestException) as exc:
+            except MSG91Error as exc:
                 flash(f'Could not verify OTP: {exc}', 'error')
                 return render_template(
                     'otp-verification.html',
@@ -470,7 +469,7 @@ def request_password_reset():
                     display_phone = f"{country_code_value}{normalized_phone}" if country_code_value else normalized_phone
                     try:
                         sms.send_otp(display_phone)
-                    except (RuntimeError, TwilioRestException) as exc:
+                    except MSG91Error as exc:
                         flash(f'Could not send OTP: {exc}', 'error')
                     else:
                         _set_reset_session(user, display_phone, normalized_phone)
@@ -490,7 +489,7 @@ def request_password_reset():
                 else:
                     try:
                         sms.send_otp(stored['phone_display'])
-                    except (RuntimeError, TwilioRestException) as exc:
+                    except MSG91Error as exc:
                         flash(f'Could not send OTP: {exc}', 'error')
                     else:
                         _set_reset_session(user, stored['phone_display'], stored['normalized_phone'])
@@ -538,7 +537,7 @@ def verify_password_reset():
 
     try:
         verification = sms.check_otp(stored['phone_display'], otp)
-    except (RuntimeError, TwilioRestException) as exc:
+    except MSG91Error as exc:
         flash(f'Could not verify OTP: {exc}', 'error')
         return render_template(
             'forgot-password.html',
