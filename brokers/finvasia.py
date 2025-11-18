@@ -536,16 +536,22 @@ class FinvasiaBroker(BrokerBase):
                     "net",
                     "netCash",
                 ]:
-                    if key in limits:
-                        try:
-                            value = float(limits[key])
-                        except (TypeError, ValueError):
-                            pass
+                    if key not in limits:
+                        continue
 
-                        else:
-                            balances.append(value)
-                            if first_non_zero is None and value != 0:
-                                first_non_zero = value
+                    value = limits.get(key)
+                    if value is None:
+                        continue
+
+                    try:
+                        value = float(value)
+                    except (TypeError, ValueError):
+                        continue
+
+                    balances.append(value)
+                    if first_non_zero is None and value != 0:
+                        first_non_zero = value
+
 
                 if first_non_zero is not None:
                     return first_non_zero
