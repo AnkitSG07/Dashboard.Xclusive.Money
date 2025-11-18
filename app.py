@@ -1551,6 +1551,7 @@ def broker_api(obj):
 def get_opening_balance_for_account(acc, cache_only=False):
     """Instantiate broker and try to fetch opening balance with caching."""
     client_id = acc.get("client_id")
+    broker = acc.get("broker")
     key = f"opening_balance:{client_id}"
 
     bal = cache_get(key)
@@ -1573,17 +1574,34 @@ def get_opening_balance_for_account(acc, cache_only=False):
     if isinstance(bal, (int, float)):
         cache_set(key, bal, ttl=CACHE_TTL)
     else:
+        if bal is None:
+            logger.debug(
+                "No opening balance returned for %s (broker=%s); skipping cache to allow retry",
+                client_id,
+                broker,
+            )
+        else:
+            logger.error(
+                "Non-numeric opening balance %r returned for %s (broker=%s)",
+                bal,
+                client_id,
+                broker,
+            )
         if acc.get("broker") == "finvasia" and api and hasattr(api, "get_limits"):
             try:
                 limits_result = api.get_limits()
                 if isinstance(limits_result, dict):
                     status = limits_result.get("status")
                     error = limits_result.get("error")
+                    limits_data = limits_result.get("data") if isinstance(limits_result.get("data"), dict) else None
+                    cash_value = limits_data.get("cash") if limits_data else None
                     logger.warning(
-                        "Finvasia get_limits returned status=%s error=%s for %s while fetching opening balance",
+                        "Finvasia get_limits returned status=%s error=%s cash=%r for %s (broker=%s) while fetching opening balance",
                         status,
                         error,
+                        cash_value,
                         client_id,
+                        broker,
                     )
                 else:
                     logger.warning(
