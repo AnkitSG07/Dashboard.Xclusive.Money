@@ -1552,7 +1552,7 @@ def get_opening_balance_for_account(acc, cache_only=False):
     """Instantiate broker and try to fetch opening balance with caching."""
     client_id = acc.get("client_id")
     broker = acc.get("broker")
-    key = f"opening_balance:{client_id}"
+    key = f"opening_balance:{broker or 'unknown'}:{client_id}"
 
     bal = cache_get(key)
     if bal is not None or cache_only:
@@ -1569,9 +1569,16 @@ def get_opening_balance_for_account(acc, cache_only=False):
             data = resp.get("data", resp) if isinstance(resp, dict) else resp
             bal = extract_balance(data)
     except Exception as e:
-        print(f"Failed to fetch balance for {client_id}: {e}")
+            print(f"Failed to fetch balance for {client_id}: {e}")
 
     if isinstance(bal, (int, float)):
+        logger.info(
+            "Caching opening balance %s for %s (broker=%s) using key %s",
+            bal,
+            client_id,
+            broker,
+            key,
+        )
         cache_set(key, bal, ttl=CACHE_TTL)
     else:
         if bal is None:
@@ -1596,12 +1603,19 @@ def get_opening_balance_for_account(acc, cache_only=False):
                     limits_data = limits_result.get("data") if isinstance(limits_result.get("data"), dict) else None
                     cash_value = limits_data.get("cash") if limits_data else None
                     logger.warning(
-                        "Finvasia get_limits returned status=%s error=%s cash=%r for %s (broker=%s) while fetching opening balance",
+                        "Finvasia get_limits returned status=%s error=%s cash=%r (data_keys=%s) for %s (broker=%s) while fetching opening balance",
                         status,
                         error,
                         cash_value,
+                        list(limits_data.keys()) if limits_data else None,
                         client_id,
                         broker,
+                    )
+                    logger.warning(
+                        "Finvasia raw limits response for %s (broker=%s): %s",
+                        client_id,
+                        broker,
+                        limits_result,
                     )
                 else:
                     logger.warning(
