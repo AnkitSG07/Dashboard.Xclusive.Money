@@ -1426,6 +1426,76 @@
     );
     let cachedDematStrategiesPrefetch = null;
 
+    const STRATEGY_PAYLOAD_STORAGE_PREFIX = 'strategyPayload_';
+    let cachedStrategiesUserId = null;
+
+    function getStrategiesUserId() {
+      if (cachedStrategiesUserId !== null) {
+        return cachedStrategiesUserId;
+      }
+      let resolved = '';
+      if (typeof window.getDashboardUserId === 'function') {
+        resolved = window.getDashboardUserId() || '';
+      } else if (document.body?.dataset?.userId) {
+        resolved = document.body.dataset.userId || '';
+      } else {
+        try {
+          resolved = window.localStorage ? window.localStorage.getItem('user_id') || '' : '';
+        } catch (error) {
+          resolved = '';
+        }
+      }
+      cachedStrategiesUserId = resolved || '';
+      return cachedStrategiesUserId;
+    }
+
+    function getStrategyPayloadStorageKey(strategyId) {
+      return `${STRATEGY_PAYLOAD_STORAGE_PREFIX}${strategyId}`;
+    }
+
+    function parseStoredStrategyPayload(raw, fallbackId) {
+      if (!raw) {
+        return null;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        return null;
+      }
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      if (Object.prototype.hasOwnProperty.call(parsed, 'payload')) {
+        if (!parsed.payload || typeof parsed.payload !== 'object') {
+          return null;
+        }
+        return {
+          userId: parsed.userId || null,
+          strategyId: parsed.strategyId || fallbackId || null,
+          updatedAt: parsed.updatedAt || null,
+          payload: parsed.payload
+        };
+      }
+      return {
+        userId: null,
+        strategyId: fallbackId || null,
+        updatedAt: null,
+        payload: parsed
+      };
+    }
+
+    function parseStrategyTimestamp(value) {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+
     function normalizeDematStrategiesPrefetch(payload) {
       if (!payload || typeof payload !== 'object') {
         return null;
@@ -1575,6 +1645,7 @@
         this.isSaving = false;
         this.webhookBase = '';
         this.webhookToken = '';
+        this.currentUserId = getStrategiesUserId();
         this.logsRequestId = 0;
         this.currentLogsStrategy = null;
         this.hasLoaded = false;
@@ -2129,11 +2200,12 @@
       }
 
       getPayloadStorageKey(id) {
-        return `strategyPayload_${id}`;
+        return `${STRATEGY_PAYLOAD_STORAGE_PREFIX}${id}`;
       }
 
-      getStoredPayload(id) {
-        if (!id && id !== 0) {
+      getStoredPayload(strategy) {
+        const id = typeof strategy === 'object' ? strategy?.id : strategy;
+        if ((!id && id !== 0) || !window.localStorage) {
           return null;
         }
         try {
@@ -2141,22 +2213,52 @@
           if (!raw) {
             return null;
           }
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            return parsed;
+          const record = parseStoredStrategyPayload(raw, id);
+          if (!record || !record.payload) {
+            window.localStorage.removeItem(this.getPayloadStorageKey(id));
+            return null;
           }
+          if (record.userId && this.currentUserId && record.userId !== this.currentUserId) {
+            return null;
+          }
+          const updatedAt = strategy && typeof strategy === 'object'
+            ? (strategy.updated_at || strategy.updatedAt || null)
+            : null;
+          if (!updatedAt) {
+            return record.payload;
+          }
+          const entryTimestamp = parseStrategyTimestamp(record.updatedAt);
+          const strategyTimestamp = parseStrategyTimestamp(updatedAt);
+          if (!strategyTimestamp) {
+            return record.payload;
+          }
+          if (!entryTimestamp || entryTimestamp < strategyTimestamp) {
+            return null;
+          }
+          return record.payload;
         } catch (error) {
           console.warn('Failed to parse stored payload', error);
         }
         return null;
       }
 
-      savePayload(id, payload) {
+      savePayload(strategyOrId, payload) {
+        if (!window.localStorage || !payload || typeof payload !== 'object') {
+          return;
+        }
+        const strategy = typeof strategyOrId === 'object' ? strategyOrId : null;
+        const id = strategy ? strategy.id : strategyOrId;
         if (!id && id !== 0) {
           return;
         }
+        const record = {
+          userId: this.currentUserId || null,
+          strategyId: id,
+          updatedAt: strategy?.updated_at || strategy?.updatedAt || null,
+          payload
+        };
         try {
-          window.localStorage.setItem(this.getPayloadStorageKey(id), JSON.stringify(payload));
+          window.localStorage.setItem(this.getPayloadStorageKey(id), JSON.stringify(record));
         } catch (error) {
           console.warn('Failed to persist payload preview', error);
         }
@@ -2197,7 +2299,7 @@
       }
 
       buildPayload(strategy) {
-        const stored = this.getStoredPayload(strategy?.id);
+        const stored = this.getStoredPayload(strategy);
         if (stored) {
           return stored;
         }
@@ -2218,7 +2320,7 @@
         if (this.payloadCode) {
           const payload = this.buildPayload(strategy);
           this.payloadCode.textContent = JSON.stringify(payload, null, 2);
-          this.savePayload(strategy.id, payload);
+          this.savePayload(strategy, payload);
         }
         this.payloadModal.style.display = 'block';
       }
