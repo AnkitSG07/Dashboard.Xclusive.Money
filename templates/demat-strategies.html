@@ -1402,6 +1402,80 @@
       });
     }
 
+    function cloneSerializable(value) {
+      if (value === null || value === undefined) {
+        return value;
+      }
+      try {
+        return JSON.parse(JSON.stringify(value));
+      } catch (error) {
+        if (Array.isArray(value)) {
+          return value.slice();
+        }
+        if (typeof value === 'object') {
+          return { ...value };
+        }
+        return value;
+      }
+    }
+
+    const DEMAT_STRATEGIES_PREFETCH_KEY = 'demat-strategies';
+    const DEMAT_STRATEGIES_PREFETCH_TTL = Math.max(
+      Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL * 2 : 4 * 60 * 1000,
+      3 * 60 * 1000
+    );
+    let cachedDematStrategiesPrefetch = null;
+
+    function normalizeDematStrategiesPrefetch(payload) {
+      if (!payload || typeof payload !== 'object') {
+        return null;
+      }
+      return {
+        accountsPayload: payload.accountsPayload ? cloneSerializable(payload.accountsPayload) : null,
+        strategies: Array.isArray(payload.strategies) ? cloneSerializable(payload.strategies) : [],
+        fetchedAt: typeof payload.fetchedAt === 'number' ? payload.fetchedAt : Date.now()
+      };
+    }
+
+    function readDematStrategiesPrefetch() {
+      if (cachedDematStrategiesPrefetch) {
+        return normalizeDematStrategiesPrefetch(cachedDematStrategiesPrefetch);
+      }
+      if (typeof window.getPagePrefetchData !== 'function') {
+        return null;
+      }
+      const payload = window.getPagePrefetchData(DEMAT_STRATEGIES_PREFETCH_KEY);
+      const normalized = normalizeDematStrategiesPrefetch(payload);
+      if (!normalized) {
+        cachedDematStrategiesPrefetch = null;
+        return null;
+      }
+      cachedDematStrategiesPrefetch = normalized;
+      return normalizeDematStrategiesPrefetch(normalized);
+    }
+
+    function updateDematStrategiesPrefetch(partial = {}) {
+      if (typeof window.setPagePrefetchData !== 'function') {
+        return;
+      }
+      const previous = cachedDematStrategiesPrefetch || readDematStrategiesPrefetch() || {};
+      const mergedPayload = {
+        accountsPayload: Object.prototype.hasOwnProperty.call(partial, 'accountsPayload')
+          ? partial.accountsPayload
+          : previous.accountsPayload || null,
+        strategies: Object.prototype.hasOwnProperty.call(partial, 'strategies')
+          ? partial.strategies
+          : previous.strategies || [],
+        fetchedAt: Date.now()
+      };
+      const normalized = normalizeDematStrategiesPrefetch(mergedPayload);
+      if (!normalized) {
+        return;
+      }
+      cachedDematStrategiesPrefetch = normalized;
+      window.setPagePrefetchData(DEMAT_STRATEGIES_PREFETCH_KEY, normalized, { ttl: DEMAT_STRATEGIES_PREFETCH_TTL });
+    }
+
     function expandBoth(value, bothValues) {
       if (Array.isArray(value)) {
         return value;
@@ -1455,8 +1529,9 @@
       return data;
     }
 
+
     class DematStrategiesPage {
-      constructor(root) {
+      constructor(root, prefetchedPayload) {
         this.root = null;
         this.container = null;
         this.searchInput = null;
@@ -1558,7 +1633,13 @@
           }
         };
         this.attach(root);
-        this.reload();
+        const appliedPrefetch = this.applyPrefetchedData(prefetchedPayload);
+        const reloadPromise = appliedPrefetch
+          ? this.reload({ silent: true })
+          : this.reload();
+        if (reloadPromise && typeof reloadPromise.catch === 'function') {
+          reloadPromise.catch(() => {});
+        }
       }
 
       captureDomReferences(root) {
@@ -1690,45 +1771,82 @@
         this.registerEvent(document, 'keydown', this.handleGlobalKeydown);
       }
 
-      async reload() {
+      hydrateAccountsFromPayload(payload) {
+        const masters = Array.isArray(payload?.masters) ? payload.masters : [];
+        const accounts = Array.isArray(payload?.accounts) ? payload.accounts : [];
+        const combined = [];
+        const seenIds = new Set();
+        [...masters, ...accounts].forEach(acc => {
+          if (!acc) {
+            return;
+          }
+          const id = acc.id !== undefined && acc.id !== null ? String(acc.id) : null;
+          if (id && seenIds.has(id)) {
+            return;
+          }
+          if (id) {
+            seenIds.add(id);
+          }
+          combined.push(acc);
+        });
+        this.state.accounts = combined.slice();
+        this.accountIdMap = new Map(
+          combined
+            .filter(acc => acc && acc.id !== undefined && acc.id !== null)
+            .map(acc => [String(acc.id), acc])
+        );
+        this.accountClientMap = new Map(
+          combined
+            .filter(acc => acc && acc.client_id)
+            .map(acc => [String(acc.client_id), acc])
+        );
+        this.accountVersion += 1;
+        this.populateAccountFilters();
+      }
+
+      applyPrefetchedData(payload) {
+        if (!payload || typeof payload !== 'object') {
+          return false;
+        }
+        let applied = false;
+        if (payload.accountsPayload) {
+          this.hydrateAccountsFromPayload(payload.accountsPayload);
+          applied = true;
+        }
+        if (Array.isArray(payload.strategies)) {
+          this.state.strategies = cloneSerializable(payload.strategies) || [];
+          applied = true;
+        }
+        if (applied) {
+          this.hasLoaded = true;
+          this.setLoading(false);
+          this.showError();
+          this.renderStrategies();
+        }
+        return applied;
+      }
+
+      async reload(options = {}) {
+        const silent = options && options.silent === true;
         this.isReloading = true;
-        this.setLoading(true);
+        if (!silent) {
+          this.setLoading(true);
+        }
         this.showError();
         try {
           const [accountsPayload, strategiesPayload] = await Promise.all([
             fetchJson('/api/accounts?cache_only=1'),
             fetchJson('/api/strategies')
           ]);
-          const masters = Array.isArray(accountsPayload?.masters) ? accountsPayload.masters : [];  
-          const accounts = Array.isArray(accountsPayload?.accounts) ? accountsPayload.accounts : [];
-          const combined = [];
-          const seenIds = new Set();
-          [...masters, ...accounts].forEach(acc => {
-            if (!acc) {
-              return;
-            }
-            const id = acc.id !== undefined && acc.id !== null ? String(acc.id) : null;
-            if (id) {
-              if (seenIds.has(id)) {
-                return;
-              }
-              seenIds.add(id);
-            }
-            combined.push(acc);
-          });
-          this.state.accounts = combined;
-          this.accountIdMap = new Map(combined
-            .filter(acc => acc && acc.id !== undefined && acc.id !== null)
-            .map(acc => [String(acc.id), acc]));
-          this.accountClientMap = new Map(combined
-            .filter(acc => acc && acc.client_id)
-            .map(acc => [String(acc.client_id), acc]));
-          this.accountVersion += 1;
-          this.populateAccountFilters();
+          this.hydrateAccountsFromPayload(accountsPayload);
           const strategies = Array.isArray(strategiesPayload) ? strategiesPayload : [];
           this.state.strategies = strategies;
           this.hasLoaded = true;
           this.renderStrategies();
+          updateDematStrategiesPrefetch({
+            accountsPayload,
+            strategies
+          });
         } catch (error) {
           console.error('Failed to load strategies', error);
           this.showError(error.message || 'Failed to load strategies.');
@@ -2454,7 +2572,8 @@ ${responseText || ''}`);
           existing.resume();
           return;
         }
-        window.__dematStrategiesController = new DematStrategiesPage(root);
+        const prefetchedPayload = readDematStrategiesPrefetch();
+        window.__dematStrategiesController = new DematStrategiesPage(root, prefetchedPayload);
       }
     
     window.pageScripts = window.pageScripts || {};
