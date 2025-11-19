@@ -315,6 +315,9 @@ window.pageScripts["Add-Account"] = function() {
   const previousCachedAccounts = previousState && previousState.cachedAccounts;
   const previousCachedAutoLoginResults = previousState && previousState.cachedAutoLoginResults;
   const previousCachedFilters = previousState && previousState.cachedFilters;
+
+  // Ensure the Add Account prefetch cache is defined before it is read.
+  let cachedAddAccountPrefetch = null;
   const prefetchedAccountsCache = previousCachedAccounts ? null : readAddAccountPrefetch();
   
   if (previousState && typeof previousState.cleanup === 'function') {
@@ -909,7 +912,6 @@ window.pageScripts["Add-Account"] = function() {
     Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL : 2 * 60 * 1000,
     ACCOUNTS_CACHE_TTL_MS
   );
-  let cachedAddAccountPrefetch = null;
   const AUTO_LOGIN_RETRY_INTERVAL_MS = 5 * 60 * 1000; // five minutes between retries
 
   function clonePrefetchedAccountsCache(cache) {
