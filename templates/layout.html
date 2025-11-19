@@ -2307,7 +2307,9 @@
       : {};
     window.PAGE_PREFETCH_KEYS = Object.freeze({ ...PREFETCH_KEY_DEFAULTS, ...existingPrefetchKeys });
 
-    const PAGE_PREFETCH_STORAGE_KEY = 'spa:page-prefetch-cache';
+    const PAGE_PREFETCH_STORAGE_NAMESPACE = 'spa:page-prefetch-cache';
+    const PAGE_PREFETCH_STORAGE_VERSION = 2;
+    const PAGE_PREFETCH_STORAGE_KEY = `${PAGE_PREFETCH_STORAGE_NAMESPACE}:v${PAGE_PREFETCH_STORAGE_VERSION}`;
     const PAGE_PREFETCH_DEFAULT_TTL = Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL)
       ? window.PAGE_PREFETCH_DEFAULT_TTL
       : 2 * 60 * 1000;
@@ -2315,14 +2317,24 @@
     const pagePrefetchCache = new Map();
     const pagePrefetchPromises = new Map();
     let pagePrefetchHydrated = false;
-    const pagePrefetchSessionEnabled = (() => {
+    const pagePrefetchPersistentStorage = (() => {
       try {
-        const testKey = '__spa_prefetch_test__';
+        const testKey = '__spa_prefetch_persist_test__';
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        return localStorage;
+      } catch (error) {
+        return null;
+      }
+    })();
+    const pagePrefetchLegacySessionStorage = (() => {
+      try {
+        const testKey = '__spa_prefetch_session_test__';
         sessionStorage.setItem(testKey, '1');
         sessionStorage.removeItem(testKey);
-        return true;
+        return sessionStorage;
       } catch (error) {
-        return false;
+        return null;
       }
     })();
 
@@ -2349,29 +2361,69 @@
       return entry.expiresAt <= Date.now();
     }
 
+    function readPrefetchEntriesFromStorage(storage, key) {
+      if (!storage) return null;
+      try {
+        const raw = storage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') {
+          storage.removeItem(key);
+          return null;
+        }
+        if ('version' in parsed) {
+          if (parsed.version !== PAGE_PREFETCH_STORAGE_VERSION || typeof parsed.entries !== 'object') {
+            storage.removeItem(key);
+            return null;
+          }
+          return parsed.entries;
+        }
+        // Legacy payloads were plain objects of entries
+        if (storage === pagePrefetchPersistentStorage) {
+          storage.removeItem(key);
+          return null;
+        }
+        return parsed;
+      } catch (error) {
+        storage.removeItem(key);
+        return null;
+      }
+    }
+
     function hydratePagePrefetchCache() {
       if (pagePrefetchHydrated) return;
       pagePrefetchHydrated = true;
-      if (!pagePrefetchSessionEnabled) return;
-      try {
-        const raw = sessionStorage.getItem(PAGE_PREFETCH_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return;
-        Object.entries(parsed).forEach(([page, value]) => {
-          pagePrefetchCache.set(page, normalizePrefetchEntry(value));
+
+      const hydrateFromEntries = (entries) => {
+        if (!entries) return false;
+        Object.entries(entries).forEach(([page, value]) => {
+          const entry = normalizePrefetchEntry(value);
+          if (!isPrefetchEntryExpired(entry)) {
+            pagePrefetchCache.set(page, entry);
+          }
         });
-      } catch (error) {
-        // Ignore storage hydration errors
+        return true;
+      };
+
+      if (hydrateFromEntries(readPrefetchEntriesFromStorage(pagePrefetchPersistentStorage, PAGE_PREFETCH_STORAGE_KEY))) {
+        return;
+      }
+
+      // Fallback to any legacy session entries (older hydration strategy)
+      if (hydrateFromEntries(readPrefetchEntriesFromStorage(pagePrefetchLegacySessionStorage, PAGE_PREFETCH_STORAGE_NAMESPACE))) {
+        persistPagePrefetchCache();
       }
     }
 
     function persistPagePrefetchCache() {
-      if (!pagePrefetchSessionEnabled) return;
+      if (!pagePrefetchPersistentStorage) return;
       try {
         const activeEntries = Array.from(pagePrefetchCache.entries()).filter(([, entry]) => !isPrefetchEntryExpired(entry));
-        const serialized = JSON.stringify(Object.fromEntries(activeEntries));
-        sessionStorage.setItem(PAGE_PREFETCH_STORAGE_KEY, serialized);
+        const serialized = JSON.stringify({
+          version: PAGE_PREFETCH_STORAGE_VERSION,
+          entries: Object.fromEntries(activeEntries)
+        });
+        pagePrefetchPersistentStorage.setItem(PAGE_PREFETCH_STORAGE_KEY, serialized);
       } catch (error) {
         // Ignore persistence errors (quota exceeded, etc.)
       }
