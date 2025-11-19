@@ -1,4 +1,89 @@
 (function() {
+    const root = typeof window !== 'undefined' ? window : null;
+    const notificationsPrefetchConfig = (() => {
+        const keys = root && root.PAGE_PREFETCH_KEYS ? root.PAGE_PREFETCH_KEYS : {};
+        const ttl = root && Number.isFinite(root.PAGE_PREFETCH_DEFAULT_TTL)
+            ? Math.max(root.PAGE_PREFETCH_DEFAULT_TTL, 60 * 1000)
+            : 60 * 1000;
+        return {
+            key: keys.notifications || 'page:notifications-feed',
+            ttl
+        };
+    })();
+
+    function fetchNotificationsPayload() {
+        return fetch('/api/notifications', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        }).then((response) => {
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return response.json();
+        });
+    }
+
+    function readNotificationsPrefetch() {
+        if (!root || typeof root.getPagePrefetchData !== 'function') {
+            return undefined;
+        }
+        return root.getPagePrefetchData(notificationsPrefetchConfig.key);
+    }
+
+    function storeNotificationsPrefetch(payload) {
+        if (!root || typeof root.setPagePrefetchData !== 'function') {
+            return;
+        }
+        root.setPagePrefetchData(notificationsPrefetchConfig.key, payload, { ttl: notificationsPrefetchConfig.ttl });
+    }
+
+    async function requestNotificationsData(forceNetwork = false) {
+        if (!forceNetwork) {
+            const cached = readNotificationsPrefetch();
+            if (cached !== undefined && cached !== null) {
+                return cached;
+            }
+        }
+
+        if (root && typeof root.runPagePrefetch === 'function') {
+            try {
+                const prefetched = await root.runPagePrefetch(notificationsPrefetchConfig.key, { force: forceNetwork });
+                if (prefetched !== undefined && prefetched !== null) {
+                    return prefetched;
+                }
+            } catch (error) {
+                console.warn('Notifications prefetch runner failed', error);
+            }
+        }
+
+        const payload = await fetchNotificationsPayload();
+        storeNotificationsPrefetch(payload);
+        return payload;
+    }
+
+    function ensureNotificationsPrefetcher() {
+        if (!root || typeof root.registerPagePrefetcher !== 'function') {
+            return;
+        }
+        if (root.__NOTIFICATIONS_PREFETCH_REGISTERED__) {
+            return;
+        }
+        root.__NOTIFICATIONS_PREFETCH_REGISTERED__ = true;
+        root.registerPagePrefetcher(notificationsPrefetchConfig.key, async ({ setCached }) => {
+            const data = await fetchNotificationsPayload();
+            setCached(data, { ttl: notificationsPrefetchConfig.ttl });
+            return data;
+        });
+    }
+
+    function invalidateNotificationsPrefetch() {
+        if (root && typeof root.clearPagePrefetchData === 'function') {
+            root.clearPagePrefetchData(notificationsPrefetchConfig.key);
+        }
+    }
+
+    ensureNotificationsPrefetcher();
+
     function initializeNotificationsPanel() {
         const toggle = document.getElementById('notificationsToggle');
         const drawer = document.getElementById('notificationsDrawer');
@@ -261,30 +346,33 @@
             updateClearButtonState();
         }
 
-        async function loadNotifications() {
+        async function loadNotifications(forceNetwork = false) {
             showLoading();
 
-            const warmedNotifications = Array.isArray(warmedCache.notifications)
-                ? warmedCache.notifications
-                : [];
-            if (warmedNotifications.length) {
-                notifications = normalize(warmedNotifications);
-                updateBadges(notifications.length);
-                renderNotifications();
-                return;
+            if (!forceNetwork) {
+                const prefetchedPayload = readNotificationsPrefetch();
+                if (prefetchedPayload && Array.isArray(prefetchedPayload.notifications)) {
+                    notifications = normalize(prefetchedPayload.notifications);
+                    updateBadges(notifications.length);
+                    renderNotifications();
+                    return;
+                }
+            }
+
+            if (!forceNetwork) {
+                const warmedNotifications = Array.isArray(warmedCache.notifications)
+                    ? warmedCache.notifications
+                    : [];
+                if (warmedNotifications.length) {
+                    notifications = normalize(warmedNotifications);
+                    updateBadges(notifications.length);
+                    renderNotifications();
+                    return;
+                }
             }
 
             try {
-                const response = await fetch('/api/notifications', {
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
-                }
-
-                const data = await response.json();
+                const data = await requestNotificationsData(forceNetwork);
                 const rawNotifications = Array.isArray(data.notifications) ? data.notifications : [];
                 notifications = normalize(rawNotifications);
                 updateBadges(notifications.length);
@@ -320,6 +408,10 @@
                 notifications = [];
                 updateBadges(0);
                 showEmpty("You're all caught up!");
+                invalidateNotificationsPrefetch();
+                if (root && typeof root.runPagePrefetch === 'function') {
+                    root.runPagePrefetch(notificationsPrefetchConfig.key, { force: true }).catch(() => {});
+                }
             } catch (error) {
                 console.error('Failed to clear notifications', error);
                 if (typeof window.showCustomAlert === 'function') {
