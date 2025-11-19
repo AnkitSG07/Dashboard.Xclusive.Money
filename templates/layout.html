@@ -20,6 +20,7 @@
   <link href="{{ url_for('static', filename='tailwind.css') }}" rel="stylesheet" data-global-style="true">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer data-global-script="true"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.umd.min.js" defer data-global-script="true"></script>
+  <script src="{{ url_for('static', filename='js/prefetch.js') }}" defer data-global-script="true"></script>  
   {% block styles %}{% endblock %}
   <style data-global-style="true">
 
@@ -2918,6 +2919,35 @@
       return true;
     }
 
+    const SIDEBAR_DATA_PREFETCH_KEYS = [
+      window.PAGE_PREFETCH_KEYS && window.PAGE_PREFETCH_KEYS.summary,
+      'Add-Account',
+      'copy-trading',
+      'demat-strategies',
+      'create-alerts',
+      'groups',
+      'strategy-marketplace',
+      'change-plan'
+    ].filter((key, index, list) => key && list.indexOf(key) === index);
+
+    function primeSidebarPrefetchers() {
+      if (typeof window.runPagePrefetch !== 'function') {
+        return;
+      }
+      SIDEBAR_DATA_PREFETCH_KEYS.forEach((key, index) => {
+        setTimeout(() => {
+          try {
+            const result = window.runPagePrefetch(key);
+            if (result && typeof result.catch === 'function') {
+              result.catch(() => {});
+            }
+          } catch (error) {
+            console.warn('Sidebar prefetch failed for', key, error);
+          }
+        }, index * 120);
+      });
+    }
+    
     function cacheFragment(cacheKey, fragment) {
       hydrateSpaCache();
       if (fragment) {
@@ -3181,6 +3211,7 @@
       }
       window.initializeNotificationsPanel?.();
       setTimeout(reinitializePageScripts, 50);
+      primeSidebarPrefetchers();
     });
   </script>
   <script data-global-script="true">
