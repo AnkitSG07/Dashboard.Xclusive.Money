@@ -89,3 +89,17 @@ def refresh_dashboard_snapshot(user_id: int, client_id: str | None) -> None:
         raise
     finally:
         session.close()
+
+
+@celery.task(name="services.tasks.warm_user_cache")
+def warm_user_cache(user_id: int) -> None:
+    """Warm per-user caches for summary and frequently accessed datasets."""
+
+    update_queue_depth()
+    from app import app as flask_app, _prime_user_cache
+    from models import User
+
+    with flask_app.app_context():
+        user = db.session.get(User, user_id)
+        if user:
+            _prime_user_cache(user)
