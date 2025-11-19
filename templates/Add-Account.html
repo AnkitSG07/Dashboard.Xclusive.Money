@@ -910,6 +910,23 @@ window.pageScripts["Add-Account"] = function() {
     return brokerColorMap[broker] || 'bg-gray';
   }
 
+  function normalizeBrokerKey(broker) {
+    return (broker || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[_-]/g, '')
+      .replace(/&/g, 'and')
+      .replace(/\./g, '');
+  }
+
+  function getBrokerIconUrl(broker) {
+    const key = normalizeBrokerKey(broker);
+    if (!key) return '';
+    return brokerIcons[key] || '';
+  }
+
   function getBrokerInitials(acc) {
     const username = (acc.username || '').trim();
     if (username) {
@@ -1744,14 +1761,19 @@ window.pageScripts["Add-Account"] = function() {
 
       const primaryLabel = acc.username || acc.client_id || '—';
       const secondaryLabel = acc.client_id || '';
-
+      const brokerIcon = getBrokerIconUrl(acc && acc.broker);
+      const brokerAlt = formatBrokerName(acc && acc.broker) || 'Broker';
+      const avatarContent = brokerIcon
+        ? `<img src="${brokerIcon}" alt="${escapeHtml(brokerAlt)} logo">`
+        : escapeHtml(getBrokerInitials(acc));
+      
       row.innerHTML = `
         <td>
           <input type="checkbox" class="checkbox account-select" data-client-id="${sanitizedId}" aria-label="Select account ${escapeHtml(primaryLabel)}">
         </td>
         <td>
           <div class="flex items-center gap-2">
-            <div class="avatar ${getBrokerColor(acc.broker)}">${escapeHtml(getBrokerInitials(acc))}</div>
+            <div class="avatar ${getBrokerColor(acc.broker)}">${avatarContent}</div>
             <div>
               <p class="font-medium text-sm truncate" title="${escapeHtml(primaryLabel)}">${escapeHtml(primaryLabel)}</p>
               <p class="text-xs text-muted truncate" title="${escapeHtml(secondaryLabel)}">${escapeHtml(secondaryLabel)}</p>
