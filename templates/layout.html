@@ -1781,7 +1781,7 @@
 }   
   </style>
 </head>
-<body>
+<body data-user-id="{{ logged_in_user.id if logged_in_user else '' }}">
   <!-- Header/Navbar -->
   <header class="header">
     <div class="header-content">
@@ -2260,9 +2260,95 @@
 
     document.getElementById('custom-confirm-ok-btn').addEventListener('click', confirmCustomConfirm);
 
+    const STRATEGY_PAYLOAD_STORAGE_PREFIX = 'strategyPayload_';
+
+    function getDashboardUserId() {
+      if (typeof window.__dashboardUserId === 'string') {
+        return window.__dashboardUserId;
+      }
+      const datasetId = document.body?.dataset?.userId;
+      if (datasetId) {
+        window.__dashboardUserId = datasetId;
+        return datasetId;
+      }
+      let storedId = '';
+      try {
+        storedId = window.localStorage ? window.localStorage.getItem('user_id') || '' : '';
+      } catch (error) {
+        storedId = '';
+      }
+      window.__dashboardUserId = storedId || '';
+      return window.__dashboardUserId;
+    }
+
+    window.getDashboardUserId = getDashboardUserId;
+
+    function purgeStrategyPayloadCache(options = {}) {
+      if (!window.localStorage) {
+        return;
+      }
+      const userId = options.userId || getDashboardUserId();
+      if (!userId) {
+        return;
+      }
+      const preserveStrategyId = options.preserveStrategyId ?? null;
+      const preserveUpdatedAt = options.preserveUpdatedAt ?? null;
+      const storage = window.localStorage;
+      const keysToRemove = [];
+      for (let i = 0; i < storage.length; i += 1) {
+        const key = storage.key(i);
+        if (!key || !key.startsWith(STRATEGY_PAYLOAD_STORAGE_PREFIX)) {
+          continue;
+        }
+        let entry = null;
+        try {
+          entry = JSON.parse(storage.getItem(key));
+        } catch (error) {
+          entry = null;
+        }
+        if (!entry || typeof entry !== 'object' || !entry.userId) {
+          keysToRemove.push(key);
+          continue;
+        }
+        if (entry.userId !== userId) {
+          continue;
+        }
+        if (preserveStrategyId && entry.strategyId === preserveStrategyId) {
+          if (preserveUpdatedAt) {
+            const entryTime = Date.parse(entry.updatedAt);
+            const preserveTime = Date.parse(preserveUpdatedAt);
+            if (!Number.isNaN(entryTime) && !Number.isNaN(preserveTime) && entryTime === preserveTime) {
+              continue;
+            }
+            if (!entry.updatedAt && !Number.isNaN(preserveTime)) {
+              continue;
+            }
+          } else {
+            continue;
+          }
+        }
+        keysToRemove.push(key);
+      }
+      keysToRemove.forEach(key => storage.removeItem(key));
+    }
+
+    window.purgeStrategyPayloadCache = purgeStrategyPayloadCache;
+
     // Logout function
     function logout() {
-      localStorage.clear();
+      const userId = getDashboardUserId();
+      try {
+        if (typeof window.purgeStrategyPayloadCache === 'function') {
+          window.purgeStrategyPayloadCache({ userId });
+        }
+      } catch (error) {
+        console.warn('Failed to purge strategy payload cache on logout', error);
+      }
+      try {
+        localStorage.clear();
+      } catch (error) {
+        // ignore storage issues
+      }
       window.location.href = "/logout";
     }
 
