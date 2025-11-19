@@ -73,6 +73,28 @@ def _enqueue_user_warm_cache(user_id: int) -> None:
     except Exception as exc:  # pragma: no cover - best effort
         current_app.logger.debug("Unable to enqueue cache warmup: %s", exc)
 
+
+def _prime_user_summary_payload(user: User | None) -> None:
+    """Synchronously build the initial summary payload for ``user``."""
+
+    if not user:
+        return
+
+    try:
+        from app import _prime_user_cache
+    except Exception as exc:  # pragma: no cover - best effort
+        current_app.logger.warning("Unable to import cache primer: %s", exc)
+        return
+
+    try:
+        _prime_user_cache(user)
+    except Exception as exc:  # pragma: no cover - best effort
+        current_app.logger.warning(
+            "Unable to synchronously warm summary cache for %s: %s",
+            getattr(user, "id", "unknown"),
+            exc,
+        )
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     next_url = request.args.get('next')
@@ -123,6 +145,7 @@ def login():
             else:
                 session.permanent = False
             session['user'] = user.email
+            _prime_user_summary_payload(user)
             _enqueue_user_warm_cache(user.id)
             return redirect(next_url or url_for('summary'))
         flash('Invalid credentials', 'error')
@@ -201,7 +224,8 @@ def login_otp():
                         session.permanent = False
                         session['user'] = user.email
                         session.pop('login_otp', None)
-                        _enqueue_user_warm_cache(user.id)    
+                        _prime_user_summary_payload(user)
+                        _enqueue_user_warm_cache(user.id)
                         return redirect(url_for('summary'))
 
             step = 'otp'
