@@ -10,6 +10,111 @@ const PERIOD_LIMITS = {
   All: null,
 };
 
+const SUMMARY_PREFETCH_GLOBALS = (() => {
+  if (typeof window === "undefined") {
+    return {
+      key: "page:summary-data",
+      ttl: 3 * 60 * 1000,
+      keys: {}
+    };
+  }
+  const keys = window.PAGE_PREFETCH_KEYS || {};
+  const baseTtl = Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL)
+    ? window.PAGE_PREFETCH_DEFAULT_TTL * 3
+    : 3 * 60 * 1000;
+  return {
+    key: keys.summary || "page:summary-data",
+    ttl: baseTtl,
+    keys
+  };
+})();
+
+const SUMMARY_PREFETCH_KEY = SUMMARY_PREFETCH_GLOBALS.key;
+const SUMMARY_PREFETCH_TTL = SUMMARY_PREFETCH_GLOBALS.ttl;
+const CRITICAL_PREFETCH_KEYS = [
+  SUMMARY_PREFETCH_KEY,
+  SUMMARY_PREFETCH_GLOBALS.keys.accountInfo,
+  SUMMARY_PREFETCH_GLOBALS.keys.dashboard,
+  SUMMARY_PREFETCH_GLOBALS.keys.notifications
+].filter((key, index, list) => key && list.indexOf(key) === index);
+
+let summaryPrefetchRegistered = false;
+let criticalPrefetchPrimed = false;
+
+function readSummaryPrefetchCache() {
+  if (typeof window === "undefined" || typeof window.getPagePrefetchData !== "function") {
+    return undefined;
+  }
+  return window.getPagePrefetchData(SUMMARY_PREFETCH_KEY);
+}
+
+function storeSummaryPrefetch(payload) {
+  if (typeof window === "undefined" || typeof window.setPagePrefetchData !== "function") {
+    return;
+  }
+  window.setPagePrefetchData(SUMMARY_PREFETCH_KEY, payload, { ttl: SUMMARY_PREFETCH_TTL });
+}
+
+async function fetchSummaryPayload() {
+  const response = await fetch("/api/summary", { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error("Failed to load summary data");
+  }
+  return response.json();
+}
+
+async function requestSummaryData(forceNetwork = false) {
+  if (!forceNetwork) {
+    const cached = readSummaryPrefetchCache();
+    if (cached !== undefined && cached !== null) {
+      return cached;
+    }
+  }
+
+  if (typeof window !== "undefined" && typeof window.runPagePrefetch === "function") {
+    try {
+      const prefetched = await window.runPagePrefetch(SUMMARY_PREFETCH_KEY, { force: forceNetwork });
+      if (prefetched !== undefined && prefetched !== null) {
+        return prefetched;
+      }
+    } catch (error) {
+      console.warn("Summary prefetch runner failed", error);
+    }
+  }
+
+  const payload = await fetchSummaryPayload();
+  storeSummaryPrefetch(payload);
+  return payload;
+}
+
+function ensureSummaryPrefetcher() {
+  if (summaryPrefetchRegistered) return;
+  if (typeof window === "undefined" || typeof window.registerPagePrefetcher !== "function") {
+    return;
+  }
+  summaryPrefetchRegistered = true;
+  window.registerPagePrefetcher(SUMMARY_PREFETCH_KEY, async ({ setCached }) => {
+    const data = await fetchSummaryPayload();
+    setCached(data, { ttl: SUMMARY_PREFETCH_TTL });
+    return data;
+  });
+}
+
+function primeCriticalPrefetchers() {
+  if (criticalPrefetchPrimed) return;
+  if (typeof window === "undefined" || typeof window.runPagePrefetch !== "function") {
+    return;
+  }
+  criticalPrefetchPrimed = true;
+  CRITICAL_PREFETCH_KEYS.forEach((key, index) => {
+    setTimeout(() => {
+      window.runPagePrefetch(key).catch(() => {});
+    }, index * 120);
+  });
+}
+
+ensureSummaryPrefetcher();
+
 function parseJsonScript(id) {
   const el = document.getElementById(id);
   if (!el) return {};
@@ -211,6 +316,7 @@ function setupPerformanceChart(props) {
   }
 
   const warmedCache = props?.warmed_cache || {};
+  const prefetchedSummary = readSummaryPrefetchCache();
   const initialSeries = props?.performance_summary?.series || [];
   let cachedSeries = [];
   let isLoadingSeries = false;
@@ -406,22 +512,7 @@ function setupPerformanceChart(props) {
 
   function refreshSeries(forceNetwork = false) {
     setLoadingState(!cachedSeries.length);
-    if (!forceNetwork) {
-      const warmedSeries = normalizeSeries(
-        warmedCache.summary_series || warmedCache.summarySeries || [],
-      );
-      if (warmedSeries.length) {
-        cachedSeries = warmedSeries;
-        setLoadingState(false);
-        applyPeriod(activePeriod);
-        return;
-      }
-    }
-    fetch("/api/summary")
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to load summary data");
-        return response.json();
-      })
+    requestSummaryData(forceNetwork)
       .then((data) => {
         const incoming = data?.performance_summary?.series;
         if (!Array.isArray(incoming)) {
@@ -440,7 +531,11 @@ function setupPerformanceChart(props) {
   }
 
   const warmSeries = normalizeSeries(warmedCache.summary_series || warmedCache.summarySeries || []);
+  const prefetchedSeries = normalizeSeries(prefetchedSummary?.performance_summary?.series || []);
   cachedSeries = normalizeSeries(initialSeries);
+  if (!cachedSeries.length && prefetchedSeries.length) {
+    cachedSeries = prefetchedSeries;
+  }
   if (!cachedSeries.length && warmSeries.length) {
     cachedSeries = warmSeries;
   }
@@ -456,8 +551,14 @@ function setupPerformanceChart(props) {
   if (window[REFRESH_EVENT_KEY]) {
     document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
   }
-  window[REFRESH_EVENT_KEY] = () => refreshSeries(true);
-  document.addEventListener("summary:refresh", () => refreshSeries(true));
+  const refreshHandler = () => {
+    if (typeof window.runPagePrefetch === "function") {
+      window.runPagePrefetch(SUMMARY_PREFETCH_KEY, { force: true }).catch(() => {});
+    }
+    refreshSeries(true);
+  };
+  window[REFRESH_EVENT_KEY] = refreshHandler;
+  document.addEventListener("summary:refresh", refreshHandler);
 
   chips.forEach((chip) => {
     if (chip.dataset.bound === "true") return;
@@ -478,4 +579,5 @@ export function initSummaryIslands() {
   setupHoldingsFilter();
   setupTransactionsToggle();
   setupPerformanceChart(props);
+  primeCriticalPrefetchers();
 }
