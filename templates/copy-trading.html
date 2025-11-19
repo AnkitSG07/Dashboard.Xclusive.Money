@@ -2303,7 +2303,13 @@ window.pageScripts["copy-trading"] = function () {
   window.accountsPollInterval = window.accountsPollInterval || BASE_ACCOUNTS_POLL_INTERVAL;
   window.loadingAccounts = window.loadingAccounts || false;
   window.accountsPoller = window.accountsPoller || null;
-
+  const COPY_TRADING_PREFETCH_KEY = 'copy-trading';
+  const COPY_TRADING_PREFETCH_TTL = Math.max(
+    Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL : 2 * 60 * 1000,
+    60 * 1000
+  );
+  let prefetchedAccountsApplied = false;
+  
   function pauseAccountsPolling() {
     if (window.accountsPoller) {
       clearInterval(window.accountsPoller);
@@ -2318,6 +2324,21 @@ window.pageScripts["copy-trading"] = function () {
     if (!window.accountsPoller) {
       window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
     }
+  }
+
+  function readPrefetchedAccountsPayload() {
+    if (typeof window.getPagePrefetchData !== 'function') {
+      return null;
+    }
+    const cached = window.getPagePrefetchData(COPY_TRADING_PREFETCH_KEY);
+    return cached && typeof cached === 'object' ? cached : null;
+  }
+
+  function updatePrefetchedAccountsPayload(payload) {
+    if (!payload || typeof payload !== 'object' || typeof window.setPagePrefetchData !== 'function') {
+      return;
+    }
+    window.setPagePrefetchData(COPY_TRADING_PREFETCH_KEY, payload, { ttl: COPY_TRADING_PREFETCH_TTL });
   }
 
   function updatePollingState() {
@@ -4129,6 +4150,93 @@ window.pageScripts["copy-trading"] = function () {
     return `<img src="${url}" class="rounded-circle" style="width:24px;height:24px;object-fit:contain;" alt="${name} logo">`;
   }
 
+  function applyAccountsPayload(data, context = {}, { persistPrefetch = true } = {}) {
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+
+    const openMasters = context.openMasters || new Set();
+    const openChildren = context.openChildren || new Set();
+    const masterActiveTabs = context.masterActiveTabs || {};
+    const childActiveTabs = context.childActiveTabs || {};
+
+    const masters = (Array.isArray(data.masters) ? data.masters : []).map(m => ({
+      ...m,
+      client_id: m.client_id || (m.client && m.client.id ? m.client.id : undefined),
+      username: m.username || (m.client && m.client.username ? m.client.username : undefined),
+      role: "master"
+    })).filter(m => m.client_id);
+    if (!Array.isArray(window.masterAccounts)) {
+      window.masterAccounts = [];
+    }
+    window.masterAccounts.splice(0, window.masterAccounts.length, ...masters);
+
+    const flattenedChildren = [];
+    window.masterAccounts.forEach(master => {
+      if (Array.isArray(master.children)) {
+        master.children = master.children.map(child => {
+          flattenedChildren.push({
+            ...child,
+            linked_master_id: master.client_id
+          });
+          return child;
+        });
+      }
+    });
+    if (!Array.isArray(window.childAccounts)) {
+      window.childAccounts = [];
+    }
+    window.childAccounts.splice(0, window.childAccounts.length, ...flattenedChildren);
+
+    const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
+    if (!Array.isArray(window.unassignedAccounts)) {
+      window.unassignedAccounts = [];
+    }
+    window.unassignedAccounts.splice(0, window.unassignedAccounts.length, ...unassignedAccounts);
+
+    window.masterAccounts.forEach(master => {
+      const prev = window.accountCopyStatus[master.client_id];
+      if (prev === 'On' && master.copy_status === 'Off') {
+        showMessage(`Copy trading for ${master.client_id} was turned off by the system.`);
+      }
+      window.accountCopyStatus[master.client_id] = master.copy_status;
+    });
+
+    window.childAccounts.forEach(child => {
+      const prev = window.accountCopyStatus[child.client_id];
+      if (prev === 'On' && child.copy_status === 'Off') {
+        if (!window.userToggledOff[child.client_id]) {
+          showMessage(`Copy trading for ${child.client_id} was turned off by the system.`);
+        } else {
+          delete window.userToggledOff[child.client_id];
+        }
+      }
+      window.accountCopyStatus[child.client_id] = child.copy_status;
+    });
+
+    if (window.accountsPollInterval !== BASE_ACCOUNTS_POLL_INTERVAL) {
+      window.accountsPollInterval = BASE_ACCOUNTS_POLL_INTERVAL;
+      if (window.accountsPoller) {
+        clearInterval(window.accountsPoller);
+        window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
+      }
+    }
+
+    renderAccountsView({
+      masters: window.masterAccounts,
+      children: window.childAccounts,
+      unassigned: window.unassignedAccounts,
+      openMasters,
+      openChildren,
+      masterActiveTabs,
+      childActiveTabs
+    });
+
+    if (persistPrefetch) {
+      updatePrefetchedAccountsPayload(data);
+    }
+  }
+
   // Utility for showing messages (kept alert to match original behavior)
   function showMessage(message, type = 'info') {
     alert(message);
@@ -4423,7 +4531,16 @@ window.pageScripts["copy-trading"] = function () {
       });
     }
 
-let errorHandled = false;
+    const renderContext = { openMasters, openChildren, masterActiveTabs, childActiveTabs };
+    if (!prefetchedAccountsApplied) {
+      const prefetchedPayload = readPrefetchedAccountsPayload();
+      if (prefetchedPayload) {
+        applyAccountsPayload(prefetchedPayload, renderContext, { persistPrefetch: false });
+        prefetchedAccountsApplied = true;
+      }
+    }
+
+    let errorHandled = false;
     fetch("/api/accounts", { signal: controller.signal })
       .then(async response => {
         if (!response.ok) {
@@ -4464,78 +4581,8 @@ let errorHandled = false;
         return response.json();
       })
       .then(data => {
-        // 1. Masters
-        const masters = (Array.isArray(data.masters) ? data.masters : []).map(m => ({
-          ...m,
-          client_id: m.client_id || (m.client && m.client.id ? m.client.id : undefined),
-          username: m.username || (m.client && m.client.username ? m.client.username : undefined),
-          role: "master"
-        })).filter(m => m.client_id);
-        if (!Array.isArray(window.masterAccounts)) {
-          window.masterAccounts = [];
-        }
-        window.masterAccounts.splice(0, window.masterAccounts.length, ...masters);
-
-        const flattenedChildren = [];
-        window.masterAccounts.forEach(master => {
-          if (Array.isArray(master.children)) {
-            master.children = master.children.map(child => {
-              flattenedChildren.push({
-                ...child,
-                linked_master_id: master.client_id
-              });
-              return child;
-            });
-          }
-        });
-        if (!Array.isArray(window.childAccounts)) {
-          window.childAccounts = [];
-        }
-        window.childAccounts.splice(0, window.childAccounts.length, ...flattenedChildren);
-
-        const unassignedAccounts = (Array.isArray(data.accounts) ? data.accounts : []).filter(acc => !acc.role);
-        if (!Array.isArray(window.unassignedAccounts)) {
-          window.unassignedAccounts = [];
-        }
-        window.unassignedAccounts.splice(0, window.unassignedAccounts.length, ...unassignedAccounts);
-
-        window.masterAccounts.forEach(master => {
-          const prev = window.accountCopyStatus[master.client_id];
-          if (prev === 'On' && master.copy_status === 'Off') {
-            showMessage(`Copy trading for ${master.client_id} was turned off by the system.`);
-          }
-          window.accountCopyStatus[master.client_id] = master.copy_status;
-        });
-
-        window.childAccounts.forEach(child => {
-          const prev = window.accountCopyStatus[child.client_id];
-          if (prev === 'On' && child.copy_status === 'Off') {
-            if (!window.userToggledOff[child.client_id]) {
-              showMessage(`Copy trading for ${child.client_id} was turned off by the system.`);
-            } else {
-              delete window.userToggledOff[child.client_id];
-            }
-          }
-          window.accountCopyStatus[child.client_id] = child.copy_status;
-        });
-
-        if (window.accountsPollInterval !== BASE_ACCOUNTS_POLL_INTERVAL) {
-          window.accountsPollInterval = BASE_ACCOUNTS_POLL_INTERVAL;
-          if (window.accountsPoller) {
-            clearInterval(window.accountsPoller);
-            window.accountsPoller = setInterval(window.loadAccounts, window.accountsPollInterval);
-          }
-        }
-
-        renderAccountsView({
-          masters: window.masterAccounts,
-          children: window.childAccounts,
-          unassigned: window.unassignedAccounts,
-          openMasters,
-          openChildren,
-          masterActiveTabs,
-          childActiveTabs
-        });
+        applyAccountsPayload(data, renderContext);
+        prefetchedAccountsApplied = true;
       })
       .then(() => {
         // No longer need enableDropdowns as Bootstrap handles this
