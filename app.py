@@ -9638,7 +9638,9 @@ def _build_summary_payload(
     }
 
     collected_transactions: list[tuple[datetime, dict]] = []
-    recent_cutoff = datetime.utcnow() - timedelta(days=7)
+    # Use an aware datetime so comparisons against timezone-aware trade
+    # timestamps don't fail with TypeError.
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     for account_id, snapshot in account_snapshot_payloads.items():
         orders = (snapshot or {}).get("orders") or {}
         order_items = orders.get("items") if isinstance(orders, dict) else []
