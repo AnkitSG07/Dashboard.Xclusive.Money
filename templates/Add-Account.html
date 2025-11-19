@@ -3066,5 +3066,17 @@ window.pageScripts["Add-Account"] = function() {
       unregisterAccountsController();
     });
 };
+
+function initAddAccountPage() {
+  if (window.pageScripts && typeof window.pageScripts["Add-Account"] === 'function') {
+    window.pageScripts["Add-Account"]();
+  }
+}
+
+if (document.readyState !== 'loading') {
+  initAddAccountPage();
+} else {
+  document.addEventListener('DOMContentLoaded', initAddAccountPage);
+}
 </script>
 {% endblock %}
