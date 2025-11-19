@@ -363,6 +363,8 @@ WEBHOOK_ID_TTL = 60
 # Seconds to cache the summary performance series to avoid repeated aggregation
 SUMMARY_SERIES_CACHE_TTL = 600
 USER_WARM_CACHE_TTL = 900
+SUMMARY_PAYLOAD_CACHE_TTL = 900
+SUMMARY_PAYLOAD_STALE_AFTER = 300
 
 def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed_symbols=None) -> None:
     """Persist broker info for *user_id* to the alert guard service.
@@ -8483,6 +8485,88 @@ def _update_user_warm_cache(user: User | None, payload: dict) -> dict:
     return merged
 
 
+def _summary_payload_cache_key(user_id: int) -> str:
+    return f"user:summary-payload:{user_id}"
+
+
+def _persist_summary_payload(user: User | None, payload: dict[str, Any]) -> dict[str, Any]:
+    if not user or not isinstance(payload, dict):
+        return {}
+
+    cached_at = datetime.utcnow().replace(tzinfo=timezone.utc)
+    entry = {
+        "cached_at": cached_at.isoformat(),
+        "payload": payload,
+    }
+    cache_set(
+        _summary_payload_cache_key(user.id),
+        entry,
+        ttl=SUMMARY_PAYLOAD_CACHE_TTL,
+    )
+    return entry
+
+
+def _get_summary_payload_cache(user: User | None) -> dict[str, Any] | None:
+    if not user:
+        return None
+
+    cached = cache_get(_summary_payload_cache_key(user.id))
+    if isinstance(cached, dict) and isinstance(cached.get("payload"), dict):
+        return cached
+    return None
+
+
+def _summary_payload_cached_at(entry: dict[str, Any] | None) -> datetime | None:
+    if not entry:
+        return None
+    value = entry.get("cached_at") if isinstance(entry, dict) else None
+    if isinstance(value, str):
+        cleaned = value.rstrip("Z")
+        try:
+            parsed = datetime.fromisoformat(cleaned)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    return None
+
+
+def _is_summary_payload_stale(entry: dict[str, Any] | None) -> bool:
+    cached_at = _summary_payload_cached_at(entry)
+    if not cached_at:
+        return True
+    age = datetime.utcnow().replace(tzinfo=timezone.utc) - cached_at
+    return age.total_seconds() >= SUMMARY_PAYLOAD_STALE_AFTER
+
+
+def _schedule_summary_payload_refresh(user: User | None) -> bool:
+    if not user:
+        return False
+    try:
+        from task import celery
+
+        celery.send_task(
+            "services.tasks.warm_user_cache",
+            args=[user.id],
+            ignore_result=True,
+            retry=False,
+            throw=False,
+        )
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Unable to enqueue summary cache warm for user %s: %s",
+            getattr(user, "id", "unknown"),
+            exc,
+        )
+        return False
+
+
 def _prime_user_cache(user: User | None, strategy_ids: list[int] | None = None) -> dict:
     if not user:
         return {}
@@ -8496,64 +8580,14 @@ def _prime_user_cache(user: User | None, strategy_ids: list[int] | None = None) 
         ]
         strategy_ids = list(dict.fromkeys(owned_ids + subscription_ids))
 
-    warm_payload: dict[str, Any] = {}
-    summary_series = _get_summary_series(user, strategy_ids, use_cache=False)
-    if summary_series:
-        cache_set(
-            _summary_series_cache_key(user.id),
-            summary_series,
-            ttl=SUMMARY_SERIES_CACHE_TTL,
-        )
-        warm_payload["summary_series"] = summary_series
-
-    logs = (
-        SystemLog.query.filter_by(user_id=str(user.id))
-        .order_by(SystemLog.timestamp.desc())
-        .limit(5)
-        .all()
+    warm_cache = _get_user_warm_cache(user)
+    payload, warm_cache = _build_summary_payload(
+        user,
+        strategy_ids=strategy_ids,
+        warm_cache=warm_cache,
     )
-    warm_payload["notifications"] = [
-        {
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-            "message": log.message,
-            "level": (log.level or "INFO").upper(),
-        }
-        for log in logs
-    ]
-
-    holdings: list[dict[str, Any]] = []
-    for account in Account.query.filter_by(user_id=user.id).all():
-        snapshot = get_cached_dashboard_snapshot(account, prefer_cache=True) or {}
-        portfolio = snapshot.get("portfolio") or []
-        for entry in portfolio:
-            normalized = _normalize_holding_for_summary(entry)
-            if not normalized:
-                continue
-            qty = _summary_safe_float(normalized.get("netQty"), 0.0)
-            ltp = _summary_safe_float(normalized.get("ltp"), 0.0)
-            buy_avg = _summary_safe_float(normalized.get("buyAvg"), 0.0)
-            market_value = ltp * qty
-            cost = buy_avg * qty
-            pnl = _summary_safe_float(normalized.get("profitAndLoss"), 0.0)
-            holdings.append(
-                {
-                    "symbol": normalized.get("tradingSymbol"),
-                    "quantity": qty,
-                    "ltp": ltp,
-                    "market_value": market_value,
-                    "cost": cost,
-                    "pnl": pnl,
-                    "day_change": _summary_safe_float(
-                        normalized.get("day_change"), 0.0
-                    ),
-                }
-            )
-
-    if holdings:
-        holdings.sort(key=lambda h: h.get("market_value", 0.0), reverse=True)
-        warm_payload["top_holdings"] = holdings[:5]
-
-    return _update_user_warm_cache(user, warm_payload)
+    _persist_summary_payload(user, payload)
+    return warm_cache
 
 def _compute_intraday_pnl(
     strategy_today_pnl: float,
@@ -8942,10 +8976,39 @@ def _compute_account_metrics(positions: list[dict]):
     }, holdings
 
 
-@app.route("/Summary")
-@login_required
-def summary():
-    """Render a high-level dashboard preview for the user."""
+def _build_summary_payload(
+    user: User | None,
+    strategy_ids: list[int] | None = None,
+    *,
+    warm_cache: dict | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    warm_cache = warm_cache or _get_user_warm_cache(user)
+
+    payload_template = {
+        "strategies": [],
+        "notifications": [],
+        "overview": {
+            "total_portfolio_value": 0.0,
+            "total_investment": 0.0,
+            "total_gain_loss": 0.0,
+            "total_gain_loss_percent": 0.0,
+            "today_gain_loss": 0.0,
+            "today_gain_loss_percent": 0.0,
+            "is_refreshing": False,
+            "refreshing_account_count": 0,
+        },
+        "account_summaries": [],
+        "combined_holdings": [],
+        "performance_summary": {"series": [], "periods": []},
+        "top_holdings": [],
+        "broker_names": ["All"],
+        "sector_allocation": [],
+        "account_allocation": [],
+        "recent_transactions": [],
+    }
+
+    if not user:
+        return payload_template, warm_cache or {}
 
 
     def _safe_float(value, default=0.0):
@@ -8956,60 +9019,7 @@ def summary():
         except (TypeError, ValueError):
             return default
 
-    def _format_currency(value: float | None) -> str:
-        value = value or 0.0
-        return f"₹{value:,.2f}"
-
-    def _format_percentage(value: float | None) -> str:
-        value = value or 0.0
-        return f"{value:.2f}%"
-
-    def _format_quantity(value: float | None) -> str:
-        quantity = _safe_float(value, 0.0)
-        if float(quantity).is_integer():
-            return f"{int(quantity):,}"
-        return f"{quantity:,.2f}"
-
-    user = current_user()
-
-    warm_cache = _get_user_warm_cache(user)
-
-    preferred_timezone_name = None
-    if user:
-        preferred_timezone_name = (
-            getattr(user, "timezone", None)
-            or getattr(user, "preferred_timezone", None)
-        )
-    if not preferred_timezone_name:
-        preferred_timezone_name = session.get("preferred_timezone") or session.get("timezone")
-    try:
-        preferred_timezone = (
-            ZoneInfo(preferred_timezone_name)
-            if preferred_timezone_name
-            else DEFAULT_USER_TIMEZONE
-        )
-    except Exception:
-        preferred_timezone = DEFAULT_USER_TIMEZONE
-
-    def _format_datetime(value) -> str:
-        if not value:
-            return "—"
-        if isinstance(value, str):
-            try:
-                value = datetime.fromisoformat(value)
-            except ValueError:
-                return value
-        if not isinstance(value, datetime):
-            return str(value)
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        else:
-            value = value.astimezone(timezone.utc)
-        localized = value.astimezone(preferred_timezone)
-        return localized.strftime("%d %b %Y %I:%M %p")
-
     def _status_palette(base_color: str) -> dict[str, str]:
-        """Return tint variations for a hexadecimal color string."""
 
         base_color = (base_color or "").strip()
         if base_color.startswith("#"):
@@ -9025,7 +9035,6 @@ def summary():
             g = int(hex_value[2:4], 16)
             b = int(hex_value[4:6], 16)
         except (TypeError, ValueError):
-            # Fall back to a neutral indigo palette if parsing fails.
             r, g, b = 79, 70, 229
             base_color = "#4f46e5"
 
@@ -9051,14 +9060,6 @@ def summary():
         summary_entry["status_color"] = palette["text"]
         summary_entry["status_background_color"] = palette["background"]
         summary_entry["status_border_color"] = palette["border"]
-
-    def _safe_float(value, default=0.0):
-        try:
-            if value is None or value == "":
-                return default
-            return float(value)
-        except (TypeError, ValueError):
-            return default
 
     app_obj = current_app._get_current_object()
 
@@ -9121,7 +9122,7 @@ def summary():
                     "snapshot": snapshot,
                     "error": None,
                 }
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 message = str(exc)
                 logger.exception(
                     "Failed to load dashboard snapshot for account %s", account_id
@@ -9134,57 +9135,55 @@ def summary():
             finally:
                 db.session.remove()
 
-    if "username" not in session and user:
-        session["username"] = user.name or (
-            user.email.split("@")[0] if user.email else user.phone
-        )
-
-    display_name = session.get("username", session.get("user"))
-
-    accounts = Account.query.filter_by(user_id=user.id).all() if user else []
+    accounts = Account.query.filter_by(user_id=user.id).all()
     account_lookup: dict[int, Account] = {acc.id: acc for acc in accounts}
 
-    owned_strategy_rows = (
-        db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
-        .filter(Strategy.user_id == user.id)
-        .all()
-        if user
-        else []
-    )
-    subscribed_strategy_rows = (
-        db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
-        .join(
-            StrategySubscription,
-            StrategySubscription.strategy_id == Strategy.id,
+    if strategy_ids is None:
+        owned_strategy_rows = (
+            db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
+            .filter(Strategy.user_id == user.id)
+            .all()
         )
-        .filter(StrategySubscription.subscriber_id == user.id)
-        .all()
-        if user
-        else []
-    )
-    combined_strategy_rows = owned_strategy_rows + subscribed_strategy_rows
-    ordered_strategies: list[dict] = []
-    seen_strategy_ids: set[int] = set()
-    for row in combined_strategy_rows:
-        strategy_id = getattr(row, "id", None)
-        if strategy_id is None or strategy_id in seen_strategy_ids:
-            continue
-        seen_strategy_ids.add(strategy_id)
-        ordered_strategies.append(
-            {
-                "id": strategy_id,
-                "name": getattr(row, "name", None),
-                "is_active": bool(getattr(row, "is_active", False)),
-            }
+        subscribed_strategy_rows = (
+            db.session.query(Strategy.id, Strategy.name, Strategy.is_active)
+            .join(
+                StrategySubscription,
+                StrategySubscription.strategy_id == Strategy.id,
+            )
+            .filter(StrategySubscription.subscriber_id == user.id)
+            .all()
         )
+        combined_strategy_rows = owned_strategy_rows + subscribed_strategy_rows
+        ordered_strategies: list[dict[str, Any]] = []
+        seen_strategy_ids: set[int] = set()
+        for row in combined_strategy_rows:
+            strategy_id = getattr(row, "id", None)
+            if strategy_id is None or strategy_id in seen_strategy_ids:
+                continue
+            seen_strategy_ids.add(strategy_id)
+            ordered_strategies.append(
+                {
+                    "id": strategy_id,
+                    "name": getattr(row, "name", None),
+                    "is_active": bool(getattr(row, "is_active", False)),
+                }
+            )
+        strategy_ids = [entry["id"] for entry in ordered_strategies]
+    else:
+        ordered_strategies = []
+        seen: set[int] = set()
+        for strategy_id in strategy_ids:
+            if strategy_id in seen:
+                continue
+            seen.add(strategy_id)
+            ordered_strategies.append({"id": strategy_id, "name": None, "is_active": True})
 
-    strategy_ids = [entry["id"] for entry in ordered_strategies]
-    unique_strategy_ids = strategy_ids
+    unique_strategy_ids = list(dict.fromkeys(strategy_ids or []))
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
     pnl_map: dict[int, float] = defaultdict(float)
     chart_log_rows: list = []
-    if strategy_ids:
+    if unique_strategy_ids:
         aggregate_rows = (
             db.session.query(
                 StrategyLog.strategy_id,
@@ -9194,7 +9193,7 @@ def summary():
                 ).label("total_pnl"),
             )
             .filter(
-                StrategyLog.strategy_id.in_(strategy_ids),
+                StrategyLog.strategy_id.in_(unique_strategy_ids),
                 StrategyLog.timestamp >= seven_days_ago,
             )
             .group_by(StrategyLog.strategy_id)
@@ -9212,7 +9211,7 @@ def summary():
                 StrategyLog.timestamp.label("timestamp"),
                 StrategyLog.performance["pnl"].as_float().label("pnl"),
             )
-            .filter(StrategyLog.strategy_id.in_(strategy_ids))
+            .filter(StrategyLog.strategy_id.in_(unique_strategy_ids))
             .order_by(cast(StrategyLog.timestamp, SADateTime).desc())
             .limit(240)
             .all()
@@ -9220,9 +9219,9 @@ def summary():
 
     strategies = [
         {
-            "name": entry["name"],
-            "is_active": entry["is_active"],
-            "pnl": pnl_map.get(entry["id"], 0.0),
+            "name": entry.get("name"),
+            "is_active": entry.get("is_active"),
+            "pnl": pnl_map.get(entry.get("id"), 0.0),
         }
         for entry in ordered_strategies
     ]
@@ -9256,7 +9255,7 @@ def summary():
             account_id = future_map[future]
             try:
                 result = future.result()
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 message = str(exc)
                 logger.exception(
                     "Snapshot load failed for account %s", account_id
@@ -9298,14 +9297,12 @@ def summary():
                     completed_account_ids.append(account_id)
                 pending_futures = not_done
 
-            # Harvest any futures that completed while evaluating timeout budget.
             for future in list(pending_futures):
                 if future.done():
                     pending_futures.discard(future)
                     account_id = _handle_future(future)
                     completed_account_ids.append(account_id)
 
-            # Mark any remaining pending futures as timed out and cancel them.
             for future in pending_futures:
                 account_id = future_map[future]
                 future.cancel()
@@ -9319,11 +9316,6 @@ def summary():
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
 
-        if completed_account_ids:
-            logger.info(
-                "Completed dashboard snapshot loads for accounts %s",
-                completed_account_ids,
-            )
         if cancelled_account_ids:
             logger.warning(
                 "Cancelled dashboard snapshot loads for accounts %s", cancelled_account_ids
@@ -9451,7 +9443,7 @@ def summary():
                     "buy_total_qty": 0.0,
                     "sell_total_cost": 0.0,
                     "sell_total_qty": 0.0,
-                    "day_change": 0.0,    
+                    "day_change": 0.0,
                 },
             )
             entry["quantity"] += holding["quantity"]
@@ -9489,7 +9481,7 @@ def summary():
     today_pnl = 0.0
 
     def _strategy_pnl_since(days: int) -> float:
-        if not strategy_ids:
+        if not unique_strategy_ids:
             return 0.0
         start = datetime.utcnow() - timedelta(days=days)
         total = (
@@ -9500,7 +9492,7 @@ def summary():
                 )
             )
             .filter(
-                StrategyLog.strategy_id.in_(strategy_ids),
+                StrategyLog.strategy_id.in_(unique_strategy_ids),
                 StrategyLog.timestamp >= start,
             )
             .scalar()
@@ -9531,6 +9523,12 @@ def summary():
     )
     if not performance_series:
         performance_series = warm_cache.get("summary_series", [])
+    else:
+        cache_set(
+            _summary_series_cache_key(user.id),
+            performance_series,
+            ttl=SUMMARY_SERIES_CACHE_TTL,
+        )
 
     period_windows: list[tuple[str, int, str]] = [
         ("1D", 1, "var(--summary-green)"),
@@ -9550,8 +9548,8 @@ def summary():
             }
             for label, days, color in period_windows
         ],
+        "series": performance_series,
     }
-    performance_summary["series"] = performance_series
 
     processed_holdings: list[dict[str, Any]] = []
     for holding in aggregated_holdings.values():
@@ -9600,312 +9598,121 @@ def summary():
     for index, (sector, amount) in enumerate(
         sorted(sector_map.items(), key=lambda item: item[1], reverse=True)
     ):
-        if total_sector_amount <= 0:
-            percent = 0.0
-        else:
-            percent = (amount / total_sector_amount) * 100.0
+        if amount <= 0.0:
+            continue
+        percent = (amount / total_sector_amount * 100.0) if total_sector_amount else 0.0
         sector_allocation.append(
             {
-                "label": sector,
+                "label": sector or "Uncategorized",
+                "value": amount,
                 "percent": percent,
-                "amount": amount,
                 "color": colors[index % len(colors)],
             }
         )
 
-    if not sector_allocation and total_portfolio_value:
-        sector_allocation.append(
+    account_allocation = []
+    total_allocation_amount = sum(amount for _label, amount in account_allocation_values)
+    for label, amount in account_allocation_values:
+        if amount <= 0.0:
+            continue
+        percent = (
+            (amount / total_allocation_amount) * 100.0
+            if total_allocation_amount
+            else 0.0
+        )
+        account_allocation.append(
             {
-                "label": "Uncategorized",
-                "percent": 100.0,
-                "amount": total_portfolio_value,
-                "color": colors[0],
+                "label": label or "Account",
+                "value": amount,
+                "percent": percent,
             }
         )
 
-    account_allocation = []
-    if total_portfolio_value:
-        for label, value in account_allocation_values:
-            if value <= 0:
-                continue
-            account_allocation.append(
-                {
-                    "label": label,
-                    "percent": (value / total_portfolio_value) * 100.0,
-                    "amount": value,
-                }
-            )
-
-
     holding_price_lookup = {
-        symbol: _safe_float(data.get("ltp"), 0.0)
-        for symbol, data in aggregated_holdings.items()
+        holding["symbol"]: (
+            (holding.get("market_value") or 0.0) / holding.get("quantity")
+            if holding.get("quantity")
+            else 0.0
+        )
+        for holding in combined_holdings
     }
 
-    def _normalize_order_transaction(order: dict, account_id: int) -> dict | None:
-        if not isinstance(order, dict):
-            return None
-
-        def _first_present(keys: tuple[str, ...]):
-            for key in keys:
-                if key in order and order.get(key) not in (None, ""):
-                    return order.get(key)
-            return None
-
-        symbol = _first_present(
-            (
-                "symbol",
-                "trading_symbol",
-                "tradingsymbol",
-                "instrument",
-                "instrument_name",
-                "product",
-            )
-        )
-        if symbol is not None:
-            symbol = str(symbol).strip()
-        else:
-            symbol = "—"
-
-        raw_action = _first_present(
-            (
-                "action",
-                "transaction_type",
-                "transactionType",
-                "side",
-                "type",
-                "order_type",
-            )
-        )
-        action = str(raw_action).upper() if raw_action else ""
-
-        quantity_value = None
-        for key in (
-            "filled_quantity",
-            "filledQuantity",
-            "filled_qty",
-            "filledQty",
-            "quantity",
-            "qty",
-            "order_quantity",
-            "orderQuantity",
-            "disclosed_quantity",
-            "disclosedQuantity",
-        ):
-            if key in order:
-                quantity_value = _safe_float(order.get(key), None)
-                if quantity_value is not None:
-                    break
-        if quantity_value is None:
-            quantity_value = 0.0
-
-        price_value = None
-        for key in (
-            "average_price",
-            "averagePrice",
-            "avg_price",
-            "avgPrice",
-            "price",
-            "trigger_price",
-            "triggerPrice",
-            "order_price",
-            "orderPrice",
-        ):
-            if key in order:
-                price_value = _safe_float(order.get(key), None)
-                if price_value is not None:
-                    break
-        if price_value is None:
-            price_value = _safe_float(order.get("last_price"), None)
-        if price_value is None:
-            price_value = 0.0
-
-        timestamp_value = None
-        timestamp_raw = None
-        for key in (
-            "timestamp",
-            "updated_at",
-            "updatedAt",
-            "created_at",
-            "createdAt",
-            "order_timestamp",
-            "orderTimestamp",
-            "exchange_timestamp",
-            "exchangeTimestamp",
-            "event_time",
-            "eventTime",
-            "trade_time",
-            "tradeTime",
-            "order_time",
-            "orderTime",
-            "time",
-        ):
-            if key in order and order.get(key) not in (None, ""):
-                timestamp_raw = order.get(key)
-                parsed = parse_timestamp(timestamp_raw)
-                if parsed:
-                    if parsed.tzinfo is None:
-                        timestamp_value = parsed.replace(tzinfo=timezone.utc)
-                    else:
-                        timestamp_value = parsed.astimezone(timezone.utc)
-                    break
-        if timestamp_value is None and timestamp_raw is None:
-            for key in ("timestamp_epoch", "order_timestamp_epoch", "update_time"):
-                if key in order and order.get(key) not in (None, ""):
-                    timestamp_raw = order.get(key)
-                    parsed = parse_timestamp(timestamp_raw)
+    collected_transactions: list[tuple[datetime, dict]] = []
+    recent_cutoff = datetime.utcnow() - timedelta(days=7)
+    for account_id, snapshot in account_snapshot_payloads.items():
+        orders = (snapshot or {}).get("orders") or {}
+        order_items = orders.get("items") if isinstance(orders, dict) else []
+        if not isinstance(order_items, list):
+            continue
+        for order in order_items:
+            if not isinstance(order, dict):
+                continue
+            symbol = order.get("symbol") or order.get("tradingSymbol") or order.get("instrument")
+            if not symbol:
+                continue
+            action = (order.get("side") or order.get("action") or "").upper()
+            normalized = {
+                "symbol": symbol,
+                "action": action,
+                "quantity": _safe_float(
+                    order.get("quantity")
+                    or order.get("qty")
+                    or order.get("filled_quantity")
+                    or order.get("filledQty"),
+                    0.0,
+                ),
+                "price": _safe_float(
+                    order.get("average_price")
+                    or order.get("averagePrice")
+                    or order.get("price"),
+                    0.0,
+                ),
+                "value": _safe_float(order.get("value") or order.get("amount"), 0.0),
+                "broker": account_lookup.get(account_id).broker if account_lookup.get(account_id) else None,
+            }
+            timestamp_for_filter = None
+            for key in (
+                "timestamp",
+                "updated_at",
+                "created_at",
+                "order_timestamp",
+                "exchange_timestamp",
+                "event_time",
+                "trade_time",
+                "order_time",
+                "time",
+            ):
+                if key in order and order.get(key):
+                    parsed = parse_timestamp(order.get(key))
                     if parsed:
                         if parsed.tzinfo is None:
-                            timestamp_value = parsed.replace(tzinfo=timezone.utc)
+                            parsed = parsed.replace(tzinfo=timezone.utc)
                         else:
-                            timestamp_value = parsed.astimezone(timezone.utc)
+                            parsed = parsed.astimezone(timezone.utc)
+                        timestamp_for_filter = parsed
                         break
-
-        broker_label = _first_present(
-            (
-                "broker",
-                "broker_name",
-                "brokerName",
-                "account",
-                "client_id",
-                "clientId",
-            )
-        )
-        if broker_label is None:
-            account_obj = account_lookup.get(account_id)
-            if account_obj is not None:
-                broker_label = account_obj.client_id or account_obj.broker
-        broker_label = broker_label or ""
-
-        order_id = _first_present(
-            (
-                "id",
-                "order_id",
-                "orderId",
-                "oms_order_id",
-                "omsOrderId",
-                "exchange_order_id",
-                "exchangeOrderId",
-                "guid",
-            )
-        )
-        if order_id is not None:
-            order_id = str(order_id)
-
-        value_amount = None
-        for key in (
-            "value",
-            "amount",
-            "order_value",
-            "orderValue",
-        ):
-            if key in order:
-                value_amount = _safe_float(order.get(key), None)
-                if value_amount is not None:
-                    break
-        if value_amount is None and quantity_value is not None and price_value is not None:
-            value_amount = quantity_value * price_value
-        if value_amount is None:
-            value_amount = 0.0
-
-        if isinstance(quantity_value, float) and quantity_value.is_integer():
-            quantity_display = int(quantity_value)
-        else:
-            quantity_display = quantity_value
-
-        timestamp_iso = ""
-        if timestamp_value is not None:
-            timestamp_iso = timestamp_value.astimezone(timezone.utc).isoformat()
-        elif isinstance(timestamp_raw, str):
-            timestamp_iso = timestamp_raw
-        elif timestamp_raw is not None:
-            try:
-                timestamp_iso = str(timestamp_raw)
-            except Exception:
-                timestamp_iso = ""
-
-        dedup_key: tuple = (
-            "order-id",
-            broker_label,
-            order_id,
-        )
-        if order_id is None:
-            dedup_key = (
-                "order-fields",
-                broker_label,
-                symbol,
-                action,
-                quantity_value,
-                price_value,
-                timestamp_iso,
-            )
-
-        return {
-            "symbol": symbol,
-            "action": action,
-            "quantity": quantity_display,
-            "price": price_value,
-            "value": value_amount,
-            "broker": broker_label,
-            "timestamp": timestamp_value or timestamp_raw,
-            "timestamp_iso": timestamp_iso,
-            "_sort_timestamp": timestamp_value,
-            "_dedup_key": dedup_key,
-        }
-
-    recent_transactions: list[dict[str, Any]] = []
-    collected_transactions: list[tuple[datetime, dict[str, Any]]] = []
-    seen_keys: set[tuple] = set()
-    recent_cutoff = datetime.now(timezone.utc) - timedelta(days=2)
-
-    for account_id, snapshot in account_snapshot_payloads.items():
-        orders_payload = (snapshot or {}).get("orders") or {}
-        order_items = orders_payload.get("items") or []
-        for order in order_items:
-            normalized = _normalize_order_transaction(order, account_id)
-            if not normalized:
+            if not timestamp_for_filter:
+                for key in ("timestamp_epoch", "order_timestamp_epoch", "update_time"):
+                    if key in order and order.get(key):
+                        parsed = parse_timestamp(order.get(key))
+                        if parsed:
+                            if parsed.tzinfo is None:
+                                parsed = parsed.replace(tzinfo=timezone.utc)
+                            else:
+                                parsed = parsed.astimezone(timezone.utc)
+                            timestamp_for_filter = parsed
+                            break
+            if not timestamp_for_filter:
                 continue
-            dedup_key = normalized.pop("_dedup_key", None)
-            if dedup_key is not None:
-                if dedup_key in seen_keys:
-                    continue
-                seen_keys.add(dedup_key)
-            sort_key = normalized.pop("_sort_timestamp", None)
-            timestamp_for_filter = sort_key
-            if timestamp_for_filter is None:
-                timestamp_field = normalized.get("timestamp")
-                if isinstance(timestamp_field, datetime):
-                    timestamp_for_filter = timestamp_field
-                elif isinstance(timestamp_field, str):
-                    parsed_timestamp = parse_timestamp(timestamp_field)
-                    if parsed_timestamp:
-                        if parsed_timestamp.tzinfo is None:
-                            timestamp_for_filter = parsed_timestamp.replace(
-                                tzinfo=timezone.utc
-                            )
-                        else:
-                            timestamp_for_filter = parsed_timestamp.astimezone(
-                                timezone.utc
-                            )
-            if timestamp_for_filter is None:
-                continue
-            if timestamp_for_filter.tzinfo is None:
-                timestamp_for_filter = timestamp_for_filter.replace(
-                    tzinfo=timezone.utc
-                )
-            else:
-                timestamp_for_filter = timestamp_for_filter.astimezone(
-                    timezone.utc
-                )
             if timestamp_for_filter < recent_cutoff:
                 continue
+            normalized["timestamp"] = timestamp_for_filter
+            normalized["timestamp_iso"] = timestamp_for_filter.isoformat()
             collected_transactions.append((timestamp_for_filter, normalized))
 
+    recent_transactions: list[dict[str, Any]] = []
     if collected_transactions:
-        collected_transactions.sort(
-            key=lambda pair: pair[0],
-            reverse=True,
-        )
+        collected_transactions.sort(key=lambda pair: pair[0], reverse=True)
         limit = 5
         recent_transactions = [entry for _sort, entry in collected_transactions[:limit]]
     else:
@@ -9914,8 +9721,6 @@ def summary():
             .order_by(cast(Trade.timestamp, SADateTime).desc())
             .limit(5)
             .all()
-            if user
-            else []
         )
 
         for trade in recent_trades:
@@ -9946,7 +9751,7 @@ def summary():
                 {
                     "symbol": trade.symbol,
                     "action": action,
-                    "quantity": int(qty) if qty.is_integer() else qty,
+                    "quantity": int(qty) if float(qty).is_integer() else qty,
                     "price": price,
                     "value": value,
                     "broker": trade.broker or trade.client_id,
@@ -9955,28 +9760,20 @@ def summary():
                 }
             )
 
-    notifications = (
+    notifications_rows = (
         SystemLog.query.filter_by(user_id=str(user.id))
         .order_by(SystemLog.timestamp.desc())
         .limit(5)
         .all()
-        if user
-        else []
     )
-
-    expiry = user.subscription_end if user else None
-    days_remaining = (
-        (expiry.date() - datetime.utcnow().date()).days if expiry else 0
-    )
-    subscription_status = (
-        "Active" if expiry and expiry >= datetime.utcnow() else "Expired"
-    )
-
-    refreshing_account_count = sum(
-        1 for entry in account_summaries if entry.get("refreshing")
-    )
-    if refreshing_account_count and not any_account_refreshing:
-        any_account_refreshing = True
+    notifications = [
+        {
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "message": log.message,
+            "level": (log.level or "INFO").upper(),
+        }
+        for log in notifications_rows
+    ]
 
     overview = {
         "total_portfolio_value": total_portfolio_value,
@@ -9986,6 +9783,10 @@ def summary():
         "today_gain_loss": today_pnl,
         "today_gain_loss_percent": today_gain_loss_percent,
     }
+
+    refreshing_account_count = sum(1 for entry in account_summaries if entry.get("refreshing"))
+    if refreshing_account_count and not any_account_refreshing:
+        any_account_refreshing = True
     overview["is_refreshing"] = any_account_refreshing
     overview["refreshing_account_count"] = refreshing_account_count
 
@@ -9994,16 +9795,143 @@ def summary():
         {
             "summary_series": performance_series,
             "top_holdings": top_holdings,
-            "notifications": [
-                {
-                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                    "message": log.message,
-                    "level": (log.level or "INFO").upper(),
-                }
-                for log in notifications
-            ],
+            "notifications": notifications,
         },
     )
+
+    payload = {
+        "strategies": strategies,
+        "notifications": notifications,
+        "overview": overview,
+        "account_summaries": account_summaries,
+        "combined_holdings": combined_holdings,
+        "performance_summary": performance_summary,
+        "top_holdings": top_holdings,
+        "broker_names": broker_names,
+        "sector_allocation": sector_allocation,
+        "account_allocation": account_allocation,
+        "recent_transactions": recent_transactions,
+    }
+
+    return payload, warm_cache
+
+
+
+@app.route("/Summary")
+@login_required
+def summary():
+    """Render a high-level dashboard preview for the user."""
+
+    def _safe_float(value, default=0.0):
+        try:
+            if value is None or value == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _format_currency(value: float | None) -> str:
+        value = value or 0.0
+        return f"₹{value:,.2f}"
+
+    def _format_percentage(value: float | None) -> str:
+        value = value or 0.0
+        return f"{value:.2f}%"
+
+    def _format_quantity(value: float | None) -> str:
+        quantity = _safe_float(value, 0.0)
+        if float(quantity).is_integer():
+            return f"{int(quantity):,}"
+        return f"{quantity:,.2f}"
+
+    user = current_user()
+    warm_cache = _get_user_warm_cache(user)
+
+    preferred_timezone_name = None
+    if user:
+        preferred_timezone_name = (
+            getattr(user, "timezone", None)
+            or getattr(user, "preferred_timezone", None)
+        )
+    if not preferred_timezone_name:
+        preferred_timezone_name = session.get("preferred_timezone") or session.get("timezone")
+    try:
+        preferred_timezone = (
+            ZoneInfo(preferred_timezone_name)
+            if preferred_timezone_name
+            else DEFAULT_USER_TIMEZONE
+        )
+    except Exception:
+        preferred_timezone = DEFAULT_USER_TIMEZONE
+
+    def _format_datetime(value) -> str:
+        if not value:
+            return "—"
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                return value
+        if not isinstance(value, datetime):
+            return str(value)
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+        localized = value.astimezone(preferred_timezone)
+        return localized.strftime("%d %b %Y %I:%M %p")
+
+    if "username" not in session and user:
+        session["username"] = user.name or (
+            user.email.split("@")[0] if user.email else user.phone
+        )
+
+    display_name = session.get("username", session.get("user"))
+    if not display_name and user:
+        display_name = user.name or (
+            user.email.split("@")[0] if user.email else user.phone
+        )
+
+    payload_entry = _get_summary_payload_cache(user)
+    payload = payload_entry.get("payload") if isinstance(payload_entry, dict) else None
+    need_sync_build = payload is None
+    if payload and _is_summary_payload_stale(payload_entry):
+        scheduled = _schedule_summary_payload_refresh(user)
+        if not scheduled:
+            need_sync_build = True
+
+    if need_sync_build:
+        payload, warm_cache = _build_summary_payload(user, warm_cache=warm_cache)
+        payload_entry = _persist_summary_payload(user, payload)
+
+    if payload is None:
+        payload = {}
+
+    overview = payload.get("overview") or {}
+    account_summaries = payload.get("account_summaries") or []
+    combined_holdings = payload.get("combined_holdings") or []
+    performance_summary = payload.get("performance_summary") or {"series": [], "periods": []}
+    performance_summary.setdefault("series", [])
+    performance_summary.setdefault("periods", [])
+    top_holdings = payload.get("top_holdings") or []
+    broker_names = payload.get("broker_names") or ["All"]
+    sector_allocation = payload.get("sector_allocation") or []
+    account_allocation = payload.get("account_allocation") or []
+    recent_transactions = payload.get("recent_transactions") or []
+    notifications = payload.get("notifications") or []
+    strategies = payload.get("strategies") or []
+
+    accounts = Account.query.filter_by(user_id=user.id).all() if user else []
+
+    expiry = user.subscription_end if user else None
+    days_remaining = (
+        (expiry.date() - datetime.utcnow().date()).days if expiry else 0
+    )
+    subscription_status = (
+        "Active" if expiry and expiry >= datetime.utcnow() else "Expired"
+    )
+
+    plan_name = user.plan if user else None
 
     return render_template(
         "summary.html",
@@ -10011,7 +9939,7 @@ def summary():
         strategies=strategies,
         notifications=notifications,
         warmed_cache=warm_cache,
-        plan_name=user.plan if user else None,
+        plan_name=plan_name,
         days_remaining=days_remaining,
         expiry_date=expiry.date() if expiry else None,
         subscription_status=subscription_status,
@@ -10030,7 +9958,6 @@ def summary():
         format_quantity=_format_quantity,
         format_datetime=_format_datetime,
     )
-
 @app.route("/api/summary")
 @login_required_api
 def summary_payload():
