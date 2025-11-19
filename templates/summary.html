@@ -880,6 +880,9 @@
 {% endblock %}
 
 {% block content %}
+<script>
+  window.__WARMED_CACHE__ = {{ warmed_cache | default({}) | tojson | safe }};
+</script>
 <div class="summary-dashboard">
   <div class="summary-inner">
     <section class="summary-header">
@@ -1554,6 +1557,7 @@ window.pageScripts["Summary"] = function () {
   }
 
   const initialSeries = {{ performance_summary.series | default([]) | tojson | safe }};
+  const warmedCache = window.__WARMED_CACHE__ || {};  
   const PERIOD_LIMITS = {
     "1D": 1,
     "1W": 7,
@@ -1782,8 +1786,21 @@ window.pageScripts["Summary"] = function () {
     updateChart(series);
   }
 
-  function refreshSeries() {
+  function refreshSeries(forceNetwork = false) {
     setLoadingState(!cachedSeries.length);
+
+    if (!forceNetwork) {
+      const warmedSeries = normalizeSeries(
+        warmedCache.summary_series || warmedCache.summarySeries || []
+      );
+      if (warmedSeries.length) {
+        cachedSeries = warmedSeries;
+        setLoadingState(false);
+        applyPeriod(activePeriod);
+        return;
+      }
+    }
+
     fetch("/api/summary")
       .then((response) => {
         if (!response.ok) {
@@ -1812,21 +1829,27 @@ window.pageScripts["Summary"] = function () {
       });
   }
 
+  const warmSeries = normalizeSeries(
+    warmedCache.summary_series || warmedCache.summarySeries || []
+  );
   cachedSeries = normalizeSeries(initialSeries);
+  if (!cachedSeries.length && warmSeries.length) {
+    cachedSeries = warmSeries;
+  }
   if (cachedSeries.length) {
     applyPeriod(activePeriod);
   } else {
     setLoadingState(true);
     toggleState(false);
+    refreshSeries(true);
   }
-  refreshSeries();
 
   const REFRESH_EVENT_KEY = "__summaryRefreshHandler";
   if (window[REFRESH_EVENT_KEY]) {
     document.removeEventListener("summary:refresh", window[REFRESH_EVENT_KEY]);
   }
-  window[REFRESH_EVENT_KEY] = refreshSeries;
-  document.addEventListener("summary:refresh", refreshSeries);
+  window[REFRESH_EVENT_KEY] = () => refreshSeries(true);
+  document.addEventListener("summary:refresh", () => refreshSeries(true));
 
   chips.forEach((chip) => {
     if (chip.dataset.bound === "true") {
