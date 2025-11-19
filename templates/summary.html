@@ -984,13 +984,24 @@
           {% for account in account_summaries %}
             {% set palette = account_palette[loop.index0 % (account_palette|length)] %}
             {% set has_error = account.error %}
+            {% set broker_label = (account.broker or '').strip() %}
+            {% set broker_key = broker_label|lower|replace(' ', '') %}
+            {% set broker_key = broker_key|replace('-', '') %}
+            {% set broker_key = broker_key|replace('_', '') %}
+            {% set broker_key = broker_key|replace('&', 'and') %}
+            {% set broker_key = broker_key|replace('.', '') %}
+            {% set broker_icon = broker_icons.get(broker_key) if broker_key else None %}
+            {% set broker_alt_text = (broker_label if broker_label else 'Broker') ~ ' logo' %}
+            {% set broker_initials = (broker_label or 'AC')[:2].upper() %}
             <div class="summary-card">
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:16px;">
                 <div style="display:flex; align-items:center; gap:12px;">
-                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ palette.stroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                    </svg>
+                  <div style="width:40px; height:40px; border-radius:10px; background:{{ palette.bg }}; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                    {% if broker_icon %}
+                      <img src="{{ broker_icon }}" alt="{{ broker_alt_text }}" style="width:32px; height:32px; object-fit:contain; border-radius:8px; background:#ffffff;" />
+                    {% else %}
+                      <span style="font-weight:700; color:{{ palette.stroke }};">{{ broker_initials }}</span>
+                    {% endif %}
                   </div>
                   <div>
                     <p style="margin:0; font-weight:700;">{{ account.broker or 'Account' }}</p>
