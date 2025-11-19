@@ -57,6 +57,22 @@ def _get_timed_session(key: str) -> dict | None:
         return None
     return data
 
+
+
+def _enqueue_user_warm_cache(user_id: int) -> None:
+    try:
+        from task import celery
+
+        celery.send_task(
+            "services.tasks.warm_user_cache",
+            args=[user_id],
+            ignore_result=True,
+            retry=False,
+            throw=False,
+        )
+    except Exception as exc:  # pragma: no cover - best effort
+        current_app.logger.debug("Unable to enqueue cache warmup: %s", exc)
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     next_url = request.args.get('next')
@@ -107,6 +123,7 @@ def login():
             else:
                 session.permanent = False
             session['user'] = user.email
+            _enqueue_user_warm_cache(user.id)
             return redirect(next_url or url_for('summary'))
         flash('Invalid credentials', 'error')
         return render_template('log-in.html', next=next_url)
@@ -184,6 +201,7 @@ def login_otp():
                         session.permanent = False
                         session['user'] = user.email
                         session.pop('login_otp', None)
+                        _enqueue_user_warm_cache(user.id)    
                         return redirect(url_for('summary'))
 
             step = 'otp'
