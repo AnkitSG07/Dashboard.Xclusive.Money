@@ -2976,48 +2976,44 @@ window.pageScripts["Add-Account"] = function() {
     .catch(error => showToast(`Failed to reconnect account: ${error.message}`, 'error'));
   };
 
-  const shouldFetchAccounts = !hasFreshCache;
+  const accountsFetchController = new AbortController();
+  const unregisterAccountsController = registerAbortController(accountsFetchController);
 
-  if (shouldFetchAccounts) {
-    const accountsFetchController = new AbortController();
-    const unregisterAccountsController = registerAbortController(accountsFetchController);
+  fetchJson('/api/accounts?cache_only=1', { signal: accountsFetchController.signal })
+    .then(data => {
+      const newAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+      const newSignature = computeAccountsSignature(newAccounts);
+      const previousSignature = state.cachedAccounts ? state.cachedAccounts.signature : null;
+      const shouldUpdateUI = !hasFreshCache || previousSignature !== newSignature;
 
-    fetchJson('/api/accounts?cache_only=1', { signal: accountsFetchController.signal })
-      .then(data => {
-        const newAccounts = Array.isArray(data.accounts) ? data.accounts : [];
-        const newSignature = computeAccountsSignature(newAccounts);
-        const previousSignature = state.cachedAccounts ? state.cachedAccounts.signature : null;
-        const hasChanged = !state.cachedAccounts || previousSignature !== newSignature;
+      const newCache = createAccountsCache(newAccounts, newSignature);
+      state.cachedAccounts = newCache;
+      updateAddAccountPrefetch(newCache);
+      allAccounts = cloneAccountsList(newCache.accounts);
+      pruneAutoLoginResults();
 
-        const newCache = createAccountsCache(newAccounts, newSignature);
-        state.cachedAccounts = newCache;
-        updateAddAccountPrefetch(newCache);
-        allAccounts = cloneAccountsList(newCache.accounts);
-        pruneAutoLoginResults();
-
-        if (hasChanged) {
-          populateBrokerCarousel();
-          renderAccounts(allAccounts);
-          populateBrokerFilter();
-          restoreFilterUI();
-          updateCounts();
-          applyFilters();
-        }
+      if (shouldUpdateUI) {
+        populateBrokerCarousel();
+        renderAccounts(allAccounts);
+        populateBrokerFilter();
+        restoreFilterUI();
+        updateCounts();
+        applyFilters();
+      }
+      scheduleAutoLoginChecks();
+    })
+    .catch(error => {
+      if (!isActive || accountsFetchController.signal.aborted) {
+        return;
+      }
+      showToast(`Failed to load accounts: ${error.message}`, 'error');
+      if (allAccounts.length) {
         scheduleAutoLoginChecks();
-      })
-      .catch(error => {
-        if (!isActive || accountsFetchController.signal.aborted) {
-          return;
-        }
-        showToast(`Failed to load accounts: ${error.message}`, 'error');
-        if (allAccounts.length) {
-          scheduleAutoLoginChecks();
-        }
-      })
-      .finally(() => {
-        unregisterAccountsController();
-      });
-  }
+      }
+    })
+    .finally(() => {
+      unregisterAccountsController();
+    });
 };
 </script>
 {% endblock %}
