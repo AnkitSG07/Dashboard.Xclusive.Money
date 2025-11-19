@@ -1,5 +1,54 @@
 // TradersPost Dashboard JavaScript
 
+const DASHBOARD_PREFETCH_CONFIG = (() => {
+    const root = typeof window !== 'undefined' ? window : {};
+    const keys = root && root.PAGE_PREFETCH_KEYS ? root.PAGE_PREFETCH_KEYS : {};
+    const defaultTtl = root && Number.isFinite(root.PAGE_PREFETCH_DEFAULT_TTL)
+        ? Math.max(root.PAGE_PREFETCH_DEFAULT_TTL * 2, root.PAGE_PREFETCH_DEFAULT_TTL)
+        : 5 * 60 * 1000;
+    return {
+        accountKey: keys.accountInfo || 'page:account-info',
+        dashboardKey: keys.dashboard || 'page:dashboard-data',
+        accountUrl: '/api/account-info',
+        dashboardUrl: '/api/dashboard-data',
+        ttl: defaultTtl
+    };
+})();
+
+async function fetchJsonWithDefaults(url) {
+    const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    });
+
+    if (!response.ok) {
+        const error = new Error(`Request failed with status ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
+
+    return response.json();
+}
+
+(function registerDashboardPrefetchers() {
+    if (typeof window === 'undefined' || typeof window.registerPagePrefetcher !== 'function') {
+        return;
+    }
+
+    const { accountKey, accountUrl, dashboardKey, dashboardUrl, ttl } = DASHBOARD_PREFETCH_CONFIG;
+    const registerPrefetch = (key, url) => {
+        if (!key || !url) return;
+        window.registerPagePrefetcher(key, async ({ setCached }) => {
+            const data = await fetchJsonWithDefaults(url);
+            setCached(data, { ttl });
+            return data;
+        });
+    };
+
+    registerPrefetch(accountKey, accountUrl);
+    registerPrefetch(dashboardKey, dashboardUrl);
+})();
+
 class TradersPostDashboard {
     constructor() {
         this.currentSection = 'dashboard';
@@ -219,16 +268,13 @@ class TradersPostDashboard {
 
     async loadInitialData() {
         try {
-            // Load account information
-            const accountResponse = await fetch('/api/account-info');
-            const accountData = await accountResponse.json();
+            const [accountData, dashboardData] = await Promise.all([
+                this.prefetchAwareFetch(DASHBOARD_PREFETCH_CONFIG.accountKey, DASHBOARD_PREFETCH_CONFIG.accountUrl),
+                this.prefetchAwareFetch(DASHBOARD_PREFETCH_CONFIG.dashboardKey, DASHBOARD_PREFETCH_CONFIG.dashboardUrl)
+            ]);
+
             this.updateAccountDisplay(accountData);
-
-            // Load dashboard data
-            const dashboardResponse = await fetch('/api/dashboard-data');
-            const dashboardData = await dashboardResponse.json();
             this.updateDashboardDisplay(dashboardData);
-
         } catch (error) {
             console.error('Error loading initial data:', error);
             this.showNotification('Failed to load account data', 'error');
@@ -261,8 +307,17 @@ class TradersPostDashboard {
         }
     }
 
-    async loadDashboardData() {
-        // Dashboard data is already loaded in loadInitialData
+    async loadDashboardData(force = false) {
+        try {
+            const dashboardData = await this.prefetchAwareFetch(
+                DASHBOARD_PREFETCH_CONFIG.dashboardKey,
+                DASHBOARD_PREFETCH_CONFIG.dashboardUrl,
+                { force }
+            );
+            this.updateDashboardDisplay(dashboardData);
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+        }
     }
 
     async loadNotifications() {
@@ -290,9 +345,17 @@ class TradersPostDashboard {
         console.log('Loading brokers...');
     }
 
-    async loadAccountData() {
-        // Placeholder for account data loading
-        console.log('Loading account data...');
+    async loadAccountData(force = false) {
+        try {
+            const accountData = await this.prefetchAwareFetch(
+                DASHBOARD_PREFETCH_CONFIG.accountKey,
+                DASHBOARD_PREFETCH_CONFIG.accountUrl,
+                { force }
+            );
+            this.updateAccountDisplay(accountData);
+        } catch (error) {
+            console.error('Error loading account data:', error);
+        }
     }
 
     updateAccountDisplay(accountData) {
@@ -364,6 +427,47 @@ class TradersPostDashboard {
         if (confirm('Are you sure you want to logout?')) {
             this.showNotification('Logout functionality would be implemented here', 'info');
         }
+    }
+
+    async prefetchAwareFetch(prefetchKey, url, { force = false } = {}) {
+        if (!url) {
+            return null;
+        }
+
+        const root = typeof window !== 'undefined' ? window : null;
+        const getCached = !force && root && typeof root.getPagePrefetchData === 'function'
+            ? root.getPagePrefetchData
+            : null;
+        const runPrefetch = root && typeof root.runPagePrefetch === 'function'
+            ? root.runPagePrefetch
+            : null;
+        const setCached = root && typeof root.setPagePrefetchData === 'function'
+            ? root.setPagePrefetchData
+            : null;
+
+        if (prefetchKey && getCached) {
+            const cached = getCached(prefetchKey);
+            if (cached !== undefined) {
+                return cached;
+            }
+        }
+
+        if (prefetchKey && runPrefetch) {
+            try {
+                const prefetched = await runPrefetch(prefetchKey, { force });
+                if (prefetched !== null && prefetched !== undefined) {
+                    return prefetched;
+                }
+            } catch (error) {
+                console.warn(`Prefetch runner for ${prefetchKey} failed`, error);
+            }
+        }
+
+        const data = await fetchJsonWithDefaults(url);
+        if (prefetchKey && setCached) {
+            setCached(prefetchKey, data, { ttl: DASHBOARD_PREFETCH_CONFIG.ttl });
+        }
+        return data;
     }
 
     // Utility methods
