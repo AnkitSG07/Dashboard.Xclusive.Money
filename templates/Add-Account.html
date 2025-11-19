@@ -262,6 +262,14 @@ if (!window.pageScripts) window.pageScripts = {};
 if (!window.pageScriptStates) window.pageScriptStates = {};
 
 window.pageScripts["Add-Account"] = function() {
+  const ACCOUNTS_CACHE_TTL_MS = 60 * 1000; // one minute cache window
+  const ADD_ACCOUNT_PREFETCH_KEY = 'Add-Account';
+  const ADD_ACCOUNT_PREFETCH_TTL = Math.max(
+    Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL : 2 * 60 * 1000,
+    ACCOUNTS_CACHE_TTL_MS
+  );
+  const AUTO_LOGIN_RETRY_INTERVAL_MS = 5 * 60 * 1000; // five minutes between retries
+
   if (!window.CSS) {
     window.CSS = {};
   }
@@ -905,14 +913,6 @@ window.pageScripts["Add-Account"] = function() {
   let currentBrokerSelected = null;
   let autoLoginResults = cloneAutoLoginResults(state.cachedAutoLoginResults);
   let selectedAccountIds = new Set();
-
-  const ACCOUNTS_CACHE_TTL_MS = 60 * 1000; // one minute cache window
-  const ADD_ACCOUNT_PREFETCH_KEY = 'Add-Account';
-  const ADD_ACCOUNT_PREFETCH_TTL = Math.max(
-    Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL : 2 * 60 * 1000,
-    ACCOUNTS_CACHE_TTL_MS
-  );
-  const AUTO_LOGIN_RETRY_INTERVAL_MS = 5 * 60 * 1000; // five minutes between retries
 
   function clonePrefetchedAccountsCache(cache) {
     if (!cache || typeof cache !== 'object') {
