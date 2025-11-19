@@ -543,6 +543,161 @@
     }
 
     const initialPrefetchedAlertsData = readAlertsPrefetch();
+
+    const STRATEGY_PAYLOAD_STORAGE_PREFIX = 'strategyPayload_';
+    let editingStrategyDetails = null;
+    let cachedStrategyUserId = null;
+
+    function getCurrentStrategyUserId() {
+      if (cachedStrategyUserId !== null) {
+        return cachedStrategyUserId;
+      }
+      let resolved = '';
+      if (typeof window.getDashboardUserId === 'function') {
+        resolved = window.getDashboardUserId() || '';
+      } else if (document.body?.dataset?.userId) {
+        resolved = document.body.dataset.userId || '';
+      } else {
+        try {
+          resolved = window.localStorage ? window.localStorage.getItem('user_id') || '' : '';
+        } catch (error) {
+          resolved = '';
+        }
+      }
+      cachedStrategyUserId = resolved || '';
+      return cachedStrategyUserId;
+    }
+
+    function getStrategyPayloadStorageKey(strategyId) {
+      return `${STRATEGY_PAYLOAD_STORAGE_PREFIX}${strategyId}`;
+    }
+
+    function parseStrategyPayloadRecord(raw, fallbackId) {
+      if (!raw) {
+        return null;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        return null;
+      }
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      if (Object.prototype.hasOwnProperty.call(parsed, 'payload')) {
+        if (!parsed.payload || typeof parsed.payload !== 'object') {
+          return null;
+        }
+        return {
+          userId: parsed.userId || null,
+          strategyId: parsed.strategyId || fallbackId || null,
+          updatedAt: parsed.updatedAt || null,
+          payload: parsed.payload
+        };
+      }
+      return {
+        userId: null,
+        strategyId: fallbackId || null,
+        updatedAt: null,
+        payload: parsed
+      };
+    }
+
+    function removeStrategyPayloadFromCache(strategyId) {
+      if (!window.localStorage || (!strategyId && strategyId !== 0)) {
+        return;
+      }
+      try {
+        window.localStorage.removeItem(getStrategyPayloadStorageKey(strategyId));
+      } catch (error) {
+        console.warn('Failed to remove stored payload for strategy', error);
+      }
+    }
+
+    function parseTimestamp(value) {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function getStrategyUpdatedAt(strategy) {
+      if (!strategy || typeof strategy !== 'object') {
+        return null;
+      }
+      return strategy.updated_at || strategy.updatedAt || null;
+    }
+
+    function readStrategyPayloadFromCache(strategyId) {
+      if ((!strategyId && strategyId !== 0) || !window.localStorage) {
+        return null;
+      }
+      try {
+        const raw = window.localStorage.getItem(getStrategyPayloadStorageKey(strategyId));
+        if (!raw) {
+          return null;
+        }
+        const record = parseStrategyPayloadRecord(raw, strategyId);
+        if (!record) {
+          window.localStorage.removeItem(getStrategyPayloadStorageKey(strategyId));
+          return null;
+        }
+        const userId = getCurrentStrategyUserId();
+        if (record.userId && userId && record.userId !== userId) {
+          return null;
+        }
+        return record;
+      } catch (error) {
+        console.warn('Failed to parse stored payload for strategy', error);
+        return null;
+      }
+    }
+
+    function isStrategyPayloadEntryFresh(entry, strategy) {
+      if (!entry || typeof entry !== 'object' || !entry.payload) {
+        return false;
+      }
+      const userId = getCurrentStrategyUserId();
+      if (entry.userId && userId && entry.userId !== userId) {
+        return false;
+      }
+      const strategyUpdatedAt = getStrategyUpdatedAt(strategy);
+      if (!strategyUpdatedAt) {
+        return true;
+      }
+      const entryTimestamp = parseTimestamp(entry.updatedAt);
+      const strategyTimestamp = parseTimestamp(strategyUpdatedAt);
+      if (!strategyTimestamp) {
+        return true;
+      }
+      if (!entryTimestamp) {
+        return false;
+      }
+      return entryTimestamp >= strategyTimestamp;
+    }
+
+    function persistStrategyPayload(strategyId, payload, updatedAt) {
+      if (!window.localStorage || (!strategyId && strategyId !== 0) || !payload || typeof payload !== 'object') {
+        return null;
+      }
+      const record = {
+        userId: getCurrentStrategyUserId() || null,
+        strategyId,
+        updatedAt: updatedAt || null,
+        payload
+      };
+      try {
+        window.localStorage.setItem(getStrategyPayloadStorageKey(strategyId), JSON.stringify(record));
+      } catch (error) {
+        console.warn('Unable to persist payload preview', error);
+      }
+      return record;
+    }  
     const masterAccountsContainer = document.getElementById('masterAccountsContainer');
     const exchangeSelect = document.getElementById('exchange');
     const symbolTokenInput = document.getElementById('symbolToken');
@@ -1161,6 +1316,7 @@
           submitButton.textContent = 'Update Strategy';
         }
         const strategy = await fetchJson(`/api/strategies/${encodeURIComponent(editingStrategyId)}`);
+        editingStrategyDetails = strategy;
         const strategyPayload = buildPayloadFromStrategy(strategy);
 
         if (Array.isArray(strategyPayload.masterAccounts)) {
@@ -1170,16 +1326,11 @@
         }
 
         let cachedPayload = null;
-        try {
-          const stored = window.localStorage.getItem(`strategyPayload_${editingStrategyId}`);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed && typeof parsed === 'object') {
-              cachedPayload = parsed;
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to parse stored payload for strategy', error);
+        const cachedEntry = readStrategyPayloadFromCache(editingStrategyId);
+        if (cachedEntry && isStrategyPayloadEntryFresh(cachedEntry, strategy)) {
+          cachedPayload = cachedEntry.payload;
+        } else if (cachedEntry) {
+          removeStrategyPayloadFromCache(editingStrategyId);
         }
 
         const payload = { ...strategyPayload };
@@ -1346,13 +1497,32 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).then(result => {
+        if (isEditMode && result && typeof result === 'object') {
+          editingStrategyDetails = { ...(editingStrategyDetails || {}), ...result };
+        }
         const strategyId = isEditMode ? editingStrategyId : result?.id;
+        let persistedEntry = null;
         if (strategyId && previewPayload) {
           try {
             const parsedPreview = JSON.parse(previewPayload);
-            localStorage.setItem(`strategyPayload_${strategyId}`, JSON.stringify(parsedPreview));
+            const latestUpdatedAt = result?.updated_at
+              || result?.updatedAt
+              || getStrategyUpdatedAt(editingStrategyDetails)
+              || new Date().toISOString();
+            persistedEntry = persistStrategyPayload(strategyId, parsedPreview, latestUpdatedAt);
           } catch (error) {
             console.warn('Unable to persist payload preview', error);
+          }
+        }
+        if (typeof window.purgeStrategyPayloadCache === 'function') {
+          try {
+            window.purgeStrategyPayloadCache({
+              userId: getCurrentStrategyUserId(),
+              preserveStrategyId: persistedEntry?.strategyId || null,
+              preserveUpdatedAt: persistedEntry?.updatedAt || null
+            });
+          } catch (error) {
+            console.warn('Failed to purge cached strategy payloads', error);
           }
         }
         window.alert(isEditMode ? 'Strategy updated successfully.' : 'Strategy created successfully.');
