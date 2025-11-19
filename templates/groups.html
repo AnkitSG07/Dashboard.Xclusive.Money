@@ -216,7 +216,36 @@ window.pageScripts['groups'] = function () {
     window[TEARDOWN_KEY] = teardown;
 
     let groupsCache = [];
+    const GROUPS_PREFETCH_KEY = 'groups';
+    const GROUPS_PREFETCH_TTL = Math.max(
+        Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL * 1.5 : 3 * 60 * 1000,
+        90 * 1000
+    );
+    let cachedPrefetchedGroups = null;
 
+    function readGroupsPrefetch() {
+        if (cachedPrefetchedGroups) {
+            return cachedPrefetchedGroups;
+        }
+        if (typeof window.getPagePrefetchData !== 'function') {
+            return null;
+        }
+        const payload = window.getPagePrefetchData(GROUPS_PREFETCH_KEY);
+        cachedPrefetchedGroups = payload && typeof payload === 'object' ? payload : null;
+        return cachedPrefetchedGroups;
+    }
+
+    function updateGroupsPrefetch(partial) {
+        if (typeof window.setPagePrefetchData !== 'function') {
+            return;
+        }
+        const previous = cachedPrefetchedGroups || readGroupsPrefetch() || {};
+        cachedPrefetchedGroups = { ...previous, ...(partial || {}), fetchedAt: Date.now() };
+        window.setPagePrefetchData(GROUPS_PREFETCH_KEY, cachedPrefetchedGroups, { ttl: GROUPS_PREFETCH_TTL });
+    }
+
+    const initialPrefetchedGroupsData = readGroupsPrefetch();
+    
     // --- Utility Functions ---
     async function fetchJson(url, options = {}) {
         try {
@@ -292,11 +321,8 @@ window.pageScripts['groups'] = function () {
     async function loadGroups() {
         try {
             const groups = await fetchJson('/api/groups');
-            groupsCache = groups || [];
-            renderGroupsTable();
-            const groupOpts = groupsCache.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
-            populateSelects(['addGroupSelect', 'removeGroupSelect', 'renameGroupSelect', 'deleteGroupSelect', 'orderGroupSelect'], groupOpts, 'Select a group...');
-            updateRemoveAccountOptions();
+            applyGroupsData(groups);
+            updateGroupsPrefetch({ groups });
         } catch (error) {
             console.error("Failed to load groups:", error);
         }
@@ -306,8 +332,8 @@ window.pageScripts['groups'] = function () {
         try {
             const data = await fetchJson('/api/accounts');
             const accounts = data.accounts || [];
-            const accOpts = accounts.map(a => `<option value="${a.client_id}">${a.client_id}</option>`).join('');
-            populateSelects(['accountSelect'], accOpts, 'Select an account...');
+            applyAccountOptions(accounts);
+            updateGroupsPrefetch({ accounts });
         } catch (error) {
             console.error("Failed to load accounts:", error);
         }
@@ -315,31 +341,52 @@ window.pageScripts['groups'] = function () {
 
     const BROKER_DISPLAY_KEYS = ['dhan', 'aliceblue', 'angelone', 'iifl', 'kotak', 'upstox'];
 
+    function applyGroupsData(groups) {
+        groupsCache = Array.isArray(groups) ? groups : [];
+        renderGroupsTable();
+        const groupOpts = groupsCache.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+        populateSelects(['addGroupSelect', 'removeGroupSelect', 'renameGroupSelect', 'deleteGroupSelect', 'orderGroupSelect'], groupOpts, 'Select a group...');
+        updateRemoveAccountOptions();
+    }
+
+    function applyAccountOptions(accounts) {
+        const list = Array.isArray(accounts) ? accounts : [];
+        const accOpts = list.map(a => `<option value="${a.client_id}">${a.client_id}</option>`).join('');
+        populateSelects(['accountSelect'], accOpts, 'Select an account...');
+    }
+
+    function renderSymbolOptions(symbols) {
+        const symbolList = document.getElementById('symbolList');
+        if (!symbolList) {
+            return;
+        }
+        symbolList.innerHTML = '';
+        (Array.isArray(symbols) ? symbols : []).forEach(symbolEntry => {
+            const option = document.createElement('option');
+            option.value = symbolEntry?.symbol || '';
+
+            const preferredId = symbolEntry?.dhan || symbolEntry?.symbol || '';
+            const brokerTokens = BROKER_DISPLAY_KEYS
+                .filter(key => symbolEntry && symbolEntry[key])
+                .map(key => `${key}: ${symbolEntry[key]}`);
+
+            const label = brokerTokens.length
+                ? `${preferredId} — ${brokerTokens.join(', ')}`
+                : preferredId;
+
+            option.label = label;
+            option.textContent = preferredId;
+            option.title = brokerTokens.length ? brokerTokens.join(' | ') : label;
+
+            symbolList.appendChild(option);
+        });
+    }
+
     async function loadSymbols() {
         try {
             const symbols = await fetchJson('/api/symbols');
-            const symbolList = document.getElementById('symbolList');
-            symbolList.innerHTML = '';
-
-            (symbols || []).forEach(symbolEntry => {
-                const option = document.createElement('option');
-                option.value = symbolEntry.symbol || '';
-
-                const preferredId = symbolEntry.dhan || symbolEntry.symbol || '';
-                const brokerTokens = BROKER_DISPLAY_KEYS
-                    .filter(key => symbolEntry[key])
-                    .map(key => `${key}: ${symbolEntry[key]}`);
-
-                const label = brokerTokens.length
-                    ? `${preferredId} — ${brokerTokens.join(', ')}`
-                    : preferredId;
-
-                option.label = label;
-                option.textContent = preferredId;
-                option.title = brokerTokens.length ? brokerTokens.join(' | ') : label;
-
-                symbolList.appendChild(option);
-            });
+            renderSymbolOptions(symbols);
+            updateGroupsPrefetch({ symbols });
         } catch(error) {
             console.error("Failed to load symbols:", error);
         }
@@ -351,6 +398,25 @@ window.pageScripts['groups'] = function () {
         const members = group ? group.members : [];
         const memberOpts = members.map(m => `<option value="${m}">${m}</option>`).join('');
         populateSelects(['removeAccountSelect'], memberOpts, 'Select a member...');
+    }
+
+    function applyPrefetchedGroupsData(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return;
+        }
+        if (Array.isArray(payload.groups) && payload.groups.length) {
+            applyGroupsData(payload.groups);
+        }
+        if (Array.isArray(payload.accounts) && payload.accounts.length) {
+            applyAccountOptions(payload.accounts);
+        }
+        if (Array.isArray(payload.symbols) && payload.symbols.length) {
+            renderSymbolOptions(payload.symbols);
+        }
+    }
+
+    if (initialPrefetchedGroupsData) {
+        applyPrefetchedGroupsData(initialPrefetchedGroupsData);
     }
 
     // --- Event Handlers ---
