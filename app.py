@@ -362,6 +362,7 @@ WEBHOOK_ID_TTL = 60
 
 # Seconds to cache the summary performance series to avoid repeated aggregation
 SUMMARY_SERIES_CACHE_TTL = 600
+USER_WARM_CACHE_TTL = 900
 
 def _update_alert_guard(user_id: int, account: Account, *, max_qty=None, allowed_symbols=None) -> None:
     """Persist broker info for *user_id* to the alert guard service.
@@ -8191,21 +8192,26 @@ def api_notifications():
     if not user:
         return jsonify({'notifications': []})
 
-    logs = (
-        SystemLog.query.filter_by(user_id=str(user.id))
-        .order_by(SystemLog.timestamp.desc())
-        .limit(25)
-        .all()
-    )
+    cached = _get_user_warm_cache(user).get("notifications")
+    if isinstance(cached, list) and cached:
+        notifications = cached
+    else:
+        logs = (
+            SystemLog.query.filter_by(user_id=str(user.id))
+            .order_by(SystemLog.timestamp.desc())
+            .limit(25)
+            .all()
+        )
 
-    notifications = [
-        {
-            'timestamp': log.timestamp.isoformat() if log.timestamp else None,
-            'message': log.message,
-            'level': (log.level or 'INFO').upper(),
-        }
-        for log in logs
-    ]
+        notifications = [
+            {
+                'timestamp': log.timestamp.isoformat() if log.timestamp else None,
+                'message': log.message,
+                'level': (log.level or 'INFO').upper(),
+            }
+            for log in logs
+        ]
+        _update_user_warm_cache(user, {"notifications": notifications})
 
     return jsonify({'notifications': notifications})
 
@@ -8449,6 +8455,105 @@ def _get_summary_series(
         cache_set(cache_key, series, ttl=SUMMARY_SERIES_CACHE_TTL)
 
     return series
+
+
+
+def _user_warm_cache_key(user_id: int) -> str:
+    return f"user:warm-cache:{user_id}"
+
+
+def _get_user_warm_cache(user: User | None) -> dict:
+    if not user:
+        return {}
+
+    cached = cache_get(_user_warm_cache_key(user.id))
+    if isinstance(cached, dict):
+        return cached
+
+    return {}
+
+
+def _update_user_warm_cache(user: User | None, payload: dict) -> dict:
+    if not user or not isinstance(payload, dict):
+        return {}
+
+    cached = _get_user_warm_cache(user)
+    merged = {**cached, **payload}
+    cache_set(_user_warm_cache_key(user.id), merged, ttl=USER_WARM_CACHE_TTL)
+    return merged
+
+
+def _prime_user_cache(user: User | None, strategy_ids: list[int] | None = None) -> dict:
+    if not user:
+        return {}
+
+    if strategy_ids is None:
+        owned_ids = [s.id for s in Strategy.query.filter_by(user_id=user.id).all()]
+        subscription_ids = [
+            sub.strategy_id
+            for sub in StrategySubscription.query.filter_by(subscriber_id=user.id).all()
+            if sub.strategy_id
+        ]
+        strategy_ids = list(dict.fromkeys(owned_ids + subscription_ids))
+
+    warm_payload: dict[str, Any] = {}
+    summary_series = _get_summary_series(user, strategy_ids, use_cache=False)
+    if summary_series:
+        cache_set(
+            _summary_series_cache_key(user.id),
+            summary_series,
+            ttl=SUMMARY_SERIES_CACHE_TTL,
+        )
+        warm_payload["summary_series"] = summary_series
+
+    logs = (
+        SystemLog.query.filter_by(user_id=str(user.id))
+        .order_by(SystemLog.timestamp.desc())
+        .limit(5)
+        .all()
+    )
+    warm_payload["notifications"] = [
+        {
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "message": log.message,
+            "level": (log.level or "INFO").upper(),
+        }
+        for log in logs
+    ]
+
+    holdings: list[dict[str, Any]] = []
+    for account in Account.query.filter_by(user_id=user.id).all():
+        snapshot = get_cached_dashboard_snapshot(account, prefer_cache=True) or {}
+        portfolio = snapshot.get("portfolio") or []
+        for entry in portfolio:
+            normalized = _normalize_holding_for_summary(entry)
+            if not normalized:
+                continue
+            qty = _summary_safe_float(normalized.get("netQty"), 0.0)
+            ltp = _summary_safe_float(normalized.get("ltp"), 0.0)
+            buy_avg = _summary_safe_float(normalized.get("buyAvg"), 0.0)
+            market_value = ltp * qty
+            cost = buy_avg * qty
+            pnl = _summary_safe_float(normalized.get("profitAndLoss"), 0.0)
+            holdings.append(
+                {
+                    "symbol": normalized.get("tradingSymbol"),
+                    "quantity": qty,
+                    "ltp": ltp,
+                    "market_value": market_value,
+                    "cost": cost,
+                    "pnl": pnl,
+                    "day_change": _summary_safe_float(
+                        normalized.get("day_change"), 0.0
+                    ),
+                }
+            )
+
+    if holdings:
+        holdings.sort(key=lambda h: h.get("market_value", 0.0), reverse=True)
+        warm_payload["top_holdings"] = holdings[:5]
+
+    return _update_user_warm_cache(user, warm_payload)
 
 def _compute_intraday_pnl(
     strategy_today_pnl: float,
@@ -8867,13 +8972,7 @@ def summary():
 
     user = current_user()
 
-    fast_flag = request.args.get("fast")
-    fast_summary_load = (
-        fast_flag is None
-        or str(fast_flag).lower() in {"1", "true", "yes", "on"}
-    )
-
-    cached_summary_series: list[dict] = _get_cached_summary_series(user)
+    warm_cache = _get_user_warm_cache(user)
 
     preferred_timezone_name = None
     if user:
@@ -9424,14 +9523,14 @@ def summary():
         total_investment=total_investment,
     )
 
-    if fast_summary_load:
-        performance_series = cached_summary_series
-    else:
-        performance_series = _get_summary_series(
-            user,
-            unique_strategy_ids,
-            logs=list(chart_log_rows),
-        )
+    performance_series = _get_summary_series(
+        user,
+        unique_strategy_ids,
+        logs=list(chart_log_rows),
+        use_cache=False,
+    )
+    if not performance_series:
+        performance_series = warm_cache.get("summary_series", [])
 
     period_windows: list[tuple[str, int, str]] = [
         ("1D", 1, "var(--summary-green)"),
@@ -9889,12 +9988,29 @@ def summary():
     }
     overview["is_refreshing"] = any_account_refreshing
     overview["refreshing_account_count"] = refreshing_account_count
-    
+
+    warm_cache = _update_user_warm_cache(
+        user,
+        {
+            "summary_series": performance_series,
+            "top_holdings": top_holdings,
+            "notifications": [
+                {
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                    "message": log.message,
+                    "level": (log.level or "INFO").upper(),
+                }
+                for log in notifications
+            ],
+        },
+    )
+
     return render_template(
         "summary.html",
         accounts=accounts,
         strategies=strategies,
         notifications=notifications,
+        warmed_cache=warm_cache,
         plan_name=user.plan if user else None,
         days_remaining=days_remaining,
         expiry_date=expiry.date() if expiry else None,
@@ -9935,7 +10051,12 @@ def summary_payload():
         refresh_flag and str(refresh_flag).lower() in {"1", "true", "yes", "on"}
     )
 
-    series = _get_summary_series(user, strategy_ids, use_cache=use_cache)
+    warm_cache = _get_user_warm_cache(user)
+    series = warm_cache.get("summary_series") if use_cache else None
+    if not series:
+        series = _get_summary_series(user, strategy_ids, use_cache=use_cache)
+        if series:
+            _update_user_warm_cache(user, {"summary_series": series})
     return jsonify({"performance_summary": {"series": series}})
 
 
