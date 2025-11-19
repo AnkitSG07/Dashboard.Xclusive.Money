@@ -2296,7 +2296,22 @@
     })();
     window.pagePrefetchers = window.pagePrefetchers || {};
 
+    const PREFETCH_KEY_DEFAULTS = {
+      summary: 'page:summary-data',
+      accountInfo: 'page:account-info',
+      dashboard: 'page:dashboard-data',
+      notifications: 'page:notifications-feed'
+    };
+    const existingPrefetchKeys = (window.PAGE_PREFETCH_KEYS && typeof window.PAGE_PREFETCH_KEYS === 'object')
+      ? window.PAGE_PREFETCH_KEYS
+      : {};
+    window.PAGE_PREFETCH_KEYS = Object.freeze({ ...PREFETCH_KEY_DEFAULTS, ...existingPrefetchKeys });
+
     const PAGE_PREFETCH_STORAGE_KEY = 'spa:page-prefetch-cache';
+    const PAGE_PREFETCH_DEFAULT_TTL = Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL)
+      ? window.PAGE_PREFETCH_DEFAULT_TTL
+      : 2 * 60 * 1000;
+    window.PAGE_PREFETCH_DEFAULT_TTL = PAGE_PREFETCH_DEFAULT_TTL;
     const pagePrefetchCache = new Map();
     const pagePrefetchPromises = new Map();
     let pagePrefetchHydrated = false;
@@ -2311,6 +2326,29 @@
       }
     })();
 
+    function createPrefetchEntry(value, ttl) {
+      const now = Date.now();
+      const expiresAt = typeof ttl === 'number' && Number.isFinite(ttl) && ttl > 0
+        ? now + ttl
+        : null;
+      return { value, storedAt: now, expiresAt };
+    }
+
+    function normalizePrefetchEntry(raw) {
+      if (raw && typeof raw === 'object' && 'value' in raw) {
+        const storedAt = typeof raw.storedAt === 'number' ? raw.storedAt : Date.now();
+        const expiresAt = typeof raw.expiresAt === 'number' ? raw.expiresAt : null;
+        return { value: raw.value, storedAt, expiresAt };
+      }
+      return createPrefetchEntry(raw, null);
+    }
+
+    function isPrefetchEntryExpired(entry) {
+      if (!entry || typeof entry !== 'object') return false;
+      if (!entry.expiresAt) return false;
+      return entry.expiresAt <= Date.now();
+    }
+
     function hydratePagePrefetchCache() {
       if (pagePrefetchHydrated) return;
       pagePrefetchHydrated = true;
@@ -2321,7 +2359,7 @@
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return;
         Object.entries(parsed).forEach(([page, value]) => {
-          pagePrefetchCache.set(page, value);
+          pagePrefetchCache.set(page, normalizePrefetchEntry(value));
         });
       } catch (error) {
         // Ignore storage hydration errors
@@ -2331,7 +2369,8 @@
     function persistPagePrefetchCache() {
       if (!pagePrefetchSessionEnabled) return;
       try {
-        const serialized = JSON.stringify(Object.fromEntries(pagePrefetchCache.entries()));
+        const activeEntries = Array.from(pagePrefetchCache.entries()).filter(([, entry]) => !isPrefetchEntryExpired(entry));
+        const serialized = JSON.stringify(Object.fromEntries(activeEntries));
         sessionStorage.setItem(PAGE_PREFETCH_STORAGE_KEY, serialized);
       } catch (error) {
         // Ignore persistence errors (quota exceeded, etc.)
@@ -2341,13 +2380,26 @@
     function getPagePrefetchData(page) {
       if (!page) return undefined;
       hydratePagePrefetchCache();
-      return pagePrefetchCache.get(page);
+      const entry = pagePrefetchCache.get(page);
+      if (!entry) return undefined;
+      if (isPrefetchEntryExpired(entry)) {
+        clearPagePrefetchData(page);
+        return undefined;
+      }
+      return entry.value;
     }
 
-    function updatePagePrefetchData(page, data, { persist = true } = {}) {
+    function updatePagePrefetchData(page, data, { persist = true, ttl } = {}) {
       if (!page) return data;
       hydratePagePrefetchCache();
-      pagePrefetchCache.set(page, data);
+      let resolvedTtl = PAGE_PREFETCH_DEFAULT_TTL;
+      if (typeof ttl === 'number' && Number.isFinite(ttl) && ttl > 0) {
+        resolvedTtl = ttl;
+      } else if (ttl === null || (typeof ttl === 'number' && ttl <= 0)) {
+        resolvedTtl = null;
+      }
+      const entry = createPrefetchEntry(data, resolvedTtl);
+      pagePrefetchCache.set(page, entry);
       if (persist) {
         persistPagePrefetchCache();
       }
