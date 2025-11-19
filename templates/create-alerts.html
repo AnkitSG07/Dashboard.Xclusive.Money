@@ -513,7 +513,36 @@
     if (!Array.isArray(window.cachedSymbols)) {
       window.cachedSymbols = null;
     }
-  
+
+    const ALERTS_PREFETCH_KEY = 'create-alerts';
+    const ALERTS_PREFETCH_TTL = Math.max(
+      Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL * 2 : 4 * 60 * 1000,
+      3 * 60 * 1000
+    );
+    let cachedPrefetchedAlerts = null;
+
+    function readAlertsPrefetch() {
+      if (cachedPrefetchedAlerts) {
+        return cachedPrefetchedAlerts;
+      }
+      if (typeof window.getPagePrefetchData !== 'function') {
+        return null;
+      }
+      const payload = window.getPagePrefetchData(ALERTS_PREFETCH_KEY);
+      cachedPrefetchedAlerts = payload && typeof payload === 'object' ? payload : null;
+      return cachedPrefetchedAlerts;
+    }
+
+    function updateAlertsPrefetch(partial) {
+      if (typeof window.setPagePrefetchData !== 'function') {
+        return;
+      }
+      const previous = cachedPrefetchedAlerts || readAlertsPrefetch() || {};
+      cachedPrefetchedAlerts = { ...previous, ...(partial || {}), fetchedAt: Date.now() };
+      window.setPagePrefetchData(ALERTS_PREFETCH_KEY, cachedPrefetchedAlerts, { ttl: ALERTS_PREFETCH_TTL });
+    }
+
+    const initialPrefetchedAlertsData = readAlertsPrefetch();
     const masterAccountsContainer = document.getElementById('masterAccountsContainer');
     const exchangeSelect = document.getElementById('exchange');
     const symbolTokenInput = document.getElementById('symbolToken');
@@ -620,6 +649,20 @@
         .map(item => item.trim())
         .filter(Boolean)
         .map(item => String(item));
+    }
+
+
+       function extractAccountsFromPayload(payload) {
+      if (!payload || typeof payload !== 'object') {
+        return [];
+      }
+      if (Array.isArray(payload.masters)) {
+        return payload.masters;
+      }
+      if (Array.isArray(payload.accounts)) {
+        return payload.accounts;
+      }
+      return [];
     }
 
     function buildPayloadFromStrategy(strategy) {
@@ -899,6 +942,7 @@
         window.cachedMasterAccounts = accounts;
         renderAccounts(accounts);
         updateWebhookPreview();
+        updateAlertsPrefetch({ accountPayload: payload }); 
         return accounts;
       }).catch(error => {
         console.error('Failed to load accounts', error);
@@ -943,6 +987,28 @@
       updateTokens();
     }
 
+    function applyPrefetchedAlertsData(payload) {
+      if (!payload || typeof payload !== 'object') {
+        return;
+      }
+      if (payload.accountPayload) {
+        const accounts = extractAccountsFromPayload(payload.accountPayload);
+        if (Array.isArray(accounts) && accounts.length) {
+          window.cachedMasterAccounts = accounts;
+          renderAccounts(accounts);
+          updateWebhookPreview();
+        }
+      }
+      if (Array.isArray(payload.symbols) && payload.symbols.length) {
+        window.cachedSymbols = payload.symbols;
+        hydrateSymbolMap(payload.symbols);
+      }
+    }
+
+    if (initialPrefetchedAlertsData) {
+      applyPrefetchedAlertsData(initialPrefetchedAlertsData);
+    }
+ 
     function loadSymbols() {
       const cachedSymbols = Array.isArray(window.cachedSymbols) ? window.cachedSymbols : null;
       if (cachedSymbols) {
@@ -953,6 +1019,7 @@
         if (Array.isArray(list)) {
           window.cachedSymbols = list;
           hydrateSymbolMap(list);
+          updateAlertsPrefetch({ symbols: list });
         }
         return list;
       }).catch(error => {
