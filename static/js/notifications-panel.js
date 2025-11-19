@@ -26,6 +26,7 @@
         let currentTab = 'all';
         let isLoading = false;
         let isClearing = false;
+        const warmedCache = window.__WARMED_CACHE__ || {};
 
         if (clearButton && !clearButton.dataset.defaultLabel) {
             clearButton.dataset.defaultLabel = clearButton.textContent;
@@ -262,6 +263,16 @@
 
         async function loadNotifications() {
             showLoading();
+
+            const warmedNotifications = Array.isArray(warmedCache.notifications)
+                ? warmedCache.notifications
+                : [];
+            if (warmedNotifications.length) {
+                notifications = normalize(warmedNotifications);
+                updateBadges(notifications.length);
+                renderNotifications();
+                return;
+            }
 
             try {
                 const response = await fetch('/api/notifications', {
