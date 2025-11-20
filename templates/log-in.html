@@ -239,6 +239,7 @@
         }
 
         .toast {
+            --toast-offset-x: 0;
             position: fixed;
             top: 1rem;
             right: 1rem;
@@ -249,6 +250,9 @@
             z-index: 1000;
             display: none;
             animation: slideIn 0.3s ease-out;
+            max-width: min(24rem, calc(100% - 2rem));
+            word-break: break-word;
+            transform: translateX(var(--toast-offset-x));
         }
         
         .toast.success {
@@ -265,10 +269,22 @@
         
         @keyframes slideIn {
             from {
-                transform: translateX(100%);
+                opacity: 0;
+                transform: translateX(calc(var(--toast-offset-x) + 100%));
             }
             to {
-                transform: translateX(0);
+                opacity: 1;
+                transform: translateX(var(--toast-offset-x));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .toast {
+                --toast-offset-x: -50%;
+                left: 50%;
+                right: auto;
+                width: calc(100% - 2rem);
+                text-align: center;
             }
         }
         
@@ -524,6 +540,8 @@
                 loginStatus.textContent = 'Logged in successfully. Please wait while we prepare your dashboard.';
                 loginStatus.classList.add('show');
             }
+
+            showToast('Logged in successfully. Please wait while we prepare your dashboard.', 'success');
         });
 
         if (Array.isArray(window.serverMessages)) {
@@ -546,3 +564,4 @@
     </script>
 </body>
 </html>
+
