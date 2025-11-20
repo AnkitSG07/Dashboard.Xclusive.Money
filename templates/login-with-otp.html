@@ -152,6 +152,39 @@
             background: hsl(250, 70%, 55%);
         }
 
+        .btn.loading {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            opacity: 0.9;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid hsla(0, 0%, 100%, 0.4);
+            border-top-color: white;
+            border-radius: 9999px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            font-weight: 600;
+        }
+
+        .status-message {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            color: hsl(250, 70%, 40%);
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
         .link-btn {
             background: none;
             border: none;
@@ -227,6 +260,12 @@
             }
             to {
                 transform: translateX(0);
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
@@ -331,8 +370,9 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn">Verify &amp; Login</button>
-
+                <button type="submit" class="btn" id="verifyLoginButton">Verify &amp; Login</button>
+                <p class="status-message" id="otpStatus"></p>
+                
                 <div class="footer-links">
                     <button type="button" class="link-btn" onclick="window.location.href='{{ url_for('auth.login_otp', reset=1) }}'" style="padding: 0;">
                         ‹ Change number
@@ -399,6 +439,25 @@
             firstEmpty.focus();
         }
         {% endif %}
+
+        const otpForm = document.getElementById('otpForm');
+        if (otpForm) {
+            const verifyButton = document.getElementById('verifyLoginButton');
+            const otpStatus = document.getElementById('otpStatus');
+
+            otpForm.addEventListener('submit', function() {
+                if (verifyButton) {
+                    verifyButton.disabled = true;
+                    verifyButton.classList.add('loading');
+                    verifyButton.innerHTML = '<span class="spinner" aria-hidden="true"></span><span class="loading-text">Logging in...</span>';
+                }
+
+                if (otpStatus) {
+                    otpStatus.textContent = 'Logged in successfully. Please wait while we prepare your dashboard.';
+                    otpStatus.classList.add('show');
+                }
+            });
+        }
     </script>
 </body>
 </html>
