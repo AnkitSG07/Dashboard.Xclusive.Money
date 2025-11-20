@@ -1015,10 +1015,6 @@
                                 </div>
                                 <div class="multi-select-dropdown" id="productsDropdown">
                                     <div class="checkbox-item">
-                                        <input type="checkbox" id="product-xm-gpt" value="xm-gpt" onchange="updateSelectedProducts()">
-                                        <label for="product-xm-gpt">XM GPT</label>
-                                    </div>
-                                    <div class="checkbox-item">
                                         <input type="checkbox" id="product-copy-trading" value="copy-trading" checked onchange="updateSelectedProducts()">
                                         <label for="product-copy-trading">Copy Trading</label>
                                     </div>
@@ -1045,7 +1041,6 @@
                         <div class="input-group">
                             <label class="input-label">Plan Tier</label>
                             <select class="custom-select" id="planTier" onchange="updatePrice()">
-                                <option value="basic">Basic</option>
                                 <option value="pro" selected>Pro</option>
                                 <option value="enterprise">Enterprise</option>
                             </select>
@@ -1123,7 +1118,6 @@
                                 <thead>
                                     <tr>
                                         <th>Features</th>
-                                        <th>Basic</th>
                                         <th>Pro</th>
                                         <th>Enterprise</th>
                                     </tr>
@@ -1131,11 +1125,10 @@
                                 <tbody>
                                     <!-- Copy Trading -->
                                     <tr class="product-name-row">
-                                        <td colspan="4">Copy Trading</td>
+                                        <td colspan="3">Copy Trading</td>
                                     </tr>
                                     <tr class="tier-header-row">
                                         <td></td>
-                                        <td>Basic</td>
                                         <td>Pro</td>
                                         <td>Enterprise</td>
                                     </tr>
@@ -1143,70 +1136,59 @@
                                         <td>Auto Login - 30 days</td>
                                         <td>Yes</td>
                                         <td>Yes</td>
-                                        <td>Yes</td>
                                     </tr>
                                     <tr>
                                         <td>Copy Trading Accounts</td>
-                                        <td>10</td>
                                         <td>30</td>
                                         <td>500</td>
                                     </tr>
                                     <tr>
                                         <td>Master Account allowed</td>
-                                        <td>2</td>
                                         <td>10</td>
                                         <td>100</td>
                                     </tr>
                                     <tr>
                                         <td>Scheduled Phone Support</td>
-                                        <td>No</td>
                                         <td>Yes</td>
                                         <td>Yes</td>
                                     </tr>
                                     <tr>
                                         <td>Account onboarding Support (via whatsapp/Discord)</td>
-                                        <td>Dedicated</td>
                                         <td>Dedicated</td>
                                         <td>Dedicated</td>
                                     </tr>
 
                                     <!-- Alert2 Trade -->
                                     <tr class="product-name-row">
-                                        <td colspan="4">Alert2 Trade</td>
+                                        <td colspan="3">Alert2 Trade</td>
                                     </tr>
                                     <tr class="tier-header-row">
                                         <td></td>
-                                        <td>Basic</td>
                                         <td>Pro</td>
                                         <td>Enterprise</td>
                                     </tr>
                                     <tr>
                                         <td>No. of Demat Account Connect</td>
-                                        <td>2</td>
                                         <td>10</td>
                                         <td>100</td>
                                     </tr>
                                     <tr>
                                         <td>No. of Alerts LIVE</td>
-                                        <td>10</td>
                                         <td>50</td>
                                         <td>Unlimited</td>
                                     </tr>
                                     <tr>
                                         <td>Monthly Real-time Alerts</td>
-                                        <td>25</td>
                                         <td>100</td>
                                         <td>Unlimited</td>
                                     </tr>
                                     <tr>
                                         <td>Scheduled Phone Support</td>
-                                        <td>No</td>
                                         <td>Yes</td>
                                         <td>Yes</td>
                                     </tr>
                                     <tr>
                                         <td>Account onboarding Support (via whatsapp/Discord)</td>
-                                        <td>Dedicated</td>
                                         <td>Dedicated</td>
                                         <td>Dedicated</td>
                                     </tr>
@@ -1306,11 +1288,6 @@
 
         // Pricing data in INR
         const pricingMatrix = {
-            basic: {
-                monthly: { base: 199, discount: 0, unit: 'month' },
-                quarterly: { base: 599, discount: 0.1669, unit: 'month' },
-                yearly: { base: 2499, discount: 0.4002, unit: 'year' }
-            },
             pro: {
                 monthly: { base: 499, discount: 0, unit: 'month' },
                 quarterly: { base: 1499, discount: 0.4670, unit: 'month' },
@@ -1334,13 +1311,11 @@
         }
 
         const productNames = {
-            'xm-gpt': 'XM GPT',
             'copy-trading': 'Copy Trading',
             'alert2trade': 'Alert2Trade'
         };
 
         const tierNames = {
-            basic: 'Basic',
             pro: 'Pro',
             enterprise: 'Enterprise'
         };
@@ -1397,7 +1372,7 @@
             const contactButton = document.getElementById('contactButton');
             const isEnterprise = tier === 'enterprise';
 
-            const tierPricing = pricingMatrix[tier] || pricingMatrix.basic;
+            const tierPricing = pricingMatrix[tier] || pricingMatrix.pro;
             const productCount = Math.max(selectedProducts.length, 1);
 
             let basePricePerProduct = 0;
