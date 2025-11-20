@@ -193,7 +193,14 @@
         .btn-secondary:hover {
             background: hsl(240, 5%, 92%);
         }
-        
+
+        .btn.disabled,
+        .btn[aria-disabled="true"] {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         .toast {
             position: fixed;
             top: 1rem;
@@ -310,15 +317,15 @@
             <div class="forgot-password">
                 <a href="{{ url_for('auth.request_password_reset') }}" class="link">Forgot password?</a>
             </div>
+␊
+            <button type="submit" class="btn btn-primary" id="loginButton">Login</button>␊
+            <p class="status-message" id="loginStatus"></p>␊
+␊
+            <a href="{{ url_for('auth.login_otp') }}" class="btn btn-secondary" id="loginOtpLink">Login with OTP</a>
+        </form>␊
+    </div>␊
 
-            <button type="submit" class="btn btn-primary" id="loginButton">Login</button>
-            <p class="status-message" id="loginStatus"></p>
-
-            <a href="{{ url_for('auth.login_otp') }}" class="btn btn-secondary">Login with OTP</a>
-        </form>
-    </div>
-    
-    <div id="toast" class="toast"></div>
+    <div id="toast" class="toast"></div>␊
     
     {% with messages = get_flashed_messages(with_categories=true) %}
     <script>
@@ -349,41 +356,100 @@
                 toast.className = 'toast';
             }, 3000);
         }
-        
         const phoneInput = document.getElementById('phone');
         const emailInput = document.getElementById('email');
+        const loginOtpLink = document.getElementById('loginOtpLink');
+
+        function disableOtpLink() {
+            if (!loginOtpLink) return;
+            if (!loginOtpLink.dataset.href) {
+                loginOtpLink.dataset.href = loginOtpLink.getAttribute('href') || '';
+            }
+            loginOtpLink.setAttribute('aria-disabled', 'true');
+            loginOtpLink.classList.add('disabled');
+            loginOtpLink.removeAttribute('href');
+        }
+
+        function enableOtpLink() {
+            if (!loginOtpLink) return;
+            const originalHref = loginOtpLink.dataset.href;
+            if (originalHref) {
+                loginOtpLink.setAttribute('href', originalHref);
+            }
+            loginOtpLink.removeAttribute('aria-disabled');
+            loginOtpLink.classList.remove('disabled');
+        }
+
+        if (loginOtpLink) {
+            loginOtpLink.addEventListener('click', function(event) {
+                if (loginOtpLink.getAttribute('aria-disabled') === 'true') {
+                    event.preventDefault();
+                }
+            });
+        }
+
+        window.addEventListener('pageshow', enableOtpLink);
 
         phoneInput.addEventListener('input', function(e) {
             this.value = this.value.replace(/\D/g, '');
         });
 
+
         document.getElementById('signInForm').addEventListener('submit', function(e) {
+
             const passwordInput = document.getElementById('password');
+
             const phoneValue = phoneInput.value.trim();
+
             const emailValue = emailInput.value.trim();
+
             const loginButton = document.getElementById('loginButton');
+
             const loginStatus = document.getElementById('loginStatus');
 
+
+
             if (!phoneValue && !emailValue) {
+
                 e.preventDefault();
+
                 showToast('Please enter your email or phone number', 'error');
+
                 emailInput.focus();
+
                 return;
+
             }
+
+
 
             if (phoneValue && phoneValue.length < 10) {
+
                 e.preventDefault();
+
                 showToast('Please enter a valid phone number', 'error');
+
                 phoneInput.focus();
+
                 return;
+
             }
 
+
+
             if (!passwordInput.value.trim()) {
+
                 e.preventDefault();
+
                 showToast('Please enter your password', 'error');
+
                 passwordInput.focus();
+
                 return;
+
             }
+
+
 
             if (loginButton) {
                 loginButton.disabled = true;
@@ -391,21 +457,29 @@
                 loginButton.innerHTML = '<span class="spinner" aria-hidden="true"></span><span class="loading-text">Logging in...</span>';
             }
 
+            disableOtpLink();
+
             if (loginStatus) {
                 loginStatus.textContent = 'Logged in successfully. Please wait while we prepare your dashboard.';
                 loginStatus.classList.add('show');
             }
         });
-        
+
         if (Array.isArray(window.serverMessages)) {
             window.serverMessages.forEach(function(messageTuple) {
                 if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
                     return;
+
                 }
+
                 const category = messageTuple[0];
                 const message = messageTuple[1];
                 const type = category === 'error' ? 'error' : 'success';
                 showToast(message, type);
+
+                if (type === 'error') {
+                    enableOtpLink();
+                }
             });
         }
     </script>
