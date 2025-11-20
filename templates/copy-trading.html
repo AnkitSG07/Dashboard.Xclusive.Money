@@ -4481,27 +4481,7 @@ window.pageScripts["copy-trading"] = function () {
       });
   };
 
-  window.loadAccounts = function() {
-    if (window.loadingAccounts) return;
-    window.loadingAccounts = true;
-
-    if (window.accountsAbortController) {
-      window.accountsAbortController.abort();
-    }
-    const controller = new AbortController();
-    window.accountsAbortController = controller;
-  
-    const masterTableBodyEl = document.getElementById("master-accounts-body");
-    const childrenTableBodyEl = document.getElementById("children-accounts-body");
-    const unassignedListEl = document.getElementById("unassigned-accounts-list");
-
-    // If the page doesn't have any of the expected account containers,
-    // skip fetching and rendering to avoid errors on unrelated pages.
-    if (!masterTableBodyEl && !childrenTableBodyEl && !unassignedListEl) {
-      window.loadingAccounts = false;
-      return;
-    }
-
+  function captureAccountUiState(masterTableBodyEl = document.getElementById("master-accounts-body"), childrenTableBodyEl = document.getElementById("children-accounts-body")) {
     const openMasters = masterTableBodyEl
       ? new Set(Array.from(masterTableBodyEl.querySelectorAll('.collapsible-content.open[data-master]')).map(el => el.dataset.master))
       : new Set();
@@ -4509,7 +4489,6 @@ window.pageScripts["copy-trading"] = function () {
       ? new Set(Array.from(childrenTableBodyEl.querySelectorAll('.collapsible-content.open[data-child]')).map(el => el.dataset.child))
       : new Set();
 
-    // Capture currently active tabs so user selections persist after reload
     const masterActiveTabs = {};
     if (masterTableBodyEl) {
       masterTableBodyEl.querySelectorAll('.master-tab-links').forEach(tabList => {
@@ -4520,6 +4499,7 @@ window.pageScripts["copy-trading"] = function () {
         }
       });
     }
+
     const childActiveTabs = {};
     if (childrenTableBodyEl) {
       childrenTableBodyEl.querySelectorAll('.child-tab-links').forEach(tabList => {
@@ -4531,7 +4511,47 @@ window.pageScripts["copy-trading"] = function () {
       });
     }
 
-    const renderContext = { openMasters, openChildren, masterActiveTabs, childActiveTabs };
+    return { openMasters, openChildren, masterActiveTabs, childActiveTabs };
+  }
+
+  function reloadAccountsWhenIdle() {
+    if (!window.loadingAccounts) {
+      return Promise.resolve(window.loadAccounts());
+    }
+    return new Promise(resolve => {
+      const retry = () => {
+        if (!window.loadingAccounts) {
+          resolve(window.loadAccounts());
+        } else {
+          setTimeout(retry, 100);
+        }
+      };
+      retry();
+    });
+  }
+
+  window.loadAccounts = function() {
+    if (window.loadingAccounts) return Promise.resolve();
+    window.loadingAccounts = true;
+
+    if (window.accountsAbortController) {
+      window.accountsAbortController.abort();
+    }
+    const controller = new AbortController();
+    window.accountsAbortController = controller;
+
+    const masterTableBodyEl = document.getElementById("master-accounts-body");
+    const childrenTableBodyEl = document.getElementById("children-accounts-body");
+    const unassignedListEl = document.getElementById("unassigned-accounts-list");
+
+    // If the page doesn't have any of the expected account containers,
+    // skip fetching and rendering to avoid errors on unrelated pages.
+    if (!masterTableBodyEl && !childrenTableBodyEl && !unassignedListEl) {
+      window.loadingAccounts = false;
+      return Promise.resolve();
+    }
+
+    const renderContext = captureAccountUiState(masterTableBodyEl, childrenTableBodyEl);
     if (!prefetchedAccountsApplied) {
       const prefetchedPayload = readPrefetchedAccountsPayload();
       if (prefetchedPayload) {
@@ -4541,7 +4561,7 @@ window.pageScripts["copy-trading"] = function () {
     }
 
     let errorHandled = false;
-    fetch("/api/accounts", { signal: controller.signal })
+    return fetch("/api/accounts", { signal: controller.signal })
       .then(async response => {
         if (!response.ok) {
           errorHandled = true;
@@ -5162,7 +5182,14 @@ window.pageScripts["copy-trading"] = function () {
 
   // --- Master Orders Display ---
   window.loadMasterOrders = function() {
-    fetch('/api/master-orders')
+    if (window.masterOrdersAbortController) {
+      window.masterOrdersAbortController.abort();
+    }
+
+    const controller = new AbortController();
+    window.masterOrdersAbortController = controller;
+
+    fetch('/api/master-orders', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         const listGroup = document.getElementById("master-orders-list");
@@ -5201,10 +5228,18 @@ window.pageScripts["copy-trading"] = function () {
         // No longer need enableDropdowns as Bootstrap handles this
       })
       .catch(err => {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
         console.error("Error loading master orders:", err);
         document.getElementById("master-orders-list").innerHTML = `<div class="p-3 text-center text-danger">Failed to load master orders.</div>`;
         document.getElementById("master-orders-empty-state").style.display = 'none';
         showMessage("Failed to load master orders.", 'danger');
+      })
+      .finally(() => {
+        if (window.masterOrdersAbortController === controller) {
+          window.masterOrdersAbortController = null;
+        }
       });
   };
 
@@ -5417,23 +5452,60 @@ window.pageScripts["copy-trading"] = function () {
     });
   };
 
-  window.removeChild = function(clientId) {
+  window.removeChild = async function(clientId) {
     if (!confirm(`Are you sure you want to remove child account ${clientId}? This will stop all copy trading for this account.`)) return;
-    fetch("/api/remove-child", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: clientId })
-    })
-    .then(res => res.json())
-    .then(data => {
+
+    const viewState = captureAccountUiState();
+    const ensureArrays = arr => (Array.isArray(arr) ? arr : []);
+    const currentChildren = ensureArrays(window.childAccounts);
+    const childIndex = currentChildren.findIndex(child => child.client_id === clientId);
+    if (childIndex !== -1) {
+      currentChildren.splice(childIndex, 1);
+    }
+    ensureArrays(window.masterAccounts).forEach(master => {
+      if (Array.isArray(master.children)) {
+        const idx = master.children.findIndex(child => child.client_id === clientId);
+        if (idx !== -1) {
+          master.children.splice(idx, 1);
+        }
+      }
+    });
+    delete window.exitedChildren[clientId];
+
+    renderAccountsView({
+      masters: window.masterAccounts,
+      children: window.childAccounts,
+      unassigned: window.unassignedAccounts,
+      ...viewState
+    });
+
+    try {
+      const res = await fetch("/api/remove-child", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || res.statusText);
+      }
       showMessage(data.message);
-      delete window.exitedChildren[clientId]; // Remove from exitedChildren if it was marked
-      window.loadAccounts();
-    })
-    .catch(err => {
+    } catch (err) {
       console.error("Error removing child:", err);
       showMessage("Failed to remove child.", 'danger');
-    });
+    }
+
+    try {
+      await reloadAccountsWhenIdle();
+    } catch (reloadErr) {
+      console.error("Failed to reload accounts after removing child:", reloadErr);
+      renderAccountsView({
+        masters: window.masterAccounts,
+        children: window.childAccounts,
+        unassigned: window.unassignedAccounts,
+        ...captureAccountUiState()
+      });
+    }
   };
 
   window.squareOffPosition = function(masterId, childId) {
