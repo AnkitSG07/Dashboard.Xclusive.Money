@@ -269,6 +269,7 @@ window.pageScripts["Add-Account"] = function() {
     ACCOUNTS_CACHE_TTL_MS
   );
   const AUTO_LOGIN_RETRY_INTERVAL_MS = 5 * 60 * 1000; // five minutes between retries
+  const AUTO_LOGIN_CHECKING_TIMEOUT_MS = 30 * 1000; // reset "checking" states after 30s
 
   if (!window.CSS) {
     window.CSS = {};
@@ -636,6 +637,55 @@ window.pageScripts["Add-Account"] = function() {
     state.cachedAutoLoginResults = cloneAutoLoginResults(autoLoginResults);
   }
 
+  function getAutoLoginLastAttempt(result) {
+    if (!result || typeof result !== 'object') {
+      return 0;
+    }
+    return typeof result.lastAttemptAt === 'number' ? result.lastAttemptAt : 0;
+  }
+
+  function isAutoLoginResultFresh(result) {
+    const lastAttemptAt = getAutoLoginLastAttempt(result);
+    if (!lastAttemptAt) {
+      return false;
+    }
+    return Date.now() - lastAttemptAt <= ACCOUNTS_CACHE_TTL_MS;
+  }
+
+  function isAutoLoginCheckingStuck(result) {
+    if (!result || result.status !== 'checking') {
+      return false;
+    }
+    const lastAttemptAt = getAutoLoginLastAttempt(result);
+    if (!lastAttemptAt) {
+      return true;
+    }
+    return Date.now() - lastAttemptAt > AUTO_LOGIN_CHECKING_TIMEOUT_MS;
+  }
+
+  function resetStaleAutoLoginResults() {
+    let removed = false;
+    const now = Date.now();
+    Object.entries(autoLoginResults).forEach(([clientId, result]) => {
+      if (!result || typeof result !== 'object') {
+        delete autoLoginResults[clientId];
+        removed = true;
+        return;
+      }
+
+      const lastAttemptAt = getAutoLoginLastAttempt(result);
+      const isStale = !lastAttemptAt || now - lastAttemptAt > ACCOUNTS_CACHE_TTL_MS;
+      if (isAutoLoginCheckingStuck(result) || isStale) {
+        delete autoLoginResults[clientId];
+        removed = true;
+      }
+    });
+    if (removed) {
+      persistAutoLoginState();
+    }
+    return removed;
+  }
+
   function shouldAttemptAutoLogin(acc) {
     if (!acc || !acc.client_id) {
       return false;
@@ -982,9 +1032,11 @@ window.pageScripts["Add-Account"] = function() {
 
   persistAutoLoginState();
   pruneAutoLoginResults();
+  resetStaleAutoLoginResults();
 
   const hasFreshCache = isCacheFresh(state.cachedAccounts, ACCOUNTS_CACHE_TTL_MS);
-
+  const hasCachedAutoLoginResults = Object.keys(autoLoginResults).length > 0;
+  
   if (allAccounts.length) {
     populateBrokerCarousel();
     renderAccounts(allAccounts);
@@ -997,7 +1049,7 @@ window.pageScripts["Add-Account"] = function() {
   }
   persistFiltersAndSelection();
 
-  if (allAccounts.length && hasFreshCache) {
+  if (allAccounts.length && (hasFreshCache || hasCachedAutoLoginResults)) {
     scheduleAutoLoginChecks();
   }
 
@@ -1731,10 +1783,50 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   function formatDateTime(value) {
-    if (!value) return '--';
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return date.toLocaleString('en-IN', { hour12: false });
+  const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  function parseApiTimestamp(value) {
+    if (!value) return null;
+    if (value instanceof Date) {
+      const time = value.getTime();
+      return Number.isNaN(time) ? null : new Date(time);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const isoLike = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+      const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(isoLike);
+      const normalized = hasTimezone ? isoLike : `${isoLike}Z`;
+      const utcDate = new Date(normalized);
+      if (!Number.isNaN(utcDate.getTime())) {
+        return utcDate;
+      }
+    }
+
+    const fallbackDate = new Date(value);
+    return Number.isNaN(fallbackDate.getTime()) ? null : fallbackDate;
+  }
+
+  function formatDateTime(value) {
+    const date = parseApiTimestamp(value);
+    if (!date) return '--';
+    try {
+      return DATE_TIME_FORMATTER.format(date);
+    } catch (err) {
+      console.warn('Failed to format date:', err);
+      return '--';
+    }
   }
 
   function getDeveloperUrl(acc) {
@@ -1828,8 +1920,9 @@ window.pageScripts["Add-Account"] = function() {
 
   function renderStatusBadge(acc) {
     const auto = autoLoginResults[acc.client_id];
+    const useAutoStatus = auto && isAutoLoginResultFresh(auto) && !isAutoLoginCheckingStuck(auto);
     const lastErr = acc.last_error || (Array.isArray(acc.errors) ? acc.errors[0] : acc.errors);
-    if (auto) {
+    if (useAutoStatus) {
       if (auto.status === 'error') {
         const msg = auto.error ? escapeHtml(auto.error) : 'Error';
         return `<span class="badge badge-danger" title="${msg}">Error</span>`;
