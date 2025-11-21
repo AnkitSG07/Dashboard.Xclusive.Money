@@ -268,6 +268,7 @@ window.pageScripts["Add-Account"] = function() {
     Number.isFinite(window.PAGE_PREFETCH_DEFAULT_TTL) ? window.PAGE_PREFETCH_DEFAULT_TTL : 2 * 60 * 1000,
     ACCOUNTS_CACHE_TTL_MS
   );
+  const ACCOUNTS_CACHE_STORAGE_KEY = 'add-account:accounts-cache';
   const AUTO_LOGIN_RETRY_INTERVAL_MS = 5 * 60 * 1000; // five minutes between retries
   const AUTO_LOGIN_CHECKING_TIMEOUT_MS = 30 * 1000; // reset "checking" states after 30s
 
@@ -324,7 +325,8 @@ window.pageScripts["Add-Account"] = function() {
   const previousCachedAccounts = previousState && previousState.cachedAccounts;
   const previousCachedAutoLoginResults = previousState && previousState.cachedAutoLoginResults;
   const previousCachedFilters = previousState && previousState.cachedFilters;
-
+  const persistedAccountsCache = previousCachedAccounts ? null : readPersistedAccountsCache();
+  
   // Ensure the Add Account prefetch cache is defined before it is read.
   let cachedAddAccountPrefetch = null;
   const prefetchedAccountsCache = previousCachedAccounts ? null : readAddAccountPrefetch();
@@ -350,6 +352,8 @@ window.pageScripts["Add-Account"] = function() {
           signature: previousCachedAccounts.signature || null,
           fetchedAt: previousCachedAccounts.fetchedAt || null
         }
+      : persistedAccountsCache
+        ? normalizeAccountsCache(persistedAccountsCache)
       : prefetchedAccountsCache
         ? clonePrefetchedAccountsCache(prefetchedAccountsCache)
         : null,
@@ -596,14 +600,62 @@ window.pageScripts["Add-Account"] = function() {
   }
 
   function createAccountsCache(accounts, signatureOverride) {
-    const cloned = cloneAccountsList(accounts);
+    const normalized = normalizeAccountsCache(
+      {
+        accounts,
+        signature: typeof signatureOverride === 'string' ? signatureOverride : null,
+        fetchedAt: Date.now()
+      },
+      Date.now()
+    );
+    persistAccountsCache(normalized);
+    return normalized;
+  }
+
+  function normalizeAccountsCache(cache, defaultFetchedAt) {
+    if (!cache || typeof cache !== 'object') {
+      return null;
+    }
+    const accounts = Array.isArray(cache.accounts) ? cloneAccountsList(cache.accounts) : [];
+    const fetchedAt = typeof cache.fetchedAt === 'number'
+      ? cache.fetchedAt
+      : (typeof defaultFetchedAt === 'number' ? defaultFetchedAt : Date.now());
+    const signature = typeof cache.signature === 'string'
+      ? cache.signature
+      : computeAccountsSignature(accounts);
     return {
-      accounts: cloned,
-      signature: typeof signatureOverride === 'string'
-        ? signatureOverride
-        : computeAccountsSignature(cloned),
-      fetchedAt: Date.now()
+      accounts,
+      signature,
+      fetchedAt
     };
+  }
+
+  function readPersistedAccountsCache() {
+    const raw = safeStorageGet(ACCOUNTS_CACHE_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeAccountsCache(parsed);
+    } catch (error) {
+      console.warn('Failed to parse persisted accounts cache:', error);
+      safeStorageRemove(ACCOUNTS_CACHE_STORAGE_KEY);
+      return null;
+    }
+  }
+
+  function persistAccountsCache(cache) {
+    const normalized = normalizeAccountsCache(cache);
+    if (!normalized) {
+      safeStorageRemove(ACCOUNTS_CACHE_STORAGE_KEY);
+      return;
+    }
+    try {
+      safeStorageSet(ACCOUNTS_CACHE_STORAGE_KEY, JSON.stringify(normalized));
+    } catch (error) {
+      console.warn('Failed to persist accounts cache:', error);
+    }
   }
 
   function isCacheFresh(cache, ttl) {
