@@ -1782,7 +1782,6 @@ window.pageScripts["Add-Account"] = function() {
     return '—';
   }
 
-  function formatDateTime(value) {
   const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
     year: 'numeric',
@@ -3171,5 +3170,6 @@ if (document.readyState !== 'loading') {
 } else {
   document.addEventListener('DOMContentLoaded', initAddAccountPage);
 }
+
 </script>
 {% endblock %}
