@@ -599,6 +599,49 @@ window.pageScripts["Add-Account"] = function() {
     }
   }
 
+  function isEmptyAccountField(value) {
+    return value === undefined || value === null || value === '';
+  }
+
+  function mergeAccountRecords(existing, incoming) {
+    if (!existing || typeof existing !== 'object') {
+      return { ...incoming };
+    }
+    const merged = { ...incoming };
+    Object.keys(existing).forEach(key => {
+      if (isEmptyAccountField(incoming[key]) && !isEmptyAccountField(existing[key])) {
+        merged[key] = existing[key];
+      }
+    });
+    return merged;
+  }
+
+  function mergeAccountsByClientId(existingAccounts, incomingAccounts) {
+    if (!Array.isArray(incomingAccounts)) {
+      return [];
+    }
+
+    const existingMap = new Map();
+    if (Array.isArray(existingAccounts)) {
+      existingAccounts.forEach(acc => {
+        if (acc && typeof acc === 'object' && acc.client_id) {
+          existingMap.set(acc.client_id, acc);
+        }
+      });
+    }
+
+    return incomingAccounts.map(acc => {
+      if (!acc || typeof acc !== 'object') {
+        return acc;
+      }
+      const cid = acc.client_id;
+      if (!cid || !existingMap.has(cid)) {
+        return { ...acc };
+      }
+      return mergeAccountRecords(existingMap.get(cid), acc);
+    });
+  }
+
   function createAccountsCache(accounts, signatureOverride) {
     const normalized = normalizeAccountsCache(
       {
@@ -3177,11 +3220,17 @@ window.pageScripts["Add-Account"] = function() {
   fetchJson('/api/accounts?cache_only=1', { signal: accountsFetchController.signal })
     .then(data => {
       const newAccounts = Array.isArray(data.accounts) ? data.accounts : [];
-      const newSignature = computeAccountsSignature(newAccounts);
+      const existingAccounts = state.cachedAccounts
+        ? state.cachedAccounts.accounts
+        : persistedAccountsCache && Array.isArray(persistedAccountsCache.accounts)
+          ? persistedAccountsCache.accounts
+          : [];
+      const mergedAccounts = mergeAccountsByClientId(existingAccounts, newAccounts);
+      const newSignature = computeAccountsSignature(mergedAccounts);
       const previousSignature = state.cachedAccounts ? state.cachedAccounts.signature : null;
       const shouldUpdateUI = !hasFreshCache || previousSignature !== newSignature;
 
-      const newCache = createAccountsCache(newAccounts, newSignature);
+      const newCache = createAccountsCache(mergedAccounts, newSignature);
       state.cachedAccounts = newCache;
       updateAddAccountPrefetch(newCache);
       allAccounts = cloneAccountsList(newCache.accounts);
