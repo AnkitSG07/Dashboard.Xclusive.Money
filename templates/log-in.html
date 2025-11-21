@@ -379,8 +379,6 @@
                 </span>
             </button>
 
-            <p class="status-message" id="loginStatus" role="status" aria-live="polite"></p>
-
             <a href="{{ url_for('auth.login_otp') }}" class="btn btn-secondary" id="loginOtpLink">Login with OTP</a>
         </form>
 
@@ -527,23 +525,18 @@
             }
 
             if (buttonStatus) {
-                buttonStatus.textContent = 'Logging in...';
+                buttonStatus.textContent = '';
             }
 
             if (loginButtonLabel) {
-                loginButtonLabel.textContent = 'Login';
+                loginButtonLabel.textContent = '';
             }
 
             disableOtpLink();
 
-            if (loginStatus) {
-                loginStatus.textContent = 'Logged in successfully. Please wait while we prepare your dashboard.';
-                loginStatus.classList.add('show');
-            }
-
             showToast('Logged in successfully. Please wait while we prepare your dashboard.', 'success');
         });
-
+        
         if (Array.isArray(window.serverMessages)) {
             window.serverMessages.forEach(function(messageTuple) {
                 if (!Array.isArray(messageTuple) || messageTuple.length < 2) {
@@ -564,4 +557,5 @@
     </script>
 </body>
 </html>
+
 
