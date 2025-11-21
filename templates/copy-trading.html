@@ -2601,6 +2601,11 @@ window.pageScripts["copy-trading"] = function () {
         const childQty = child.copy_qty != null ? child.copy_qty : '';
         const valueLimit = child.copy_value_limit;
         const remainingValue = valueLimit != null ? (valueLimit - (child.copied_value || 0)) : null;
+        const valueMode = valueLimit != null;
+        const qtyDisabled = valueMode ? 'disabled' : '';
+        const valueModeBadge = valueMode
+          ? `<span class="badge badge-info" title="Quantity editing is disabled while value mode is active. Remove the value limit to edit quantity.">Value mode</span>`
+          : '';  
         const childOpen = openChildrenSet.has(childDomId);
         const detailContent = `
                 <div class="expanded-row-content">
@@ -2712,8 +2717,8 @@ window.pageScripts["copy-trading"] = function () {
                   <td>
                     <div class="flex items-center justify-center gap-2">
                       <div class="copy-qty-control" style="align-items:center;">
-                        <input type="number" min="1" step="1" id="qty-${childDomId}" value="${childQty}" onkeydown="event.stopPropagation();" onclick="event.stopPropagation();">
-                        <button class="btn btn-sm btn-outline" onclick='event.stopPropagation(); window.updateCopyQty("${rawChildId}")'>Save</button>
+                        <input type="number" min="1" step="1" id="qty-${childDomId}" value="${childQty}" onkeydown="event.stopPropagation();" onclick="event.stopPropagation();" ${qtyDisabled}>
+                        <button class="btn btn-sm btn-outline" onclick='event.stopPropagation(); window.updateCopyQty("${rawChildId}")' ${qtyDisabled}>Save</button>
                         <button class="btn btn-icon btn-ghost" type="button" onclick="event.stopPropagation();" title="Set fixed quantity for copied trades. Master trade size is ignored when a quantity is set.">
                           <svg class="icon icon-sm" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -2721,6 +2726,7 @@ window.pageScripts["copy-trading"] = function () {
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                           </svg>
                         </button>
+                        ${valueModeBadge}
                       </div>
                       ${remainingValue != null ? `<span class="badge badge-secondary">Balance ₹${remainingValue.toFixed(2)}</span>` : ''}
                     </div>
@@ -5690,7 +5696,18 @@ window.pageScripts["copy-trading"] = function () {
   };
 
   window.updateCopyQty = function(clientId) {
+    const child = (window.childAccounts || []).find(acc => String(acc.client_id) === String(clientId));
+    if (child && child.copy_value_limit != null) {
+      showMessage("Quantity editing is disabled while value mode is active. Remove the value limit to edit quantity.", 'warning');
+      return;
+    }
+
     const inputElement = document.getElementById(`qty-${domId(clientId)}`);
+    if (!inputElement) {
+      showMessage("Unable to locate quantity input for this child.", 'danger');
+      return;
+    }
+
     const newQty = parseInt(inputElement.value, 10);
 
     if (isNaN(newQty) || newQty < 1) {
